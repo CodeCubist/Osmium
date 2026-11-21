@@ -175,7 +175,7 @@ public sealed partial class MainWindow : Window
             string displayText = peer.IsBeingControlled ? $"● {baseName}" : baseName;
 
             string tooltipText =
-                $"{baseName} · {LocalizationService.GetString(peer.IsOnline ? "Status_Online" : "Status_Offline")}";
+                $"{baseName} - {LocalizationService.GetString(peer.IsOnline ? "Status_Online" : "Status_Offline")}";
             if (peer.IsBeingControlled)
             {
                 bool isSameAccountCtrl = !string.IsNullOrWhiteSpace(peer.ControllerUserId) &&
@@ -190,7 +190,7 @@ public sealed partial class MainWindow : Window
                 if (!string.IsNullOrWhiteSpace(who))
                 {
                     tooltipText =
-                        $"{baseName} · {LocalizationService.Format("Session_WhoControllingWhomFmt", who, baseName)}";
+                        $"{baseName} - {LocalizationService.Format("Session_WhoControllingWhomFmt", who, baseName)}";
                 }
             }
 

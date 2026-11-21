@@ -41,7 +41,7 @@ public sealed partial class RemoteConnectPage : Page
                 _activeStreamStartedSink?.Invoke();
                 ClientLiveStatsCard.Visibility = Visibility.Visible;
                 ClientLiveStatsText.Text =
-                    $"{stats.VideoWidth}×{stats.VideoHeight} @ {stats.Fps:F1} FPS · {stats.BitrateMbps:F2} Mbps · {stats.DecoderName} · {stats.DecodeLatencyMs:F2} ms · RTT {stats.RttMs} ms";
+                    $"{stats.VideoWidth}×{stats.VideoHeight} @ {stats.Fps:F1} FPS - {stats.BitrateMbps:F2} Mbps - {stats.DecoderName} - {stats.DecodeLatencyMs:F2} ms - RTT {stats.RttMs} ms";
             });
 
         coord.ClientSessionEnded += _ =>

@@ -56,7 +56,7 @@ public sealed partial class RemoteHomePage : Page
                             : info.PeerName)
                     : info.PeerName;
                 ActiveHostBanner.IsOpen = true;
-                ActiveHostBanner.Message = $"{peerLabel} · {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
+                ActiveHostBanner.Message = $"{peerLabel} - {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
                 UpdateHostControllingHeadline();
                 UpdateHostStatusPill();
             });
@@ -67,7 +67,7 @@ public sealed partial class RemoteHomePage : Page
                 if (ActiveHostBanner.IsOpen)
                 {
                     ActiveHostBanner.Message =
-                        $"{stats.CaptureWidth}×{stats.CaptureHeight} @ {stats.Fps:F1} FPS · {stats.BitrateMbps:F2} Mbps · RTT {stats.RttMs} ms";
+                        $"{stats.CaptureWidth}×{stats.CaptureHeight} @ {stats.Fps:F1} FPS - {stats.BitrateMbps:F2} Mbps - RTT {stats.RttMs} ms";
                 }
             });
 

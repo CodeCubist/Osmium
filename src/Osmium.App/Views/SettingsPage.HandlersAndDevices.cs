@@ -96,7 +96,7 @@ public sealed partial class SettingsPage : Page
     private async void CustomFps_Click(object sender, RoutedEventArgs e)
     {
         var s = App.Engine.SettingsService.Settings;
-        var fpsBox = new NumberBox { Header = "FPS · 10 - 480", Value = s.Fps, Minimum = 10, Maximum = 480 };
+        var fpsBox = new NumberBox { Header = "FPS - 10 - 480", Value = s.Fps, Minimum = 10, Maximum = 480 };
 
         var dlg = new ContentDialog
         {
@@ -551,8 +551,8 @@ public sealed partial class SettingsPage : Page
                 : dev.DeviceName;
 
             string title = isCurrentDevice
-                ? $"{displayName} · {dev.FormattedDeviceId} · {LocalizationService.GetString("Set_DeviceThisTag")}"
-                : $"{displayName} · {dev.FormattedDeviceId}";
+                ? $"{displayName} - {dev.FormattedDeviceId} - {LocalizationService.GetString("Set_DeviceThisTag")}"
+                : $"{displayName} - {dev.FormattedDeviceId}";
 
             string statusText = dev.IsBeingControlled
                 ? LocalizationService.GetString("Status_Streaming")
@@ -562,7 +562,7 @@ public sealed partial class SettingsPage : Page
             var card = new Controls.SettingsRowCard
             {
                 Title = title,
-                Description = $"{statusText} · {dev.OsVersion} · {ipText}",
+                Description = $"{statusText} - {dev.OsVersion} - {ipText}",
                 Glyph = "\uF35A"
             };
 
@@ -647,7 +647,7 @@ public sealed partial class SettingsPage : Page
                 IsEnabled = !hostControlled
             };
             string targetId = dev.DeviceId;
-            string capturedLabel = $"{displayName} · {dev.FormattedDeviceId}";
+            string capturedLabel = $"{displayName} - {dev.FormattedDeviceId}";
             bool capturedIsSelf = isCurrentDevice;
             string capturedNormForSignOut = normId;
             signOutBtn.Click += async (_, _) =>

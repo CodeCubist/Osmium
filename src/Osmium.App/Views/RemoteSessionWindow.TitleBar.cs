@@ -108,7 +108,7 @@ public sealed partial class RemoteSessionWindow : Window
                 TextWrapping = TextWrapping.NoWrap,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            ToolTipService.SetToolTip(tabRoot, $"{label} · {d.Width}×{d.Height} @ {d.RefreshRate}Hz");
+            ToolTipService.SetToolTip(tabRoot, $"{label} - {d.Width}×{d.Height} @ {d.RefreshRate}Hz");
             row.Children.Add(titleTb);
 
             var switchBtn = new Button

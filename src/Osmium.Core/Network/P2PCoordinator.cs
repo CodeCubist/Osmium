@@ -773,7 +773,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
 
                     return string.IsNullOrWhiteSpace(rej.Reason)
-                        ? (true, Tr("Conn_RejectedCode", "Connection rejected · {0}", rej.Code))
+                        ? (true, Tr("Conn_RejectedCode", "Connection rejected - {0}", rej.Code))
                         : (true, Tr("Conn_Rejected", "Connection rejected {0}: {1}", rej.Code, rej.Reason));
                 }
 
@@ -1020,7 +1020,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 string targetDeviceName = hostWhom;
                 if (!isSameAccountSession && !string.IsNullOrWhiteSpace(hostWhom))
                 {
-                    int sepIdx = hostWhom.IndexOf(" · ", StringComparison.Ordinal);
+                    int sepIdx = hostWhom.IndexOf(" - ", StringComparison.Ordinal);
                     if (sepIdx >= 0 && sepIdx + 3 < hostWhom.Length)
                     {
                         targetDeviceName = hostWhom[(sepIdx + 3)..];

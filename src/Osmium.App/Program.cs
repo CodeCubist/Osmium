@@ -210,7 +210,7 @@ public static class Program
         try
         {
             var sb = new StringBuilder();
-            sb.AppendLine(SafeTrFormat("Startup_ErrorTitleFmt", "Osmium failed to start · {0}", stage));
+            sb.AppendLine(SafeTrFormat("Startup_ErrorTitleFmt", "Osmium failed to start - {0}", stage));
             sb.AppendLine();
             sb.AppendLine($"{ex.GetType().Name}: {ex.Message}");
             if (ex.InnerException != null)

@@ -34,7 +34,7 @@ public sealed partial class GamepadMapperPage : Page
                 string msg = LocalizationService.Format("Gamepad_BoundFmt", GetPartDisplayName(targetKey), captured);
                 if (!applied && !string.IsNullOrEmpty(MappingInputBox.Text))
                 {
-                    msg = $"{msg} · {LocalizationService.GetString("Gamepad_ApplyFail")}";
+                    msg = $"{msg} - {LocalizationService.GetString("Gamepad_ApplyFail")}";
                 }
 
                 SetStatusMessage(msg);

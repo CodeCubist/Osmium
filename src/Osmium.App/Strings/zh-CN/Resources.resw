@@ -48,8 +48,6 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
-
-  
   <data name="Nav_SectionThisDevice" xml:space="preserve"><value>本机设备</value></data>
   <data name="Nav_SectionRemoteAssist" xml:space="preserve"><value>远程协助</value></data>
   <data name="Nav_ConnectWorkspace" xml:space="preserve"><value>开始协助</value></data>
@@ -57,8 +55,6 @@
   <data name="Nav_GamepadMapper" xml:space="preserve"><value>手柄映射</value></data>
   <data name="Nav_Settings" xml:space="preserve"><value>设置</value></data>
   <data name="Title_HostStreaming" xml:space="preserve"><value>正在被远程控制</value></data>
-
-  
   <data name="Status_Online" xml:space="preserve"><value>在线</value></data>
   <data name="Status_Offline" xml:space="preserve"><value>离线</value></data>
   <data name="Status_Streaming" xml:space="preserve"><value>被控中</value></data>
@@ -77,8 +73,6 @@
   <data name="Home_QuickLaunch" xml:space="preserve"><value>快速启动</value></data>
   <data name="Home_AddAssistShortcut" xml:space="preserve"><value>开始远程协助</value></data>
   <data name="Home_HostControllingOverlay" xml:space="preserve"><value>本地被控中</value></data>
-
-  
   <data name="Assist_PageTitle" xml:space="preserve"><value>远程协助</value></data>
   <data name="Assist_ThisDevice" xml:space="preserve"><value>本设备</value></data>
   <data name="Assist_AllowRemote" xml:space="preserve"><value>允许他人远程协助</value></data>
@@ -102,12 +96,10 @@
   <data name="Assist_EndSession" xml:space="preserve"><value>结束远控</value></data>
   <data name="Assist_Connecting" xml:space="preserve"><value>正在建立连接...</value></data>
   <data name="Assist_ShareClipboardFmt" xml:space="preserve"><value>Osmium 设备 ID: {0} | 远控代码: {1}</value></data>
-
-  
-  <data name="Host_PrimaryTag" xml:space="preserve"><value> · 主屏</value></data>
+  <data name="Host_PrimaryTag" xml:space="preserve"><value> - 主屏</value></data>
   <data name="Host_DefaultDisplay" xml:space="preserve"><value>主显示器</value></data>
-  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>显示器 {0} · {1} · {2}×{3} @ {4}Hz{5}</value></data>
-  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>显示器 {0} · {1}×{2} @ {3}Hz{4}</value></data>
+  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>显示器 {0} - {1} - {2}×{3} @ {4}Hz{5}</value></data>
+  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>显示器 {0} - {1}×{2} @ {3}Hz{4}</value></data>
   <data name="Host_SecVideo" xml:space="preserve"><value>采集与编码</value></data>
   <data name="Host_SecSecurity" xml:space="preserve"><value>访问与安全</value></data>
   <data name="Host_SecPermissions" xml:space="preserve"><value>声音与权限</value></data>
@@ -133,8 +125,6 @@
   <data name="Host_RowAudio" xml:space="preserve"><value>传输系统声音</value></data>
   <data name="Host_RowInput" xml:space="preserve"><value>允许远端键鼠与手柄操作</value></data>
   <data name="Host_RowCursor" xml:space="preserve"><value>采集本地鼠标指针</value></data>
-
-  
   <data name="Settings_PageTitle" xml:space="preserve"><value>设置</value></data>
   <data name="Tab_General" xml:space="preserve"><value>常规</value></data>
   <data name="Tab_Video" xml:space="preserve"><value>画面</value></data>
@@ -159,22 +149,19 @@
   <data name="Set_HideToTrayOnMinimize" xml:space="preserve"><value>最小化时直接隐藏到系统托盘</value></data>
   <data name="Set_AutoStart" xml:space="preserve"><value>开机自动启动</value></data>
   <data name="Set_AutoStartDesc" xml:space="preserve"><value>登录 Windows 后自动启动 Osmium</value></data>
-
-  
   <data name="Tray_OpenMain" xml:space="preserve"><value>打开 Osmium</value></data>
   <data name="Tray_AutoStart" xml:space="preserve"><value>开机自动启动</value></data>
   <data name="Tray_DisconnectHost" xml:space="preserve"><value>断开当前被控连接</value></data>
   <data name="Tray_Exit" xml:space="preserve"><value>退出 Osmium</value></data>
   <data name="Tray_TooltipControlling" xml:space="preserve"><value>Osmium - 正在被远程控制</value></data>
-
   <data name="Set_ResTitle" xml:space="preserve"><value>分辨率</value></data>
-  <data name="Set_ResNativeLabel" xml:space="preserve"><value>显示器 {0} · {1}×{2}</value></data>
-  <data name="Set_ResCustomLabel" xml:space="preserve"><value>自定义 · {0}×{1}</value></data>
+  <data name="Set_ResNativeLabel" xml:space="preserve"><value>显示器 {0} - {1}×{2}</value></data>
+  <data name="Set_ResCustomLabel" xml:space="preserve"><value>自定义 - {0}×{1}</value></data>
   <data name="Set_FpsTitle" xml:space="preserve"><value>帧率上限</value></data>
-  <data name="Set_FpsNativeLabel" xml:space="preserve"><value>{0} FPS · 原生</value></data>
+  <data name="Set_FpsNativeLabel" xml:space="preserve"><value>{0} FPS - 原生</value></data>
   <data name="Set_CustomBtn" xml:space="preserve"><value>自定义</value></data>
-  <data name="Set_CustomResWidth" xml:space="preserve"><value>宽度 · 256 - 8192</value></data>
-  <data name="Set_CustomResHeight" xml:space="preserve"><value>高度 · 144 - 4320</value></data>
+  <data name="Set_CustomResWidth" xml:space="preserve"><value>宽度 - 256 - 8192</value></data>
+  <data name="Set_CustomResHeight" xml:space="preserve"><value>高度 - 144 - 4320</value></data>
   <data name="Set_BitrateTitle" xml:space="preserve"><value>视频码率</value></data>
   <data name="Set_ResetRec" xml:space="preserve"><value>推荐 {0} Mbps</value></data>
   <data name="Set_AutoBitrate" xml:space="preserve"><value>自动匹配推荐码率</value></data>
@@ -198,7 +185,6 @@
   <data name="Set_PerfOverlay" xml:space="preserve"><value>默认显示性能监控悬浮窗</value></data>
   <data name="Set_ConnWarn" xml:space="preserve"><value>显示网络波动警告</value></data>
   <data name="Set_ConfWarn" xml:space="preserve"><value>显示解码与配置警告</value></data>
-
   <data name="Set_AudioChannels" xml:space="preserve"><value>声道配置</value></data>
   <data name="Set_AudioStereo" xml:space="preserve"><value>立体声 2.0</value></data>
   <data name="Set_Audio51" xml:space="preserve"><value>5.1 环绕声</value></data>
@@ -217,7 +203,6 @@
   <data name="Set_SwapFace" xml:space="preserve"><value>交换手柄 A/B 与 X/Y 按键</value></data>
   <data name="Set_GamepadMouse" xml:space="preserve"><value>长按 Start 键启用手柄鼠标</value></data>
   <data name="Set_BgGamepad" xml:space="preserve"><value>窗口失焦时保持手柄输入</value></data>
-
   <data name="Set_ServerUrl" xml:space="preserve"><value>服务器地址</value></data>
   <data name="Set_SaveReconnect" xml:space="preserve"><value>保存并重连</value></data>
   <data name="Set_AutoConnect" xml:space="preserve"><value>启动时自动连接服务端</value></data>
@@ -229,32 +214,26 @@
   <data name="Set_DisableEncryptionWarnTitle" xml:space="preserve"><value>关闭加密传输警告</value></data>
   <data name="Set_DisableEncryptionWarnBody" xml:space="preserve"><value>警告：关闭加密传输后，远程画面、音频以及键盘鼠标输入数据将以明文形式在网络中传输，可能被中间人窃听或篡改。仅建议在完全可信的局域网环境中使用，且被控端与主控端均需关闭加密后才能建立连接。确定要关闭加密传输吗？</value></data>
   <data name="Set_DisableEncryptionConfirm" xml:space="preserve"><value>确认关闭</value></data>
-
   <data name="Settings_CustomResLabel" xml:space="preserve"><value>自定义分辨率</value></data>
   <data name="Settings_CustomFpsLabel" xml:space="preserve"><value>自定义帧率</value></data>
   <data name="Settings_LangRestartNotice" xml:space="preserve"><value>语言设置已保存，正在重启软件以应用更改...</value></data>
   <data name="Settings_LangRestartPendingTitle" xml:space="preserve"><value>远控结束后自动重启</value></data>
   <data name="Settings_LangRestartPendingMsg" xml:space="preserve"><value>当前正在进行远程控制，语言更改已保存，将在远控结束后自动退出并重启软件。</value></data>
-
-  
   <data name="Gamepad_HeaderTitle" xml:space="preserve"><value>手柄映射</value></data>
   <data name="Gamepad_RefreshBtn" xml:space="preserve"><value>刷新</value></data>
   <data name="Gamepad_RowSelect" xml:space="preserve"><value>选择控制器</value></data>
   <data name="Gamepad_TypeStd" xml:space="preserve"><value>标准手柄</value></data>
   <data name="Gamepad_TypeRaw" xml:space="preserve"><value>原始摇杆</value></data>
-  <data name="Gamepad_MetaFmt" xml:space="preserve"><value>GUID: {0} · 按键: {1} · 轴: {2} · 十字键: {3}</value></data>
+  <data name="Gamepad_MetaFmt" xml:space="preserve"><value>GUID: {0} - 按键: {1} - 轴: {2} - 十字键: {3}</value></data>
   <data name="Gamepad_ApplyBtn" xml:space="preserve"><value>应用</value></data>
   <data name="Gamepad_ApplyOk" xml:space="preserve"><value>映射已应用</value></data>
   <data name="Gamepad_ApplyFail" xml:space="preserve"><value>映射字符串格式无效</value></data>
-
-  
   <data name="Dialog_IncomingTitle" xml:space="preserve"><value>收到远程控制请求</value></data>
-  <data name="Dialog_IncomingBody" xml:space="preserve"><value>设备 &quot;{0}&quot; · {1} 请求远程控制本机。&#x0a;来源 IP: {2}&#x0a;&#x0a;是否允许建立连接？</value></data>
+  <data name="Dialog_IncomingBody" xml:space="preserve"><value>设备 &quot;{0}&quot; - {1} 请求远程控制本机。&#x0a;来源 IP: {2}&#x0a;&#x0a;是否允许建立连接？</value></data>
   <data name="Dialog_Allow" xml:space="preserve"><value>允许接入</value></data>
   <data name="Dialog_Deny" xml:space="preserve"><value>拒绝</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>确定</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>取消</value></data>
-
   <data name="Conn_InvalidId" xml:space="preserve"><value>请输入有效的对方设备 ID</value></data>
   <data name="Conn_EmptyCode" xml:space="preserve"><value>请输入远控代码</value></data>
   <data name="Conn_Offline" xml:space="preserve"><value>本机尚未连接到服务，请检查网络或服务器地址</value></data>
@@ -277,17 +256,13 @@
   <data name="Conn_Starting" xml:space="preserve"><value>校验通过，正在启动远程画面...</value></data>
   <data name="Conn_SessionEnded" xml:space="preserve"><value>会话已结束</value></data>
   <data name="Conn_Timeout" xml:space="preserve"><value>连接超时或已取消</value></data>
-
-  
   <data name="Tab_CaptureSecurity" xml:space="preserve"><value>采集与安全</value></data>
-
   <data name="Assist_ConnectingTitle" xml:space="preserve"><value>正在建立远程连接</value></data>
   <data name="Assist_CancelBtn" xml:space="preserve"><value>取消连接</value></data>
   <data name="Assist_TargetLabel" xml:space="preserve"><value>目标设备：{0}</value></data>
   <data name="Assist_CopiedBtn" xml:space="preserve"><value>已复制 ✓</value></data>
   <data name="Assist_ErrorTitle" xml:space="preserve"><value>连接失败</value></data>
   <data name="Assist_OkBtn" xml:space="preserve"><value>确定</value></data>
-
   <data name="Gamepad_VisualTitle" xml:space="preserve"><value>图形化按键映射与实时测试</value></data>
   <data name="Gamepad_BindHintIdle" xml:space="preserve"><value>点击手柄图中的任意按键或摇杆即可开始自定义映射</value></data>
   <data name="Gamepad_BindListening" xml:space="preserve"><value>正在监听 [{0}] — 请按下物理手柄按键或拨动摇杆...</value></data>
@@ -301,8 +276,7 @@
   <data name="Gamepad_ClearedFmt" xml:space="preserve"><value>已清除 [{0}] 的绑定</value></data>
   <data name="Gamepad_ResetDialogTitle" xml:space="preserve"><value>恢复默认布局</value></data>
   <data name="Gamepad_ResetOk" xml:space="preserve"><value>已恢复标准手柄默认布局</value></data>
-  <data name="Gamepad_SwapBadge" xml:space="preserve"><value>已启用 A/B · X/Y 键值互换</value></data>
-
+  <data name="Gamepad_SwapBadge" xml:space="preserve"><value>已启用 A/B - X/Y 键值互换</value></data>
   <data name="Gamepad_Part_A" xml:space="preserve"><value>A 键</value></data>
   <data name="Gamepad_Part_B" xml:space="preserve"><value>B 键</value></data>
   <data name="Gamepad_Part_X" xml:space="preserve"><value>X 键</value></data>
@@ -324,7 +298,6 @@
   <data name="Gamepad_Part_Down" xml:space="preserve"><value>方向键 ↓</value></data>
   <data name="Gamepad_Part_Left" xml:space="preserve"><value>方向键 ←</value></data>
   <data name="Gamepad_Part_Right" xml:space="preserve"><value>方向键 →</value></data>
-
   <data name="Host_RowDrivers" xml:space="preserve"><value>本机虚拟外设驱动</value></data>
   <data name="Host_DriversReady" xml:space="preserve"><value>USB/IP 虚拟鼠标与音频外设驱动已就绪</value></data>
   <data name="Host_DriversMissing" xml:space="preserve"><value>未安装 USB/IP 虚拟外设驱动</value></data>
@@ -342,15 +315,11 @@
   <data name="Dialog_DriverActionUninstall" xml:space="preserve"><value>卸载</value></data>
   <data name="Dialog_DriverConfirmBodyFmt" xml:space="preserve"><value>主控设备“{0}”请求在本机{1}虚拟外设驱动，是否允许？</value></data>
   <data name="Dialog_DefaultPeerName" xml:space="preserve"><value>远端主控设备</value></data>
-
-  
   <data name="Common_On" xml:space="preserve"><value>开启</value></data>
   <data name="Common_Off" xml:space="preserve"><value>关闭</value></data>
   <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium 启动错误</value></data>
-  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium 启动失败 · {0}</value></data>
+  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium 启动失败 - {0}</value></data>
   <data name="Startup_CrashLogSavedFmt" xml:space="preserve"><value>崩溃日志已保存至：</value></data>
-
-  
   <data name="Session_DefaultHostTitle" xml:space="preserve"><value>远程设备</value></data>
   <data name="Session_WaitingVideo" xml:space="preserve"><value>正在建立远程桌面画面...</value></data>
   <data name="Session_PipelineInitFailed" xml:space="preserve"><value>无法初始化 WinUI 3 D3D11 视频渲染管线</value></data>
@@ -359,9 +328,9 @@
   <data name="Session_ViewResTitle" xml:space="preserve"><value>画面查看分辨率</value></data>
   <data name="Session_NativeResUnknown" xml:space="preserve"><value>被控端原生分辨率: --</value></data>
   <data name="Session_NativeResFmt" xml:space="preserve"><value>被控端当前原生分辨率: {0} × {1}</value></data>
-  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100% 原生画质 · {0}×{1}</value></data>
-  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}% 缩小传输 · {1}×{2}</value></data>
-  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1} 等比缩小 · {2}×{3}</value></data>
+  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100% 原生画质 - {0}×{1}</value></data>
+  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}% 缩小传输 - {1}×{2}</value></data>
+  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1} 等比缩小 - {2}×{3}</value></data>
   <data name="Session_FpsColorTitle" xml:space="preserve"><value>帧率上限与色彩传输</value></data>
   <data name="Session_HdrHeader" xml:space="preserve"><value>HDR 10-bit</value></data>
   <data name="Session_HdrRequiresHostHint" xml:space="preserve"><value>需先在被控端开启 Windows HDR 后才可启用</value></data>
@@ -371,8 +340,8 @@
   <data name="Session_MouseController" xml:space="preserve"><value>主控端鼠标</value></data>
   <data name="Session_MouseVirtual" xml:space="preserve"><value>被控端鼠标</value></data>
   <data name="Session_MouseSmart" xml:space="preserve"><value>智能鼠标</value></data>
-  <data name="Session_MouseSmartLocked" xml:space="preserve"><value>智能 · 已锁定</value></data>
-  <data name="Session_MouseVirtualPaused" xml:space="preserve"><value>虚拟 · 点击锁定</value></data>
+  <data name="Session_MouseSmartLocked" xml:space="preserve"><value>智能 - 已锁定</value></data>
+  <data name="Session_MouseVirtualPaused" xml:space="preserve"><value>虚拟 - 点击锁定</value></data>
   <data name="Session_UseControllerMouse" xml:space="preserve"><value>使用主控端鼠标</value></data>
   <data name="Session_UseVirtualMouse" xml:space="preserve"><value>使用被控端鼠标</value></data>
   <data name="Session_SmartMode" xml:space="preserve"><value>智能模式</value></data>
@@ -381,7 +350,7 @@
   <data name="Session_VirtualSpeaker" xml:space="preserve"><value>虚拟扬声器</value></data>
   <data name="Session_VirtualMic" xml:space="preserve"><value>虚拟麦克风</value></data>
   <data name="Session_LocalMicHeader" xml:space="preserve"><value>本地采集麦克风</value></data>
-  <data name="Session_MicDefaultFmt" xml:space="preserve"><value>{0} · 系统默认</value></data>
+  <data name="Session_MicDefaultFmt" xml:space="preserve"><value>{0} - 系统默认</value></data>
   <data name="Session_NoLocalMic" xml:space="preserve"><value>未检测到可用本地麦克风</value></data>
   <data name="Session_DriversTitle" xml:space="preserve"><value>被控端虚拟驱动管理</value></data>
   <data name="Session_DriverChecking" xml:space="preserve"><value>正在检测被控端驱动状态...</value></data>
@@ -416,7 +385,7 @@
   <data name="Session_CopyBtn" xml:space="preserve"><value>复制</value></data>
   <data name="Session_EndedByHost" xml:space="preserve"><value>被控端已主动断开连接</value></data>
   <data name="Session_EndedFmt" xml:space="preserve"><value>连接已断开: {0}</value></data>
-  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>已捕获光标至被控端虚拟鼠标 · 按 Ctrl+Alt+Shift+M 退出锁定</value></data>
+  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>已捕获光标至被控端虚拟鼠标 - 按 Ctrl+Alt+Shift+M 退出锁定</value></data>
   <data name="Session_ToastEnterPassword" xml:space="preserve"><value>请先输入被控端 Windows 登录密码或 PIN 码</value></data>
   <data name="Session_ToastAutoUnlockEnabled" xml:space="preserve"><value>已启用锁屏自动解锁配置</value></data>
   <data name="Session_ToastAutoUnlockCleared" xml:space="preserve"><value>已清除该设备的自动解锁凭据</value></data>
@@ -443,10 +412,10 @@
   <data name="Session_OsdFpsFmt" xml:space="preserve"><value>帧率: {0} FPS</value></data>
   <data name="Session_OsdBitrateFmt" xml:space="preserve"><value>传输速率: {0} Mbps</value></data>
   <data name="Session_OsdDurationFmt" xml:space="preserve"><value>连接时长: {0}</value></data>
-  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>丢包率: {0}% · 丢帧 {1}</value></data>
-  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>丢包率: {0}% · {1}/{2} · 丢帧 {3}</value></data>
+  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>丢包率: {0}% - 丢帧 {1}</value></data>
+  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>丢包率: {0}% - {1}/{2} - 丢帧 {3}</value></data>
   <data name="Session_OsdDecodeFmt" xml:space="preserve"><value>解码延迟: {0} ms</value></data>
-  <data name="Session_OsdCodecFmt" xml:space="preserve"><value>编解码: {0} / {1} · {2} {3}</value></data>
+  <data name="Session_OsdCodecFmt" xml:space="preserve"><value>编解码: {0} / {1} - {2} {3}</value></data>
   <data name="Session_OsdMouseVirtual" xml:space="preserve"><value>被控端虚拟鼠标</value></data>
   <data name="Session_OsdMouseSmartVirtual" xml:space="preserve"><value>智能虚拟</value></data>
   <data name="Session_OsdMouseSmartController" xml:space="preserve"><value>智能主控</value></data>
@@ -457,16 +426,16 @@
   <data name="Session_DbgLineRouteFmt" xml:space="preserve"><value>连接类型      : {0}</value></data>
   <data name="Session_DbgLineLocalFmt" xml:space="preserve"><value>本机节点      : {0}</value></data>
   <data name="Session_DbgLinePeerFmt" xml:space="preserve"><value>对端节点      : {0}</value></data>
-  <data name="Session_DbgLineSigHostFmt" xml:space="preserve"><value>信令服务器    : {0} · {1}</value></data>
+  <data name="Session_DbgLineSigHostFmt" xml:space="preserve"><value>信令服务器    : {0} - {1}</value></data>
   <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>信令 URI      : {0}</value></data>
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>被控端分辨率  : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>当前传输分辨率: {0} × {1}</value></data>
-  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>帧数 / 延迟   : {0} FPS · 网络 RTT {1} ms · 解码 {2} ms</value></data>
+  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>帧数 / 延迟   : {0} FPS - 网络 RTT {1} ms - 解码 {2} ms</value></data>
   <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>传输速率      : {0} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>连接时长      : {0}</value></data>
-  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>丢包 / 丢帧   : {0}% · 丢 {1} / 收 {2} · 丢帧 {3}</value></data>
-  <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>编码 / 解码器 : {0} · {1} · {2} · {3}</value></data>
-  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>鼠标 / 外设   : 模式 {0} · 锁定={1} · 虚拟扬声器={2} · 虚拟麦={3}</value></data>
+  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>丢包 / 丢帧   : {0}% - 丢 {1} / 收 {2} - 丢帧 {3}</value></data>
+  <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>编码 / 解码器 : {0} - {1} - {2} - {3}</value></data>
+  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>鼠标 / 外设   : 模式 {0} - 锁定={1} - 虚拟扬声器={2} - 虚拟麦={3}</value></data>
   <data name="Nav_Account" xml:space="preserve"><value>账户管理</value></data>
   <data name="Session_WhoControllingWhomFmt" xml:space="preserve"><value>{0} 正在远控 {1}</value></data>
   <data name="Conn_AccountRequired" xml:space="preserve"><value>仅已登录且状态正常的账户可发起远程控制，被控无需登录</value></data>
@@ -577,7 +546,7 @@
   <data name="Conn_TargetOffline" xml:space="preserve"><value>目标设备当前不在线</value></data>
   <data name="Conn_TargetRemoteDisabled" xml:space="preserve"><value>目标设备已关闭允许远程控制</value></data>
   <data name="Conn_SelfConnect" xml:space="preserve"><value>不能连接本机自身</value></data>
-  <data name="Conn_RejectedCode" xml:space="preserve"><value>连接被拒绝 · {0}</value></data>
+  <data name="Conn_RejectedCode" xml:space="preserve"><value>连接被拒绝 - {0}</value></data>
   <data name="Assist_LoginRequiredHint" xml:space="preserve"><value>请先登录后发起远程控制</value></data>
   <data name="Assist_GoLoginBtn" xml:space="preserve"><value>前往登录</value></data>
   <data name="Tab_Devices" xml:space="preserve"><value>设备管理</value></data>
@@ -595,15 +564,15 @@
   <data name="Set_DeviceSignOutSelfBodyFmt" xml:space="preserve"><value>确定要退出当前设备 {0} 的登录状态吗？</value></data>
   <data name="Set_DeviceSignOutSuccess" xml:space="preserve"><value>已成功退出该设备</value></data>
   <data name="Acc_WizardHaveOtpBtn" xml:space="preserve"><value>已有验证码？直接输入</value></data>
-  <data name="Acc_OtpSendCooldownFmt" xml:space="preserve"><value>发送验证码 · {0}s</value></data>
-  <data name="Acc_OtpResendCooldownFmt" xml:space="preserve"><value>重新发送 · {0}s</value></data>
+  <data name="Acc_OtpSendCooldownFmt" xml:space="preserve"><value>发送验证码 - {0}s</value></data>
+  <data name="Acc_OtpResendCooldownFmt" xml:space="preserve"><value>重新发送 - {0}s</value></data>
   <data name="Acc_ModeLoginDesc" xml:space="preserve"><value>使用已有邮箱和密码登录 Osmium 账户</value></data>
   <data name="Acc_ModeRegisterDesc" xml:space="preserve"><value>通过邮箱验证创建新的 Osmium 账户</value></data>
   <data name="Acc_ModeResetDesc" xml:space="preserve"><value>通过邮箱验证码重设您的账户登录密码</value></data>
   <data name="Set_DeviceRenameBtn" xml:space="preserve"><value>重命名</value></data>
   <data name="Set_DeviceRenameTitle" xml:space="preserve"><value>重命名设备</value></data>
   <data name="Set_DeviceRenameHeader" xml:space="preserve"><value>自定义设备名称</value></data>
-  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>原始设备名 · {0} · 最多 24 个字符</value></data>
+  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>原始设备名 - {0} - 最多 24 个字符</value></data>
   <data name="Set_DeviceClearRenameBtn" xml:space="preserve"><value>清除重命名</value></data>
   <data name="Set_DeviceRenameSuccess" xml:space="preserve"><value>设备名称已更新</value></data>
   <data name="Set_DeviceRenameCleared" xml:space="preserve"><value>已恢复设备默认名称</value></data>

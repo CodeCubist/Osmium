@@ -79,7 +79,7 @@ public sealed partial class AccountService : IDisposable
             _ when statusCode == 423 => Tr("Acc_ErrLocked", "Account is currently locked"),
             _ when statusCode == 429 => Tr("Acc_ErrRateLimited", "Too many requests; please try again shortly"),
             _ => code > 0
-                ? $"{Tr("Acc_ErrGeneric", "Request failed; please try again")} · {code}"
+                ? $"{Tr("Acc_ErrGeneric", "Request failed; please try again")} - {code}"
                 : Tr("Acc_ErrGeneric", "Request failed; please try again")
         };
     }

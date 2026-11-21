@@ -492,8 +492,8 @@ public sealed partial class SettingsPage : Page
             { Content = LocalizationService.GetString("Host_ResNative"), Tag = "0x0" });
         foreach (string res in new[]
                  {
-                     "7680x4320 · 8K", "5120x2880 · 5K", "3840x2160 · 4K",
-                     "3440x1440 · UWQHD", "2560x1440 · 2K", "1920x1080 · 1080p", "1280x720 · 720p"
+                     "7680x4320 - 8K", "5120x2880 - 5K", "3840x2160 - 4K",
+                     "3440x1440 - UWQHD", "2560x1440 - 2K", "1920x1080 - 1080p", "1280x720 - 720p"
                  })
         {
             HostMaxResCombo.Items.Add(new ComboBoxItem { Content = res, Tag = res.Split(' ')[0] });
@@ -680,13 +680,13 @@ public sealed partial class SettingsPage : Page
         ClientResCombo.Items.Clear();
         var entries = new List<(int w, int h, string label)>
         {
-            (1280, 720, "720p · 1280×720"),
-            (1920, 1080, "1080p · 1920×1080"),
-            (2560, 1440, "1440p · 2560×1440"),
-            (3440, 1440, "UWQHD · 3440×1440"),
-            (3840, 2160, "4K · 3840×2160"),
-            (5120, 2880, "5K · 5120×2880"),
-            (7680, 4320, "8K · 7680×4320")
+            (1280, 720, "720p - 1280×720"),
+            (1920, 1080, "1080p - 1920×1080"),
+            (2560, 1440, "1440p - 2560×1440"),
+            (3440, 1440, "UWQHD - 3440×1440"),
+            (3840, 2160, "4K - 3840×2160"),
+            (5120, 2880, "5K - 5120×2880"),
+            (7680, 4320, "8K - 7680×4320")
         };
 
         foreach (var d in App.Engine.Displays)

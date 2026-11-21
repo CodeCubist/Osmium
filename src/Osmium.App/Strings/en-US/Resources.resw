@@ -48,8 +48,6 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
-
-  
   <data name="Nav_SectionThisDevice" xml:space="preserve"><value>My Device</value></data>
   <data name="Nav_SectionRemoteAssist" xml:space="preserve"><value>Remote Assist</value></data>
   <data name="Nav_ConnectWorkspace" xml:space="preserve"><value>Start Assist</value></data>
@@ -57,8 +55,6 @@
   <data name="Nav_GamepadMapper" xml:space="preserve"><value>Gamepad Mapper</value></data>
   <data name="Nav_Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="Title_HostStreaming" xml:space="preserve"><value>Remote Session Active</value></data>
-
-  
   <data name="Status_Online" xml:space="preserve"><value>Online</value></data>
   <data name="Status_Offline" xml:space="preserve"><value>Offline</value></data>
   <data name="Status_Streaming" xml:space="preserve"><value>Streaming</value></data>
@@ -77,8 +73,6 @@
   <data name="Home_QuickLaunch" xml:space="preserve"><value>Quick Launch</value></data>
   <data name="Home_AddAssistShortcut" xml:space="preserve"><value>Start Remote Assist</value></data>
   <data name="Home_HostControllingOverlay" xml:space="preserve"><value>Being Controlled</value></data>
-
-  
   <data name="Assist_PageTitle" xml:space="preserve"><value>Remote Assist</value></data>
   <data name="Assist_ThisDevice" xml:space="preserve"><value>This Device</value></data>
   <data name="Assist_AllowRemote" xml:space="preserve"><value>Allow Remote Assist</value></data>
@@ -102,10 +96,10 @@
   <data name="Assist_EndSession" xml:space="preserve"><value>End Session</value></data>
   <data name="Assist_Connecting" xml:space="preserve"><value>Connecting...</value></data>
   <data name="Assist_ShareClipboardFmt" xml:space="preserve"><value>Osmium ID: {0} | Access Code: {1}</value></data>
-  <data name="Host_PrimaryTag" xml:space="preserve"><value> · Primary</value></data>
+  <data name="Host_PrimaryTag" xml:space="preserve"><value> - Primary</value></data>
   <data name="Host_DefaultDisplay" xml:space="preserve"><value>Primary Display</value></data>
-  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>Display {0} · {1} · {2}×{3} @ {4}Hz{5}</value></data>
-  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>Display {0} · {1}×{2} @ {3}Hz{4}</value></data>
+  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>Display {0} - {1} - {2}×{3} @ {4}Hz{5}</value></data>
+  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>Display {0} - {1}×{2} @ {3}Hz{4}</value></data>
   <data name="Host_SecVideo" xml:space="preserve"><value>Capture &amp; Encoding</value></data>
   <data name="Host_SecSecurity" xml:space="preserve"><value>Access &amp; Security</value></data>
   <data name="Host_SecPermissions" xml:space="preserve"><value>Audio &amp; Permissions</value></data>
@@ -161,13 +155,13 @@
   <data name="Tray_Exit" xml:space="preserve"><value>Exit Osmium</value></data>
   <data name="Tray_TooltipControlling" xml:space="preserve"><value>Osmium - Remote Control Active</value></data>
   <data name="Set_ResTitle" xml:space="preserve"><value>Resolution</value></data>
-  <data name="Set_ResNativeLabel" xml:space="preserve"><value>Display {0} · {1}×{2}</value></data>
-  <data name="Set_ResCustomLabel" xml:space="preserve"><value>Custom · {0}×{1}</value></data>
+  <data name="Set_ResNativeLabel" xml:space="preserve"><value>Display {0} - {1}×{2}</value></data>
+  <data name="Set_ResCustomLabel" xml:space="preserve"><value>Custom - {0}×{1}</value></data>
   <data name="Set_FpsTitle" xml:space="preserve"><value>Frame Rate Limit</value></data>
-  <data name="Set_FpsNativeLabel" xml:space="preserve"><value>{0} FPS · Native</value></data>
+  <data name="Set_FpsNativeLabel" xml:space="preserve"><value>{0} FPS - Native</value></data>
   <data name="Set_CustomBtn" xml:space="preserve"><value>Custom</value></data>
-  <data name="Set_CustomResWidth" xml:space="preserve"><value>Width · 256 - 8192</value></data>
-  <data name="Set_CustomResHeight" xml:space="preserve"><value>Height · 144 - 4320</value></data>
+  <data name="Set_CustomResWidth" xml:space="preserve"><value>Width - 256 - 8192</value></data>
+  <data name="Set_CustomResHeight" xml:space="preserve"><value>Height - 144 - 4320</value></data>
   <data name="Set_BitrateTitle" xml:space="preserve"><value>Video Bitrate</value></data>
   <data name="Set_ResetRec" xml:space="preserve"><value>Recommended {0} Mbps</value></data>
   <data name="Set_AutoBitrate" xml:space="preserve"><value>Auto-Adjust Bitrate</value></data>
@@ -230,12 +224,12 @@
   <data name="Gamepad_RowSelect" xml:space="preserve"><value>Controller</value></data>
   <data name="Gamepad_TypeStd" xml:space="preserve"><value>Standard</value></data>
   <data name="Gamepad_TypeRaw" xml:space="preserve"><value>Raw Joystick</value></data>
-  <data name="Gamepad_MetaFmt" xml:space="preserve"><value>GUID: {0} · Buttons: {1} · Axes: {2} · Hats: {3}</value></data>
+  <data name="Gamepad_MetaFmt" xml:space="preserve"><value>GUID: {0} - Buttons: {1} - Axes: {2} - Hats: {3}</value></data>
   <data name="Gamepad_ApplyBtn" xml:space="preserve"><value>Apply</value></data>
   <data name="Gamepad_ApplyOk" xml:space="preserve"><value>Mapping applied</value></data>
   <data name="Gamepad_ApplyFail" xml:space="preserve"><value>Invalid SDL mapping string</value></data>
   <data name="Dialog_IncomingTitle" xml:space="preserve"><value>Incoming Remote Control Request</value></data>
-  <data name="Dialog_IncomingBody" xml:space="preserve"><value>Device &quot;{0}&quot; · {1} wants to control this PC.&#x0a;Source IP: {2}&#x0a;&#x0a;Allow connection?</value></data>
+  <data name="Dialog_IncomingBody" xml:space="preserve"><value>Device &quot;{0}&quot; - {1} wants to control this PC.&#x0a;Source IP: {2}&#x0a;&#x0a;Allow connection?</value></data>
   <data name="Dialog_Allow" xml:space="preserve"><value>Allow</value></data>
   <data name="Dialog_Deny" xml:space="preserve"><value>Deny</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
@@ -304,7 +298,6 @@
   <data name="Gamepad_Part_Down" xml:space="preserve"><value>D-Pad Down</value></data>
   <data name="Gamepad_Part_Left" xml:space="preserve"><value>D-Pad Left</value></data>
   <data name="Gamepad_Part_Right" xml:space="preserve"><value>D-Pad Right</value></data>
-
   <data name="Host_RowDrivers" xml:space="preserve"><value>Virtual Peripheral Drivers</value></data>
   <data name="Host_DriversReady" xml:space="preserve"><value>USB/IP virtual mouse and audio drivers ready</value></data>
   <data name="Host_DriversMissing" xml:space="preserve"><value>USB/IP virtual peripheral driver not installed</value></data>
@@ -322,15 +315,11 @@
   <data name="Dialog_DriverActionUninstall" xml:space="preserve"><value>uninstall</value></data>
   <data name="Dialog_DriverConfirmBodyFmt" xml:space="preserve"><value>Remote controller "{0}" requests to {1} virtual peripheral drivers on this PC. Allow?</value></data>
   <data name="Dialog_DefaultPeerName" xml:space="preserve"><value>Remote Peer</value></data>
-
-  
   <data name="Common_On" xml:space="preserve"><value>On</value></data>
   <data name="Common_Off" xml:space="preserve"><value>Off</value></data>
   <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium Startup Error</value></data>
-  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium failed to start · {0}</value></data>
+  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium failed to start - {0}</value></data>
   <data name="Startup_CrashLogSavedFmt" xml:space="preserve"><value>Crash log saved to:</value></data>
-
-  
   <data name="Session_DefaultHostTitle" xml:space="preserve"><value>Remote Device</value></data>
   <data name="Session_WaitingVideo" xml:space="preserve"><value>Starting remote desktop stream...</value></data>
   <data name="Session_PipelineInitFailed" xml:space="preserve"><value>Failed to initialize WinUI 3 D3D11 video pipeline</value></data>
@@ -339,9 +328,9 @@
   <data name="Session_ViewResTitle" xml:space="preserve"><value>View Resolution</value></data>
   <data name="Session_NativeResUnknown" xml:space="preserve"><value>Host native resolution: --</value></data>
   <data name="Session_NativeResFmt" xml:space="preserve"><value>Host native resolution: {0} × {1}</value></data>
-  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100% Native Quality · {0}×{1}</value></data>
-  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}% Downscale · {1}×{2}</value></data>
-  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1} Aspect Fit · {2}×{3}</value></data>
+  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100% Native Quality - {0}×{1}</value></data>
+  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}% Downscale - {1}×{2}</value></data>
+  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1} Aspect Fit - {2}×{3}</value></data>
   <data name="Session_FpsColorTitle" xml:space="preserve"><value>Frame Rate &amp; Color</value></data>
   <data name="Session_HdrHeader" xml:space="preserve"><value>HDR 10-bit</value></data>
   <data name="Session_HdrRequiresHostHint" xml:space="preserve"><value>Enable Windows HDR on the host first to use HDR10</value></data>
@@ -351,8 +340,8 @@
   <data name="Session_MouseController" xml:space="preserve"><value>Controller Mouse</value></data>
   <data name="Session_MouseVirtual" xml:space="preserve"><value>Host Mouse</value></data>
   <data name="Session_MouseSmart" xml:space="preserve"><value>Smart Mouse</value></data>
-  <data name="Session_MouseSmartLocked" xml:space="preserve"><value>Smart · Locked</value></data>
-  <data name="Session_MouseVirtualPaused" xml:space="preserve"><value>Virtual · Click to Lock</value></data>
+  <data name="Session_MouseSmartLocked" xml:space="preserve"><value>Smart - Locked</value></data>
+  <data name="Session_MouseVirtualPaused" xml:space="preserve"><value>Virtual - Click to Lock</value></data>
   <data name="Session_UseControllerMouse" xml:space="preserve"><value>Use Controller Mouse</value></data>
   <data name="Session_UseVirtualMouse" xml:space="preserve"><value>Use Host Mouse</value></data>
   <data name="Session_SmartMode" xml:space="preserve"><value>Smart Mode</value></data>
@@ -361,7 +350,7 @@
   <data name="Session_VirtualSpeaker" xml:space="preserve"><value>Virtual Speaker</value></data>
   <data name="Session_VirtualMic" xml:space="preserve"><value>Virtual Microphone</value></data>
   <data name="Session_LocalMicHeader" xml:space="preserve"><value>Local Capture Microphone</value></data>
-  <data name="Session_MicDefaultFmt" xml:space="preserve"><value>{0} · System Default</value></data>
+  <data name="Session_MicDefaultFmt" xml:space="preserve"><value>{0} - System Default</value></data>
   <data name="Session_NoLocalMic" xml:space="preserve"><value>No local microphone detected</value></data>
   <data name="Session_DriversTitle" xml:space="preserve"><value>Host Virtual Driver Management</value></data>
   <data name="Session_DriverChecking" xml:space="preserve"><value>Checking host driver status...</value></data>
@@ -396,7 +385,7 @@
   <data name="Session_CopyBtn" xml:space="preserve"><value>Copy</value></data>
   <data name="Session_EndedByHost" xml:space="preserve"><value>Host ended the session</value></data>
   <data name="Session_EndedFmt" xml:space="preserve"><value>Disconnected: {0}</value></data>
-  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>Cursor locked to host virtual mouse · Press Ctrl+Alt+Shift+M to release</value></data>
+  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>Cursor locked to host virtual mouse - Press Ctrl+Alt+Shift+M to release</value></data>
   <data name="Session_ToastEnterPassword" xml:space="preserve"><value>Enter host Windows password or PIN first</value></data>
   <data name="Session_ToastAutoUnlockEnabled" xml:space="preserve"><value>Auto unlock enabled</value></data>
   <data name="Session_ToastAutoUnlockCleared" xml:space="preserve"><value>Auto unlock credentials cleared</value></data>
@@ -423,10 +412,10 @@
   <data name="Session_OsdFpsFmt" xml:space="preserve"><value>FPS: {0}</value></data>
   <data name="Session_OsdBitrateFmt" xml:space="preserve"><value>Bitrate: {0} Mbps</value></data>
   <data name="Session_OsdDurationFmt" xml:space="preserve"><value>Duration: {0}</value></data>
-  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>Loss: {0}% · Drops {1}</value></data>
-  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>Loss: {0}% · {1}/{2} · Drops {3}</value></data>
+  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>Loss: {0}% - Drops {1}</value></data>
+  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>Loss: {0}% - {1}/{2} - Drops {3}</value></data>
   <data name="Session_OsdDecodeFmt" xml:space="preserve"><value>Decode: {0} ms</value></data>
-  <data name="Session_OsdCodecFmt" xml:space="preserve"><value>Codec: {0} / {1} · {2} {3}</value></data>
+  <data name="Session_OsdCodecFmt" xml:space="preserve"><value>Codec: {0} / {1} - {2} {3}</value></data>
   <data name="Session_OsdMouseVirtual" xml:space="preserve"><value>Host Virtual Mouse</value></data>
   <data name="Session_OsdMouseSmartVirtual" xml:space="preserve"><value>Smart Virtual</value></data>
   <data name="Session_OsdMouseSmartController" xml:space="preserve"><value>Smart Controller</value></data>
@@ -437,16 +426,16 @@
   <data name="Session_DbgLineRouteFmt" xml:space="preserve"><value>Connection : {0}</value></data>
   <data name="Session_DbgLineLocalFmt" xml:space="preserve"><value>Local      : {0}</value></data>
   <data name="Session_DbgLinePeerFmt" xml:space="preserve"><value>Peer       : {0}</value></data>
-  <data name="Session_DbgLineSigHostFmt" xml:space="preserve"><value>Signaling  : {0} · {1}</value></data>
+  <data name="Session_DbgLineSigHostFmt" xml:space="preserve"><value>Signaling  : {0} - {1}</value></data>
   <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>Server URI : {0}</value></data>
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>Host Res   : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>Stream Res : {0} × {1}</value></data>
-  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>Rate/Delay : {0} FPS · RTT {1} ms · Decode {2} ms</value></data>
+  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>Rate/Delay : {0} FPS - RTT {1} ms - Decode {2} ms</value></data>
   <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>Bitrate    : {0} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>Duration   : {0}</value></data>
-  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>Loss/Drop  : {0}% · Lost {1} / Recv {2} · Drops {3}</value></data>
-  <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>Codecs     : {0} · {1} · {2} · {3}</value></data>
-  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>Input/Audio: Mode {0} · Locked={1} · VirtualSpk={2} · VirtualMic={3}</value></data>
+  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>Loss/Drop  : {0}% - Lost {1} / Recv {2} - Drops {3}</value></data>
+  <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>Codecs     : {0} - {1} - {2} - {3}</value></data>
+  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>Input/Audio: Mode {0} - Locked={1} - VirtualSpk={2} - VirtualMic={3}</value></data>
   <data name="Nav_Account" xml:space="preserve"><value>Account</value></data>
   <data name="Session_WhoControllingWhomFmt" xml:space="preserve"><value>{0} is controlling {1}</value></data>
   <data name="Conn_AccountRequired" xml:space="preserve"><value>Only signed-in unlocked accounts can initiate remote control; being controlled does not require signing in</value></data>
@@ -557,7 +546,7 @@
   <data name="Conn_TargetOffline" xml:space="preserve"><value>Target device is currently offline</value></data>
   <data name="Conn_TargetRemoteDisabled" xml:space="preserve"><value>Target device has disabled remote control</value></data>
   <data name="Conn_SelfConnect" xml:space="preserve"><value>Cannot connect to this device itself</value></data>
-  <data name="Conn_RejectedCode" xml:space="preserve"><value>Connection rejected · {0}</value></data>
+  <data name="Conn_RejectedCode" xml:space="preserve"><value>Connection rejected - {0}</value></data>
   <data name="Assist_LoginRequiredHint" xml:space="preserve"><value>Sign in to initiate remote control</value></data>
   <data name="Assist_GoLoginBtn" xml:space="preserve"><value>Sign In</value></data>
   <data name="Tab_Devices" xml:space="preserve"><value>Devices</value></data>
@@ -575,15 +564,15 @@
   <data name="Set_DeviceSignOutSelfBodyFmt" xml:space="preserve"><value>Sign out this device {0} from your account?</value></data>
   <data name="Set_DeviceSignOutSuccess" xml:space="preserve"><value>Device signed out successfully</value></data>
   <data name="Acc_WizardHaveOtpBtn" xml:space="preserve"><value>Have a code? Enter directly</value></data>
-  <data name="Acc_OtpSendCooldownFmt" xml:space="preserve"><value>Send Code · {0}s</value></data>
-  <data name="Acc_OtpResendCooldownFmt" xml:space="preserve"><value>Resend · {0}s</value></data>
+  <data name="Acc_OtpSendCooldownFmt" xml:space="preserve"><value>Send Code - {0}s</value></data>
+  <data name="Acc_OtpResendCooldownFmt" xml:space="preserve"><value>Resend - {0}s</value></data>
   <data name="Acc_ModeLoginDesc" xml:space="preserve"><value>Sign in with your existing email and password</value></data>
   <data name="Acc_ModeRegisterDesc" xml:space="preserve"><value>Create a new Osmium account with email verification</value></data>
   <data name="Acc_ModeResetDesc" xml:space="preserve"><value>Reset your account password via email verification</value></data>
   <data name="Set_DeviceRenameBtn" xml:space="preserve"><value>Rename</value></data>
   <data name="Set_DeviceRenameTitle" xml:space="preserve"><value>Rename Device</value></data>
   <data name="Set_DeviceRenameHeader" xml:space="preserve"><value>Custom Device Name</value></data>
-  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>Original name · {0} · Up to 24 characters</value></data>
+  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>Original name - {0} - Up to 24 characters</value></data>
   <data name="Set_DeviceClearRenameBtn" xml:space="preserve"><value>Clear Rename</value></data>
   <data name="Set_DeviceRenameSuccess" xml:space="preserve"><value>Device name updated</value></data>
   <data name="Set_DeviceRenameCleared" xml:space="preserve"><value>Restored default device name</value></data>

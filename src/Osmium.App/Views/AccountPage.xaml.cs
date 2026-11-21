@@ -427,7 +427,7 @@ public sealed partial class AccountPage : Page
             string email = AuthEmailBox.Text.Trim();
             OtpEmailSummaryText.Text = string.IsNullOrEmpty(email) ? "-" : email;
             PwdEmailSummaryText.Text = isRegister && !string.IsNullOrWhiteSpace(AuthUsernameBox.Text)
-                ? $"{email} · {AuthUsernameBox.Text.Trim()}"
+                ? $"{email} - {AuthUsernameBox.Text.Trim()}"
                 : (string.IsNullOrEmpty(email) ? "-" : email);
 
             StepLabel1.Text = LocalizationService.GetString("Acc_StepAccount");

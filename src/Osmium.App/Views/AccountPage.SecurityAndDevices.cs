@@ -576,7 +576,7 @@ public sealed partial class AccountPage : Page
 
                 var txt = new TextBlock
                 {
-                    Text = $"{item.BlockedUsername} · {item.LocalTimeText}",
+                    Text = $"{item.BlockedUsername} - {item.LocalTimeText}",
                     FontSize = 13,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextWrapping = TextWrapping.Wrap
@@ -741,8 +741,8 @@ public sealed partial class AccountPage : Page
 
             var card = new Controls.SettingsRowCard
             {
-                Title = $"{dev.DeviceName} · {dev.FormattedDeviceId}",
-                Description = $"{statusText} · {dev.OsVersion} · {ipText}",
+                Title = $"{dev.DeviceName} - {dev.FormattedDeviceId}",
+                Description = $"{statusText} - {dev.OsVersion} - {ipText}",
                 Glyph = "\uF35A"
             };
 
@@ -816,12 +816,12 @@ public sealed partial class AccountPage : Page
             string resolvedName = App.Engine.AccountService.ResolveAccountDeviceName(rec.DeviceId, rec.DeviceName);
             var card = new Controls.SettingsRowCard
             {
-                Title = $"{resolvedName} · {rec.FormattedDeviceId}",
+                Title = $"{resolvedName} - {rec.FormattedDeviceId}",
                 ShowIcon = false
             };
             card.ActionContent = new TextBlock
             {
-                Text = $"{rec.LocalTimeText} · {rec.Ip} · {rec.OsVersion}",
+                Text = $"{rec.LocalTimeText} - {rec.Ip} - {rec.OsVersion}",
                 FontSize = 12,
                 Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
                 VerticalAlignment = VerticalAlignment.Center

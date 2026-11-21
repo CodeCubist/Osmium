@@ -177,7 +177,7 @@ public sealed partial class GamepadMapperPage : Page
         {
             GamepadSelector.Items.Add(new ComboBoxItem
             {
-                Content = $"#{gp.JoystickIndex} {gp.Name} · {(gp.IsGameController != 0 ? stdLabel : rawLabel)}",
+                Content = $"#{gp.JoystickIndex} {gp.Name} - {(gp.IsGameController != 0 ? stdLabel : rawLabel)}",
                 Tag = gp.JoystickIndex
             });
         }
