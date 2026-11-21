@@ -7,7 +7,11 @@
         <RootNamespace>Osmium.App</RootNamespace>
         <AssemblyName>Osmium</AssemblyName>
         <Version>1.0.0</Version>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <FileVersion>1.0.0</FileVersion>
+        <Copyright>Copyright © Osmium Development Team</Copyright>
         <DefaultLanguage>zh-CN</DefaultLanguage>
+        <SatelliteResourceLanguages>zh-CN;zh-Hans;en-US</SatelliteResourceLanguages>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <ApplicationIcon>..\..\assets\osmium.ico</ApplicationIcon>
         <Platforms>x64</Platforms>
@@ -63,7 +67,6 @@
         </Content>
     </ItemGroup>
 
-
     <Target Name="ResolveNativeRuntimeFiles" BeforeTargets="AssignTargetPaths">
         <PropertyGroup>
             <OsmiumNativeBinDir Condition="Exists('..\..\native\bin\x64\$(Configuration)\OsmiumEngine.dll')">..\..\native\bin\x64\$(Configuration)</OsmiumNativeBinDir>
@@ -112,5 +115,47 @@
                   CopyToOutputDirectory="PreserveNewest"
                   CopyToPublishDirectory="PreserveNewest"/>
         </ItemGroup>
+    </Target>
+
+    <Target Name="RemoveUnwantedBuildArtifacts" AfterTargets="Build">
+        <ItemGroup Condition="Exists('$(OutDir)runtimes')">
+            <_BuildAllRuntimeDirs Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes'))"/>
+            <_BuildWinRuntimeDirs Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'win*'))"/>
+            <_BuildRuntimeDirsToDelete Include="@(_BuildAllRuntimeDirs)" Exclude="@(_BuildWinRuntimeDirs)"/>
+        </ItemGroup>
+        <RemoveDir Directories="@(_BuildRuntimeDirsToDelete)" Condition="'@(_BuildRuntimeDirsToDelete)' != ''"/>
+
+        <ItemGroup>
+            <_BuildLangResourceFiles Include="$(OutDir)*\*.mui;$(OutDir)*\Microsoft.ui.xaml*.pri;$(OutDir)Microsoft.UI.Xaml\*\*.mui;$(OutDir)Microsoft.UI.Xaml\*\*.pri"
+                                     Exclude="$(OutDir)zh-CN\*;$(OutDir)zh-Hans\*;$(OutDir)en-US\*;$(OutDir)Microsoft.UI.Xaml\zh-CN\*;$(OutDir)Microsoft.UI.Xaml\zh-Hans\*;$(OutDir)Microsoft.UI.Xaml\en-US\*"/>
+            <_BuildLangDirsRaw Include="@(_BuildLangResourceFiles->'%(RootDir)%(Directory)')"/>
+        </ItemGroup>
+        <RemoveDuplicates Inputs="@(_BuildLangDirsRaw)">
+            <Output TaskParameter="Filtered" ItemName="_BuildLangDirsToDelete"/>
+        </RemoveDuplicates>
+        <RemoveDir Directories="@(_BuildLangDirsToDelete)" Condition="'@(_BuildLangDirsToDelete)' != ''"/>
+
+        <Message Text="build清理完成" Importance="high"/>
+    </Target>
+
+    <Target Name="RemoveUnwantedPublishArtifacts" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and Exists('$(PublishDir)')">
+        <ItemGroup Condition="Exists('$(PublishDir)runtimes')">
+            <_PublishAllRuntimeDirs Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)runtimes'))"/>
+            <_PublishWinRuntimeDirs Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)runtimes', 'win*'))"/>
+            <_PublishRuntimeDirsToDelete Include="@(_PublishAllRuntimeDirs)" Exclude="@(_PublishWinRuntimeDirs)"/>
+        </ItemGroup>
+        <RemoveDir Directories="@(_PublishRuntimeDirsToDelete)" Condition="'@(_PublishRuntimeDirsToDelete)' != ''"/>
+
+        <ItemGroup>
+            <_PublishLangResourceFiles Include="$(PublishDir)*\*.mui;$(PublishDir)*\Microsoft.ui.xaml*.pri;$(PublishDir)Microsoft.UI.Xaml\*\*.mui;$(PublishDir)Microsoft.UI.Xaml\*\*.pri"
+                                       Exclude="$(PublishDir)zh-CN\*;$(PublishDir)zh-Hans\*;$(PublishDir)en-US\*;$(PublishDir)Microsoft.UI.Xaml\zh-CN\*;$(PublishDir)Microsoft.UI.Xaml\zh-Hans\*;$(PublishDir)Microsoft.UI.Xaml\en-US\*"/>
+            <_PublishLangDirsRaw Include="@(_PublishLangResourceFiles->'%(RootDir)%(Directory)')"/>
+        </ItemGroup>
+        <RemoveDuplicates Inputs="@(_PublishLangDirsRaw)">
+            <Output TaskParameter="Filtered" ItemName="_PublishLangDirsToDelete"/>
+        </RemoveDuplicates>
+        <RemoveDir Directories="@(_PublishLangDirsToDelete)" Condition="'@(_PublishLangDirsToDelete)' != ''"/>
+        
+        <Message Text="清理完成" Importance="high"/>
     </Target>
 </Project>
