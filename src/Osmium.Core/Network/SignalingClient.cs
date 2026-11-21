@@ -366,6 +366,13 @@ public sealed class ConnectRejectEventArgs : EventArgs
 
 public sealed partial class SignalingClient : IDisposable
 {
+    private const int OfflineFailureThreshold = 3;
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan HeartbeatRetryDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(3);
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true
@@ -373,10 +380,16 @@ public sealed partial class SignalingClient : IDisposable
 
     private readonly LoggingService _log;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly object _stateLock = new();
+    private readonly object _heartbeatLock = new();
 
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
+    private volatile bool _isTransportRegistered;
+    private int _consecutiveFailures;
+    private TaskCompletionSource<bool>? _pendingRegister;
+    private TaskCompletionSource<bool>? _pendingPong;
 
     private string _serverUrl = "wss://osmium.fufu.skin";
     private string _deviceId = string.Empty;
@@ -415,6 +428,7 @@ public sealed partial class SignalingClient : IDisposable
     } = string.Empty;
 
     public event Action<SignalingConnectionState, string>? StateChanged;
+    public event Action? Registered;
     public event Action<IncomingConnectEventArgs>? IncomingConnect;
     public event Action<ConnectChallengeEventArgs>? ConnectChallengeReceived;
     public event Action<ConnectAuthEventArgs>? ConnectAuthReceived;
@@ -461,39 +475,52 @@ public sealed partial class SignalingClient : IDisposable
 
     public void Start(string serverUrl, string deviceId, string deviceName, bool allowRemote, string? ltoken = null)
     {
-        Stop();
+        StopInternal(resetState: false);
         _serverUrl = NormalizeServerUrl(serverUrl);
         _deviceId = deviceId;
         _deviceName = deviceName;
         _allowRemote = allowRemote;
         if (ltoken != null) _ltoken = ltoken;
 
-        _loopCts = new CancellationTokenSource();
-        _loopTask = Task.Run(() => RunLoopAsync(_loopCts.Token));
+        var cts = new CancellationTokenSource();
+        _loopCts = cts;
+        _loopTask = Task.Run(() => RunLoopAsync(cts));
     }
 
     public void Stop()
     {
+        StopInternal(resetState: true);
+    }
+
+    private void StopInternal(bool resetState)
+    {
+        _isTransportRegistered = false;
+        CompletePendingRegister(false);
+        CompletePendingPong(false);
+
+        var oldCts = Interlocked.Exchange(ref _loopCts, null);
+        var oldWs = Interlocked.Exchange(ref _ws, null);
+
         try
         {
-            _loopCts?.Cancel();
-            _ws?.Abort();
+            oldCts?.Cancel();
+            oldWs?.Abort();
         }
         catch
         {
         }
 
-        _ws?.Dispose();
-        _ws = null;
-        _loopCts?.Dispose();
-        _loopCts = null;
-        SetState(SignalingConnectionState.Disconnected, "Stopped");
+        if (resetState)
+        {
+            Interlocked.Exchange(ref _consecutiveFailures, 0);
+            SetState(SignalingConnectionState.Disconnected, "Stopped");
+        }
     }
 
     public async Task UpdateAuthTokenAsync(string? ltoken)
     {
         _ltoken = ltoken ?? string.Empty;
-        if (State != SignalingConnectionState.Connected) return;
+        if (!_isTransportRegistered) return;
 
         await SendJsonAsync(new
         {
@@ -506,7 +533,7 @@ public sealed partial class SignalingClient : IDisposable
     {
         _allowRemote = allowRemote;
         _deviceName = deviceName;
-        if (State != SignalingConnectionState.Connected) return;
+        if (!_isTransportRegistered) return;
 
         await SendJsonAsync(new
         {
@@ -645,7 +672,7 @@ public sealed partial class SignalingClient : IDisposable
 
     public async Task SendSessionEndAsync(string sessionId, string targetDeviceId, string reason, string? role = null)
     {
-        if (State != SignalingConnectionState.Connected) return;
+        if (!_isTransportRegistered) return;
         await SendJsonAsync(new
         {
             type = "session_end",
@@ -658,7 +685,7 @@ public sealed partial class SignalingClient : IDisposable
 
     public async Task SendAccountForceDisconnectAsync(string targetHostDeviceId)
     {
-        if (State != SignalingConnectionState.Connected) return;
+        if (!_isTransportRegistered) return;
         await SendJsonAsync(new
         {
             type = "account_force_disconnect",
@@ -668,7 +695,7 @@ public sealed partial class SignalingClient : IDisposable
 
     public async Task SendAccountBlacklistUserAsync(string targetHostDeviceId)
     {
-        if (State != SignalingConnectionState.Connected) return;
+        if (!_isTransportRegistered) return;
         await SendJsonAsync(new
         {
             type = "account_blacklist_user",
@@ -676,10 +703,12 @@ public sealed partial class SignalingClient : IDisposable
         });
     }
 
-    private async Task SendJsonAsync(object payload, CancellationToken ct = default)
+    private Task<bool> SendJsonAsync(object payload, CancellationToken ct = default)
+        => SendJsonAsync(_ws, payload, ct);
+
+    private async Task<bool> SendJsonAsync(ClientWebSocket? ws, object payload, CancellationToken ct = default)
     {
-        var ws = _ws;
-        if (ws == null || ws.State != WebSocketState.Open) return;
+        if (ws == null || ws.State != WebSocketState.Open) return false;
 
         string json = JsonSerializer.Serialize(payload);
         byte[] bytes = Encoding.UTF8.GetBytes(json);
@@ -690,132 +719,14 @@ public sealed partial class SignalingClient : IDisposable
             if (ws.State == WebSocketState.Open)
             {
                 await ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
+                return true;
             }
+
+            return false;
         }
         finally
         {
             _sendLock.Release();
-        }
-    }
-
-    private async Task RunLoopAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                SetState(SignalingConnectionState.Connecting, $"Connecting to {_serverUrl}");
-                var serverUri = new Uri(_serverUrl);
-                if (IPAddress.TryParse(serverUri.DnsSafeHost, out var literalIp) &&
-                    literalIp.AddressFamily == AddressFamily.InterNetworkV6)
-                {
-                    throw new NotSupportedException("Signaling server only supports IPv4.");
-                }
-
-                using var ws = new ClientWebSocket();
-                ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-                ws.Options.HttpVersion = HttpVersion.Version11;
-                ws.Options.HttpVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-
-                using var ipv4Handler = new SocketsHttpHandler
-                {
-                    ConnectCallback = async (context, token) =>
-                    {
-                        string host = context.DnsEndPoint.Host;
-                        int port = context.DnsEndPoint.Port;
-                        IPAddress[] addresses;
-                        if (IPAddress.TryParse(host, out var parsed))
-                        {
-                            if (parsed.AddressFamily != AddressFamily.InterNetwork)
-                            {
-                                throw new NotSupportedException("Signaling server only supports IPv4.");
-                            }
-
-                            addresses = [parsed];
-                        }
-                        else
-                        {
-                            addresses = await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, token);
-                            if (addresses.Length == 0)
-                            {
-                                throw new SocketException((int)SocketError.HostNotFound);
-                            }
-                        }
-
-                        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-                        {
-                            NoDelay = true
-                        };
-                        try
-                        {
-                            await socket.ConnectAsync(addresses, port, token);
-                            return new NetworkStream(socket, ownsSocket: true);
-                        }
-                        catch
-                        {
-                            socket.Dispose();
-                            throw;
-                        }
-                    }
-                };
-                using var invoker = new HttpMessageInvoker(ipv4Handler);
-                await ws.ConnectAsync(serverUri, invoker, ct);
-
-                _ws = ws;
-                await SendJsonAsync(new
-                {
-                    type = "register",
-                    deviceId = _deviceId,
-                    deviceName = _deviceName,
-                    allowRemote = _allowRemote,
-                    osVersion = Environment.OSVersion.VersionString,
-                    ltoken = _ltoken
-                }, ct);
-
-                using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                var pingTask = Task.Run(async () =>
-                {
-                    while (!pingCts.Token.IsCancellationRequested)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(20), pingCts.Token);
-                        await SendJsonAsync(new { type = "ping" }, pingCts.Token);
-                    }
-                }, pingCts.Token);
-
-                await ReceiveLoopAsync(ws, ct);
-                pingCts.Cancel();
-                try
-                {
-                    await pingTask;
-                }
-                catch
-                {
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                LastError = ex.Message;
-                _log.Warn($"Signaling connection error: {ex.Message}");
-                SetState(SignalingConnectionState.Error, ex.Message);
-            }
-            finally
-            {
-                _ws = null;
-            }
-
-            if (ct.IsCancellationRequested) break;
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(3), ct);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
         }
     }
 }

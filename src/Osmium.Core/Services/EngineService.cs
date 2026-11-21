@@ -64,9 +64,9 @@ public sealed class EngineService : IDisposable
         AccountService.SessionChanged += () =>
             _ = Signaling.UpdateAuthTokenAsync(AccountService.CurrentLtoken);
 
-        Signaling.StateChanged += (state, detail) =>
+        Signaling.Registered += () =>
         {
-            if (state == SignalingConnectionState.Connected && AccountService.IsLoggedIn)
+            if (AccountService.IsLoggedIn)
             {
                 if (!AccountService.HasLtoken)
                 {

@@ -61,6 +61,11 @@ public sealed partial class SignalingClient : IDisposable
 
             switch (type)
             {
+                case "pong":
+                {
+                    MarkHeartbeatAlive();
+                    break;
+                }
                 case "registered":
                 {
                     if (root.TryGetProperty("stunHost", out var sh) && sh.ValueKind == JsonValueKind.String)
@@ -73,8 +78,13 @@ public sealed partial class SignalingClient : IDisposable
                                                cd.ValueKind == JsonValueKind.Number
                         ? Math.Max(0, cd.GetInt32())
                         : 0;
+                    _isTransportRegistered = true;
                     LastError = string.Empty;
+                    Interlocked.Exchange(ref _consecutiveFailures, 0);
+                    CompletePendingRegister(true);
+                    CompletePendingPong(true);
                     SetState(SignalingConnectionState.Connected, $"Connected ({ObservedPublicIp})");
+                    Registered?.Invoke();
                     ConnectCooldownUpdated?.Invoke(registeredCooldownMs, "REGISTERED");
                     _log.Info(
                         $"Registered on signaling server as {_deviceId} (STUN {AdvertisedStunHost}:{AdvertisedStunPort})");
@@ -362,10 +372,389 @@ public sealed partial class SignalingClient : IDisposable
         }
     }
 
+    private TaskCompletionSource<bool> BeginPendingRegister()
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_heartbeatLock)
+        {
+            _pendingRegister?.TrySetResult(false);
+            _pendingRegister = tcs;
+        }
+
+        return tcs;
+    }
+
+    private void CompletePendingRegister(bool registered)
+    {
+        TaskCompletionSource<bool>? tcs;
+        lock (_heartbeatLock)
+        {
+            tcs = _pendingRegister;
+            _pendingRegister = null;
+        }
+
+        tcs?.TrySetResult(registered);
+    }
+
+    private void ClearPendingRegister(TaskCompletionSource<bool> expected)
+    {
+        lock (_heartbeatLock)
+        {
+            if (ReferenceEquals(_pendingRegister, expected))
+            {
+                _pendingRegister = null;
+            }
+        }
+    }
+
+    private TaskCompletionSource<bool> BeginPendingPong()
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_heartbeatLock)
+        {
+            _pendingPong?.TrySetResult(false);
+            _pendingPong = tcs;
+        }
+
+        return tcs;
+    }
+
+    private void CompletePendingPong(bool alive)
+    {
+        TaskCompletionSource<bool>? tcs;
+        lock (_heartbeatLock)
+        {
+            tcs = _pendingPong;
+            _pendingPong = null;
+        }
+
+        tcs?.TrySetResult(alive);
+    }
+
+    private void ClearPendingPong(TaskCompletionSource<bool> expected)
+    {
+        lock (_heartbeatLock)
+        {
+            if (ReferenceEquals(_pendingPong, expected))
+            {
+                _pendingPong = null;
+            }
+        }
+    }
+
+    private void MarkHeartbeatAlive()
+    {
+        Interlocked.Exchange(ref _consecutiveFailures, 0);
+        CompletePendingPong(true);
+
+        if (_isTransportRegistered && State != SignalingConnectionState.Connected)
+        {
+            LastError = string.Empty;
+            SetState(SignalingConnectionState.Connected, $"Connected ({ObservedPublicIp})");
+        }
+    }
+
+    private int RecordFailure(SignalingConnectionState offlineState, string detail)
+    {
+        int failures = Interlocked.Increment(ref _consecutiveFailures);
+        if (failures >= OfflineFailureThreshold)
+        {
+            SetState(offlineState, detail);
+        }
+
+        return failures;
+    }
+
+    private async Task RunHeartbeatLoopAsync(
+        ClientWebSocket ws,
+        TaskCompletionSource<bool> registerTcs,
+        Action markHeartbeatAbort,
+        CancellationToken ct)
+    {
+        bool registered;
+        using (var regTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+        {
+            regTimeoutCts.CancelAfter(ConnectTimeout);
+            try
+            {
+                registered = await registerTcs.Task.WaitAsync(regTimeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                registered = false;
+            }
+            finally
+            {
+                ClearPendingRegister(registerTcs);
+            }
+        }
+
+        if (!registered)
+        {
+            int failures = RecordFailure(SignalingConnectionState.Error, "Signaling registration timeout");
+            _log.Warn($"Signaling registration timed out ({failures}/{OfflineFailureThreshold})");
+            markHeartbeatAbort();
+            try
+            {
+                ws.Abort();
+            }
+            catch
+            {
+            }
+
+            return;
+        }
+
+        bool firstTick = true;
+        while (!ct.IsCancellationRequested)
+        {
+            TimeSpan waitDelay = firstTick || Volatile.Read(ref _consecutiveFailures) == 0
+                ? HeartbeatInterval
+                : HeartbeatRetryDelay;
+            firstTick = false;
+
+            await Task.Delay(waitDelay, ct);
+
+            var pongTcs = BeginPendingPong();
+            bool sent;
+            try
+            {
+                sent = await SendJsonAsync(ws, new { type = "ping" }, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                ClearPendingPong(pongTcs);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ClearPendingPong(pongTcs);
+                sent = false;
+                _log.Warn($"Signaling heartbeat send failed: {ex.Message}");
+            }
+
+            bool alive = false;
+            if (sent)
+            {
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(HeartbeatTimeout);
+                try
+                {
+                    alive = await pongTcs.Task.WaitAsync(timeoutCts.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    alive = false;
+                }
+                finally
+                {
+                    ClearPendingPong(pongTcs);
+                }
+            }
+
+            if (alive)
+            {
+                MarkHeartbeatAlive();
+                continue;
+            }
+
+            int failures = RecordFailure(SignalingConnectionState.Error, "Signaling heartbeat timeout");
+            _log.Warn($"Signaling heartbeat missed ({failures}/{OfflineFailureThreshold})");
+
+            if (!sent || failures >= OfflineFailureThreshold - 1)
+            {
+                markHeartbeatAbort();
+                try
+                {
+                    ws.Abort();
+                }
+                catch
+                {
+                }
+
+                return;
+            }
+        }
+    }
+
+    private async Task RunLoopAsync(CancellationTokenSource loopCts)
+    {
+        using var ownedCts = loopCts;
+        CancellationToken ct = ownedCts.Token;
+
+        while (!ct.IsCancellationRequested)
+        {
+            int heartbeatAborted = 0;
+            ClientWebSocket? activeWs = null;
+
+            try
+            {
+                if (State != SignalingConnectionState.Connected)
+                {
+                    SetState(SignalingConnectionState.Connecting, $"Connecting to {_serverUrl}");
+                }
+
+                var serverUri = new Uri(_serverUrl);
+                if (IPAddress.TryParse(serverUri.DnsSafeHost, out var literalIp) &&
+                    literalIp.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    throw new NotSupportedException("Signaling server only supports IPv4.");
+                }
+
+                using var ws = new ClientWebSocket();
+                activeWs = ws;
+                ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+                ws.Options.HttpVersion = HttpVersion.Version11;
+                ws.Options.HttpVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+                using var ipv4Handler = new SocketsHttpHandler
+                {
+                    ConnectCallback = async (context, token) =>
+                    {
+                        string host = context.DnsEndPoint.Host;
+                        int port = context.DnsEndPoint.Port;
+                        IPAddress[] addresses;
+                        if (IPAddress.TryParse(host, out var parsed))
+                        {
+                            if (parsed.AddressFamily != AddressFamily.InterNetwork)
+                            {
+                                throw new NotSupportedException("Signaling server only supports IPv4.");
+                            }
+
+                            addresses = [parsed];
+                        }
+                        else
+                        {
+                            addresses = await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, token);
+                            if (addresses.Length == 0)
+                            {
+                                throw new SocketException((int)SocketError.HostNotFound);
+                            }
+                        }
+
+                        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+                        {
+                            NoDelay = true
+                        };
+                        try
+                        {
+                            await socket.ConnectAsync(addresses, port, token);
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch
+                        {
+                            socket.Dispose();
+                            throw;
+                        }
+                    }
+                };
+                using var invoker = new HttpMessageInvoker(ipv4Handler);
+                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    connectCts.CancelAfter(ConnectTimeout);
+                    await ws.ConnectAsync(serverUri, invoker, connectCts.Token);
+                }
+
+                _ws = ws;
+                _isTransportRegistered = false;
+                var registerTcs = BeginPendingRegister();
+                await SendJsonAsync(ws, new
+                {
+                    type = "register",
+                    deviceId = _deviceId,
+                    deviceName = _deviceName,
+                    allowRemote = _allowRemote,
+                    osVersion = Environment.OSVersion.VersionString,
+                    ltoken = _ltoken
+                }, ct);
+
+                using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var pingTask = Task.Run(
+                    () => RunHeartbeatLoopAsync(ws, registerTcs, () => Volatile.Write(ref heartbeatAborted, 1), pingCts.Token),
+                    pingCts.Token);
+
+                try
+                {
+                    await ReceiveLoopAsync(ws, ct);
+                }
+                finally
+                {
+                    pingCts.Cancel();
+                    try
+                    {
+                        await pingTask;
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (!ct.IsCancellationRequested && Volatile.Read(ref heartbeatAborted) == 0)
+                {
+                    int failures = RecordFailure(SignalingConnectionState.Disconnected, "Signaling connection closed");
+                    _log.Warn($"Signaling connection closed ({failures}/{OfflineFailureThreshold})");
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                if (Volatile.Read(ref heartbeatAborted) == 0)
+                {
+                    LastError = ex.Message;
+                    int failures = RecordFailure(SignalingConnectionState.Error, ex.Message);
+                    _log.Warn($"Signaling connection error ({failures}/{OfflineFailureThreshold}): {ex.Message}");
+                }
+            }
+            finally
+            {
+                CompletePendingRegister(false);
+                CompletePendingPong(false);
+                if (activeWs != null && ReferenceEquals(_ws, activeWs))
+                {
+                    _isTransportRegistered = false;
+                    Interlocked.CompareExchange(ref _ws, null, activeWs);
+                }
+            }
+
+            if (ct.IsCancellationRequested) break;
+
+            bool immediateRetry = Volatile.Read(ref heartbeatAborted) != 0 &&
+                                  Volatile.Read(ref _consecutiveFailures) < OfflineFailureThreshold;
+            if (!immediateRetry)
+            {
+                TimeSpan delay = Volatile.Read(ref _consecutiveFailures) < OfflineFailureThreshold
+                    ? HeartbeatRetryDelay
+                    : ReconnectDelay;
+                try
+                {
+                    await Task.Delay(delay, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
     private void SetState(SignalingConnectionState state, string detail)
     {
-        State = state;
-        StateChanged?.Invoke(state, detail);
+        bool changed;
+        lock (_stateLock)
+        {
+            changed = State != state;
+            State = state;
+        }
+
+        if (changed)
+        {
+            StateChanged?.Invoke(state, detail);
+        }
     }
 
     public void Dispose()
