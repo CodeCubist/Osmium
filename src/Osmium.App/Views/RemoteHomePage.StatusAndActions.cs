@@ -85,6 +85,20 @@ public sealed partial class RemoteHomePage : Page
         UpdateHostControllingHeadline();
         if (streaming && !ActiveHostBanner.IsOpen)
         {
+            var info = App.Engine.Coordinator.ActiveHostSessionInfo;
+            if (info != null && string.IsNullOrWhiteSpace(ActiveHostBanner.Message))
+            {
+                bool isSameAccount = IsSameAccountController(info);
+                string peerLabel = isSameAccount
+                    ? App.Engine.AccountService.ResolveAccountDeviceName(
+                        info.PeerDeviceId,
+                        !string.IsNullOrWhiteSpace(info.ControllerDeviceName)
+                            ? info.ControllerDeviceName
+                            : info.PeerName)
+                    : info.PeerName;
+                ActiveHostBanner.Message = $"{peerLabel} - {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
+            }
+
             ActiveHostBanner.IsOpen = true;
         }
 

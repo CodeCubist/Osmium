@@ -225,6 +225,18 @@ public sealed partial class MainWindow : Window
         storyboard.Begin();
     }
 
+    public void NavigateToLocalHome()
+    {
+        if (!Equals(NavView.SelectedItem, NavOverviewItem))
+        {
+            NavView.SelectedItem = NavOverviewItem;
+        }
+        else if (ContentFrame.Content is not RemoteHomePage)
+        {
+            ContentFrame.Navigate(typeof(RemoteHomePage), null, new SuppressNavigationTransitionInfo());
+        }
+    }
+
     public void NavigateToHostControl()
     {
         if (App.Engine.Coordinator.IsHostStreaming) return;
@@ -275,6 +287,39 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private const int SwShow = 5;
+    private const int SwRestore = 9;
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpShowWindow = 0x0040;
+    private static readonly IntPtr HwndTopmost = new(-1);
+    private static readonly IntPtr HwndNoTopmost = new(-2);
+
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy,
+        uint uFlags);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
 }

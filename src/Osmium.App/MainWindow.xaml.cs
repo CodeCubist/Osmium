@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
 
         App.Engine.Coordinator.ConfirmIncomingConnectionAsync = ConfirmIncomingConnectionOnUiAsync;
         App.Engine.Coordinator.ConfirmDriverActionAsync = ConfirmDriverActionOnUiAsync;
-        App.Engine.Coordinator.HostSessionStarted += _ => DispatcherQueue.TryEnqueue(UpdateTrayTooltip);
+        App.Engine.Coordinator.HostSessionStarted += _ => DispatcherQueue.TryEnqueue(OnHostSessionStarted);
         App.Engine.Coordinator.HostSessionEnded += _ => DispatcherQueue.TryEnqueue(UpdateTrayTooltip);
         App.Engine.AccountService.SessionChanged += () => DispatcherQueue.TryEnqueue(() =>
         {
@@ -367,6 +367,13 @@ public sealed partial class MainWindow : Window
         return LocalizationService.GetString("Tray_TooltipControlling");
     }
 
+    private void OnHostSessionStarted()
+    {
+        UpdateTrayTooltip();
+        NavigateToLocalHome();
+        RestoreFromTray();
+    }
+
     private void UpdateTrayTooltip()
     {
         _trayIcon?.UpdateTooltip(BuildTrayTooltip());
@@ -399,14 +406,46 @@ public sealed partial class MainWindow : Window
 
         _appWindow.Show();
         _isHiddenInTray = false;
-        Activate();
-        if (_hwnd != IntPtr.Zero)
-        {
-            SetForegroundWindow(_hwnd);
-        }
-
+        BringWindowToForeground();
         SyncTrayIconVisibility();
         DispatcherQueue.TryEnqueue(() => PopupCornerHelper.AttachToTree(ContentFrame));
+    }
+
+    private void BringWindowToForeground()
+    {
+        if (_hwnd == IntPtr.Zero)
+        {
+            Activate();
+            return;
+        }
+
+        ShowWindow(_hwnd, IsIconic(_hwnd) ? SwRestore : SwShow);
+
+        IntPtr fgHwnd = GetForegroundWindow();
+        uint fgThread = fgHwnd != IntPtr.Zero ? GetWindowThreadProcessId(fgHwnd, out _) : 0;
+        uint curThread = GetCurrentThreadId();
+        bool attached = false;
+
+        try
+        {
+            if (fgThread != 0 && fgThread != curThread)
+            {
+                attached = AttachThreadInput(curThread, fgThread, true);
+            }
+
+            SetWindowPos(_hwnd, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpShowWindow);
+            SetWindowPos(_hwnd, HwndNoTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpShowWindow);
+            BringWindowToTop(_hwnd);
+            SetForegroundWindow(_hwnd);
+            Activate();
+        }
+        finally
+        {
+            if (attached)
+            {
+                AttachThreadInput(curThread, fgThread, false);
+            }
+        }
     }
 
     public void ForceExit()

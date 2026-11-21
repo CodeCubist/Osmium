@@ -309,4 +309,3 @@ begin
   if CurUninstallStep = usUninstall then
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#AppName}');
 end;
-```[cite: 1]
