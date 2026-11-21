@@ -1,0 +1,55 @@
+﻿BSD 2-Clause License
+
+Copyright (c) 2021-2026
+, Vadym Hrynchyshyn <vadimgrn@gmail.com>
+
+Red
+istribution and use in source and binary form
+s, with or without
+modification, are permitte
+d provided that the following conditions are 
+met:
+
+1. Redistributions of source code must 
+retain the above copyright notice, this
+   li
+st of conditions and the following disclaimer
+.
+
+2. Redistributions in binary form must rep
+roduce the above copyright notice,
+   this li
+st of conditions and the following disclaimer
+ in the documentation
+   and/or other materia
+ls provided with the distribution.
+
+THIS SOFT
+WARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPL
+IED WARRANTIES, INCLUDING, BUT NOT LIMITED TO
+, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY A
+ND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCL
+AIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+ OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, IN
+DIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CO
+NSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMIT
+ED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SER
+VICES; LOSS OF USE, DATA, OR PROFITS; OR BUSI
+NESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY 
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STR
+ICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE U
+SE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE P
+OSSIBILITY OF SUCH DAMAGE.
+
+

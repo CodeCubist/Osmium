@@ -1,0 +1,305 @@
+<Page
+    x:Class="Osmium.App.Views.RemoteConnectPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Osmium.App.Controls"
+    xmlns:models="using:Osmium.Core.Models"
+    NavigationCacheMode="Required">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16" HorizontalAlignment="Stretch">
+            <TextBlock x:Name="AssistPageTitle"
+                       Style="{StaticResource OsmiumPageTitleStyle}" />
+            
+            <Border Style="{StaticResource OsmiumCardContainerStyle}" Padding="22,18">
+                <StackPanel Spacing="18">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock x:Name="ThisDeviceHeader"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock x:Name="AllowAssistLabel" FontSize="13" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="AllowRemoteSwitch"
+                                          Style="{StaticResource OsmiumCompactToggleStyle}"
+                                          Toggled="AllowRemoteSwitch_Toggled" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnSpacing="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Bottom">
+                            <TextBlock x:Name="MyDeviceIdLabel"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="MyDeviceIdText"
+                                       Text="000 000 000"
+                                       FontSize="26"
+                                       FontWeight="SemiBold"
+                                       IsTextSelectionEnabled="True" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Bottom">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock x:Name="VerifyMethodLabel"
+                                           FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+                                <ComboBox x:Name="VerifyMethodCombo"
+                                          MinWidth="165"
+                                          CornerRadius="6"
+                                          SelectionChanged="VerifyMethodCombo_SelectionChanged" />
+                            </StackPanel>
+
+                            <Border Background="{ThemeResource OsmiumSubtlePillBrush}"
+                                    CornerRadius="6"
+                                    Padding="12,5">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock x:Name="AccessCodePrefixText"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock x:Name="MyAccessCodeText"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               IsTextSelectionEnabled="False"
+                                               VerticalAlignment="Center"
+                                               MinWidth="64" />
+                                    <Button x:Name="ToggleCodeVisibilityBtn"
+                                            Click="ToggleCodeVisibility_Click"
+                                            Background="Transparent" BorderThickness="0" Padding="4" CornerRadius="4">
+                                        <FontIcon x:Name="CodeVisibilityIcon"
+                                                  FontFamily="{StaticResource FluentIconsFont}"
+                                                  Glyph="&#xE5F6;"
+                                                  FontSize="16"
+                                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                    </Button>
+                                    <Button x:Name="RefreshAccessCodeBtn"
+                                            Click="RefreshAccessCode_Click"
+                                            Background="Transparent" BorderThickness="0" Padding="4" CornerRadius="4">
+                                        <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                                  Glyph="&#xF13E;"
+                                                  FontSize="16"
+                                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <Button x:Name="CopyShareButton"
+                                Grid.Column="2"
+                                CornerRadius="6"
+                                Padding="16,8"
+                                Height="36"
+                                VerticalAlignment="Bottom"
+                                Click="CopyInviteBundle_Click" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+
+            <Border Style="{StaticResource OsmiumCardContainerStyle}" Padding="22,18">
+                <StackPanel Spacing="14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock x:Name="PartnerHeader"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+
+                        <StackPanel x:Name="PartnerLoginHintPanel"
+                                    Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="6"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed">
+                            <TextBlock x:Name="PartnerLoginHintText"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       VerticalAlignment="Center" />
+                            <HyperlinkButton x:Name="PartnerGoLoginBtn"
+                                             Padding="4,2"
+                                             FontSize="12"
+                                             VerticalAlignment="Center"
+                                             Click="PartnerGoLoginBtn_Click" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.15*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock x:Name="PartnerIdLabel"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBox x:Name="TargetDeviceIdBox"
+                                     Height="38"
+                                     CornerRadius="6"
+                                     KeyDown="ConnectInput_KeyDown" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock x:Name="PartnerCodeLabel"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <controls:TogglePasswordBox x:Name="TargetAccessCodeBox"
+                                                        Height="38"
+                                                        CornerRadius="6"
+                                                        KeyDown="ConnectInput_KeyDown" />
+                        </StackPanel>
+
+                        <Button x:Name="ConnectButton"
+                                Grid.Column="2"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Height="38"
+                                MinWidth="106"
+                                CornerRadius="6"
+                                VerticalAlignment="Bottom"
+                                Click="ConnectButton_Click" />
+                    </Grid>
+
+                    <Border x:Name="ClientLiveStatsCard"
+                            Visibility="Collapsed"
+                            Background="{ThemeResource OsmiumCardSubtleBrush}"
+                            BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="14,10">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                      Glyph="&#xE49E;"
+                                      FontSize="20"
+                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                            <TextBlock x:Name="ClientLiveStatsText" Grid.Column="1" FontSize="13" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" />
+                            <Button x:Name="StopSessionBtn" Grid.Column="2" Click="StopClientSession_Click"
+                                    CornerRadius="6" />
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" Margin="0,4,0,2" />
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="RecentTitleText"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Button x:Name="ClearHistoryBtn"
+                                Grid.Column="1"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="8,4"
+                                CornerRadius="6"
+                                Click="ClearHistory_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                          Glyph="&#xF34D;"
+                                          FontSize="16"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="ClearHistoryText"
+                                           FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock x:Name="NoRecentText"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                    <GridView x:Name="RecentSessionsGrid"
+                              SelectionMode="None"
+                              IsItemClickEnabled="True"
+                              ItemClick="RecentSessionsGrid_ItemClick">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.ItemContainerStyle>
+                            <Style TargetType="GridViewItem">
+                                <Setter Property="Margin" Value="0,0,10,10" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="MinWidth" Value="0" />
+                                <Setter Property="CornerRadius" Value="6" />
+                            </Style>
+                        </GridView.ItemContainerStyle>
+                        <GridView.ItemTemplate>
+                            <DataTemplate x:DataType="models:RecentSessionRecord">
+                                <Border Width="172" Height="36"
+                                        Background="{ThemeResource OsmiumCardBrush}"
+                                        BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,0">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                                  Glyph="&#xF35A;"
+                                                  FontSize="16"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  VerticalAlignment="Center" />
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{x:Bind FormattedId}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center" />
+
+                                        <Button Grid.Column="2"
+                                                Tag="{x:Bind DeviceId}"
+                                                Click="RemoveRecentItem_Click"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="4"
+                                                MinWidth="0"
+                                                MinHeight="0"
+                                                VerticalAlignment="Center">
+                                            <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                                      Glyph="&#xF36E;"
+                                                      FontSize="14"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,49 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Osmium.Core", "src\Osmium.Core\Osmium.Core.csproj", "{6B2E94A1-8E6A-4E6D-9B4C-2B8F7C6B9B10}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Osmium.App", "src\Osmium.App\Osmium.App.csproj", "{9A1C5D2F-3E4B-4F7E-A2B1-8C4D5E6F7A20}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CE4889C7-A787-35E7-8CA6-A144B7851261} = {CE4889C7-A787-35E7-8CA6-A144B7851261}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OsmiumEngine", "native\osmium-engine\OsmiumEngine.vcxproj", "{CE4889C7-A787-35E7-8CA6-A144B7851261}"
+	ProjectSection(ProjectDependencies) = postProject
+		{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68} = {81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}
+		{3D4C59A1-C1F2-3268-9335-337D4042DCED} = {3D4C59A1-C1F2-3268-9335-337D4042DCED}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SDL3", "native\deps\sdl3\VisualC\SDL\SDL.vcxproj", "{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "opus", "native\deps\opus\opus.vcxproj", "{3D4C59A1-C1F2-3268-9335-337D4042DCED}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6B2E94A1-8E6A-4E6D-9B4C-2B8F7C6B9B10}.Debug|x64.ActiveCfg = Debug|x64
+		{6B2E94A1-8E6A-4E6D-9B4C-2B8F7C6B9B10}.Debug|x64.Build.0 = Debug|x64
+		{6B2E94A1-8E6A-4E6D-9B4C-2B8F7C6B9B10}.Release|x64.ActiveCfg = Release|x64
+		{6B2E94A1-8E6A-4E6D-9B4C-2B8F7C6B9B10}.Release|x64.Build.0 = Release|x64
+		{9A1C5D2F-3E4B-4F7E-A2B1-8C4D5E6F7A20}.Debug|x64.ActiveCfg = Debug|x64
+		{9A1C5D2F-3E4B-4F7E-A2B1-8C4D5E6F7A20}.Debug|x64.Build.0 = Debug|x64
+		{9A1C5D2F-3E4B-4F7E-A2B1-8C4D5E6F7A20}.Release|x64.ActiveCfg = Release|x64
+		{9A1C5D2F-3E4B-4F7E-A2B1-8C4D5E6F7A20}.Release|x64.Build.0 = Release|x64
+		{CE4889C7-A787-35E7-8CA6-A144B7851261}.Debug|x64.ActiveCfg = Debug|x64
+		{CE4889C7-A787-35E7-8CA6-A144B7851261}.Debug|x64.Build.0 = Debug|x64
+		{CE4889C7-A787-35E7-8CA6-A144B7851261}.Release|x64.ActiveCfg = Release|x64
+		{CE4889C7-A787-35E7-8CA6-A144B7851261}.Release|x64.Build.0 = Release|x64
+		{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}.Debug|x64.ActiveCfg = Debug|x64
+		{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}.Debug|x64.Build.0 = Debug|x64
+		{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}.Release|x64.ActiveCfg = Release|x64
+		{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}.Release|x64.Build.0 = Release|x64
+		{3D4C59A1-C1F2-3268-9335-337D4042DCED}.Debug|x64.ActiveCfg = Debug|x64
+		{3D4C59A1-C1F2-3268-9335-337D4042DCED}.Debug|x64.Build.0 = Debug|x64
+		{3D4C59A1-C1F2-3268-9335-337D4042DCED}.Release|x64.ActiveCfg = Release|x64
+		{3D4C59A1-C1F2-3268-9335-337D4042DCED}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+EndGlobal

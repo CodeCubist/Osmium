@@ -1,0 +1,590 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /></xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  
+  <data name="Nav_SectionThisDevice" xml:space="preserve"><value>My Device</value></data>
+  <data name="Nav_SectionRemoteAssist" xml:space="preserve"><value>Remote Assist</value></data>
+  <data name="Nav_ConnectWorkspace" xml:space="preserve"><value>Start Assist</value></data>
+  <data name="Nav_HostControl" xml:space="preserve"><value>Capture &amp; Security</value></data>
+  <data name="Nav_GamepadMapper" xml:space="preserve"><value>Gamepad Mapper</value></data>
+  <data name="Nav_Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Title_HostStreaming" xml:space="preserve"><value>Remote Session Active</value></data>
+
+  
+  <data name="Status_Online" xml:space="preserve"><value>Online</value></data>
+  <data name="Status_Offline" xml:space="preserve"><value>Offline</value></data>
+  <data name="Status_Streaming" xml:space="preserve"><value>Streaming</value></data>
+  <data name="Home_MenuGoAssist" xml:space="preserve"><value>Open Remote Assist</value></data>
+  <data name="Home_MenuEnableRemote" xml:space="preserve"><value>Allow Remote Access</value></data>
+  <data name="Home_MenuDisableRemote" xml:space="preserve"><value>Disable Remote Access</value></data>
+  <data name="Home_MenuReconnect" xml:space="preserve"><value>Reconnect Device</value></data>
+  <data name="Home_DisconnectBtn" xml:space="preserve"><value>Disconnect</value></data>
+  <data name="Dock_ViewOnlyOn" xml:space="preserve"><value>View Only</value></data>
+  <data name="Dock_InteractiveOn" xml:space="preserve"><value>Full Control</value></data>
+  <data name="Dock_AudioOn" xml:space="preserve"><value>Audio On</value></data>
+  <data name="Dock_AudioMuted" xml:space="preserve"><value>Muted</value></data>
+  <data name="Dock_CapturePolicy" xml:space="preserve"><value>Capture Policy</value></data>
+  <data name="Dock_RemoteAssist" xml:space="preserve"><value>Remote Assist</value></data>
+  <data name="Flyout_ToggleApproval" xml:space="preserve"><value>Toggle Confirmation Prompt</value></data>
+  <data name="Home_QuickLaunch" xml:space="preserve"><value>Quick Launch</value></data>
+  <data name="Home_AddAssistShortcut" xml:space="preserve"><value>Start Remote Assist</value></data>
+  <data name="Home_HostControllingOverlay" xml:space="preserve"><value>Being Controlled</value></data>
+
+  
+  <data name="Assist_PageTitle" xml:space="preserve"><value>Remote Assist</value></data>
+  <data name="Assist_ThisDevice" xml:space="preserve"><value>This Device</value></data>
+  <data name="Assist_AllowRemote" xml:space="preserve"><value>Allow Remote Assist</value></data>
+  <data name="Assist_MyDeviceId" xml:space="preserve"><value>Device ID</value></data>
+  <data name="Assist_VerifyMethod" xml:space="preserve"><value>Verification:</value></data>
+  <data name="Assist_OptTemp" xml:space="preserve"><value>Temporary Code Direct</value></data>
+  <data name="Assist_OptTempConfirm" xml:space="preserve"><value>Code + Local Confirm</value></data>
+  <data name="Assist_OptFixed" xml:space="preserve"><value>Fixed Safety Code</value></data>
+  <data name="Assist_CodePrefix" xml:space="preserve"><value>Code: </value></data>
+  <data name="Assist_CopyShare" xml:space="preserve"><value>Copy &amp; Share</value></data>
+  <data name="Assist_PartnerHeader" xml:space="preserve"><value>Control Partner Device</value></data>
+  <data name="Assist_PartnerId" xml:space="preserve"><value>Partner Device ID</value></data>
+  <data name="Assist_PartnerIdPlaceholder" xml:space="preserve"><value>Enter Device ID</value></data>
+  <data name="Assist_PartnerCode" xml:space="preserve"><value>Access Code</value></data>
+  <data name="Assist_PartnerCodePlaceholder" xml:space="preserve"><value>Enter Access Code</value></data>
+  <data name="Assist_ConnectBtn" xml:space="preserve"><value>Connect</value></data>
+  <data name="Assist_ConnectCooldownFmt" xml:space="preserve"><value>Wait {0}s</value></data>
+  <data name="Assist_RecentTitle" xml:space="preserve"><value>Recent Connections</value></data>
+  <data name="Assist_ClearHistory" xml:space="preserve"><value>Clear</value></data>
+  <data name="Assist_NoRecent" xml:space="preserve"><value>No recent connections</value></data>
+  <data name="Assist_EndSession" xml:space="preserve"><value>End Session</value></data>
+  <data name="Assist_Connecting" xml:space="preserve"><value>Connecting...</value></data>
+  <data name="Assist_ShareClipboardFmt" xml:space="preserve"><value>Osmium ID: {0} | Access Code: {1}</value></data>
+  <data name="Host_PrimaryTag" xml:space="preserve"><value> · Primary</value></data>
+  <data name="Host_DefaultDisplay" xml:space="preserve"><value>Primary Display</value></data>
+  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>Display {0} · {1} · {2}×{3} @ {4}Hz{5}</value></data>
+  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>Display {0} · {1}×{2} @ {3}Hz{4}</value></data>
+  <data name="Host_SecVideo" xml:space="preserve"><value>Capture &amp; Encoding</value></data>
+  <data name="Host_SecSecurity" xml:space="preserve"><value>Access &amp; Security</value></data>
+  <data name="Host_SecPermissions" xml:space="preserve"><value>Audio &amp; Permissions</value></data>
+  <data name="Host_RowDisplay" xml:space="preserve"><value>Captured Display</value></data>
+  <data name="Host_RowMaxRes" xml:space="preserve"><value>Max Output Resolution</value></data>
+  <data name="Host_ResNative" xml:space="preserve"><value>Native Display Resolution</value></data>
+  <data name="Host_RowMaxFps" xml:space="preserve"><value>Max Frame Rate Cap</value></data>
+  <data name="Host_RowMaxBitrate" xml:space="preserve"><value>Max Bitrate Cap</value></data>
+  <data name="Host_RowCodec" xml:space="preserve"><value>Preferred Video Codec</value></data>
+  <data name="Host_CodecAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Host_RowEncoderMode" xml:space="preserve"><value>Encoder Mode</value></data>
+  <data name="Host_EncAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Host_EncHw" xml:space="preserve"><value>Force Hardware</value></data>
+  <data name="Host_EncSw" xml:space="preserve"><value>Force Software</value></data>
+  <data name="Host_RowAlias" xml:space="preserve"><value>Device Display Name</value></data>
+  <data name="Host_RowCodePolicy" xml:space="preserve"><value>Temporary Code Refresh Policy</value></data>
+  <data name="Host_PolicyManual" xml:space="preserve"><value>Manual Only</value></data>
+  <data name="Host_PolicyAfterSession" xml:space="preserve"><value>Reset Immediately on Remote Connect</value></data>
+  <data name="Host_PolicyOnStartup" xml:space="preserve"><value>On App Startup</value></data>
+  <data name="Host_RowFixedSwitch" xml:space="preserve"><value>Enable Fixed Safety Code</value></data>
+  <data name="Host_RowFixedBox" xml:space="preserve"><value>Fixed Safety Code</value></data>
+  <data name="Host_FixedPlaceholder" xml:space="preserve"><value>Min 4 characters</value></data>
+  <data name="Host_RowAudio" xml:space="preserve"><value>Stream System Audio</value></data>
+  <data name="Host_RowInput" xml:space="preserve"><value>Allow Remote Input Control</value></data>
+  <data name="Host_RowCursor" xml:space="preserve"><value>Capture Local Cursor</value></data>
+  <data name="Settings_PageTitle" xml:space="preserve"><value>Settings</value></data>
+  <data name="Tab_General" xml:space="preserve"><value>General</value></data>
+  <data name="Tab_Video" xml:space="preserve"><value>Video</value></data>
+  <data name="Tab_AudioInput" xml:space="preserve"><value>Audio &amp; Input</value></data>
+  <data name="Tab_Network" xml:space="preserve"><value>Network</value></data>
+  <data name="Tab_About" xml:space="preserve"><value>About</value></data>
+  <data name="Set_Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Set_LangAuto" xml:space="preserve"><value>System Default</value></data>
+  <data name="Set_LangZh" xml:space="preserve"><value>简体中文</value></data>
+  <data name="Set_LangEn" xml:space="preserve"><value>English</value></data>
+  <data name="Set_Theme" xml:space="preserve"><value>Appearance</value></data>
+  <data name="Set_ThemeLight" xml:space="preserve"><value>Light</value></data>
+  <data name="Set_ThemeDark" xml:space="preserve"><value>Dark</value></data>
+  <data name="Set_ThemeSystem" xml:space="preserve"><value>System Default</value></data>
+  <data name="Set_UiMode" xml:space="preserve"><value>Startup Window Mode</value></data>
+  <data name="Set_UiWindowed" xml:space="preserve"><value>Windowed</value></data>
+  <data name="Set_UiMaximized" xml:space="preserve"><value>Maximized</value></data>
+  <data name="Set_UiFullscreen" xml:space="preserve"><value>Fullscreen</value></data>
+  <data name="Set_KeepAwake" xml:space="preserve"><value>Prevent Computer Sleep</value></data>
+  <data name="Set_KeepAwakeDesc" xml:space="preserve"><value>Sleep prevents incoming remote access</value></data>
+  <data name="Set_CloseToTray" xml:space="preserve"><value>Hide to System Tray on Close</value></data>
+  <data name="Set_HideToTrayOnMinimize" xml:space="preserve"><value>Hide Directly to System Tray on Minimize</value></data>
+  <data name="Set_AutoStart" xml:space="preserve"><value>Launch at Windows Startup</value></data>
+  <data name="Set_AutoStartDesc" xml:space="preserve"><value>Automatically start Osmium when signing in to Windows</value></data>
+  <data name="Tray_OpenMain" xml:space="preserve"><value>Open Osmium</value></data>
+  <data name="Tray_AutoStart" xml:space="preserve"><value>Launch at Startup</value></data>
+  <data name="Tray_DisconnectHost" xml:space="preserve"><value>Disconnect Current Session</value></data>
+  <data name="Tray_Exit" xml:space="preserve"><value>Exit Osmium</value></data>
+  <data name="Tray_TooltipControlling" xml:space="preserve"><value>Osmium - Remote Control Active</value></data>
+  <data name="Set_ResTitle" xml:space="preserve"><value>Resolution</value></data>
+  <data name="Set_ResNativeLabel" xml:space="preserve"><value>Display {0} · {1}×{2}</value></data>
+  <data name="Set_ResCustomLabel" xml:space="preserve"><value>Custom · {0}×{1}</value></data>
+  <data name="Set_FpsTitle" xml:space="preserve"><value>Frame Rate Limit</value></data>
+  <data name="Set_FpsNativeLabel" xml:space="preserve"><value>{0} FPS · Native</value></data>
+  <data name="Set_CustomBtn" xml:space="preserve"><value>Custom</value></data>
+  <data name="Set_CustomResWidth" xml:space="preserve"><value>Width · 256 - 8192</value></data>
+  <data name="Set_CustomResHeight" xml:space="preserve"><value>Height · 144 - 4320</value></data>
+  <data name="Set_BitrateTitle" xml:space="preserve"><value>Video Bitrate</value></data>
+  <data name="Set_ResetRec" xml:space="preserve"><value>Recommended {0} Mbps</value></data>
+  <data name="Set_AutoBitrate" xml:space="preserve"><value>Auto-Adjust Bitrate</value></data>
+  <data name="Set_UnlockBitrate" xml:space="preserve"><value>Unlock Ultra Bitrate</value></data>
+  <data name="Set_UnlockBitrateDesc" xml:space="preserve"><value>Recommended for Gigabit or 10GbE LAN environments</value></data>
+  <data name="Set_WindowMode" xml:space="preserve"><value>Stream Window Mode</value></data>
+  <data name="Set_WinFullscreen" xml:space="preserve"><value>Exclusive Fullscreen</value></data>
+  <data name="Set_WinBorderless" xml:space="preserve"><value>Borderless Windowed</value></data>
+  <data name="Set_WinWindowed" xml:space="preserve"><value>Windowed</value></data>
+  <data name="Set_Vsync" xml:space="preserve"><value>Vertical Sync</value></data>
+  <data name="Set_FramePacing" xml:space="preserve"><value>Frame Pacing</value></data>
+  <data name="Set_FramePacingDesc" xml:space="preserve"><value>Reduce micro-stutter when V-Sync is active</value></data>
+  <data name="Set_Codec" xml:space="preserve"><value>Video Codec</value></data>
+  <data name="Set_Decoder" xml:space="preserve"><value>Video Decoder</value></data>
+  <data name="Set_DecAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Set_DecHw" xml:space="preserve"><value>Force Hardware</value></data>
+  <data name="Set_DecSw" xml:space="preserve"><value>Force Software</value></data>
+  <data name="Set_Hdr" xml:space="preserve"><value>Enable HDR 10-bit</value></data>
+  <data name="Set_HdrDesc" xml:space="preserve"><value>Effective only when Windows HDR is enabled on the host</value></data>
+  <data name="Set_Yuv444" xml:space="preserve"><value>Enable YUV 4:4:4 Chroma</value></data>
+  <data name="Set_PerfOverlay" xml:space="preserve"><value>Show Performance HUD by Default</value></data>
+  <data name="Set_ConnWarn" xml:space="preserve"><value>Show Connection Warnings</value></data>
+  <data name="Set_ConfWarn" xml:space="preserve"><value>Show Configuration Warnings</value></data>
+  <data name="Set_AudioChannels" xml:space="preserve"><value>Audio Channels</value></data>
+  <data name="Set_AudioStereo" xml:space="preserve"><value>Stereo 2.0</value></data>
+  <data name="Set_Audio51" xml:space="preserve"><value>5.1 Surround</value></data>
+  <data name="Set_Audio71" xml:space="preserve"><value>7.1 Surround</value></data>
+  <data name="Set_MuteHost" xml:space="preserve"><value>Mute Host Local Speakers</value></data>
+  <data name="Set_MuteFocus" xml:space="preserve"><value>Mute When Unfocused</value></data>
+  <data name="Set_SysKeys" xml:space="preserve"><value>Capture System Keys</value></data>
+  <data name="Set_SysKeysOff" xml:space="preserve"><value>Off</value></data>
+  <data name="Set_SysKeysFull" xml:space="preserve"><value>Fullscreen Only</value></data>
+  <data name="Set_SysKeysAlways" xml:space="preserve"><value>Always</value></data>
+  <data name="Set_AbsMouse" xml:space="preserve"><value>Absolute Mouse Mode</value></data>
+  <data name="Set_AbsTouch" xml:space="preserve"><value>Direct Touchscreen Mode</value></data>
+  <data name="Set_SwapMouse" xml:space="preserve"><value>Swap Mouse Buttons</value></data>
+  <data name="Set_ReverseScroll" xml:space="preserve"><value>Reverse Scroll Direction</value></data>
+  <data name="Set_MultiGamepad" xml:space="preserve"><value>Multi-Controller Support</value></data>
+  <data name="Set_SwapFace" xml:space="preserve"><value>Swap A/B and X/Y Face Buttons</value></data>
+  <data name="Set_GamepadMouse" xml:space="preserve"><value>Hold Start for Gamepad Mouse</value></data>
+  <data name="Set_BgGamepad" xml:space="preserve"><value>Capture Gamepad in Background</value></data>
+  <data name="Set_ServerUrl" xml:space="preserve"><value>Server URL</value></data>
+  <data name="Set_SaveReconnect" xml:space="preserve"><value>Save &amp; Reconnect</value></data>
+  <data name="Set_AutoConnect" xml:space="preserve"><value>Auto-Connect on Startup</value></data>
+  <data name="Set_UdpPort" xml:space="preserve"><value>STUN Port Override</value></data>
+  <data name="Set_UdpPortDesc" xml:space="preserve"><value>0 = use STUN port advertised by signaling server</value></data>
+  <data name="Set_Mtu" xml:space="preserve"><value>UDP Packet Size</value></data>
+  <data name="Set_EnableEncryption" xml:space="preserve"><value>Encrypted Transport</value></data>
+  <data name="Set_EnableEncryptionDesc" xml:space="preserve"><value>Encrypt traffic end to end with AES-256-GCM; both host and controller must use the same setting</value></data>
+  <data name="Set_DisableEncryptionWarnTitle" xml:space="preserve"><value>Disable Encrypted Transport Warning</value></data>
+  <data name="Set_DisableEncryptionWarnBody" xml:space="preserve"><value>Warning: Disabling encryption sends remote video, audio, and keyboard or mouse input in plaintext over the network, where it can be intercepted or tampered with. Only use this on a fully trusted local network, and both host and controller must disable encryption to connect. Are you sure you want to disable encrypted transport?</value></data>
+  <data name="Set_DisableEncryptionConfirm" xml:space="preserve"><value>Disable Anyway</value></data>
+  <data name="Settings_CustomResLabel" xml:space="preserve"><value>Custom Resolution</value></data>
+  <data name="Settings_CustomFpsLabel" xml:space="preserve"><value>Custom Frame Rate</value></data>
+  <data name="Settings_LangRestartNotice" xml:space="preserve"><value>Language saved, restarting Osmium to apply changes...</value></data>
+  <data name="Settings_LangRestartPendingTitle" xml:space="preserve"><value>Restart After Remote Session</value></data>
+  <data name="Settings_LangRestartPendingMsg" xml:space="preserve"><value>A remote session is currently active. Your language choice has been saved and Osmium will exit and restart automatically after the remote session ends.</value></data>
+  <data name="Gamepad_HeaderTitle" xml:space="preserve"><value>Gamepad Mapper</value></data>
+  <data name="Gamepad_RefreshBtn" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Gamepad_RowSelect" xml:space="preserve"><value>Controller</value></data>
+  <data name="Gamepad_TypeStd" xml:space="preserve"><value>Standard</value></data>
+  <data name="Gamepad_TypeRaw" xml:space="preserve"><value>Raw Joystick</value></data>
+  <data name="Gamepad_MetaFmt" xml:space="preserve"><value>GUID: {0} · Buttons: {1} · Axes: {2} · Hats: {3}</value></data>
+  <data name="Gamepad_ApplyBtn" xml:space="preserve"><value>Apply</value></data>
+  <data name="Gamepad_ApplyOk" xml:space="preserve"><value>Mapping applied</value></data>
+  <data name="Gamepad_ApplyFail" xml:space="preserve"><value>Invalid SDL mapping string</value></data>
+  <data name="Dialog_IncomingTitle" xml:space="preserve"><value>Incoming Remote Control Request</value></data>
+  <data name="Dialog_IncomingBody" xml:space="preserve"><value>Device &quot;{0}&quot; · {1} wants to control this PC.&#x0a;Source IP: {2}&#x0a;&#x0a;Allow connection?</value></data>
+  <data name="Dialog_Allow" xml:space="preserve"><value>Allow</value></data>
+  <data name="Dialog_Deny" xml:space="preserve"><value>Deny</value></data>
+  <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Conn_InvalidId" xml:space="preserve"><value>Please enter a valid target Device ID</value></data>
+  <data name="Conn_EmptyCode" xml:space="preserve"><value>Please enter an access code</value></data>
+  <data name="Conn_Offline" xml:space="preserve"><value>Device is offline; please check network or server URL</value></data>
+  <data name="Conn_CooldownWait" xml:space="preserve"><value>Please wait {0}s before connecting again</value></data>
+  <data name="Conn_Probing" xml:space="preserve"><value>Detecting network path...</value></data>
+  <data name="Conn_BindFailed" xml:space="preserve"><value>Unable to bind local transport port</value></data>
+  <data name="Conn_Requesting" xml:space="preserve"><value>Connecting to {0}...</value></data>
+  <data name="Conn_Rejected" xml:space="preserve"><value>Connection rejected {0}: {1}</value></data>
+  <data name="Conn_EncryptionMismatch" xml:space="preserve"><value>Encryption setting mismatch: both host and controller must enable or disable encrypted transport</value></data>
+  <data name="Conn_VerifyingAuth" xml:space="preserve"><value>Verifying access code...</value></data>
+  <data name="Conn_CheckingVersion" xml:space="preserve"><value>Checking version compatibility with server...</value></data>
+  <data name="Conn_VersionIncompatible" xml:space="preserve"><value>Incompatible versions: {0}</value></data>
+  <data name="Conn_VersionTimeout" xml:space="preserve"><value>Version compatibility check timed out</value></data>
+  <data name="Conn_BridgeTimeout" xml:space="preserve"><value>Timed out establishing connection bridge</value></data>
+  <data name="Conn_Punching" xml:space="preserve"><value>Establishing direct channel...</value></data>
+  <data name="Conn_PunchFailed" xml:space="preserve"><value>Failed to establish direct connection</value></data>
+  <data name="Conn_VerifyingDirect" xml:space="preserve"><value>Direct channel active, verifying access code...</value></data>
+  <data name="Conn_InvalidCode" xml:space="preserve"><value>Incorrect access code</value></data>
+  <data name="Conn_AuthTimeout" xml:space="preserve"><value>Verification timed out</value></data>
+  <data name="Conn_Starting" xml:space="preserve"><value>Verified, starting remote desktop...</value></data>
+  <data name="Conn_SessionEnded" xml:space="preserve"><value>Session ended</value></data>
+  <data name="Conn_Timeout" xml:space="preserve"><value>Connection timed out or canceled</value></data>
+  <data name="Tab_CaptureSecurity" xml:space="preserve"><value>Capture &amp; Security</value></data>
+  <data name="Assist_ConnectingTitle" xml:space="preserve"><value>Connecting to Remote Device</value></data>
+  <data name="Assist_CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Assist_TargetLabel" xml:space="preserve"><value>Target device: {0}</value></data>
+  <data name="Assist_CopiedBtn" xml:space="preserve"><value>Copied ✓</value></data>
+  <data name="Assist_ErrorTitle" xml:space="preserve"><value>Connection Failed</value></data>
+  <data name="Assist_OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Gamepad_VisualTitle" xml:space="preserve"><value>Visual Controller Mapper &amp; Live Tester</value></data>
+  <data name="Gamepad_BindHintIdle" xml:space="preserve"><value>Click any button, D-pad, trigger, or stick on the diagram to customize its binding</value></data>
+  <data name="Gamepad_BindListening" xml:space="preserve"><value>Listening for [{0}] — press any controller button or move a stick...</value></data>
+  <data name="Gamepad_CancelBindBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Gamepad_ClearBindBtn" xml:space="preserve"><value>Clear Binding</value></data>
+  <data name="Gamepad_PresetXboxBtn" xml:space="preserve"><value>Reset Default</value></data>
+  <data name="Gamepad_QuickSettingsTitle" xml:space="preserve"><value>Controller Behavior</value></data>
+  <data name="Gamepad_AdvancedRawLabel" xml:space="preserve"><value>Generated Mapping</value></data>
+  <data name="Gamepad_NoPadTip" xml:space="preserve"><value>No controller detected. Connect a controller and click Refresh to test or remap.</value></data>
+  <data name="Gamepad_BoundFmt" xml:space="preserve"><value>Bound [{0}] to {1}</value></data>
+  <data name="Gamepad_ClearedFmt" xml:space="preserve"><value>Cleared binding for [{0}]</value></data>
+  <data name="Gamepad_ResetDialogTitle" xml:space="preserve"><value>Default Layout Restored</value></data>
+  <data name="Gamepad_ResetOk" xml:space="preserve"><value>Reset to standard controller layout</value></data>
+  <data name="Gamepad_SwapBadge" xml:space="preserve"><value>A/B &amp; X/Y face swap active</value></data>
+  <data name="Gamepad_Part_A" xml:space="preserve"><value>Button A</value></data>
+  <data name="Gamepad_Part_B" xml:space="preserve"><value>Button B</value></data>
+  <data name="Gamepad_Part_X" xml:space="preserve"><value>Button X</value></data>
+  <data name="Gamepad_Part_Y" xml:space="preserve"><value>Button Y</value></data>
+  <data name="Gamepad_Part_LB" xml:space="preserve"><value>Left Bumper LB</value></data>
+  <data name="Gamepad_Part_RB" xml:space="preserve"><value>Right Bumper RB</value></data>
+  <data name="Gamepad_Part_LT" xml:space="preserve"><value>Left Trigger LT</value></data>
+  <data name="Gamepad_Part_RT" xml:space="preserve"><value>Right Trigger RT</value></data>
+  <data name="Gamepad_Part_Back" xml:space="preserve"><value>View / Back</value></data>
+  <data name="Gamepad_Part_Guide" xml:space="preserve"><value>Guide</value></data>
+  <data name="Gamepad_Part_Start" xml:space="preserve"><value>Menu / Start</value></data>
+  <data name="Gamepad_Part_LS" xml:space="preserve"><value>Left Stick Click L3</value></data>
+  <data name="Gamepad_Part_RS" xml:space="preserve"><value>Right Stick Click R3</value></data>
+  <data name="Gamepad_Part_LX" xml:space="preserve"><value>Left Stick X Axis</value></data>
+  <data name="Gamepad_Part_LY" xml:space="preserve"><value>Left Stick Y Axis</value></data>
+  <data name="Gamepad_Part_RX" xml:space="preserve"><value>Right Stick X Axis</value></data>
+  <data name="Gamepad_Part_RY" xml:space="preserve"><value>Right Stick Y Axis</value></data>
+  <data name="Gamepad_Part_Up" xml:space="preserve"><value>D-Pad Up</value></data>
+  <data name="Gamepad_Part_Down" xml:space="preserve"><value>D-Pad Down</value></data>
+  <data name="Gamepad_Part_Left" xml:space="preserve"><value>D-Pad Left</value></data>
+  <data name="Gamepad_Part_Right" xml:space="preserve"><value>D-Pad Right</value></data>
+
+  <data name="Host_RowDrivers" xml:space="preserve"><value>Virtual Peripheral Drivers</value></data>
+  <data name="Host_DriversReady" xml:space="preserve"><value>USB/IP virtual mouse and audio drivers ready</value></data>
+  <data name="Host_DriversMissing" xml:space="preserve"><value>USB/IP virtual peripheral driver not installed</value></data>
+  <data name="Host_DriversInstallBtn" xml:space="preserve"><value>Install Driver</value></data>
+  <data name="Host_DriversReinstallBtn" xml:space="preserve"><value>Repair / Reinstall</value></data>
+  <data name="Host_DriversUninstallBtn" xml:space="preserve"><value>Uninstall Driver</value></data>
+  <data name="Host_DriversUninstallTitle" xml:space="preserve"><value>Uninstall Virtual Driver</value></data>
+  <data name="Host_DriversUninstallConfirm" xml:space="preserve"><value>Remove USB/IP virtual peripheral driver and Driver Store packages from this PC?</value></data>
+  <data name="Host_RowAllowDriverMgmt" xml:space="preserve"><value>Allow remote virtual driver install / uninstall</value></data>
+  <data name="Host_RowAllowDriverMgmtDesc" xml:space="preserve"><value>Allow connected controller to deploy or remove virtual drivers on this host</value></data>
+  <data name="Host_RowRequireDriverConfirm" xml:space="preserve"><value>Require local confirmation before remote driver change</value></data>
+  <data name="Host_RowRequireDriverConfirmDesc" xml:space="preserve"><value>Show an explicit confirmation dialog on this PC before approving remote driver install/uninstall</value></data>
+  <data name="Dialog_DriverConfirmTitle" xml:space="preserve"><value>Remote Driver Security Prompt</value></data>
+  <data name="Dialog_DriverActionInstall" xml:space="preserve"><value>install</value></data>
+  <data name="Dialog_DriverActionUninstall" xml:space="preserve"><value>uninstall</value></data>
+  <data name="Dialog_DriverConfirmBodyFmt" xml:space="preserve"><value>Remote controller "{0}" requests to {1} virtual peripheral drivers on this PC. Allow?</value></data>
+  <data name="Dialog_DefaultPeerName" xml:space="preserve"><value>Remote Peer</value></data>
+
+  
+  <data name="Common_On" xml:space="preserve"><value>On</value></data>
+  <data name="Common_Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium Startup Error</value></data>
+  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium failed to start · {0}</value></data>
+  <data name="Startup_CrashLogSavedFmt" xml:space="preserve"><value>Crash log saved to:</value></data>
+
+  
+  <data name="Session_DefaultHostTitle" xml:space="preserve"><value>Remote Device</value></data>
+  <data name="Session_WaitingVideo" xml:space="preserve"><value>Starting remote desktop stream...</value></data>
+  <data name="Session_PipelineInitFailed" xml:space="preserve"><value>Failed to initialize WinUI 3 D3D11 video pipeline</value></data>
+  <data name="Session_MenuTooltip" xml:space="preserve"><value>Control Menu</value></data>
+  <data name="Session_MenuTitle" xml:space="preserve"><value>Remote Control &amp; Session</value></data>
+  <data name="Session_ViewResTitle" xml:space="preserve"><value>View Resolution</value></data>
+  <data name="Session_NativeResUnknown" xml:space="preserve"><value>Host native resolution: --</value></data>
+  <data name="Session_NativeResFmt" xml:space="preserve"><value>Host native resolution: {0} × {1}</value></data>
+  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100% Native Quality · {0}×{1}</value></data>
+  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}% Downscale · {1}×{2}</value></data>
+  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1} Aspect Fit · {2}×{3}</value></data>
+  <data name="Session_FpsColorTitle" xml:space="preserve"><value>Frame Rate &amp; Color</value></data>
+  <data name="Session_HdrHeader" xml:space="preserve"><value>HDR 10-bit</value></data>
+  <data name="Session_HdrRequiresHostHint" xml:space="preserve"><value>Enable Windows HDR on the host first to use HDR10</value></data>
+  <data name="Session_Yuv444Header" xml:space="preserve"><value>YUV 4:4:4 Chroma</value></data>
+  <data name="Session_VsyncHeader" xml:space="preserve"><value>Vertical Sync</value></data>
+  <data name="Session_MouseModeTitle" xml:space="preserve"><value>Mouse Mode</value></data>
+  <data name="Session_MouseController" xml:space="preserve"><value>Controller Mouse</value></data>
+  <data name="Session_MouseVirtual" xml:space="preserve"><value>Host Mouse</value></data>
+  <data name="Session_MouseSmart" xml:space="preserve"><value>Smart Mouse</value></data>
+  <data name="Session_MouseSmartLocked" xml:space="preserve"><value>Smart · Locked</value></data>
+  <data name="Session_MouseVirtualPaused" xml:space="preserve"><value>Virtual · Click to Lock</value></data>
+  <data name="Session_UseControllerMouse" xml:space="preserve"><value>Use Controller Mouse</value></data>
+  <data name="Session_UseVirtualMouse" xml:space="preserve"><value>Use Host Mouse</value></data>
+  <data name="Session_SmartMode" xml:space="preserve"><value>Smart Mode</value></data>
+  <data name="Session_ReleaseCursorLock" xml:space="preserve"><value>Release Mouse Lock</value></data>
+  <data name="Session_AudioTitle" xml:space="preserve"><value>Virtual Audio Peripherals</value></data>
+  <data name="Session_VirtualSpeaker" xml:space="preserve"><value>Virtual Speaker</value></data>
+  <data name="Session_VirtualMic" xml:space="preserve"><value>Virtual Microphone</value></data>
+  <data name="Session_LocalMicHeader" xml:space="preserve"><value>Local Capture Microphone</value></data>
+  <data name="Session_MicDefaultFmt" xml:space="preserve"><value>{0} · System Default</value></data>
+  <data name="Session_NoLocalMic" xml:space="preserve"><value>No local microphone detected</value></data>
+  <data name="Session_DriversTitle" xml:space="preserve"><value>Host Virtual Driver Management</value></data>
+  <data name="Session_DriverChecking" xml:space="preserve"><value>Checking host driver status...</value></data>
+  <data name="Session_DriverUsbReady" xml:space="preserve"><value>USB/IP virtual peripheral driver ready</value></data>
+  <data name="Session_DriverUsbMissing" xml:space="preserve"><value>USB/IP virtual peripheral driver not installed</value></data>
+  <data name="Session_DriverPolicyEnabled" xml:space="preserve"><value>Remote driver management enabled</value></data>
+  <data name="Session_DriverPolicyDisabled" xml:space="preserve"><value>Host policy disabled remote install/uninstall</value></data>
+  <data name="Session_RemoteInstallDriver" xml:space="preserve"><value>Install Remote Driver</value></data>
+  <data name="Session_RemoteReinstallDriver" xml:space="preserve"><value>Repair / Reinstall Driver</value></data>
+  <data name="Session_RemoteUninstallDriver" xml:space="preserve"><value>Uninstall Remote Driver</value></data>
+  <data name="Session_OsdTitle" xml:space="preserve"><value>Performance HUD</value></data>
+  <data name="Session_OsdToggleHeader" xml:space="preserve"><value>Show bottom-right click-through HUD</value></data>
+  <data name="Session_OsdDetailHeader" xml:space="preserve"><value>HUD Detail Level</value></data>
+  <data name="Session_OsdCompact" xml:space="preserve"><value>Compact</value></data>
+  <data name="Session_OsdStandard" xml:space="preserve"><value>Standard</value></data>
+  <data name="Session_OsdDetailed" xml:space="preserve"><value>Detailed</value></data>
+  <data name="Session_SysControlTitle" xml:space="preserve"><value>System Control &amp; Auto Unlock</value></data>
+  <data name="Session_ScreenLocked" xml:space="preserve"><value>Screen Locked</value></data>
+  <data name="Session_TaskManagerBtn" xml:space="preserve"><value>Task Manager</value></data>
+  <data name="Session_AutoUnlockHeader" xml:space="preserve"><value>Auto unlock when lock screen detected</value></data>
+  <data name="Session_AutoUnlockPlaceholder" xml:space="preserve"><value>Enter host password or PIN</value></data>
+  <data name="Session_AutoUnlockSavedPlaceholder" xml:space="preserve"><value>Encrypted credential saved; leave blank to keep</value></data>
+  <data name="Session_ApplyUnlockBtn" xml:space="preserve"><value>Apply &amp; Unlock</value></data>
+  <data name="Session_ClearPasswordBtn" xml:space="preserve"><value>Clear Password</value></data>
+  <data name="Session_WindowControlTitle" xml:space="preserve"><value>Session Window</value></data>
+  <data name="Session_ToggleFullscreenTooltip" xml:space="preserve"><value>Toggle Fullscreen</value></data>
+  <data name="Session_FullscreenEnter" xml:space="preserve"><value>Fullscreen</value></data>
+  <data name="Session_FullscreenExit" xml:space="preserve"><value>Exit Fullscreen</value></data>
+  <data name="Session_DisconnectBtn" xml:space="preserve"><value>Disconnect Remote</value></data>
+  <data name="Session_DisconnectTooltip" xml:space="preserve"><value>Exit remote control</value></data>
+  <data name="Session_DebugInfoTitle" xml:space="preserve"><value>Live Connection &amp; Network Diagnostics</value></data>
+  <data name="Session_CopyBtn" xml:space="preserve"><value>Copy</value></data>
+  <data name="Session_EndedByHost" xml:space="preserve"><value>Host ended the session</value></data>
+  <data name="Session_EndedFmt" xml:space="preserve"><value>Disconnected: {0}</value></data>
+  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>Cursor locked to host virtual mouse · Press Ctrl+Alt+Shift+M to release</value></data>
+  <data name="Session_ToastEnterPassword" xml:space="preserve"><value>Enter host Windows password or PIN first</value></data>
+  <data name="Session_ToastAutoUnlockEnabled" xml:space="preserve"><value>Auto unlock enabled</value></data>
+  <data name="Session_ToastAutoUnlockCleared" xml:space="preserve"><value>Auto unlock credentials cleared</value></data>
+  <data name="Session_ToastDriverInstallSent" xml:space="preserve"><value>Requested remote virtual driver install...</value></data>
+  <data name="Session_ToastDriverUninstallSent" xml:space="preserve"><value>Requested remote virtual driver uninstall...</value></data>
+  <data name="Session_ToastDebugCopied" xml:space="preserve"><value>Diagnostics copied to clipboard</value></data>
+  <data name="Session_NoticeSasSent" xml:space="preserve"><value>Sent Ctrl + Alt + Del to host</value></data>
+  <data name="Session_NoticeSasNeedsAdmin" xml:space="preserve"><value>Ctrl+Alt+Del requires host admin or service privilege</value></data>
+  <data name="Session_NoticeTaskMgrOpened" xml:space="preserve"><value>Opened Task Manager on host</value></data>
+  <data name="Session_NoticeUnlocked" xml:space="preserve"><value>Host lock screen unlocked automatically</value></data>
+  <data name="Session_NoticeDriverInstalled" xml:space="preserve"><value>Virtual peripheral driver installed on host</value></data>
+  <data name="Session_NoticeDriverInstallFailed" xml:space="preserve"><value>Host virtual peripheral driver install failed or UAC denied</value></data>
+  <data name="Session_NoticeDriverUninstalled" xml:space="preserve"><value>Virtual peripheral driver uninstalled on host</value></data>
+  <data name="Session_NoticeDriverUninstallFailed" xml:space="preserve"><value>Host virtual peripheral driver uninstall failed</value></data>
+  <data name="Session_NoticeDriverMgmtDisabled" xml:space="preserve"><value>Host disabled remote virtual driver management</value></data>
+  <data name="Session_NoticeDriverMgmtDenied" xml:space="preserve"><value>Host user declined remote driver operation</value></data>
+  <data name="Session_RouteLan" xml:space="preserve"><value>LAN Direct</value></data>
+  <data name="Session_RouteIpv6" xml:space="preserve"><value>IPv6 Direct</value></data>
+  <data name="Session_RouteDirect" xml:space="preserve"><value>Direct</value></data>
+  <data name="Session_OsdConnTypeFmt" xml:space="preserve"><value>Connection: {0}</value></data>
+  <data name="Session_OsdLatencyFmt" xml:space="preserve"><value>Latency: {0} ms</value></data>
+  <data name="Session_OsdNativeResFmt" xml:space="preserve"><value>Host Res: {0} × {1}</value></data>
+  <data name="Session_OsdStreamResFmt" xml:space="preserve"><value>Stream Res: {0} × {1}</value></data>
+  <data name="Session_OsdFpsFmt" xml:space="preserve"><value>FPS: {0}</value></data>
+  <data name="Session_OsdBitrateFmt" xml:space="preserve"><value>Bitrate: {0} Mbps</value></data>
+  <data name="Session_OsdDurationFmt" xml:space="preserve"><value>Duration: {0}</value></data>
+  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>Loss: {0}% · Drops {1}</value></data>
+  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>Loss: {0}% · {1}/{2} · Drops {3}</value></data>
+  <data name="Session_OsdDecodeFmt" xml:space="preserve"><value>Decode: {0} ms</value></data>
+  <data name="Session_OsdCodecFmt" xml:space="preserve"><value>Codec: {0} / {1} · {2} {3}</value></data>
+  <data name="Session_OsdMouseVirtual" xml:space="preserve"><value>Host Virtual Mouse</value></data>
+  <data name="Session_OsdMouseSmartVirtual" xml:space="preserve"><value>Smart Virtual</value></data>
+  <data name="Session_OsdMouseSmartController" xml:space="preserve"><value>Smart Controller</value></data>
+  <data name="Session_OsdMouseController" xml:space="preserve"><value>Controller Mouse</value></data>
+  <data name="Session_OsdMouseFmt" xml:space="preserve"><value>Mouse Mode: {0}</value></data>
+  <data name="Session_OsdPeerFmt" xml:space="preserve"><value>Peer: {0}</value></data>
+  <data name="Session_LocalAutoPort" xml:space="preserve"><value>Assigning...</value></data>
+  <data name="Session_DbgLineRouteFmt" xml:space="preserve"><value>Connection : {0}</value></data>
+  <data name="Session_DbgLineLocalFmt" xml:space="preserve"><value>Local      : {0}</value></data>
+  <data name="Session_DbgLinePeerFmt" xml:space="preserve"><value>Peer       : {0}</value></data>
+  <data name="Session_DbgLineSigHostFmt" xml:space="preserve"><value>Signaling  : {0} · {1}</value></data>
+  <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>Server URI : {0}</value></data>
+  <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>Host Res   : {0} × {1}</value></data>
+  <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>Stream Res : {0} × {1}</value></data>
+  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>Rate/Delay : {0} FPS · RTT {1} ms · Decode {2} ms</value></data>
+  <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>Bitrate    : {0} Mbps</value></data>
+  <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>Duration   : {0}</value></data>
+  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>Loss/Drop  : {0}% · Lost {1} / Recv {2} · Drops {3}</value></data>
+  <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>Codecs     : {0} · {1} · {2} · {3}</value></data>
+  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>Input/Audio: Mode {0} · Locked={1} · VirtualSpk={2} · VirtualMic={3}</value></data>
+  <data name="Nav_Account" xml:space="preserve"><value>Account</value></data>
+  <data name="Session_WhoControllingWhomFmt" xml:space="preserve"><value>{0} is controlling {1}</value></data>
+  <data name="Conn_AccountRequired" xml:space="preserve"><value>Only signed-in unlocked accounts can initiate remote control; being controlled does not require signing in</value></data>
+  <data name="Conn_BlacklistedByHost" xml:space="preserve"><value>The host account has blacklisted your account; connection refused</value></data>
+  <data name="Conn_CaptchaRequired" xml:space="preserve"><value>Daily remote control security verification threshold reached; please complete the human verification challenge</value></data>
+  <data name="Conn_CaptchaCancelled" xml:space="preserve"><value>Security human verification was canceled</value></data>
+  <data name="Peer_ConnectAction" xml:space="preserve"><value>Remote Control</value></data>
+  <data name="Peer_ViewOnlyAction" xml:space="preserve"><value>View Only</value></data>
+  <data name="Peer_CopyIdAction" xml:space="preserve"><value>Copy Device ID</value></data>
+  <data name="Peer_BlacklistControllerBtn" xml:space="preserve"><value>Blacklist Controller</value></data>
+  <data name="Peer_MetaOs" xml:space="preserve"><value>Operating System</value></data>
+  <data name="Peer_MetaIp" xml:space="preserve"><value>Last Login IP</value></data>
+  <data name="Peer_MetaLastActive" xml:space="preserve"><value>Last Active Time</value></data>
+  <data name="Acc_CaptchaWindowTitle" xml:space="preserve"><value>Osmium Security Verification</value></data>
+  <data name="Acc_CaptchaHint" xml:space="preserve"><value>Please complete the GeeTest verification below to continue automatically</value></data>
+  <data name="Acc_CaptchaOpenBrowser" xml:space="preserve"><value>Open in Browser</value></data>
+  <data name="Acc_CaptchaLoadError" xml:space="preserve"><value>Embedded verification view failed to load; please click Open in Browser</value></data>
+  <data name="Acc_CaptchaSubmitting" xml:space="preserve"><value>Verification received; validating...</value></data>
+  <data name="Acc_CaptchaBrowserOpened" xml:space="preserve"><value>Verification opened in default browser; waiting for completion</value></data>
+  <data name="Acc_PageTitle" xml:space="preserve"><value>Account &amp; Security</value></data>
+  <data name="Acc_DefaultUser" xml:space="preserve"><value>Remote User</value></data>
+  <data name="Acc_RowAuthMode" xml:space="preserve"><value>Action Type</value></data>
+  <data name="Acc_ModeLogin" xml:space="preserve"><value>Sign In</value></data>
+  <data name="Acc_ModeRegister" xml:space="preserve"><value>Create Account</value></data>
+  <data name="Acc_ModeReset" xml:space="preserve"><value>Reset Password</value></data>
+  <data name="Acc_RowEmail" xml:space="preserve"><value>Email Address</value></data>
+  <data name="Acc_EmailPlaceholder" xml:space="preserve"><value>Enter email address</value></data>
+  <data name="Acc_NewEmailHeader" xml:space="preserve"><value>New Email Address</value></data>
+  <data name="Acc_RowUsername" xml:space="preserve"><value>Username</value></data>
+  <data name="Acc_UsernamePlaceholder" xml:space="preserve"><value>Auto-generated or custom username</value></data>
+  <data name="Acc_RandomNameBtn" xml:space="preserve"><value>Generate</value></data>
+  <data name="Acc_RowPassword" xml:space="preserve"><value>Password</value></data>
+  <data name="Acc_PasswordPlaceholder" xml:space="preserve"><value>Enter at least 8 characters</value></data>
+  <data name="Acc_RowConfirmPassword" xml:space="preserve"><value>Confirm Password</value></data>
+  <data name="Acc_ConfirmPasswordPlaceholder" xml:space="preserve"><value>Re-enter password</value></data>
+  <data name="Acc_RowOtp" xml:space="preserve"><value>Email Verification Code</value></data>
+  <data name="Acc_OtpPlaceholder" xml:space="preserve"><value>6-digit verification code</value></data>
+  <data name="Acc_SendOtpBtn" xml:space="preserve"><value>Send Code</value></data>
+  <data name="Acc_RowSubmitAction" xml:space="preserve"><value>Submit</value></data>
+  <data name="Acc_SubmitLogin" xml:space="preserve"><value>Sign In Now</value></data>
+  <data name="Acc_SubmitRegister" xml:space="preserve"><value>Register &amp; Sign In</value></data>
+  <data name="Acc_SubmitReset" xml:space="preserve"><value>Reset Password</value></data>
+  <data name="Acc_TabProfile" xml:space="preserve"><value>Profile &amp; Security</value></data>
+  <data name="Acc_TabDevices" xml:space="preserve"><value>Logged-in Devices</value></data>
+  <data name="Acc_TabHistory" xml:space="preserve"><value>30-Day Login History</value></data>
+  <data name="Acc_RowAvatar" xml:space="preserve"><value>Avatar</value></data>
+  <data name="Acc_ChangeAvatarBtn" xml:space="preserve"><value>Change Avatar</value></data>
+  <data name="Acc_SaveBtn" xml:space="preserve"><value>Save</value></data>
+  <data name="Acc_ChangeEmailBtn" xml:space="preserve"><value>Change Email</value></data>
+  <data name="Acc_RowAccountLock" xml:space="preserve"><value>Account Security Lock</value></data>
+  <data name="Acc_StatusNormal" xml:space="preserve"><value>Active</value></data>
+  <data name="Acc_StatusLocked" xml:space="preserve"><value>Locked</value></data>
+  <data name="Acc_LockBtn" xml:space="preserve"><value>Lock Account</value></data>
+  <data name="Acc_UnlockBtn" xml:space="preserve"><value>Unlock Account</value></data>
+  <data name="Acc_RowBlacklist" xml:space="preserve"><value>Remote Control Blacklist</value></data>
+  <data name="Acc_ManageBlacklistBtn" xml:space="preserve"><value>Manage Blacklist</value></data>
+  <data name="Acc_BlacklistEmpty" xml:space="preserve"><value>No blacklisted accounts</value></data>
+  <data name="Acc_UnblockBtn" xml:space="preserve"><value>Unblock</value></data>
+  <data name="Acc_RowSessionActions" xml:space="preserve"><value>Session &amp; Account</value></data>
+  <data name="Acc_LogoutBtn" xml:space="preserve"><value>Sign Out</value></data>
+  <data name="Acc_LogoutRevokeAllCheck" xml:space="preserve"><value>Also revoke long-term credentials on all logged-in devices</value></data>
+  <data name="Acc_DeleteAccountBtn" xml:space="preserve"><value>Delete Account</value></data>
+  <data name="Acc_RemoveDeviceBtn" xml:space="preserve"><value>Remove Device</value></data>
+  <data name="Acc_HistoryEmpty" xml:space="preserve"><value>No login records in the last 30 days</value></data>
+  <data name="Acc_OtpSentFmt" xml:space="preserve"><value>Verification code sent to {0}; valid for 10 minutes</value></data>
+  <data name="Acc_MsgLoginSuccess" xml:space="preserve"><value>Signed in successfully</value></data>
+  <data name="Acc_MsgRegisterSuccess" xml:space="preserve"><value>Account created and signed in</value></data>
+  <data name="Acc_MsgResetSuccess" xml:space="preserve"><value>Password reset successfully; please sign in with your new password</value></data>
+  <data name="Acc_MsgProfileUpdated" xml:space="preserve"><value>Profile updated</value></data>
+  <data name="Acc_MsgEmailUpdated" xml:space="preserve"><value>Email address updated</value></data>
+  <data name="Acc_ErrInvalidEmail" xml:space="preserve"><value>Please enter a valid email address</value></data>
+  <data name="Acc_ErrPasswordLength" xml:space="preserve"><value>Password must be between 8 and 128 characters</value></data>
+  <data name="Acc_ErrPasswordMismatch" xml:space="preserve"><value>Passwords do not match</value></data>
+  <data name="Acc_ErrEnterOtpFirst" xml:space="preserve"><value>Please enter the 6-digit email verification code</value></data>
+  <data name="Acc_ErrLocked" xml:space="preserve"><value>Account is currently locked; please unlock it first</value></data>
+  <data name="Acc_ErrInvalidCredentials" xml:space="preserve"><value>Incorrect email or password</value></data>
+  <data name="Acc_ErrEmailRegistered" xml:space="preserve"><value>This email address is already registered</value></data>
+  <data name="Acc_ErrAccountNotFound" xml:space="preserve"><value>No account found for this email address</value></data>
+  <data name="Acc_ErrOtpExpired" xml:space="preserve"><value>Verification code has expired or does not exist; please request a new code</value></data>
+  <data name="Acc_ErrOtpInvalid" xml:space="preserve"><value>Incorrect verification code</value></data>
+  <data name="Acc_ErrOtpAttempts" xml:space="preserve"><value>Too many failed verification attempts; please request a new code</value></data>
+  <data name="Acc_ErrOtpCooldown" xml:space="preserve"><value>Verification code requested too frequently; please wait before retrying</value></data>
+  <data name="Acc_ErrCaptchaFailed" xml:space="preserve"><value>Security human verification failed or expired; please try again</value></data>
+  <data name="Acc_ErrGeetestNotConfigured" xml:space="preserve"><value>Server GeeTest credentials are not configured yet</value></data>
+  <data name="Acc_ErrSmtpNotConfigured" xml:space="preserve"><value>Server SMTP email credentials are not configured yet</value></data>
+  <data name="Acc_ErrDeviceLimit" xml:space="preserve"><value>A single account can sign in on up to 10 devices; please remove an unused device first</value></data>
+  <data name="Acc_ErrInvalidAvatar" xml:space="preserve"><value>Avatar image is invalid or exceeds the size limit</value></data>
+  <data name="Acc_ErrInvalidUsername" xml:space="preserve"><value>Please enter a valid username</value></data>
+  <data name="Acc_ErrAuthRequired" xml:space="preserve"><value>Session expired; please sign in again</value></data>
+  <data name="Acc_ErrRateLimited" xml:space="preserve"><value>Too many requests; please try again shortly</value></data>
+  <data name="Acc_ErrGeneric" xml:space="preserve"><value>Request failed; please try again</value></data>
+  <data name="Acc_StepProgressFmt" xml:space="preserve"><value>Step {0} of {1}</value></data>
+  <data name="Acc_StepAccount" xml:space="preserve"><value>Account Email</value></data>
+  <data name="Acc_StepVerify" xml:space="preserve"><value>Verification</value></data>
+  <data name="Acc_StepPassword" xml:space="preserve"><value>Password</value></data>
+  <data name="Acc_StepSetPassword" xml:space="preserve"><value>Set Password</value></data>
+  <data name="Acc_StepNewPassword" xml:space="preserve"><value>New Password</value></data>
+  <data name="Acc_WizardNextBtn" xml:space="preserve"><value>Next</value></data>
+  <data name="Acc_WizardBackBtn" xml:space="preserve"><value>Back</value></data>
+  <data name="Acc_WizardSendAndNextBtn" xml:space="preserve"><value>Send Code and Continue</value></data>
+  <data name="Acc_WizardResendBtn" xml:space="preserve"><value>Resend</value></data>
+  <data name="Acc_WizardChangeBtn" xml:space="preserve"><value>Change</value></data>
+  <data name="Acc_WizardCurrentEmail" xml:space="preserve"><value>Current Email</value></data>
+  <data name="Acc_WizardNewEmail" xml:space="preserve"><value>New Email</value></data>
+  <data name="Acc_ErrSmtpSendFailed" xml:space="preserve"><value>Failed to send verification email; please try again later</value></data>
+  <data name="Acc_ErrServiceBusy" xml:space="preserve"><value>Cloud service is temporarily unavailable; please try again later</value></data>
+  <data name="Acc_ErrNetwork" xml:space="preserve"><value>Network connection failed; please check your connection</value></data>
+  <data name="Conn_TargetOffline" xml:space="preserve"><value>Target device is currently offline</value></data>
+  <data name="Conn_TargetRemoteDisabled" xml:space="preserve"><value>Target device has disabled remote control</value></data>
+  <data name="Conn_SelfConnect" xml:space="preserve"><value>Cannot connect to this device itself</value></data>
+  <data name="Conn_RejectedCode" xml:space="preserve"><value>Connection rejected · {0}</value></data>
+  <data name="Assist_LoginRequiredHint" xml:space="preserve"><value>Sign in to initiate remote control</value></data>
+  <data name="Assist_GoLoginBtn" xml:space="preserve"><value>Sign In</value></data>
+  <data name="Tab_Devices" xml:space="preserve"><value>Devices</value></data>
+  <data name="Set_ShowSidebarDevices" xml:space="preserve"><value>Show same-account devices in sidebar</value></data>
+  <data name="Set_ShowSidebarDevicesDesc" xml:space="preserve"><value>Display other devices signed into the same account in the left sidebar</value></data>
+  <data name="Set_DevicesSectionTitle" xml:space="preserve"><value>Signed-In Account Devices</value></data>
+  <data name="Set_DevicesLoginPromptTitle" xml:space="preserve"><value>Not Signed In</value></data>
+  <data name="Set_DevicesLoginPromptDesc" xml:space="preserve"><value>Sign in to your Osmium account to manage sidebar visibility and sign out devices</value></data>
+  <data name="Set_DevicesEmpty" xml:space="preserve"><value>No signed-in devices found for this account</value></data>
+  <data name="Set_DeviceThisTag" xml:space="preserve"><value>This Device</value></data>
+  <data name="Set_DeviceSidebarToggleLabel" xml:space="preserve"><value>Sidebar</value></data>
+  <data name="Set_DeviceSignOutBtn" xml:space="preserve"><value>Sign Out</value></data>
+  <data name="Set_DeviceSignOutTitle" xml:space="preserve"><value>Sign Out Device</value></data>
+  <data name="Set_DeviceSignOutBodyFmt" xml:space="preserve"><value>Sign out {0} from your account? It will need to sign in again to access account features.</value></data>
+  <data name="Set_DeviceSignOutSelfBodyFmt" xml:space="preserve"><value>Sign out this device {0} from your account?</value></data>
+  <data name="Set_DeviceSignOutSuccess" xml:space="preserve"><value>Device signed out successfully</value></data>
+  <data name="Acc_WizardHaveOtpBtn" xml:space="preserve"><value>Have a code? Enter directly</value></data>
+  <data name="Acc_OtpSendCooldownFmt" xml:space="preserve"><value>Send Code · {0}s</value></data>
+  <data name="Acc_OtpResendCooldownFmt" xml:space="preserve"><value>Resend · {0}s</value></data>
+  <data name="Acc_ModeLoginDesc" xml:space="preserve"><value>Sign in with your existing email and password</value></data>
+  <data name="Acc_ModeRegisterDesc" xml:space="preserve"><value>Create a new Osmium account with email verification</value></data>
+  <data name="Acc_ModeResetDesc" xml:space="preserve"><value>Reset your account password via email verification</value></data>
+  <data name="Set_DeviceRenameBtn" xml:space="preserve"><value>Rename</value></data>
+  <data name="Set_DeviceRenameTitle" xml:space="preserve"><value>Rename Device</value></data>
+  <data name="Set_DeviceRenameHeader" xml:space="preserve"><value>Custom Device Name</value></data>
+  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>Original name · {0} · Up to 24 characters</value></data>
+  <data name="Set_DeviceClearRenameBtn" xml:space="preserve"><value>Clear Rename</value></data>
+  <data name="Set_DeviceRenameSuccess" xml:space="preserve"><value>Device name updated</value></data>
+  <data name="Set_DeviceRenameCleared" xml:space="preserve"><value>Restored default device name</value></data>
+</root>

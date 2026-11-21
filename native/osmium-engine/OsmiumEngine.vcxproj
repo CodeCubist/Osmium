@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup Label="ProjectConfigurations">
+        <ProjectConfiguration Include="Debug|x64">
+            <Configuration>Debug</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Release|x64">
+            <Configuration>Release</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+    </ItemGroup>
+
+    <PropertyGroup Label="Globals">
+        <VCProjectVersion>17.0</VCProjectVersion>
+        <Keyword>Win32Proj</Keyword>
+        <ProjectGuid>{CE4889C7-A787-35E7-8CA6-A144B7851261}</ProjectGuid>
+        <RootNamespace>OsmiumEngine</RootNamespace>
+        <ProjectName>OsmiumEngine</ProjectName>
+        <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+        <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+    </PropertyGroup>
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+        <ConfigurationType>DynamicLibrary</ConfigurationType>
+        <UseDebugLibraries>true</UseDebugLibraries>
+        <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+        <ConfigurationType>DynamicLibrary</ConfigurationType>
+        <UseDebugLibraries>false</UseDebugLibraries>
+        <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+        <WholeProgramOptimization>true</WholeProgramOptimization>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+
+    <ImportGroup Label="ExtensionSettings"/>
+    <ImportGroup Label="Shared"/>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+    </ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+    </ImportGroup>
+
+    <PropertyGroup Label="UserMacros"/>
+
+    <PropertyGroup>
+        <OutDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\</OutDir>
+        <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
+        <TargetName>OsmiumEngine</TargetName>
+        <TargetExt>.dll</TargetExt>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <LinkIncremental>true</LinkIncremental>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <LinkIncremental>false</LinkIncremental>
+    </PropertyGroup>
+
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <SDLCheck>true</SDLCheck>
+            <ConformanceMode>true</ConformanceMode>
+            <LanguageStandard>stdcpp20</LanguageStandard>
+            <MultiProcessorCompilation>true</MultiProcessorCompilation>
+            <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;$(ProjectDir)..\deps\ffmpeg\include;$(ProjectDir)..\deps\sdl3\include;$(ProjectDir)..\deps\opus\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+            <PreprocessorDefinitions>_DEBUG;WIN32;_WINDOWS;_USRDLL;OSMIUM_NATIVE_EXPORTS;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+        </ClCompile>
+        <Link>
+            <SubSystem>Windows</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+            <ImportLibrary>$(ProjectDir)..\lib\$(Platform)\$(Configuration)\$(TargetName).lib</ImportLibrary>
+            <AdditionalLibraryDirectories>$(ProjectDir)..\deps\ffmpeg\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+            <AdditionalDependencies>avcodec.lib;avutil.lib;swscale.lib;swresample.lib;ws2_32.lib;iphlpapi.lib;bcrypt.lib;d3d11.lib;dxgi.lib;d2d1.lib;dwrite.lib;d3dcompiler.lib;ole32.lib;user32.lib;gdi32.lib;setupapi.lib;newdev.lib;cfgmgr32.lib;crypt32.lib;shlwapi.lib;advapi32.lib;wtsapi32.lib;userenv.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+        </Link>
+    </ItemDefinitionGroup>
+
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <FunctionLevelLinking>true</FunctionLevelLinking>
+            <IntrinsicFunctions>true</IntrinsicFunctions>
+            <SDLCheck>true</SDLCheck>
+            <ConformanceMode>true</ConformanceMode>
+            <LanguageStandard>stdcpp20</LanguageStandard>
+            <MultiProcessorCompilation>true</MultiProcessorCompilation>
+            <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;$(ProjectDir)..\deps\ffmpeg\include;$(ProjectDir)..\deps\sdl3\include;$(ProjectDir)..\deps\opus\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+            <PreprocessorDefinitions>NDEBUG;WIN32;_WINDOWS;_USRDLL;OSMIUM_NATIVE_EXPORTS;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+        </ClCompile>
+        <Link>
+            <SubSystem>Windows</SubSystem>
+            <EnableCOMDATFolding>true</EnableCOMDATFolding>
+            <OptimizeReferences>true</OptimizeReferences>
+            <GenerateDebugInformation>false</GenerateDebugInformation>
+            <ImportLibrary>$(ProjectDir)..\lib\$(Platform)\$(Configuration)\$(TargetName).lib</ImportLibrary>
+            <AdditionalLibraryDirectories>$(ProjectDir)..\deps\ffmpeg\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+            <AdditionalDependencies>avcodec.lib;avutil.lib;swscale.lib;swresample.lib;ws2_32.lib;iphlpapi.lib;bcrypt.lib;d3d11.lib;dxgi.lib;d2d1.lib;dwrite.lib;d3dcompiler.lib;ole32.lib;user32.lib;gdi32.lib;setupapi.lib;newdev.lib;cfgmgr32.lib;crypt32.lib;shlwapi.lib;advapi32.lib;wtsapi32.lib;userenv.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+        </Link>
+    </ItemDefinitionGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\deps\sdl3\VisualC\SDL\SDL.vcxproj">
+            <Project>{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}</Project>
+        </ProjectReference>
+        <ProjectReference Include="..\deps\opus\opus.vcxproj">
+            <Project>{3D4C59A1-C1F2-3268-9335-337D4042DCED}</Project>
+        </ProjectReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ClInclude Include="include\OsmiumNative.h"/>
+        <ClInclude Include="include\OsmiumProtocol.h"/>
+        <ClInclude Include="src\ClientAudioPlayer.h"/>
+        <ClInclude Include="src\ClientInputCapture.h"/>
+        <ClInclude Include="src\ClientMicCapture.h"/>
+        <ClInclude Include="src\ClientVideoDecoder.h"/>
+        <ClInclude Include="src\DriverSetupHelper.h"/>
+        <ClInclude Include="src\HostAudioCapture.h"/>
+        <ClInclude Include="src\HostCapture.h"/>
+        <ClInclude Include="src\HostInputInjector.h"/>
+        <ClInclude Include="src\HostSystemAgent.h"/>
+        <ClInclude Include="src\HostVideoEncoder.h"/>
+        <ClInclude Include="src\OsmiumCommon.h"/>
+        <ClInclude Include="src\OsmiumTransport.h"/>
+        <ClInclude Include="src\UsbIpVirtualDevices.h"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ClCompile Include="src\ClientAudioPlayer.cpp"/>
+        <ClCompile Include="src\ClientInputCapture.cpp"/>
+        <ClCompile Include="src\ClientMicCapture.cpp"/>
+        <ClCompile Include="src\ClientVideoDecoder.cpp"/>
+        <ClCompile Include="src\DriverSetupHelper.cpp"/>
+        <ClCompile Include="src\HostAudioCapture.cpp"/>
+        <ClCompile Include="src\HostCapture.cpp"/>
+        <ClCompile Include="src\HostInputInjector.cpp"/>
+        <ClCompile Include="src\HostSystemAgent.cpp"/>
+        <ClCompile Include="src\HostVideoEncoder.cpp"/>
+        <ClCompile Include="src\OsmiumEngine.cpp"/>
+        <ClCompile Include="src\OsmiumTransport.cpp"/>
+        <ClCompile Include="src\UsbIpVirtualDevices.cpp"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ResourceCompile Include="src\OsmiumEngine.rc"/>
+        <None Include="src\blank.cur"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <NativeRuntimeFile Include="$(ProjectDir)..\deps\ffmpeg\bin\avcodec-63.dll"/>
+        <NativeRuntimeFile Include="$(ProjectDir)..\deps\ffmpeg\bin\avutil-61.dll"/>
+        <NativeRuntimeFile Include="$(ProjectDir)..\deps\ffmpeg\bin\swscale-10.dll"/>
+        <NativeRuntimeFile Include="$(ProjectDir)..\deps\ffmpeg\bin\swresample-7.dll"/>
+        <NativeRuntimeFile Include="$(ProjectDir)..\deps\SDL_GameControllerDB\gamecontrollerdb.txt"/>
+        <NativeDriverFile Include="$(ProjectDir)..\drivers\**\*.*"/>
+    </ItemGroup>
+
+    <Target Name="CopyNativeRuntimeFiles" AfterTargets="Build">
+        <Copy SourceFiles="@(NativeRuntimeFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true"/>
+        <Copy SourceFiles="@(NativeDriverFile)" DestinationFiles="@(NativeDriverFile->'$(OutDir)drivers\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true"/>
+    </Target>
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+    <ImportGroup Label="ExtensionTargets"/>
+</Project>

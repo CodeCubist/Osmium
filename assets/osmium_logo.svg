@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img"
+     aria-labelledby="title desc">
+    <title id="title">Osmium</title>
+    <desc id="desc">Osmium interwoven ribbon logo</desc>
+    <defs>
+        <linearGradient xmlns="http://www.w3.org/2000/svg" id="blue" gradientUnits="userSpaceOnUse" x1="55" y1="580"
+                        x2="925" y2="310">
+            <stop stop-color="#3468FA"/>
+            <stop offset=".38" stop-color="#3C70FC"/>
+            <stop offset="1" stop-color="#386CFC"/>
+        </linearGradient>
+        <linearGradient xmlns="http://www.w3.org/2000/svg" id="mint" gradientUnits="userSpaceOnUse" x1="188" y1="724"
+                        x2="871" y2="87">
+            <stop stop-color="#3FDFB7"/>
+            <stop offset=".55" stop-color="#3BDEB5"/>
+            <stop offset="1" stop-color="#40DEB9"/>
+        </linearGradient>
+        <clipPath xmlns="http://www.w3.org/2000/svg" id="ribbon-counter" clipPathUnits="userSpaceOnUse">
+            <path clip-rule="evenodd"
+                  d="         M 0 0 H 1040 V 820 H 0 Z         M 244 490         C 244 468 247 449 249 434         C 253 404 295 390.135 344 361         C 432.8 308.2 515 300 603 246         C 642.6 221.7 673 207 724 207         C 796 207 845 250 845 332         C 845 383 827 419 792 456         C 747.2 503.36 604 506 520 552         C 469.6 579.6 414 601 362 601         C 292 601 244 564 244 490 Z"/>
+        </clipPath>
+    </defs>
+    <g transform="translate(84.200 183.400) scale(0.92)">
+        <g id="osmium-symbol" transform="translate(-49.5 -51)">
+            <g xmlns="http://www.w3.org/2000/svg" id="mint-ribbon" fill="url(#mint)" clip-path="url(#ribbon-counter)">
+                <path id="upper-return"
+                      d="       M 519 170       C 603 113 699 51 791 51       C 912 51 982 125 982 252       C 982 347 958 422 876 461       C 842 477.2 810 467 779 447       L 730 374 L 666 293       C 640 262 620 255 598 239       C 572 220 550 199 519 181       C 513 177.52 513 174.07 519 170 Z"/>
+                <path id="lower-return"
+                      d="       M 99 661       C 82 619 91 559 119 528       C 151 492.57 201 461 250 425       L 317 377 L 420 444 L 493 528       C 526 566 565 597 600 617       C 606.3 620.6 606 624 600 628       C 489 700 390 761 282 761       C 192 761 131 725 99 661 Z"/>
+            </g>
+            <path xmlns="http://www.w3.org/2000/svg" id="front-ribbon" fill="url(#blue)"
+                  d="     M 99 661     C 57 611 47 561 47 501     C 47 429 69 378 119 339     L 247 239.16     C 291 204.84 336 181 386 181     C 448 181 490 200 546 248     L 757 428.857     C 792 458.857 816 474 849 464     C 917 443.394 962 380 976 311     C 979.5 293.75 981.8 276 982 257     C 981.9 296 982 346 982 384     C 982 468 966 528 916 573     C 867 617.1 820 639 761 639     C 698 639 648 605 589 555     L 385 382.119     C 367.3 367.119 358 360 349 359     C 345 358.556 341 361.1 335 365.6     L 153 502.1     C 104 538.85 83 596 99 661 Z"/>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,251 @@
+<Page
+    x:Class="Osmium.App.Views.PeerDevicePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:Osmium.App.Helpers">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="18" HorizontalAlignment="Stretch">
+
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Border x:Name="PeerStatePill"
+                        Background="{ThemeResource OsmiumBadgeSuccessBg}"
+                        CornerRadius="11"
+                        Padding="10,3"
+                        VerticalAlignment="Center">
+                    <TextBlock x:Name="PeerStatePillText"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource OsmiumBadgeSuccessFg}" />
+                </Border>
+
+                <TextBlock x:Name="PeerDeviceNameText"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           MaxWidth="400"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"
+                           helpers:TrimmedToolTip.IsEnabled="True"
+                           VerticalAlignment="Center" />
+
+                <TextBlock x:Name="PeerDeviceIdText"
+                           FontSize="14"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center"
+                           IsTextSelectionEnabled="True" />
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,4"
+                        CornerRadius="6"
+                        VerticalAlignment="Center">
+                    <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                              Glyph="&#xF588;"
+                              FontSize="18"
+                              Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <Button.Flyout>
+                        <MenuFlyout x:Name="PeerHeaderFlyout">
+                            <MenuFlyoutItem x:Name="MenuConnectItem" Click="ConnectInteractive_Click" />
+                            <MenuFlyoutItem x:Name="MenuViewOnlyItem" Click="ConnectViewOnly_Click" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem x:Name="MenuRenameItem" Click="RenamePeerDevice_Click" />
+                            <MenuFlyoutItem x:Name="MenuCopyIdItem" Click="CopyDeviceId_Click" />
+                            <MenuFlyoutItem x:Name="MenuRefreshItem" Click="RefreshDevice_Click" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
+
+
+            <InfoBar
+                x:Name="ActivePeerBanner"
+                IsOpen="False"
+                IsClosable="False"
+                Severity="Warning">
+                <InfoBar.Content>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
+                        <Button x:Name="BannerDisconnectBtn" Click="DisconnectPeerSession_Click" CornerRadius="6" />
+                        <Button x:Name="BannerBlacklistBtn"
+                                Click="BlacklistController_Click"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                CornerRadius="6" />
+                    </StackPanel>
+                </InfoBar.Content>
+            </InfoBar>
+
+
+            <Grid>
+                <Grid x:Name="HeroCardClipGrid" SizeChanged="HeroCardClipGrid_SizeChanged">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="240" />
+                        <RowDefinition Height="50" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" x:Name="HeroWallpaperArea" Background="{ThemeResource OsmiumCardBrush}">
+                        <Image x:Name="HeroWallpaperBackImage"
+                               Opacity="0"
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               RenderTransformOrigin="0.5,0.5">
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="1.02" ScaleY="1.02" />
+                            </Image.RenderTransform>
+                        </Image>
+
+                        <Image x:Name="HeroWallpaperImage"
+                               Opacity="0"
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               RenderTransformOrigin="0.5,0.5">
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="1.02" ScaleY="1.02" />
+                            </Image.RenderTransform>
+                        </Image>
+
+                        <Border x:Name="PeerControllingOverlay"
+                                Visibility="Collapsed"
+                                Opacity="0"
+                                Background="#66000000"
+                                IsHitTestVisible="False">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="6">
+                                <TextBlock x:Name="PeerControllingTitleText"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="#FFFFFFFF"
+                                           HorizontalAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           Margin="24,0" />
+                                <TextBlock x:Name="PeerControllingDurationText"
+                                           Text="00:00"
+                                           FontSize="15"
+                                           FontWeight="Medium"
+                                           Foreground="#E6FFFFFF"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            Background="{ThemeResource OsmiumCardBrush}"
+                            BorderBrush="{ThemeResource OsmiumDividerBrush}"
+                            BorderThickness="0,1,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition x:Name="ColDockBlacklist" Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="DockConnectBtn"
+                                    Grid.Column="0"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Click="ConnectInteractive_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xEABB;" />
+                                    <TextBlock x:Name="DockConnectLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="1" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button x:Name="DockViewOnlyBtn"
+                                    Grid.Column="2"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Click="ConnectViewOnly_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xE5F3;" />
+                                    <TextBlock x:Name="DockViewOnlyLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="3" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button x:Name="DockDisconnectBtn"
+                                    Grid.Column="4"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Click="DisconnectPeerSession_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xEAFA;" />
+                                    <TextBlock x:Name="DockDisconnectLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border x:Name="DockBlacklistDivider" Grid.Column="5"
+                                    Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button x:Name="DockBlacklistBtn"
+                                    Grid.Column="6"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Click="BlacklistController_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF34C;" />
+                                    <TextBlock x:Name="DockBlacklistLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="7" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button Grid.Column="8" Style="{StaticResource OsmiumHeroDockButtonStyle}">
+                                <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF134;" />
+                                <Button.Flyout>
+                                    <MenuFlyout x:Name="DockMoreFlyout" Placement="BottomEdgeAlignedRight">
+                                        <MenuFlyoutItem x:Name="FlyoutRenameDevice" Click="RenamePeerDevice_Click" />
+                                        <MenuFlyoutItem x:Name="FlyoutCopyId" Click="CopyDeviceId_Click" />
+                                        <MenuFlyoutItem x:Name="FlyoutRefresh" Click="RefreshDevice_Click" />
+                                        <MenuFlyoutSeparator />
+                                        <MenuFlyoutItem x:Name="FlyoutManageDevices" Click="ManageDevices_Click" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Border CornerRadius="12"
+                        BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                        BorderThickness="1"
+                        IsHitTestVisible="False" />
+            </Grid>
+
+
+            <Border Style="{StaticResource OsmiumCardContainerStyle}" Padding="20,16">
+                <Grid ColumnSpacing="24" RowSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock x:Name="MetaOsLabel" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="MetaOsValue" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock x:Name="MetaIpLabel" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="MetaIpValue" FontSize="14" FontWeight="Medium" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Spacing="4">
+                        <TextBlock x:Name="MetaActiveLabel" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="MetaActiveValue" FontSize="14" FontWeight="Medium" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

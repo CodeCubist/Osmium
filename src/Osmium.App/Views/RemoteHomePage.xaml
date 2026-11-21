@@ -1,0 +1,241 @@
+<Page
+    x:Class="Osmium.App.Views.RemoteHomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:Osmium.App.Helpers"
+    NavigationCacheMode="Required">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="18" HorizontalAlignment="Stretch">
+
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Border x:Name="HostStatePill"
+                        Background="{ThemeResource OsmiumBadgeSuccessBg}"
+                        CornerRadius="11"
+                        Padding="10,3"
+                        VerticalAlignment="Center">
+                    <TextBlock x:Name="HostStatePillText"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource OsmiumBadgeSuccessFg}" />
+                </Border>
+
+                <TextBlock x:Name="DeviceNameText"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           MaxWidth="420"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"
+                           helpers:TrimmedToolTip.IsEnabled="True"
+                           VerticalAlignment="Center" />
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,4"
+                        CornerRadius="6"
+                        VerticalAlignment="Center">
+                    <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                              Glyph="&#xF588;"
+                              FontSize="18"
+                              Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <Button.Flyout>
+                        <MenuFlyout x:Name="DeviceHeaderFlyout">
+                            <MenuFlyoutItem x:Name="MenuGoAssistItem" Click="GoToRemoteConnect_Click" />
+                            <MenuFlyoutItem x:Name="MenuOpenHostItem" Click="OpenHostSettings_Click" />
+                            <MenuFlyoutItem x:Name="MenuRenameLocalDeviceItem" Click="RenameLocalDevice_Click"
+                                            Visibility="Collapsed" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem x:Name="MenuToggleAllowItem" Click="ToggleAllowRemoteMenu_Click" />
+                            <MenuFlyoutItem x:Name="MenuReconnectItem" Click="ReconnectDevice_Click" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
+
+
+            <InfoBar
+                x:Name="ActiveHostBanner"
+                IsOpen="False"
+                IsClosable="False"
+                Severity="Warning">
+                <InfoBar.Content>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
+                        <Button x:Name="DisconnectHostBtn" Click="DisconnectHostSession_Click" />
+                        <Button x:Name="BlacklistHostControllerBtn" Click="BlacklistHostController_Click"
+                                Visibility="Collapsed" />
+                    </StackPanel>
+                </InfoBar.Content>
+            </InfoBar>
+
+
+            <Grid>
+                <Grid x:Name="HeroCardClipGrid" SizeChanged="HeroCardClipGrid_SizeChanged">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="240" />
+                        <RowDefinition Height="50" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" x:Name="HeroWallpaperArea" Background="{ThemeResource OsmiumCardBrush}">
+                        <Image x:Name="HeroWallpaperBackImage"
+                               Opacity="0"
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               RenderTransformOrigin="0.5,0.5">
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="1.02" ScaleY="1.02" />
+                            </Image.RenderTransform>
+                        </Image>
+
+                        <Image x:Name="HeroWallpaperImage"
+                               Opacity="0"
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               RenderTransformOrigin="0.5,0.5">
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="1.02" ScaleY="1.02" />
+                            </Image.RenderTransform>
+                        </Image>
+
+                        <Border x:Name="HostControllingOverlay"
+                                Visibility="Collapsed"
+                                Opacity="0"
+                                Background="#59000000"
+                                IsHitTestVisible="False">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="6">
+                                <TextBlock x:Name="HostControllingTitleText"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="#FFFFFFFF"
+                                           HorizontalAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           Margin="24,0" />
+                                <TextBlock x:Name="HostControllingDurationText"
+                                           Text="00:00"
+                                           FontSize="15"
+                                           FontWeight="Medium"
+                                           Foreground="#E6FFFFFF"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            Background="{ThemeResource OsmiumCardBrush}"
+                            BorderBrush="{ThemeResource OsmiumDividerBrush}"
+                            BorderThickness="0,1,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="DockInputBtn" Grid.Column="0"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Click="DockToggleInputControl_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xE48D;" />
+                                    <TextBlock x:Name="DockInputLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="1" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button x:Name="DockAudioBtn" Grid.Column="2"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}" Click="DockToggleAudio_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xEB43;" />
+                                    <TextBlock x:Name="DockAudioLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="3" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button x:Name="DockHostPolicyBtn" Grid.Column="4"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}" Click="OpenHostSettings_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF84D;" />
+                                    <TextBlock x:Name="DockHostPolicyLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="5" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button Grid.Column="6" Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Click="GoToRemoteConnect_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xEABB;" />
+                                    <TextBlock x:Name="DockRemoteAssistLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="7" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+
+                            <Button Grid.Column="8" Style="{StaticResource OsmiumHeroDockButtonStyle}">
+                                <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF134;" />
+                                <Button.Flyout>
+                                    <MenuFlyout x:Name="DockMoreFlyout" Placement="BottomEdgeAlignedRight">
+                                        <MenuFlyoutItem x:Name="FlyoutToggleApproval" Click="DockToggleApproval_Click" />
+                                        <MenuFlyoutItem x:Name="FlyoutOpenGamepad" Click="GoToGamepad_Click" />
+                                        <MenuFlyoutSeparator />
+                                        <MenuFlyoutItem x:Name="FlyoutOpenSettings" Click="GoToSettings_Click" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Border CornerRadius="12"
+                        BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                        BorderThickness="1"
+                        IsHitTestVisible="False" />
+            </Grid>
+
+
+            <StackPanel Spacing="10" Margin="0,2,0,0">
+                <TextBlock x:Name="QuickLaunchTitleText"
+                           FontSize="15"
+                           FontWeight="Medium"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+                <Grid Height="164" HorizontalAlignment="Stretch">
+                    <Rectangle RadiusX="10"
+                               RadiusY="10"
+                               Stroke="{ThemeResource OsmiumCardDashedBrush}"
+                               StrokeThickness="1.2"
+                               StrokeDashArray="5,3"
+                               Fill="Transparent"
+                               IsHitTestVisible="False" />
+                    <Button Click="GoToRemoteConnect_Click"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            CornerRadius="10">
+                        <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                      Glyph="&#xF10A;"
+                                      FontSize="22"
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="QuickLaunchHintText"
+                                       FontSize="13"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

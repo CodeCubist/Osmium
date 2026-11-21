@@ -1,0 +1,193 @@
+<Window
+    x:Class="Osmium.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Osmium.App.Controls"
+    Title="Osmium">
+
+    <Grid x:Name="RootShellGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+
+        <Grid x:Name="AppTitleBar"
+              Grid.Row="0"
+              Background="Transparent"
+              Padding="16,0,144,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <controls:OsmiumLogoControl Width="18" Height="18" />
+                <TextBlock Text="Osmium" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+
+        <NavigationView
+            x:Name="NavView"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsPaneToggleButtonVisible="False"
+            IsSettingsVisible="False"
+            IsPaneOpen="True"
+            PaneDisplayMode="Left"
+            OpenPaneLength="218"
+            CompactPaneLength="60"
+            SelectionChanged="NavView_SelectionChanged">
+
+            <NavigationView.Resources>
+                <ResourceDictionary>
+                    <ResourceDictionary.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Light">
+                            <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#55FFFFFF" />
+                            <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="#10000000" />
+                            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#0067C0" />
+                            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#100067C0" />
+                            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#180067C0" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Dark">
+                            <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#08FFFFFF" />
+                            <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="#18FFFFFF" />
+                            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#FFFFFF" />
+                            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#18FFFFFF" />
+                            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#24FFFFFF" />
+                        </ResourceDictionary>
+                    </ResourceDictionary.ThemeDictionaries>
+
+                    <CornerRadius x:Key="NavigationViewContentGridCornerRadius">10,0,0,0</CornerRadius>
+                    <Thickness x:Key="NavigationViewContentGridBorderThickness">1,1,0,0</Thickness>
+
+                    <Style TargetType="NavigationViewItem">
+                        <Setter Property="FontFamily" Value="{StaticResource AppGlobalFont}" />
+                        <Setter Property="MinHeight" Value="42" />
+                        <Setter Property="Margin" Value="8,2" />
+                    </Style>
+                </ResourceDictionary>
+            </NavigationView.Resources>
+
+            <NavigationView.MenuItems>
+                <NavigationViewItemHeader x:Name="NavHeaderThisDevice" />
+
+                <NavigationViewItem x:Name="NavOverviewItem" Tag="DeviceOverview">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xF35A;"
+                                  FontFamily="{StaticResource FluentIconsFont}"
+                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                  RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <ScaleTransform ScaleX="1.28" ScaleY="1.28" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="NavOverviewText"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+
+                <NavigationViewItemHeader x:Name="NavHeaderRemote" />
+
+                <NavigationViewItem x:Name="NavRemoteConnectItem" Tag="RemoteConnect">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEABB;"
+                                  FontFamily="{StaticResource FluentIconsFont}"
+                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                  RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <ScaleTransform ScaleX="1.28" ScaleY="1.28" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="NavRemoteConnectText"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="NavGamepadItem" Tag="GamepadMapper">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEEB9;"
+                                  FontFamily="{StaticResource FluentIconsFont}"
+                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                  RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <ScaleTransform ScaleX="1.28" ScaleY="1.28" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="NavGamepadText"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem x:Name="NavAccountItem" Tag="Account">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEAC8;"
+                                  FontFamily="{StaticResource FluentIconsFont}"
+                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                  RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <ScaleTransform ScaleX="1.28" ScaleY="1.28" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="NavAccountText"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="NavSettingsItem" Tag="Settings">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xF6AA;"
+                                  FontFamily="{StaticResource FluentIconsFont}"
+                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                  RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <ScaleTransform ScaleX="1.28" ScaleY="1.28" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="NavSettingsText"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
+            <Grid x:Name="ContentViewport" SizeChanged="ContentViewport_SizeChanged">
+                <Frame x:Name="ContentFrame" Padding="24,16,24,20">
+                    <Frame.ContentTransitions>
+                        <TransitionCollection />
+                    </Frame.ContentTransitions>
+                    <Frame.RenderTransform>
+                        <TranslateTransform x:Name="ContentFrameTranslate" Y="0" />
+                    </Frame.RenderTransform>
+                </Frame>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>

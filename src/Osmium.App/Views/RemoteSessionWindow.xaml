@@ -1,0 +1,471 @@
+<Window
+    x:Class="Osmium.App.Views.RemoteSessionWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Osmium.App.Controls"
+    Title="Osmium">
+
+    <controls:CursorLockGrid x:Name="RootSessionGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="TopBarRow" Height="46" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="VideoStageGrid"
+              Grid.Row="1"
+              Background="#0B0D12">
+            
+            <SwapChainPanel x:Name="VideoSwapChainPanel"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            IsHitTestVisible="False" />
+            
+            <controls:CursorLockGrid x:Name="VideoInputSurface"
+                                     Background="#01000000"
+                                     ManipulationMode="None"
+                                     IsTabStop="True"
+                                     UseSystemFocusVisuals="False"
+                                     PointerEntered="VideoInputSurface_PointerEntered"
+                                     PointerPressed="VideoInputSurface_PointerPressed"
+                                     PointerReleased="VideoInputSurface_PointerReleased"
+                                     PointerMoved="VideoInputSurface_PointerMoved"
+                                     PointerWheelChanged="VideoInputSurface_PointerWheelChanged"
+                                     PointerExited="VideoInputSurface_PointerExited" />
+
+            <Border x:Name="WaitingVideoOverlay"
+                    Background="#CC0B0D12"
+                    IsHitTestVisible="False">
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="14">
+                    <ProgressRing x:Name="WaitingProgressRing" IsActive="True" Width="34" Height="34"
+                                  HorizontalAlignment="Center" />
+                    <TextBlock x:Name="WaitingVideoText"
+                               Foreground="#E6EDF7"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+
+            <Border x:Name="TopToastBanner"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Margin="0,14,0,0"
+                    Padding="14,7"
+                    CornerRadius="18"
+                    Background="#E0141821"
+                    BorderBrush="#33FFFFFF"
+                    BorderThickness="1"
+                    Opacity="0"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="TopToastTranslate" Y="-72" />
+                </Border.RenderTransform>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                              Glyph="&#xE48D;"
+                              FontSize="15"
+                              Foreground="#60CDFF" />
+                    <TextBlock x:Name="TopToastText"
+                               Foreground="#F3F7FC"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+
+            <Border x:Name="OsdOverlayBorder"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,14,12"
+                    Padding="0"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False">
+                <Grid IsHitTestVisible="False">
+                    <StackPanel x:Name="OsdShadowPanel"
+                                Spacing="2"
+                                Margin="1,1,0,0"
+                                IsHitTestVisible="False" />
+                    <StackPanel x:Name="OsdTextPanel"
+                                Spacing="2"
+                                IsHitTestVisible="False">
+                        <TextBlock x:Name="OsdConnTypeText"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="#FFF8FAFC"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdLatencyText"
+                                   FontSize="11"
+                                   Foreground="#FFF1F5F9"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdNativeResText"
+                                   FontSize="11"
+                                   Foreground="#FFF1F5F9"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdStreamResText"
+                                   FontSize="11"
+                                   Foreground="#FFF1F5F9"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdFpsText"
+                                   FontSize="11"
+                                   Foreground="#FFF1F5F9"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdBitrateText"
+                                   FontSize="11"
+                                   Foreground="#FFF1F5F9"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdDurationText"
+                                   FontSize="11"
+                                   Foreground="#FFF1F5F9"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdPacketLossText"
+                                   FontSize="11"
+                                   Foreground="#FFE2E8F0"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdDecodeText"
+                                   FontSize="11"
+                                   Foreground="#FFE2E8F0"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdCodecText"
+                                   FontSize="11"
+                                   Foreground="#FFE2E8F0"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdMouseText"
+                                   FontSize="11"
+                                   Foreground="#FFE2E8F0"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="OsdPeerText"
+                                   FontSize="11"
+                                   Foreground="#FFE2E8F0"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+
+            <Border x:Name="FullscreenTopHoverTrigger"
+                    Height="6"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Top"
+                    Background="Transparent"
+                    Visibility="Collapsed"
+                    PointerEntered="FullscreenTopHoverTrigger_PointerEntered" />
+        </Grid>
+
+
+        <Grid x:Name="AppTitleBar"
+              Grid.Row="0"
+              Height="46"
+              Padding="12,0,138,0"
+              Background="#01000000"
+              PointerEntered="AppTitleBar_PointerEntered"
+              PointerExited="AppTitleBar_PointerExited">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+
+            <Border x:Name="TitleBarBottomDivider"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="3"
+                    Height="1"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Stretch"
+                    Margin="-12,0,-160,0"
+                    Background="{ThemeResource OsmiumDividerBrush}"
+                    IsHitTestVisible="False" />
+
+
+            <Grid x:Name="BrandChipHost"
+                  Grid.Column="0"
+                  Height="32"
+                  VerticalAlignment="Top"
+                  Margin="-12,0,8,0"
+                  IsHitTestVisible="False">
+                <Path x:Name="BrandChipFill" IsHitTestVisible="False" />
+                <Path x:Name="BrandChipStroke" StrokeThickness="1" IsHitTestVisible="False" />
+                <StackPanel x:Name="BrandChipPanel"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center"
+                            Margin="14,0,18,0"
+                            IsHitTestVisible="False">
+                    <controls:OsmiumLogoControl Width="17" Height="17" />
+                    <TextBlock x:Name="RemoteHostTitleText"
+                               FontSize="12.5"
+                               FontWeight="SemiBold"
+                               MaxWidth="260"
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+
+
+            <Grid x:Name="BrowserTabsArea"
+                  Grid.Column="1"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Top"
+                  Margin="0,0,10,0">
+                <ScrollViewer x:Name="DisplayTabsScrollViewer"
+                              HorizontalScrollMode="Auto"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollMode="Disabled"
+                              VerticalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="DisplayTabsPanel"
+                                Orientation="Horizontal"
+                                Spacing="0"
+                                VerticalAlignment="Top" />
+                </ScrollViewer>
+            </Grid>
+
+
+            <StackPanel x:Name="RightMenuToolbar"
+                        Grid.Column="2"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Top"
+                        HorizontalAlignment="Right">
+
+                <Button x:Name="SessionMenuButton"
+                        Width="46"
+                        Height="32"
+                        Padding="0"
+                        CornerRadius="0"
+                        VerticalAlignment="Top"
+                        Background="Transparent"
+                        BorderThickness="0">
+                    <FontIcon Glyph="&#xE700;" FontSize="14" />
+                    <Button.Flyout>
+                        <Flyout x:Name="SessionMenuFlyout"
+                                Placement="BottomEdgeAlignedRight"
+                                Opened="SessionMenuFlyout_Opened"
+                                Closed="SettingsFlyout_Closed">
+                            <Flyout.FlyoutPresenterStyle>
+                                <Style TargetType="FlyoutPresenter">
+                                    <Setter Property="Padding" Value="20" />
+                                    <Setter Property="CornerRadius" Value="8" />
+                                    <Setter Property="MaxWidth" Value="900" />
+                                    <Setter Property="MaxHeight" Value="640" />
+                                </Style>
+                            </Flyout.FlyoutPresenterStyle>
+                            <ScrollViewer HorizontalScrollMode="Disabled"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="24" Margin="0,0,10,4">
+                                    <TextBlock x:Name="SessionMenuTitleText" FontSize="18" FontWeight="SemiBold" />
+
+                                    <Grid ColumnSpacing="24" RowSpacing="24">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="240" />
+                                            <ColumnDefinition Width="240" />
+                                            <ColumnDefinition Width="240" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="8">
+                                            <TextBlock x:Name="SessionViewResTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9" />
+                                            <TextBlock x:Name="HostNativeResInfoText"
+                                                       FontSize="11.5"
+                                                       Opacity="0.65"
+                                                       TextWrapping="Wrap" />
+                                            <ComboBox x:Name="ViewScaleCombo"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="ViewScaleCombo_SelectionChanged" />
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8">
+                                            <TextBlock x:Name="SessionFpsColorTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9" />
+                                            <ComboBox x:Name="FpsCombo"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="FpsCombo_SelectionChanged" />
+                                            <ToggleSwitch x:Name="HdrToggle"
+                                                          Toggled="VideoFlagToggle_Toggled" />
+                                            <TextBlock x:Name="HdrHostHintText"
+                                                       FontSize="11"
+                                                       Opacity="0.65"
+                                                       TextWrapping="Wrap"
+                                                       Visibility="Collapsed" />
+                                            <ToggleSwitch x:Name="Yuv444Toggle"
+                                                          Toggled="VideoFlagToggle_Toggled" />
+                                            <ToggleSwitch x:Name="VsyncToggle"
+                                                          Toggled="VsyncToggle_Toggled" />
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="8">
+                                            <Grid>
+                                                <TextBlock x:Name="SessionMouseModeTitleText"
+                                                           FontSize="12"
+                                                           Opacity="0.9"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock x:Name="MouseModeStatusText"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="11.5"
+                                                           Opacity="0.65" />
+                                            </Grid>
+                                            <RadioButton x:Name="MouseModeControllerRadio"
+                                                         GroupName="MouseModeGroup"
+                                                         Tag="0"
+                                                         Click="MouseModeRadio_Click" />
+                                            <RadioButton x:Name="MouseModeVirtualRadio"
+                                                         GroupName="MouseModeGroup"
+                                                         Tag="1"
+                                                         Click="MouseModeRadio_Click" />
+                                            <RadioButton x:Name="MouseModeSmartRadio"
+                                                         GroupName="MouseModeGroup"
+                                                         Tag="2"
+                                                         Click="MouseModeRadio_Click" />
+                                            <Button x:Name="ReleaseCursorLockBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="ReleaseCursorLockItem_Click" />
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="8">
+                                            <TextBlock x:Name="SessionAudioTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9" />
+                                            <ToggleSwitch x:Name="VirtualSpeakerToggle"
+                                                          Toggled="VirtualAudioToggle_Toggled" />
+                                            <ToggleSwitch x:Name="VirtualMicToggle"
+                                                          Toggled="VirtualAudioToggle_Toggled" />
+                                            <ComboBox x:Name="LocalMicCombo"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="LocalMicCombo_SelectionChanged" />
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8">
+                                            <TextBlock x:Name="SessionDriversTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9" />
+                                            <TextBlock x:Name="HostDriverStatusText"
+                                                       FontSize="11.5"
+                                                       Opacity="0.65"
+                                                       TextWrapping="Wrap" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button x:Name="RemoteInstallDriversBtn"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        Click="RemoteInstallDrivers_Click" />
+                                                <Button x:Name="RemoteUninstallDriversBtn"
+                                                        Click="RemoteUninstallDrivers_Click" />
+                                            </StackPanel>
+
+                                            <TextBlock x:Name="SessionOsdTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9"
+                                                       Margin="0,8,0,0" />
+                                            <ToggleSwitch x:Name="OsdToggleSwitch"
+                                                          Toggled="OsdToggleSwitch_Toggled" />
+                                            <ComboBox x:Name="OsdDetailCombo"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="OsdDetailCombo_SelectionChanged">
+                                                <ComboBoxItem x:Name="OsdDetailCompactItem" Tag="0" />
+                                                <ComboBoxItem x:Name="OsdDetailStandardItem" Tag="1" />
+                                                <ComboBoxItem x:Name="OsdDetailDetailedItem" Tag="2" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="1" Grid.Column="2" Spacing="8">
+                                            <Grid>
+                                                <TextBlock x:Name="SessionSysControlTitleText"
+                                                           FontSize="12"
+                                                           Opacity="0.9"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock x:Name="HostLockedPill"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="11.5"
+                                                           Foreground="{ThemeResource OsmiumBadgeDangerFg}"
+                                                           Visibility="Collapsed" />
+                                            </Grid>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button Content="Ctrl+Alt+Del"
+                                                        Click="SendCtrlAltDel_Click" />
+                                                <Button x:Name="TaskManagerBtn"
+                                                        Click="OpenTaskManager_Click" />
+                                            </StackPanel>
+                                            <ToggleSwitch x:Name="AutoUnlockToggle"
+                                                          Toggled="AutoUnlockToggle_Toggled" />
+                                            <controls:TogglePasswordBox x:Name="AutoUnlockSecretBox" CornerRadius="6" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button x:Name="ApplyAutoUnlockBtn"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        Click="ApplyAutoUnlock_Click" />
+                                                <Button x:Name="ClearAutoUnlockBtn"
+                                                        Click="ClearAutoUnlock_Click" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="8">
+                                            <TextBlock x:Name="SessionWindowControlTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9" />
+                                            <Button x:Name="FullscreenBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="FullscreenBtn_Click">
+                                                <TextBlock x:Name="FullscreenBtnText" />
+                                            </Button>
+                                            <Button x:Name="DisconnectBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="DisconnectBtn_Click" />
+                                        </StackPanel>
+
+
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Spacing="8">
+                                            <Grid>
+                                                <TextBlock x:Name="SessionDebugInfoTitleText"
+                                                           FontSize="12"
+                                                           Opacity="0.9"
+                                                           VerticalAlignment="Center" />
+                                                <Button x:Name="CopyDebugInfoBtn"
+                                                        HorizontalAlignment="Right"
+                                                        Padding="10,4"
+                                                        FontSize="12"
+                                                        Click="CopyDebugInfo_Click" />
+                                            </Grid>
+                                            <TextBlock x:Name="DebugInfoBodyText"
+                                                       FontFamily="Consolas"
+                                                       FontSize="11.5"
+                                                       LineHeight="18"
+                                                       Opacity="0.82"
+                                                       TextWrapping="Wrap"
+                                                       IsTextSelectionEnabled="True" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </controls:CursorLockGrid>
+</Window>

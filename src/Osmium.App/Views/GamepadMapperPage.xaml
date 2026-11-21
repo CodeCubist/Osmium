@@ -1,0 +1,415 @@
+<Page
+    x:Class="Osmium.App.Views.GamepadMapperPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Osmium.App.Controls"
+    NavigationCacheMode="Required">
+
+    <Page.Resources>
+        <Style x:Key="GamepadNodeButtonStyle" TargetType="Button">
+            <Setter Property="FontFamily" Value="{StaticResource AppGlobalFont}" />
+            <Setter Property="Background" Value="{ThemeResource OsmiumCardBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource OsmiumCardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="14" HorizontalAlignment="Stretch" Padding="0,0,4,12">
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="GamepadTitleText"
+                           Style="{StaticResource OsmiumPageTitleStyle}"
+                           VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Click="ResetMapping_Click" CornerRadius="6" Padding="12,6">
+                        <TextBlock x:Name="ResetMappingBtnText" FontSize="13" />
+                    </Button>
+                    <Button Click="RefreshGamepads_Click" CornerRadius="6" Padding="12,6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF13E;" FontSize="16"
+                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                            <TextBlock x:Name="RefreshGamepadBtnText" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+
+            <controls:SettingsRowCard x:Name="RowGamepadSelect" Glyph="&#xEEB9;">
+                <ComboBox x:Name="GamepadSelector"
+                          Style="{StaticResource OsmiumRowComboBoxStyle}"
+                          SelectionChanged="GamepadSelector_SelectionChanged" />
+            </controls:SettingsRowCard>
+
+
+            <Border Style="{StaticResource OsmiumCardContainerStyle}" Padding="18,16">
+                <StackPanel Spacing="12">
+
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock x:Name="VisualCardTitle" FontSize="14" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <Border x:Name="SwapActiveBadge"
+                                    Visibility="Collapsed"
+                                    Background="{ThemeResource OsmiumSubtlePillBrush}"
+                                    CornerRadius="10"
+                                    Padding="9,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock x:Name="SwapActiveBadgeText" FontSize="11" FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel x:Name="BindControlBar"
+                                    Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    Visibility="Collapsed">
+                            <Button x:Name="ClearBindBtn" CornerRadius="6" Padding="10,4" Click="ClearBinding_Click" />
+                            <Button x:Name="CancelBindBtn" CornerRadius="6" Padding="10,4" Click="CancelBinding_Click" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Background="{ThemeResource OsmiumCardSubtleBrush}"
+                            BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12,8">
+                        <TextBlock x:Name="BindHintText"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </Border>
+
+
+                    <Viewbox MaxHeight="306" HorizontalAlignment="Center" Stretch="Uniform">
+                        <Canvas Width="640" Height="308">
+
+                            <Button x:Name="BtnLT" Tag="lefttrigger" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="96" Canvas.Top="4" Width="88" Height="30" CornerRadius="6">
+                                <Grid Width="84" Height="26">
+                                    <Border x:Name="LtFillBar"
+                                            HorizontalAlignment="Left"
+                                            Width="0"
+                                            CornerRadius="4"
+                                            Background="{ThemeResource OsmiumBrandBrush}"
+                                            Opacity="0.32" />
+                                    <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="LT" FontSize="11" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="Tag_lefttrigger" Text="a4" FontSize="10" Opacity="0.65" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+
+
+                            <Button x:Name="BtnLB" Tag="leftshoulder" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="86" Canvas.Top="38" Width="108" Height="28" CornerRadius="8">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="LB" FontSize="11" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="Tag_leftshoulder" Text="b4" FontSize="10" Opacity="0.65" />
+                                </StackPanel>
+                            </Button>
+
+
+                            <Button x:Name="BtnRT" Tag="righttrigger" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="456" Canvas.Top="4" Width="88" Height="30" CornerRadius="6">
+                                <Grid Width="84" Height="26">
+                                    <Border x:Name="RtFillBar"
+                                            HorizontalAlignment="Left"
+                                            Width="0"
+                                            CornerRadius="4"
+                                            Background="{ThemeResource OsmiumBrandBrush}"
+                                            Opacity="0.32" />
+                                    <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="RT" FontSize="11" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="Tag_righttrigger" Text="a5" FontSize="10" Opacity="0.65" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+
+
+                            <Button x:Name="BtnRB" Tag="rightshoulder" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="446" Canvas.Top="38" Width="108" Height="28" CornerRadius="8">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="RB" FontSize="11" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="Tag_rightshoulder" Text="b5" FontSize="10" Opacity="0.65" />
+                                </StackPanel>
+                            </Button>
+
+
+                            <Path Fill="{ThemeResource OsmiumCardSubtleBrush}"
+                                  Stroke="{ThemeResource OsmiumCardBorderBrush}"
+                                  StrokeThickness="1.5"
+                                  IsHitTestVisible="False"
+                                  Data="M 124,72 L 516,72 C 572,72 596,120 594,195 C 592,262 562,298 532,294 C 504,290 482,258 452,246 L 188,246 C 158,258 136,290 108,294 C 78,298 48,262 46,195 C 44,120 68,72 124,72 Z" />
+
+
+                            <Border Canvas.Left="102" Canvas.Top="90" Width="84" Height="84"
+                                    CornerRadius="42"
+                                    Background="{ThemeResource OsmiumCardBrush}"
+                                    BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                                    BorderThickness="1.5" />
+                            <Button x:Name="BtnLS" Tag="leftstick" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="121" Canvas.Top="109" Width="46" Height="46" CornerRadius="23"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Button.RenderTransform>
+                                    <TranslateTransform x:Name="LeftStickDotTransform" X="0" Y="0" />
+                                </Button.RenderTransform>
+                                <StackPanel Spacing="0">
+                                    <TextBlock Text="L3" FontSize="11" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_leftstick" Text="b9" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+
+                            <Border Canvas.Left="196" Canvas.Top="162" Width="76" Height="76"
+                                    CornerRadius="38"
+                                    Background="{ThemeResource OsmiumCardBrush}"
+                                    BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                                    BorderThickness="1"
+                                    Opacity="0.65"
+                                    IsHitTestVisible="False" />
+                            <Button x:Name="BtnDpUp" Tag="dpup" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="221" Canvas.Top="162" Width="26" Height="26" CornerRadius="5">
+                                <TextBlock x:Name="Tag_dpup" Text="▲" FontSize="9" />
+                            </Button>
+                            <Button x:Name="BtnDpDown" Tag="dpdown" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="221" Canvas.Top="212" Width="26" Height="26" CornerRadius="5">
+                                <TextBlock x:Name="Tag_dpdown" Text="▼" FontSize="9" />
+                            </Button>
+                            <Button x:Name="BtnDpLeft" Tag="dpleft" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="196" Canvas.Top="187" Width="26" Height="26" CornerRadius="5">
+                                <TextBlock x:Name="Tag_dpleft" Text="◀" FontSize="9" />
+                            </Button>
+                            <Button x:Name="BtnDpRight" Tag="dpright" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="246" Canvas.Top="187" Width="26" Height="26" CornerRadius="5">
+                                <TextBlock x:Name="Tag_dpright" Text="▶" FontSize="9" />
+                            </Button>
+
+
+                            <Button x:Name="BtnBack" Tag="back" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="246" Canvas.Top="118" Width="34" Height="34" CornerRadius="17">
+                                <StackPanel Spacing="0">
+                                    <TextBlock Text="≡" FontSize="11" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_back" Text="b6" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="BtnGuide" Tag="guide" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="299" Canvas.Top="106" Width="42" Height="42" CornerRadius="21">
+                                <StackPanel Spacing="0">
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xEEB9;"
+                                              FontSize="17" />
+                                    <TextBlock x:Name="Tag_guide" Text="b8" FontSize="8" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="BtnStart" Tag="start" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="360" Canvas.Top="118" Width="34" Height="34" CornerRadius="17">
+                                <StackPanel Spacing="0">
+                                    <TextBlock Text="☰" FontSize="11" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_start" Text="b7" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+
+                            <Border Canvas.Left="366" Canvas.Top="158" Width="84" Height="84"
+                                    CornerRadius="42"
+                                    Background="{ThemeResource OsmiumCardBrush}"
+                                    BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                                    BorderThickness="1.5" />
+                            <Button x:Name="BtnRS" Tag="rightstick" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="385" Canvas.Top="177" Width="46" Height="46" CornerRadius="23"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Button.RenderTransform>
+                                    <TranslateTransform x:Name="RightStickDotTransform" X="0" Y="0" />
+                                </Button.RenderTransform>
+                                <StackPanel Spacing="0">
+                                    <TextBlock Text="R3" FontSize="11" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_rightstick" Text="b10" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+
+                            <Button x:Name="BtnY" Tag="y" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="478" Canvas.Top="84" Width="38" Height="38" CornerRadius="19">
+                                <StackPanel Spacing="0">
+                                    <TextBlock x:Name="FaceLabelY" Text="Y" FontSize="12" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_y" Text="b3" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="BtnX" Tag="x" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="442" Canvas.Top="118" Width="38" Height="38" CornerRadius="19">
+                                <StackPanel Spacing="0">
+                                    <TextBlock x:Name="FaceLabelX" Text="X" FontSize="12" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_x" Text="b2" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="BtnB" Tag="b" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="514" Canvas.Top="118" Width="38" Height="38" CornerRadius="19">
+                                <StackPanel Spacing="0">
+                                    <TextBlock x:Name="FaceLabelB" Text="B" FontSize="12" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_b" Text="b1" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="BtnA" Tag="a" Click="PadPart_Click"
+                                    Style="{StaticResource GamepadNodeButtonStyle}"
+                                    Canvas.Left="478" Canvas.Top="152" Width="38" Height="38" CornerRadius="19">
+                                <StackPanel Spacing="0">
+                                    <TextBlock x:Name="FaceLabelA" Text="A" FontSize="12" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="Tag_a" Text="b0" FontSize="9" Opacity="0.65"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+
+                            <StackPanel Canvas.Left="192" Canvas.Top="264" Width="256"
+                                        Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Button x:Name="BtnLeftX" Tag="leftx" Click="PadPart_Click"
+                                        Style="{StaticResource GamepadNodeButtonStyle}"
+                                        Width="58" Height="28" CornerRadius="6">
+                                    <TextBlock x:Name="Tag_leftx" Text="LX:a0" FontSize="11" />
+                                </Button>
+                                <Button x:Name="BtnLeftY" Tag="lefty" Click="PadPart_Click"
+                                        Style="{StaticResource GamepadNodeButtonStyle}"
+                                        Width="58" Height="28" CornerRadius="6">
+                                    <TextBlock x:Name="Tag_lefty" Text="LY:a1" FontSize="11" />
+                                </Button>
+                                <Button x:Name="BtnRightX" Tag="rightx" Click="PadPart_Click"
+                                        Style="{StaticResource GamepadNodeButtonStyle}"
+                                        Width="58" Height="28" CornerRadius="6">
+                                    <TextBlock x:Name="Tag_rightx" Text="RX:a2" FontSize="11" />
+                                </Button>
+                                <Button x:Name="BtnRightY" Tag="righty" Click="PadPart_Click"
+                                        Style="{StaticResource GamepadNodeButtonStyle}"
+                                        Width="58" Height="28" CornerRadius="6">
+                                    <TextBlock x:Name="Tag_righty" Text="RY:a3" FontSize="11" />
+                                </Button>
+                            </StackPanel>
+                        </Canvas>
+                    </Viewbox>
+
+
+                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock x:Name="MappingPreviewLabel"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center" />
+
+                        <TextBox x:Name="MappingInputBox"
+                                 Grid.Column="1"
+                                 FontSize="12"
+                                 CornerRadius="6"
+                                 VerticalAlignment="Center" />
+
+                        <Button x:Name="ApplyMappingBtn"
+                                Grid.Column="2"
+                                Style="{StaticResource AccentButtonStyle}"
+                                CornerRadius="6"
+                                Padding="14,6"
+                                Click="ApplyMapping_Click" />
+                    </Grid>
+
+                    <TextBlock x:Name="MappingStatusText"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Visibility="Collapsed" />
+                </StackPanel>
+            </Border>
+
+
+            <TextBlock x:Name="QuickSettingsHeaderText" Style="{StaticResource OsmiumSectionHeaderStyle}" />
+            <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                <StackPanel>
+                    <controls:SettingsRowCard x:Name="RowMultiGamepad" IsGrouped="True" Glyph="&#xEEB9;">
+                        <ToggleSwitch x:Name="MultiControllerSwitch" Style="{StaticResource OsmiumCompactToggleStyle}"
+                                      Toggled="BehaviorSwitch_Toggled" />
+                    </controls:SettingsRowCard>
+
+                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                    <controls:SettingsRowCard x:Name="RowSwapFace" IsGrouped="True" ShowIcon="False">
+                        <ToggleSwitch x:Name="SwapFaceButtonsSwitch" Style="{StaticResource OsmiumCompactToggleStyle}"
+                                      Toggled="BehaviorSwitch_Toggled" />
+                    </controls:SettingsRowCard>
+
+                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                    <controls:SettingsRowCard x:Name="RowGamepadMouse" IsGrouped="True" ShowIcon="False">
+                        <ToggleSwitch x:Name="GamepadMouseSwitch" Style="{StaticResource OsmiumCompactToggleStyle}"
+                                      Toggled="BehaviorSwitch_Toggled" />
+                    </controls:SettingsRowCard>
+
+                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                    <controls:SettingsRowCard x:Name="RowBgGamepad" IsGrouped="True" ShowIcon="False">
+                        <ToggleSwitch x:Name="BackgroundGamepadSwitch"
+                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                      Toggled="BehaviorSwitch_Toggled" />
+                    </controls:SettingsRowCard>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
