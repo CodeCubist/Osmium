@@ -445,6 +445,7 @@ public sealed partial class RemoteSessionWindow : Window
             OsdToggleSwitch.IsOn = s.ShowPerformanceOverlay;
             OsdDetailCombo.SelectedIndex = Math.Clamp((int)s.OsdDetailLevel, 0, 2);
             ApplyOsdVisibilityAndDetailLayout();
+            InitializeClipboardAndTransferDefaults();
 
             ApplyLocalization();
         }
@@ -494,7 +495,8 @@ public sealed partial class RemoteSessionWindow : Window
 
             foreach (var toggle in new[]
                      {
-                         HdrToggle, Yuv444Toggle, VsyncToggle, VirtualSpeakerToggle, VirtualMicToggle, OsdToggleSwitch
+                         HdrToggle, Yuv444Toggle, VsyncToggle, VirtualSpeakerToggle, VirtualMicToggle, OsdToggleSwitch,
+                         SharedClipboardToggle, FileTransferToggle
                      })
             {
                 toggle.OnContent = onLabel;
@@ -531,6 +533,11 @@ public sealed partial class RemoteSessionWindow : Window
             SessionSysControlTitleText.Text = LocalizationService.GetString("Session_SysControlTitle");
             HostLockedPill.Text = LocalizationService.GetString("Session_ScreenLocked");
             TaskManagerBtn.Content = LocalizationService.GetString("Session_TaskManagerBtn");
+
+            SessionClipboardTransferTitleText.Text = LocalizationService.GetString("Session_ClipboardTransferTitle");
+            SharedClipboardToggle.Header = LocalizationService.GetString("Session_SharedClipboardHeader");
+            FileTransferToggle.Header = LocalizationService.GetString("Session_FileTransferHeader");
+            UpdateTransferStatusHintUi();
 
             SessionWindowControlTitleText.Text = LocalizationService.GetString("Session_WindowControlTitle");
             ToolTipService.SetToolTip(FullscreenBtn, LocalizationService.GetString("Session_ToggleFullscreenTooltip"));
@@ -683,6 +690,7 @@ public sealed partial class RemoteSessionWindow : Window
         };
 
         _logDel = msg => App.Engine.Logging.RawNative(msg);
+        SetupAuxTransferChannel();
 
         var cfg = _launchArgs.InitialConfig;
         cfg.ShowPerformanceOverlay = 0;
@@ -693,7 +701,8 @@ public sealed partial class RemoteSessionWindow : Window
             OnStatsUpdated = Marshal.GetFunctionPointerForDelegate(_statsDel),
             OnEnded = Marshal.GetFunctionPointerForDelegate(_endedDel),
             OnLog = Marshal.GetFunctionPointerForDelegate(_logDel),
-            OnStatusJson = Marshal.GetFunctionPointerForDelegate(_statusJsonDel)
+            OnStatusJson = Marshal.GetFunctionPointerForDelegate(_statusJsonDel),
+            OnAuxData = _auxDataDel != null ? Marshal.GetFunctionPointerForDelegate(_auxDataDel) : IntPtr.Zero
         };
 
         if (NativeMethods.Osmium_StartClientEmbedded(
@@ -706,6 +715,7 @@ public sealed partial class RemoteSessionWindow : Window
                 in callbacks,
                 out IntPtr handle) == 0 || handle == IntPtr.Zero)
         {
+            DisposeAuxTransferChannel();
             _pipelineInitFailed = true;
             WaitingProgressRing.IsActive = false;
             WaitingProgressRing.Visibility = Visibility.Collapsed;
@@ -714,6 +724,7 @@ public sealed partial class RemoteSessionWindow : Window
         }
 
         _clientHandle = handle;
+        StartAuxTransferAfterSessionReady();
         DispatcherQueue.TryEnqueue(UpdateVideoSwapChainSize);
         SyncKeyboardHookAndCursorCapture();
 

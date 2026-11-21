@@ -66,6 +66,13 @@ public enum RemoteMouseMode
     SmartMode = 2
 }
 
+public enum FileTransferDirection
+{
+    Bidirectional = 0,
+    ControllerToHostOnly = 1,
+    HostToControllerOnly = 2
+}
+
 public sealed class RecentSessionRecord
 {
     public string DeviceId
@@ -426,6 +433,60 @@ public sealed class OsmiumSettings
         get;
         set;
     } = false;
+
+    public bool HostNotifyOnConnect
+    {
+        get;
+        set;
+    } = true;
+
+    public bool HostFlashTaskbarOnConnect
+    {
+        get;
+        set;
+    } = true;
+
+    public bool HostAllowFileTransfer
+    {
+        get;
+        set;
+    } = true;
+
+    public bool EnableSharedClipboard
+    {
+        get;
+        set;
+    } = false;
+
+    public bool SharedClipboardSyncImages
+    {
+        get;
+        set;
+    } = true;
+
+    public int SharedClipboardMaxSizeMb
+    {
+        get;
+        set;
+    } = 8;
+
+    public bool EnableFileTransfer
+    {
+        get;
+        set;
+    } = false;
+
+    public FileTransferDirection FileTransferDirection
+    {
+        get;
+        set;
+    } = FileTransferDirection.Bidirectional;
+
+    public int FileTransferMaxSizeMb
+    {
+        get;
+        set;
+    } = 256;
 
     public bool ShowSameAccountDevicesInSidebar
     {

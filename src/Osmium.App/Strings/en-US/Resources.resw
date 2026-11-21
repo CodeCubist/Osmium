@@ -568,4 +568,47 @@
   <data name="Set_DeviceClearRenameBtn" xml:space="preserve"><value>Clear Rename</value></data>
   <data name="Set_DeviceRenameSuccess" xml:space="preserve"><value>Device name updated</value></data>
   <data name="Set_DeviceRenameCleared" xml:space="preserve"><value>Restored default device name</value></data>
+  <data name="Host_AlertConnectedTitle" xml:space="preserve"><value>Remote Control Connected</value></data>
+  <data name="Host_AlertConnectedBodyFmt" xml:space="preserve"><value>{0} is now remotely controlling this computer</value></data>
+  <data name="Session_ClipboardTransferTitle" xml:space="preserve"><value>Clipboard &amp; File Transfer</value></data>
+  <data name="Session_SharedClipboardHeader" xml:space="preserve"><value>Shared Clipboard (Controller → Host)</value></data>
+  <data name="Session_FileTransferHeader" xml:space="preserve"><value>File Transfer (Copy &amp; Paste)</value></data>
+  <data name="Session_ToastSharedClipboardOn" xml:space="preserve"><value>Shared clipboard enabled (Controller → Host)</value></data>
+  <data name="Session_ToastSharedClipboardOff" xml:space="preserve"><value>Shared clipboard disabled</value></data>
+  <data name="Session_ToastFileTransferOn" xml:space="preserve"><value>File transfer enabled; copy and paste files directly</value></data>
+  <data name="Session_ToastFileTransferOff" xml:space="preserve"><value>File transfer disabled</value></data>
+  <data name="Session_ToastHostFileTransferDisabled" xml:space="preserve"><value>File transfer is disabled in Host settings</value></data>
+  <data name="Session_ToastClipboardTooLargeFmt" xml:space="preserve"><value>Clipboard content exceeds max sync size ({0} MB)</value></data>
+  <data name="Session_FileSendingFmt" xml:space="preserve"><value>Sending to host: {0} ({1}%)</value></data>
+  <data name="Session_FileReceivingFmt" xml:space="preserve"><value>Receiving from host: {0} ({1}%)</value></data>
+  <data name="Session_FileSentReadyFmt" xml:space="preserve"><value>Sent {0} item(s) to host; press Ctrl+V on host to paste</value></data>
+  <data name="Session_FileReceivedReadyFmt" xml:space="preserve"><value>Received {0} item(s) from host; press Ctrl+V locally to paste</value></data>
+  <data name="Session_ToastFileTooLargeFmt" xml:space="preserve"><value>Selected files exceed max transfer size ({0} MB)</value></data>
+  <data name="Session_ToastFileDirectionBlocked" xml:space="preserve"><value>Blocked by current file transfer direction setting</value></data>
+  <data name="Session_ToastFileTransferFailed" xml:space="preserve"><value>File transfer failed; please copy and try again</value></data>
+  <data name="Set_SecClipboardTransfer" xml:space="preserve"><value>Clipboard &amp; File Transfer</value></data>
+  <data name="Set_SharedClipboardDefault" xml:space="preserve"><value>Enable shared clipboard by default</value></data>
+  <data name="Set_SharedClipboardDefaultDesc" xml:space="preserve"><value>One-way sync of controller clipboard to host; can be toggled anytime in the session menu</value></data>
+  <data name="Set_SharedClipboardImages" xml:space="preserve"><value>Sync clipboard images</value></data>
+  <data name="Set_SharedClipboardImagesDesc" xml:space="preserve"><value>Sync screenshots and images in addition to plain text when shared clipboard is active</value></data>
+  <data name="Set_SharedClipboardMaxSize" xml:space="preserve"><value>Max clipboard sync size</value></data>
+  <data name="Set_FileTransferDefault" xml:space="preserve"><value>Enable file transfer by default</value></data>
+  <data name="Set_FileTransferDefaultDesc" xml:space="preserve"><value>Copy and paste files directly between controller and host; can be toggled in the session menu</value></data>
+  <data name="Set_FileTransferDirection" xml:space="preserve"><value>File transfer direction</value></data>
+  <data name="Set_FileDirBidirectional" xml:space="preserve"><value>Bidirectional (Copy &amp; Paste)</value></data>
+  <data name="Set_FileDirCtrlToHost" xml:space="preserve"><value>Controller → Host only</value></data>
+  <data name="Set_FileDirHostToCtrl" xml:space="preserve"><value>Host → Controller only</value></data>
+  <data name="Set_FileTransferMaxSize" xml:space="preserve"><value>Max single transfer size</value></data>
+  <data name="Set_FileTransferClearCache" xml:space="preserve"><value>Clear file transfer temp cache</value></data>
+  <data name="Set_FileTransferClearCacheDesc" xml:space="preserve"><value>Remove staged temporary files created during copy/paste file transfers</value></data>
+  <data name="Set_ClearCacheBtn" xml:space="preserve"><value>Clear Now</value></data>
+  <data name="Set_FileTransferCacheClearedFmt" xml:space="preserve"><value>Cleared file transfer cache ({0} MB freed)</value></data>
+  <data name="Set_FileTransferCacheEmpty" xml:space="preserve"><value>No temporary file transfer cache to clear</value></data>
+  <data name="Host_RowAllowFileTransfer" xml:space="preserve"><value>Allow controller file transfer</value></data>
+  <data name="Host_RowAllowFileTransferDesc" xml:space="preserve"><value>Allow copying and pasting files between controller and this computer during remote sessions</value></data>
+  <data name="Host_SecAlerts" xml:space="preserve"><value>Host Connection Alerts</value></data>
+  <data name="Host_RowNotifyOnConnect" xml:space="preserve"><value>Show Windows notification on remote connect</value></data>
+  <data name="Host_RowNotifyOnConnectDesc" xml:space="preserve"><value>Display a native Windows bottom-right toast alert when a controller connects to this computer</value></data>
+  <data name="Host_RowFlashTaskbarOnConnect" xml:space="preserve"><value>Highlight taskbar button red on remote connect</value></data>
+  <data name="Host_RowFlashTaskbarOnConnectDesc" xml:space="preserve"><value>Keep Osmium's taskbar button highlighted in solid red until you manually focus the window once or disconnect</value></data>
 </root>

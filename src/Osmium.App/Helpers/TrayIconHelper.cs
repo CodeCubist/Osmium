@@ -19,6 +19,12 @@ internal sealed class TrayIconHelper : IDisposable
     private const uint NifMessage = 0x00000001;
     private const uint NifIcon = 0x00000002;
     private const uint NifTip = 0x00000004;
+    private const uint NifInfo = 0x00000010;
+
+    private const uint NiifInfo = 0x00000001;
+    private const uint NiifUser = 0x00000004;
+    private const uint NiifLargeIcon = 0x00000020;
+    private const uint NinBalloonUserClick = 0x0405;
 
     private const uint WmNull = 0x0000;
     private const uint WmQueryEndSession = 0x0011;
@@ -58,6 +64,8 @@ internal sealed class TrayIconHelper : IDisposable
     private readonly uint _taskbarCreatedMsg;
     private readonly IntPtr _hIcon;
     private readonly bool _ownsIcon;
+    private readonly IntPtr _hBalloonIcon;
+    private readonly bool _ownsBalloonIcon;
 
     private readonly Action _onRestore;
     private readonly Action _onToggleAutoStart;
@@ -99,6 +107,8 @@ internal sealed class TrayIconHelper : IDisposable
         {
             _hIcon = LoadImage(IntPtr.Zero, iconFilePath, ImageIcon, cx, cy, LrLoadFromFile);
             _ownsIcon = _hIcon != IntPtr.Zero;
+            _hBalloonIcon = LoadImage(IntPtr.Zero, iconFilePath, ImageIcon, 32, 32, LrLoadFromFile);
+            _ownsBalloonIcon = _hBalloonIcon != IntPtr.Zero;
         }
 
         if (_hIcon == IntPtr.Zero)
@@ -155,6 +165,31 @@ internal sealed class TrayIconHelper : IDisposable
         ShellNotifyIcon(NimModify, ref nid);
     }
 
+    public void ShowNotification(string title, string message)
+    {
+        if (_disposed || _hwnd == IntPtr.Zero) return;
+        if (!_iconAdded)
+        {
+            AddOrModifyIcon(_getSnapshot().Tooltip);
+            if (!_iconAdded) return;
+        }
+
+        var nid = CreateBaseNotifyIconData();
+        nid.uFlags = NifInfo;
+        nid.szInfoTitle = TruncateString(title, 63, "Osmium");
+        nid.szInfo = TruncateString(message, 255, string.Empty);
+        nid.dwInfoFlags = _hBalloonIcon != IntPtr.Zero ? (NiifUser | NiifLargeIcon) : NiifInfo;
+        nid.hBalloonIcon = _hBalloonIcon;
+        ShellNotifyIcon(NimModify, ref nid);
+    }
+
+    private static string TruncateString(string? text, int maxLen, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return fallback;
+        string trimmed = text.Trim();
+        return trimmed.Length <= maxLen ? trimmed : trimmed[..maxLen];
+    }
+
     private void AddOrModifyIcon(string tooltip)
     {
         var nid = CreateBaseNotifyIconData();
@@ -196,7 +231,7 @@ internal sealed class TrayIconHelper : IDisposable
             if (msg == WmTrayCallback)
             {
                 uint trayEvent = unchecked((uint)(lParam.ToInt64() & 0xFFFF));
-                if (trayEvent == WmLButtonUp || trayEvent == WmLButtonDblClk)
+                if (trayEvent == WmLButtonUp || trayEvent == WmLButtonDblClk || trayEvent == NinBalloonUserClick)
                 {
                     _onRestore();
                 }
@@ -311,6 +346,11 @@ internal sealed class TrayIconHelper : IDisposable
         if (_ownsIcon && _hIcon != IntPtr.Zero)
         {
             DestroyIcon(_hIcon);
+        }
+
+        if (_ownsBalloonIcon && _hBalloonIcon != IntPtr.Zero)
+        {
+            DestroyIcon(_hBalloonIcon);
         }
     }
 

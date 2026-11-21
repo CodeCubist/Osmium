@@ -64,7 +64,9 @@ namespace osmium
         float m_SdrWhiteScale = 1.0f;
         uint64_t m_LastWhiteQueryMs = 0;
         uint64_t m_LastDuplRetryMs = 0;
+        uint64_t m_GdiFallbackUntilMs = 0;
         uint32_t m_ConsecutiveTimeouts = 0;
+        uint32_t m_ConsecutiveDuplFailures = 0;
         DXGI_FORMAT m_LastLoggedAcqFmt = DXGI_FORMAT_UNKNOWN;
 
         Microsoft::WRL::ComPtr<ID3D11Device> m_Device;

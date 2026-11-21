@@ -276,6 +276,17 @@ public sealed partial class P2PCoordinator : IDisposable
                 }
 
                 var s = _settings.Settings;
+                bool viewOnly = args.ViewOnlyRequested;
+                _hostViewOnlySession = viewOnly;
+                _hostRemoteSharedClipboardEnabled = false;
+                _hostRemoteFileTransferEnabled = false;
+                _hostRemoteFileTransferDirection = (int)FileTransferDirection.Bidirectional;
+                _hostRemoteMaxFileTransferMb = 256;
+                _hostRemoteMaxClipboardMb = 16;
+                Volatile.Write(ref _lastHostWrittenClipboardSeq, -1);
+
+                _ = Task.Run(() => WindowsClipboardHelper.CleanupOldStagingDirs(TimeSpan.FromHours(6)));
+
                 var hostCfg = new OsmiumHostConfig
                 {
                     DisplayIndex = s.HostDisplayIndex,
@@ -286,10 +297,92 @@ public sealed partial class P2PCoordinator : IDisposable
                     CodecPreference = (int)s.HostCodec,
                     EncoderPreference = (int)s.HostEncoderMode,
                     CaptureAudio = s.HostCaptureAudio ? 1 : 0,
-                    AllowInputControl = (!args.ViewOnlyRequested && s.HostAllowInputControl) ? 1 : 0,
+                    AllowInputControl = (!viewOnly && s.HostAllowInputControl) ? 1 : 0,
                     CaptureCursor = s.HostCaptureCursor ? 1 : 0,
-                    AllowRemoteDriverMgmt = (!args.ViewOnlyRequested && s.HostAllowRemoteDriverMgmt) ? 1 : 0,
+                    AllowRemoteDriverMgmt = (!viewOnly && s.HostAllowRemoteDriverMgmt) ? 1 : 0,
                     RequireLocalDriverConfirm = s.HostRequireDriverConfirm ? 1 : 0
+                };
+
+                AuxTransferChannel? auxChannel = new AuxTransferChannel(
+                    isController: false,
+                    sendRaw: (data, len) =>
+                    {
+                        IntPtr h;
+                        lock (_hostLock) h = _activeHostHandle;
+                        if (h == IntPtr.Zero) return false;
+                        return NativeMethods.Osmium_HostSendAuxData(h, data, len) != 0;
+                    },
+                    log: _log);
+
+                auxChannel.GetHostAllowsFileTransfer = () =>
+                    !_hostViewOnlySession && _settings.Settings.HostAllowFileTransfer;
+
+                auxChannel.ValidateIncomingTransfer = (type, totalBytes) =>
+                {
+                    if (_hostViewOnlySession) return AuxTransferRejectReason.Disabled;
+
+                    if (type is AuxTransferType.ClipboardText or AuxTransferType.ClipboardImage)
+                    {
+                        long maxClip = (long)Math.Clamp(_hostRemoteMaxClipboardMb, 1, 64) * 1024 * 1024 + 65536;
+                        return totalBytes <= maxClip
+                            ? AuxTransferRejectReason.None
+                            : AuxTransferRejectReason.TooLarge;
+                    }
+
+                    if (type == AuxTransferType.FileBatch)
+                    {
+                        if (!_settings.Settings.HostAllowFileTransfer || !_hostRemoteFileTransferEnabled)
+                            return AuxTransferRejectReason.Disabled;
+
+                        var dir = (FileTransferDirection)_hostRemoteFileTransferDirection;
+                        if (dir == FileTransferDirection.HostToControllerOnly)
+                            return AuxTransferRejectReason.DirectionNotAllowed;
+
+                        long maxFiles = (long)Math.Clamp(_hostRemoteMaxFileTransferMb, 1, 4096) * 1024 * 1024 +
+                                        4L * 1024 * 1024;
+                        return totalBytes <= maxFiles
+                            ? AuxTransferRejectReason.None
+                            : AuxTransferRejectReason.TooLarge;
+                    }
+
+                    return AuxTransferRejectReason.Disabled;
+                };
+
+                auxChannel.RemoteFeatureConfigReceived += cfg =>
+                {
+                    _hostRemoteSharedClipboardEnabled = cfg.SharedClipboardEnabled;
+                    _hostRemoteFileTransferEnabled = cfg.FileTransferEnabled;
+                    _hostRemoteFileTransferDirection = (int)cfg.FileTransferDirection;
+                    _hostRemoteMaxFileTransferMb = Math.Clamp(cfg.MaxFileTransferMb, 1, 4096);
+                    _hostRemoteMaxClipboardMb = Math.Clamp(cfg.MaxClipboardMb, 1, 64);
+                    if (!cfg.FileTransferEnabled)
+                    {
+                        auxChannel.CancelAllFileTransfers();
+                    }
+                };
+
+                auxChannel.ClipboardTextReceived += text =>
+                {
+                    if (_hostViewOnlySession) return;
+                    WindowsClipboardHelper.TrySetText(text,
+                        seq => Volatile.Write(ref _lastHostWrittenClipboardSeq, seq));
+                };
+
+                auxChannel.ClipboardImageReceived += dibBytes =>
+                {
+                    if (_hostViewOnlySession) return;
+                    WindowsClipboardHelper.TrySetDib(dibBytes,
+                        seq => Volatile.Write(ref _lastHostWrittenClipboardSeq, seq));
+                };
+
+                auxChannel.FilesReceived += (roots, itemCount, totalBytes) =>
+                {
+                    if (_hostViewOnlySession || !_settings.Settings.HostAllowFileTransfer) return;
+                    if (WindowsClipboardHelper.TrySetDropFiles(roots,
+                            seq => Volatile.Write(ref _lastHostWrittenClipboardSeq, seq)))
+                    {
+                        _log.Info($"Host staged {itemCount} file item(s) ({totalBytes} bytes) to clipboard");
+                    }
                 };
 
                 _hostStatsDelegate = (in OsmiumHostStats stats) => HostStatsUpdated?.Invoke(stats);
@@ -317,6 +410,15 @@ public sealed partial class P2PCoordinator : IDisposable
                         return 0;
                     }
                 };
+                _hostAuxDataDelegate = (dataPtr, length) =>
+                {
+                    if (dataPtr == IntPtr.Zero || length <= 0) return;
+                    var ch = Volatile.Read(ref _hostAuxChannel);
+                    if (ch == null) return;
+                    byte[] copy = new byte[length];
+                    System.Runtime.InteropServices.Marshal.Copy(dataPtr, copy, 0, length);
+                    ch.HandleIncomingPacket(copy);
+                };
 
                 var callbacks = new OsmiumHostCallbacks
                 {
@@ -325,12 +427,16 @@ public sealed partial class P2PCoordinator : IDisposable
                     OnEnded = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostEndedDelegate),
                     OnLog = IntPtr.Zero,
                     OnConfirmDriverAction =
-                        System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostDriverConfirmDelegate)
+                        System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostDriverConfirmDelegate),
+                    OnAuxData =
+                        System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostAuxDataDelegate)
                 };
 
+                Volatile.Write(ref _hostAuxChannel, auxChannel);
                 if (NativeMethods.Osmium_StartHostSession(transport, in hostCfg, in negotiatedProfile, in callbacks,
                         out IntPtr hostHandle) == 0)
                 {
+                    Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
                     return;
                 }
 
@@ -382,6 +488,8 @@ public sealed partial class P2PCoordinator : IDisposable
                     ActiveHostSessionInfo = activeInfo;
                 }
 
+                StartHostClipboardWatcher(auxChannel);
+
                 if (!args.SameAccountVerified && _settings.Identity.RefreshPolicy != AccessCodeRefreshPolicy.ManualOnly)
                 {
                     _settings.RefreshTemporaryAccessCode();
@@ -400,6 +508,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 CryptographicOperations.ZeroMemory(fixedTag);
                 if (!startedHost && transport != IntPtr.Zero)
                 {
+                    Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
                     NativeMethods.Osmium_DestroyTransport(transport);
                 }
             }
@@ -450,6 +559,78 @@ public sealed partial class P2PCoordinator : IDisposable
 
     public void StopHostSession() => StopHostSession(notifyPeer: true, notifyEndedReason: "Host stopped session");
 
+    private void StartHostClipboardWatcher(AuxTransferChannel channel)
+    {
+        StopHostClipboardWatcher();
+        var cts = new CancellationTokenSource();
+        Volatile.Write(ref _hostClipboardWatchCts, cts);
+        CancellationToken ct = cts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            uint lastSeq = WindowsClipboardHelper.GetSequenceNumber();
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(200, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                uint curSeq = WindowsClipboardHelper.GetSequenceNumber();
+                if (curSeq == lastSeq) continue;
+                lastSeq = curSeq;
+
+                long writtenSeq = Volatile.Read(ref _lastHostWrittenClipboardSeq);
+                if (writtenSeq >= 0 && curSeq == (uint)writtenSeq) continue;
+
+                if (_hostViewOnlySession || !_hostRemoteFileTransferEnabled || !_settings.Settings.HostAllowFileTransfer)
+                    continue;
+
+                var dir = (FileTransferDirection)_hostRemoteFileTransferDirection;
+                if (dir != FileTransferDirection.Bidirectional && dir != FileTransferDirection.HostToControllerOnly)
+                    continue;
+
+                if (!WindowsClipboardHelper.HasDropFiles()) continue;
+
+                try
+                {
+                    await Task.Delay(40, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                if (!WindowsClipboardHelper.TryReadDropFiles(out var paths) || paths.Count == 0) continue;
+                if (paths.Any(WindowsClipboardHelper.IsInsideStagingDir)) continue;
+
+                long maxBytes = (long)Math.Clamp(_hostRemoteMaxFileTransferMb, 1, 4096) * 1024 * 1024;
+                _ = channel.StartSendFilesAsync(paths, maxBytes);
+            }
+        }, ct);
+    }
+
+    private void StopHostClipboardWatcher()
+    {
+        var cts = Interlocked.Exchange(ref _hostClipboardWatchCts, null);
+        if (cts != null)
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch
+            {
+            }
+
+            cts.Dispose();
+        }
+    }
+
     private void StopHostSession(bool notifyPeer, string notifyEndedReason)
     {
         IntPtr handle;
@@ -473,6 +654,9 @@ public sealed partial class P2PCoordinator : IDisposable
         }
 
         if (!hadSession) return;
+
+        StopHostClipboardWatcher();
+        Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
 
         if (handle != IntPtr.Zero)
         {

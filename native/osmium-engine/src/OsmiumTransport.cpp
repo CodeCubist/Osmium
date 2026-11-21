@@ -1053,6 +1053,7 @@ namespace osmium
     {
         if (m_MaxRecvSeq == 0)
         {
+            m_FirstRecvSeq = seq;
             m_MaxRecvSeq = seq;
             m_RecvWindowMask = 1ULL;
         }
@@ -1062,9 +1063,13 @@ namespace osmium
             uint64_t newlyLost = 0;
             if (adv >= 64)
             {
-                for (int b = 0; b < 64; ++b)
+                for (uint64_t b = 0; b < 64; ++b)
                 {
-                    if ((m_RecvWindowMask & (1ULL << b)) == 0) newlyLost++;
+                    if ((m_RecvWindowMask & (1ULL << b)) == 0 &&
+                        m_MaxRecvSeq >= b && (m_MaxRecvSeq - b) >= m_FirstRecvSeq)
+                    {
+                        newlyLost++;
+                    }
                 }
                 newlyLost += (adv - 64);
                 m_RecvWindowMask = 1ULL;
@@ -1073,7 +1078,11 @@ namespace osmium
             {
                 for (uint64_t b = 64 - adv; b < 64; ++b)
                 {
-                    if ((m_RecvWindowMask & (1ULL << b)) == 0) newlyLost++;
+                    if ((m_RecvWindowMask & (1ULL << b)) == 0 &&
+                        m_MaxRecvSeq >= b && (m_MaxRecvSeq - b) >= m_FirstRecvSeq)
+                    {
+                        newlyLost++;
+                    }
                 }
                 m_RecvWindowMask = (m_RecvWindowMask << adv) | 1ULL;
             }

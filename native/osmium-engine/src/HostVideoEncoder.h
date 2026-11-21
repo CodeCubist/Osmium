@@ -43,6 +43,8 @@ namespace osmium
 
         void Shutdown();
         void ForceKeyFrame() { m_ForceIdr.store(true); }
+        void ExcludeEncoderForSession(const std::string& ffmpegName);
+        void ClearExcludedEncoders() { m_ExcludedEncoders.clear(); }
 
         bool EncodeFrame(
             const uint8_t* pixels,
@@ -103,5 +105,6 @@ namespace osmium
         bool m_PqHdrActive = false;
         bool m_Yuv444Active = false;
         std::atomic<bool> m_ForceIdr{true};
+        std::vector<std::string> m_ExcludedEncoders;
     };
 }

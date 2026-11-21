@@ -49,7 +49,8 @@ namespace osmium::proto
         ControlMouseMode = 0x3A,
         ControlVirtualAudio = 0x3C,
         ControlSystemAction = 0x3D,
-        HostStatusJson = 0x3F
+        HostStatusJson = 0x3F,
+        AuxData = 0x40
     };
 
     enum class VideoCodecId : uint8_t
@@ -238,4 +239,5 @@ namespace osmium::proto
 #pragma pack(pop)
 
     constexpr size_t kMaxVideoChunkPayload = 1240;
+    constexpr size_t kMaxAuxDataPayload = 1240;
 }

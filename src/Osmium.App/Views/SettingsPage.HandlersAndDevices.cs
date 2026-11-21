@@ -8,6 +8,7 @@ using Osmium.App.Helpers;
 using Osmium.App.Services;
 using Osmium.Core.Models;
 using Osmium.Core.Network;
+using Osmium.Core.Services;
 
 namespace Osmium.App.Views;
 
@@ -173,6 +174,15 @@ public sealed partial class SettingsPage : Page
             s.CaptureSysKeys = (CaptureSysKeysMode)sk;
         if (UiDisplayModeCombo.SelectedItem is ComboBoxItem uiItem && int.TryParse(uiItem.Tag?.ToString(), out int ui))
             s.UiDisplayMode = (UiWindowDisplayMode)ui;
+        if (SharedClipboardMaxSizeCombo.SelectedItem is ComboBoxItem clipSizeItem &&
+            int.TryParse(clipSizeItem.Tag?.ToString(), out int clipMb))
+            s.SharedClipboardMaxSizeMb = Math.Clamp(clipMb, 1, 64);
+        if (FileTransferDirectionCombo.SelectedItem is ComboBoxItem dirItem &&
+            int.TryParse(dirItem.Tag?.ToString(), out int dirVal))
+            s.FileTransferDirection = (FileTransferDirection)Math.Clamp(dirVal, 0, 2);
+        if (FileTransferMaxSizeCombo.SelectedItem is ComboBoxItem fileSizeItem &&
+            int.TryParse(fileSizeItem.Tag?.ToString(), out int fileMb))
+            s.FileTransferMaxSizeMb = Math.Clamp(fileMb, 16, 4096);
 
         App.Engine.SettingsService.SaveSettings();
     }
@@ -283,6 +293,9 @@ public sealed partial class SettingsPage : Page
                            s.HideToTrayOnMinimize != HideToTrayOnMinimizeSwitch.IsOn;
         s.CloseToTray = CloseToTraySwitch.IsOn;
         s.HideToTrayOnMinimize = HideToTrayOnMinimizeSwitch.IsOn;
+        s.EnableSharedClipboard = SharedClipboardDefaultSwitch.IsOn;
+        s.SharedClipboardSyncImages = SharedClipboardImagesSwitch.IsOn;
+        s.EnableFileTransfer = FileTransferDefaultSwitch.IsOn;
 
         if (yuvChanged)
         {
@@ -306,6 +319,25 @@ public sealed partial class SettingsPage : Page
             _loading = true;
             LaunchOnStartupSwitch.IsOn = StartupHelper.IsAutoStartEnabled();
             _loading = prev;
+        }
+    }
+
+    private async void ClearTransferCacheBtn_Click(object sender, RoutedEventArgs e)
+    {
+        ClearTransferCacheBtn.IsEnabled = false;
+        try
+        {
+            long freedBytes = await Task.Run(WindowsClipboardHelper.ClearAllStagingCache);
+            double freedMb = freedBytes / (1024.0 * 1024.0);
+            LangRestartBar.Severity = InfoBarSeverity.Success;
+            LangRestartBar.Message = freedBytes > 0
+                ? LocalizationService.Format("Set_FileTransferCacheClearedFmt", $"{freedMb:F1}")
+                : LocalizationService.GetString("Set_FileTransferCacheEmpty");
+            LangRestartBar.IsOpen = true;
+        }
+        finally
+        {
+            ClearTransferCacheBtn.IsEnabled = true;
         }
     }
 

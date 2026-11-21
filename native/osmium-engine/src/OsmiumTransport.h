@@ -122,6 +122,7 @@ namespace osmium
         std::string m_LocalEndpointStr;
         std::string m_RemotePeerHintStr;
         mutable std::mutex m_StatsMutex;
+        uint64_t m_FirstRecvSeq = 0;
         uint64_t m_MaxRecvSeq = 0;
         uint64_t m_RecvWindowMask = 0;
         std::atomic<uint64_t> m_RecvPacketCount{0};

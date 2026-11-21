@@ -354,6 +354,7 @@ public sealed partial class RemoteSessionWindow : Window
         else
         {
             SyncKeyboardHookAndCursorCapture();
+            OnSessionWindowActivatedForClipboard();
         }
     }
 
@@ -545,6 +546,8 @@ public sealed partial class RemoteSessionWindow : Window
             };
             _rawInputRegistered = RegisterRawInputDevices([rid], 1, (uint)Marshal.SizeOf<RawInputDevice>());
         }
+
+        AttachClipboardListener();
     }
 
     private void EnsureChildHwndsSubclassed()
@@ -630,6 +633,7 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void DetachInputWndProcAndHooks()
     {
+        DetachClipboardListener();
         SetLowLevelKeyboardHook(false);
 
         if (_rawInputRegistered && _hwnd != IntPtr.Zero)
@@ -713,6 +717,11 @@ public sealed partial class RemoteSessionWindow : Window
                 if (msg == WmParentNotify && (((uint)wParam.ToInt64()) & 0xFFFF) == 1)
                 {
                     win.EnsureChildHwndsSubclassed();
+                }
+
+                if (msg == WmClipboardUpdate && hwnd == win._hwnd && !win._remoteSessionEnded)
+                {
+                    win.OnLocalClipboardUpdated();
                 }
 
                 if (msg == WmInput && hwnd == win._hwnd &&

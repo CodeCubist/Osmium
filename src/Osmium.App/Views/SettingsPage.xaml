@@ -129,6 +129,82 @@
                                 </controls:SettingsRowCard>
                             </StackPanel>
                         </Border>
+
+                        <TextBlock x:Name="SecClipboardTransferTitle"
+                                   Style="{StaticResource OsmiumSectionHeaderStyle}"
+                                   Margin="0,8,0,0" />
+
+                        <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                            <StackPanel>
+                                <controls:SettingsRowCard x:Name="RowSharedClipboardDefault" IsGrouped="True" Glyph="&#xE49E;">
+                                    <ToggleSwitch x:Name="SharedClipboardDefaultSwitch"
+                                                  Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                  Toggled="SettingSwitch_Toggled" />
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowSharedClipboardImages" IsGrouped="True" ShowIcon="False">
+                                    <ToggleSwitch x:Name="SharedClipboardImagesSwitch"
+                                                  Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                  Toggled="SettingSwitch_Toggled" />
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowSharedClipboardMaxSize" IsGrouped="True" ShowIcon="False">
+                                    <ComboBox x:Name="SharedClipboardMaxSizeCombo"
+                                              Style="{StaticResource OsmiumRowComboBoxStyle}"
+                                              SelectionChanged="ClientCombo_Changed">
+                                        <ComboBoxItem Content="2 MB" Tag="2" />
+                                        <ComboBoxItem Content="5 MB" Tag="5" />
+                                        <ComboBoxItem Content="8 MB" Tag="8" />
+                                        <ComboBoxItem Content="16 MB" Tag="16" />
+                                        <ComboBoxItem Content="32 MB" Tag="32" />
+                                    </ComboBox>
+                                </controls:SettingsRowCard>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                            <StackPanel>
+                                <controls:SettingsRowCard x:Name="RowFileTransferDefault" IsGrouped="True" Glyph="&#xF4C8;">
+                                    <ToggleSwitch x:Name="FileTransferDefaultSwitch"
+                                                  Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                  Toggled="SettingSwitch_Toggled" />
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowFileTransferDirection" IsGrouped="True" ShowIcon="False">
+                                    <ComboBox x:Name="FileTransferDirectionCombo"
+                                              Style="{StaticResource OsmiumRowComboBoxStyle}"
+                                              SelectionChanged="ClientCombo_Changed" />
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowFileTransferMaxSize" IsGrouped="True" ShowIcon="False">
+                                    <ComboBox x:Name="FileTransferMaxSizeCombo"
+                                              Style="{StaticResource OsmiumRowComboBoxStyle}"
+                                              SelectionChanged="ClientCombo_Changed">
+                                        <ComboBoxItem Content="64 MB" Tag="64" />
+                                        <ComboBoxItem Content="256 MB" Tag="256" />
+                                        <ComboBoxItem Content="512 MB" Tag="512" />
+                                        <ComboBoxItem Content="1 GB" Tag="1024" />
+                                        <ComboBoxItem Content="2 GB" Tag="2048" />
+                                    </ComboBox>
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowFileTransferClearCache" IsGrouped="True" ShowIcon="False">
+                                    <Button x:Name="ClearTransferCacheBtn"
+                                            CornerRadius="6"
+                                            Click="ClearTransferCacheBtn_Click" />
+                                </controls:SettingsRowCard>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
 
@@ -298,6 +374,38 @@
                                     <controls:SettingsRowCard x:Name="RowHostRequireDriverConfirm" IsGrouped="True"
                                                               ShowIcon="False">
                                         <ToggleSwitch x:Name="HostRequireDriverConfirmSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostPermissionSwitch_Toggled" />
+                                    </controls:SettingsRowCard>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                    <controls:SettingsRowCard x:Name="RowHostAllowFileTransfer" IsGrouped="True"
+                                                              Glyph="&#xF4C8;">
+                                        <ToggleSwitch x:Name="HostAllowFileTransferSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostPermissionSwitch_Toggled" />
+                                    </controls:SettingsRowCard>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock x:Name="SecHostAlertsTitle" Style="{StaticResource OsmiumSectionHeaderStyle}" />
+                        <StackPanel Spacing="6">
+                            <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                                <StackPanel>
+                                    <controls:SettingsRowCard x:Name="RowHostNotifyOnConnect" IsGrouped="True"
+                                                              Glyph="&#xF588;">
+                                        <ToggleSwitch x:Name="HostNotifyOnConnectSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostPermissionSwitch_Toggled" />
+                                    </controls:SettingsRowCard>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                    <controls:SettingsRowCard x:Name="RowHostFlashTaskbarOnConnect" IsGrouped="True"
+                                                              ShowIcon="False">
+                                        <ToggleSwitch x:Name="HostFlashTaskbarOnConnectSwitch"
                                                       Style="{StaticResource OsmiumCompactToggleStyle}"
                                                       Toggled="HostPermissionSwitch_Toggled" />
                                     </controls:SettingsRowCard>

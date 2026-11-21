@@ -173,6 +173,7 @@ typedef void (*OsmiumClientStatusJsonCallback)(const char* statusJson);
 typedef void (*OsmiumHostStatsCallback)(const OsmiumHostStats* stats);
 typedef void (*OsmiumHostEndedCallback)(int32_t reasonCode, const char* reasonMessage);
 typedef int32_t (*OsmiumHostDriverConfirmCallback)(int32_t actionType);
+typedef void (*OsmiumAuxDataCallback)(const uint8_t* data, int32_t length);
 
 typedef struct OsmiumClientCallbacks
 {
@@ -181,6 +182,7 @@ typedef struct OsmiumClientCallbacks
     OsmiumClientEndedCallback onEnded;
     OsmiumLogCallback onLog;
     OsmiumClientStatusJsonCallback onStatusJson;
+    OsmiumAuxDataCallback onAuxData;
 } OsmiumClientCallbacks;
 
 typedef struct OsmiumHostCallbacks
@@ -189,6 +191,7 @@ typedef struct OsmiumHostCallbacks
     OsmiumHostEndedCallback onEnded;
     OsmiumLogCallback onLog;
     OsmiumHostDriverConfirmCallback onConfirmDriverAction;
+    OsmiumAuxDataCallback onAuxData;
 } OsmiumHostCallbacks;
 
 #pragma pack(pop)
@@ -253,6 +256,7 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     void** outHostHandle);
 
 OSMIUM_API void Osmium_StopHostSession(void* hostHandle);
+OSMIUM_API int32_t Osmium_HostSendAuxData(void* hostHandle, const uint8_t* data, int32_t length);
 
 OSMIUM_API int32_t Osmium_StartClientEmbedded(
     void* transport,
@@ -291,6 +295,7 @@ OSMIUM_API void Osmium_ClientPollInput(void* clientHandle, int32_t windowFocused
 OSMIUM_API void Osmium_ClientSetOverlayVisible(void* clientHandle, int32_t visible);
 OSMIUM_API void Osmium_ClientSetVsync(void* clientHandle, int32_t enableVsync);
 OSMIUM_API void Osmium_ClientSetMute(void* clientHandle, int32_t muted);
+OSMIUM_API int32_t Osmium_ClientSendAuxData(void* clientHandle, const uint8_t* data, int32_t length);
 
 OSMIUM_API int32_t Osmium_RunClientSession(
     void* transport,

@@ -359,6 +359,16 @@ public sealed partial class P2PCoordinator : IDisposable
     private OsmiumHostStatsDelegate? _hostStatsDelegate;
     private OsmiumHostEndedDelegate? _hostEndedDelegate;
     private OsmiumHostDriverConfirmDelegate? _hostDriverConfirmDelegate;
+    private OsmiumAuxDataDelegate? _hostAuxDataDelegate;
+    private AuxTransferChannel? _hostAuxChannel;
+    private CancellationTokenSource? _hostClipboardWatchCts;
+    private volatile bool _hostViewOnlySession;
+    private volatile bool _hostRemoteSharedClipboardEnabled;
+    private volatile bool _hostRemoteFileTransferEnabled;
+    private volatile int _hostRemoteFileTransferDirection;
+    private volatile int _hostRemoteMaxFileTransferMb = 256;
+    private volatile int _hostRemoteMaxClipboardMb = 16;
+    private long _lastHostWrittenClipboardSeq = -1;
     private OsmiumClientStartedDelegate? _clientStartedDelegate;
     private OsmiumClientStatsDelegate? _clientStatsDelegate;
     private OsmiumClientEndedDelegate? _clientEndedDelegate;

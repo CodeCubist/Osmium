@@ -22,6 +22,7 @@ public sealed partial class MainWindow : Window
     private IntPtr _hwnd;
     private AppWindow? _appWindow;
     private TrayIconHelper? _trayIcon;
+    private TaskbarFlashHelper? _taskbarFlasher;
     private bool _forceExit;
     private bool _isHiddenInTray;
     private readonly Dictionary<string, NavigationViewItem> _peerDeviceNavItems = new(StringComparer.Ordinal);
@@ -45,11 +46,25 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         ImmersiveWindowHelper.EnsureTopInsetFixAttached(this);
 
-        Activated += (_, _) => ImmersiveWindowHelper.SyncContentBridges(this);
+        Activated += (_, args) =>
+        {
+            ImmersiveWindowHelper.SyncContentBridges(this);
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                _taskbarFlasher?.NotifyWindowActivated(
+                    _hwnd,
+                    isPointerActivated: args.WindowActivationState == WindowActivationState.PointerActivated);
+            }
+        };
         SizeChanged += (_, _) => ImmersiveWindowHelper.SyncContentBridges(this);
         RootShellGrid.ActualThemeChanged += (_, _) =>
             ImmersiveWindowHelper.ApplyImmersiveFrame(this, RootShellGrid.ActualTheme == ElementTheme.Dark);
+        RootShellGrid.AddHandler(
+            UIElement.PointerPressedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _taskbarFlasher?.Clear(_hwnd)),
+            handledEventsToo: true);
 
+        _taskbarFlasher = new TaskbarFlashHelper();
         ConfigureWindowIconAndSize();
         ApplyTheme(App.Engine.SettingsService.Settings.UiTheme);
         ApplyLocalization();
@@ -59,8 +74,8 @@ public sealed partial class MainWindow : Window
 
         App.Engine.Coordinator.ConfirmIncomingConnectionAsync = ConfirmIncomingConnectionOnUiAsync;
         App.Engine.Coordinator.ConfirmDriverActionAsync = ConfirmDriverActionOnUiAsync;
-        App.Engine.Coordinator.HostSessionStarted += _ => DispatcherQueue.TryEnqueue(OnHostSessionStarted);
-        App.Engine.Coordinator.HostSessionEnded += _ => DispatcherQueue.TryEnqueue(UpdateTrayTooltip);
+        App.Engine.Coordinator.HostSessionStarted += info => DispatcherQueue.TryEnqueue(() => OnHostSessionStarted(info));
+        App.Engine.Coordinator.HostSessionEnded += _ => DispatcherQueue.TryEnqueue(OnHostSessionEnded);
         App.Engine.AccountService.SessionChanged += () => DispatcherQueue.TryEnqueue(() =>
         {
             ApplyLocalization();
@@ -75,6 +90,8 @@ public sealed partial class MainWindow : Window
         });
         Closed += (_, _) =>
         {
+            _taskbarFlasher?.Dispose();
+            _taskbarFlasher = null;
             _trayIcon?.Dispose();
             _trayIcon = null;
         };
@@ -367,11 +384,49 @@ public sealed partial class MainWindow : Window
         return LocalizationService.GetString("Tray_TooltipControlling");
     }
 
-    private void OnHostSessionStarted()
+    private static string ResolveControllerDisplayName(HostSessionActiveInfo info)
     {
+        bool isSameAccount = info.IsSameAccount ||
+                             (App.Engine.AccountService.IsLoggedIn &&
+                              !string.IsNullOrWhiteSpace(info.ControllerUserId) &&
+                              string.Equals(info.ControllerUserId, App.Engine.AccountService.CurrentUserId,
+                                  StringComparison.OrdinalIgnoreCase));
+        string who = isSameAccount
+            ? App.Engine.AccountService.ResolveAccountDeviceName(info.PeerDeviceId, info.ControllerDeviceName)
+            : (string.IsNullOrWhiteSpace(info.ControllerDisplayName) ? info.PeerName : info.ControllerDisplayName);
+        return string.IsNullOrWhiteSpace(who)
+            ? DeviceIdentity.FormatDeviceId(info.PeerDeviceId)
+            : who;
+    }
+
+    private void OnHostSessionStarted(HostSessionActiveInfo info)
+    {
+        SyncTrayIconVisibility();
         UpdateTrayTooltip();
         NavigateToLocalHome();
         RestoreFromTray();
+
+        var settings = App.Engine.SettingsService.Settings;
+        if (settings.HostNotifyOnConnect)
+        {
+            EnsureTrayIcon();
+            string who = ResolveControllerDisplayName(info);
+            string title = LocalizationService.GetString("Host_AlertConnectedTitle");
+            string body = LocalizationService.Format("Host_AlertConnectedBodyFmt", who);
+            _trayIcon?.ShowNotification(title, body);
+        }
+
+        if (settings.HostFlashTaskbarOnConnect)
+        {
+            _taskbarFlasher?.SetSolidRed(_hwnd);
+        }
+    }
+
+    private void OnHostSessionEnded()
+    {
+        _taskbarFlasher?.Clear(_hwnd);
+        SyncTrayIconVisibility();
+        UpdateTrayTooltip();
     }
 
     private void UpdateTrayTooltip()
@@ -383,7 +438,7 @@ public sealed partial class MainWindow : Window
     {
         EnsureTrayIcon();
         var s = App.Engine.SettingsService.Settings;
-        bool show = s.CloseToTray || s.HideToTrayOnMinimize || _isHiddenInTray;
+        bool show = s.CloseToTray || s.HideToTrayOnMinimize || _isHiddenInTray || App.Engine.Coordinator.IsHostStreaming;
         _trayIcon?.SetVisible(show, BuildTrayTooltip());
     }
 
@@ -451,6 +506,8 @@ public sealed partial class MainWindow : Window
     public void ForceExit()
     {
         _forceExit = true;
+        _taskbarFlasher?.Dispose();
+        _taskbarFlasher = null;
         _trayIcon?.Dispose();
         _trayIcon = null;
         Close();

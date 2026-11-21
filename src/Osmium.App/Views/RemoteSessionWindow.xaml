@@ -411,6 +411,20 @@
                                                 <Button x:Name="TaskManagerBtn"
                                                         Click="OpenTaskManager_Click" />
                                             </StackPanel>
+
+                                            <TextBlock x:Name="SessionClipboardTransferTitleText"
+                                                       FontSize="12"
+                                                       Opacity="0.9"
+                                                       Margin="0,8,0,0" />
+                                            <ToggleSwitch x:Name="SharedClipboardToggle"
+                                                          Toggled="SharedClipboardToggle_Toggled" />
+                                            <ToggleSwitch x:Name="FileTransferToggle"
+                                                          Toggled="FileTransferToggle_Toggled" />
+                                            <TextBlock x:Name="TransferStatusHintText"
+                                                       FontSize="11"
+                                                       Opacity="0.7"
+                                                       TextWrapping="Wrap"
+                                                       Visibility="Collapsed" />
                                         </StackPanel>
 
 

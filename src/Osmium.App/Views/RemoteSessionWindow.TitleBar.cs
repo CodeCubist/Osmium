@@ -854,6 +854,7 @@ public sealed partial class RemoteSessionWindow : Window
 
         ReleaseCursorCapture(manualPause: false);
         SetLowLevelKeyboardHook(false);
+        DisposeAuxTransferChannel();
 
         WaitingProgressRing.IsActive = false;
         WaitingProgressRing.Visibility = Visibility.Collapsed;

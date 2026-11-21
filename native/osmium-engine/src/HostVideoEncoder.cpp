@@ -52,6 +52,15 @@ namespace osmium
         Shutdown();
     }
 
+    void HostVideoEncoder::ExcludeEncoderForSession(const std::string& ffmpegName)
+    {
+        if (ffmpegName.empty()) return;
+        if (std::find(m_ExcludedEncoders.begin(), m_ExcludedEncoders.end(), ffmpegName) == m_ExcludedEncoders.end())
+        {
+            m_ExcludedEncoders.push_back(ffmpegName);
+        }
+    }
+
     void HostVideoEncoder::Shutdown()
     {
         if (m_SwsCtx)
@@ -149,59 +158,73 @@ namespace osmium
             }
         }
 
+        auto isExcluded = [this](const char* name)
+        {
+            return std::find(m_ExcludedEncoders.begin(), m_ExcludedEncoders.end(), name) != m_ExcludedEncoders.end();
+        };
+
+        std::vector<EncoderCandidate> candidatePasses[2];
         for (const auto& cand : ordered)
         {
-            if (TryOpenCandidate(cand, fps, bitrateKbps, enableHdr, enableYuv444))
+            candidatePasses[isExcluded(cand.ffmpegName) ? 1 : 0].push_back(cand);
+        }
+
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            for (const auto& cand : candidatePasses[pass])
             {
-                m_YuvFrame = av_frame_alloc();
-                m_YuvFrame->format = m_CodecCtx->pix_fmt;
-                m_YuvFrame->width = m_OutWidth;
-                m_YuvFrame->height = m_OutHeight;
-                m_YuvFrame->color_primaries = m_CodecCtx->color_primaries;
-                m_YuvFrame->color_trc = m_CodecCtx->color_trc;
-                m_YuvFrame->colorspace = m_CodecCtx->colorspace;
-                m_YuvFrame->color_range = m_CodecCtx->color_range;
-                if (av_frame_get_buffer(m_YuvFrame, 32) < 0)
+                if (TryOpenCandidate(cand, fps, bitrateKbps, enableHdr, enableYuv444))
                 {
-                    Shutdown();
-                    return false;
-                }
-
-                if (m_PqHdrActive)
-                {
-                    if (AVMasteringDisplayMetadata* mdm = av_mastering_display_metadata_create_side_data(m_YuvFrame))
+                    m_YuvFrame = av_frame_alloc();
+                    m_YuvFrame->format = m_CodecCtx->pix_fmt;
+                    m_YuvFrame->width = m_OutWidth;
+                    m_YuvFrame->height = m_OutHeight;
+                    m_YuvFrame->color_primaries = m_CodecCtx->color_primaries;
+                    m_YuvFrame->color_trc = m_CodecCtx->color_trc;
+                    m_YuvFrame->colorspace = m_CodecCtx->colorspace;
+                    m_YuvFrame->color_range = m_CodecCtx->color_range;
+                    if (av_frame_get_buffer(m_YuvFrame, 32) < 0)
                     {
-                        mdm->display_primaries[0][0] = av_make_q(708, 1000);
-                        mdm->display_primaries[0][1] = av_make_q(292, 1000);
-                        mdm->display_primaries[1][0] = av_make_q(170, 1000);
-                        mdm->display_primaries[1][1] = av_make_q(797, 1000);
-                        mdm->display_primaries[2][0] = av_make_q(131, 1000);
-                        mdm->display_primaries[2][1] = av_make_q(46, 1000);
-                        mdm->white_point[0] = av_make_q(3127, 10000);
-                        mdm->white_point[1] = av_make_q(3290, 10000);
-                        mdm->min_luminance = av_make_q(50, 10000);
-                        mdm->max_luminance = av_make_q(1000, 1);
-                        mdm->has_primaries = 1;
-                        mdm->has_luminance = 1;
+                        Shutdown();
+                        return false;
                     }
-                    if (AVContentLightMetadata* cll = av_content_light_metadata_create_side_data(m_YuvFrame))
+
+                    if (m_PqHdrActive)
                     {
-                        cll->MaxCLL = 1000;
-                        cll->MaxFALL = 400;
+                        if (AVMasteringDisplayMetadata* mdm = av_mastering_display_metadata_create_side_data(m_YuvFrame))
+                        {
+                            mdm->display_primaries[0][0] = av_make_q(708, 1000);
+                            mdm->display_primaries[0][1] = av_make_q(292, 1000);
+                            mdm->display_primaries[1][0] = av_make_q(170, 1000);
+                            mdm->display_primaries[1][1] = av_make_q(797, 1000);
+                            mdm->display_primaries[2][0] = av_make_q(131, 1000);
+                            mdm->display_primaries[2][1] = av_make_q(46, 1000);
+                            mdm->white_point[0] = av_make_q(3127, 10000);
+                            mdm->white_point[1] = av_make_q(3290, 10000);
+                            mdm->min_luminance = av_make_q(50, 10000);
+                            mdm->max_luminance = av_make_q(1000, 1);
+                            mdm->has_primaries = 1;
+                            mdm->has_luminance = 1;
+                        }
+                        if (AVContentLightMetadata* cll = av_content_light_metadata_create_side_data(m_YuvFrame))
+                        {
+                            cll->MaxCLL = 1000;
+                            cll->MaxFALL = 400;
+                        }
                     }
-                }
 
-                m_Pkt = av_packet_alloc();
-                if (!m_Pkt || (!m_PqHdrActive && !EnsureSwsContext(AV_PIX_FMT_BGRA)))
-                {
-                    Shutdown();
-                    return false;
-                }
+                    m_Pkt = av_packet_alloc();
+                    if (!m_Pkt || (!m_PqHdrActive && !EnsureSwsContext(AV_PIX_FMT_BGRA)))
+                    {
+                        Shutdown();
+                        return false;
+                    }
 
-                OSM_LOG_INFO("HostVideoEncoder initialized: %s (%s, %dx%d @ %dfps, %d kbps, hdr=%d, pq=%d, yuv444=%d)",
-                             m_EncoderName.c_str(), m_CodecName.c_str(), m_OutWidth, m_OutHeight, fps, bitrateKbps,
-                             m_HdrActive ? 1 : 0, m_PqHdrActive ? 1 : 0, m_Yuv444Active ? 1 : 0);
-                return true;
+                    OSM_LOG_INFO("HostVideoEncoder initialized: %s (%s, %dx%d @ %dfps, %d kbps, hdr=%d, pq=%d, yuv444=%d)",
+                                 m_EncoderName.c_str(), m_CodecName.c_str(), m_OutWidth, m_OutHeight, fps, bitrateKbps,
+                                 m_HdrActive ? 1 : 0, m_PqHdrActive ? 1 : 0, m_Yuv444Active ? 1 : 0);
+                    return true;
+                }
             }
         }
 
@@ -227,6 +250,7 @@ namespace osmium
         ctx->rc_buffer_size = static_cast<int>(ctx->bit_rate / 2);
         ctx->gop_size = std::max(1, fps * 2);
         ctx->max_b_frames = 0;
+        ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
 
         AVPixelFormat chosenFmt = AV_PIX_FMT_NV12;
         const enum AVPixelFormat* supportedFmts = nullptr;
@@ -308,10 +332,13 @@ namespace osmium
         {
             av_opt_set(ctx->priv_data, "rate_control", "cbr", 0);
             av_opt_set_int(ctx->priv_data, "hw_encoding", 1, 0);
+            av_opt_set_int(ctx->priv_data, "low_latency", 1, 0);
+            av_opt_set(ctx->priv_data, "scenario", "live_streaming", 0);
         }
         else if (name == "libopenh264")
         {
-            av_opt_set(ctx->priv_data, "slice_mode", "fixed", 0);
+            av_opt_set(ctx->priv_data, "slice_mode", "auto", 0);
+            av_opt_set(ctx->priv_data, "rc_mode", "bitrate", 0);
             av_opt_set_int(ctx->priv_data, "allow_skip_frames", 0, 0);
         }
         else if (name == "libsvtav1")
@@ -513,8 +540,9 @@ namespace osmium
                       m_YuvFrame->data, m_YuvFrame->linesize);
         }
 
+        const bool forcedIdr = m_ForceIdr.exchange(false);
         m_YuvFrame->pts = m_Pts++;
-        if (m_ForceIdr.exchange(false))
+        if (forcedIdr)
         {
             m_YuvFrame->pict_type = AV_PICTURE_TYPE_I;
             m_YuvFrame->flags |= AV_FRAME_FLAG_KEY;
@@ -525,27 +553,55 @@ namespace osmium
             m_YuvFrame->flags &= ~AV_FRAME_FLAG_KEY;
         }
 
-        int err = avcodec_send_frame(m_CodecCtx, m_YuvFrame);
-        if (err < 0) return false;
-
-        while (err >= 0)
+        auto drainPackets = [&]() -> bool
         {
-            err = avcodec_receive_packet(m_CodecCtx, m_Pkt);
-            if (err == AVERROR(EAGAIN) || err == AVERROR_EOF)
+            while (true)
             {
-                break;
+                int r = avcodec_receive_packet(m_CodecCtx, m_Pkt);
+                if (r == AVERROR(EAGAIN) || r == AVERROR_EOF)
+                {
+                    return true;
+                }
+                if (r < 0)
+                {
+                    OSM_LOG_WARN("HostVideoEncoder(%s) avcodec_receive_packet failed: %d", m_EncoderName.c_str(), r);
+                    return false;
+                }
+
+                EncodedPacket pkt;
+                pkt.isKeyFrame = (m_Pkt->flags & AV_PKT_FLAG_KEY) != 0;
+                pkt.codecId = m_CodecId;
+                pkt.data.assign(m_Pkt->data, m_Pkt->data + m_Pkt->size);
+                outPackets.push_back(std::move(pkt));
+                av_packet_unref(m_Pkt);
             }
-            if (err < 0)
+        };
+
+        int err = avcodec_send_frame(m_CodecCtx, m_YuvFrame);
+        if (err == AVERROR(EAGAIN))
+        {
+            if (!drainPackets())
             {
+                if (forcedIdr) m_ForceIdr.store(true);
                 return false;
             }
+            err = avcodec_send_frame(m_CodecCtx, m_YuvFrame);
+        }
+        if (err < 0)
+        {
+            if (forcedIdr) m_ForceIdr.store(true);
+            if (err == AVERROR(EAGAIN))
+            {
+                drainPackets();
+                return !outPackets.empty();
+            }
+            OSM_LOG_WARN("HostVideoEncoder(%s) avcodec_send_frame failed: %d", m_EncoderName.c_str(), err);
+            return false;
+        }
 
-            EncodedPacket pkt;
-            pkt.isKeyFrame = (m_Pkt->flags & AV_PKT_FLAG_KEY) != 0;
-            pkt.codecId = m_CodecId;
-            pkt.data.assign(m_Pkt->data, m_Pkt->data + m_Pkt->size);
-            outPackets.push_back(std::move(pkt));
-            av_packet_unref(m_Pkt);
+        if (!drainPackets())
+        {
+            return false;
         }
 
         return true;

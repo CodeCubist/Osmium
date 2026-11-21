@@ -568,4 +568,47 @@
   <data name="Set_DeviceClearRenameBtn" xml:space="preserve"><value>清除重命名</value></data>
   <data name="Set_DeviceRenameSuccess" xml:space="preserve"><value>设备名称已更新</value></data>
   <data name="Set_DeviceRenameCleared" xml:space="preserve"><value>已恢复设备默认名称</value></data>
+  <data name="Host_AlertConnectedTitle" xml:space="preserve"><value>远程控制已连接</value></data>
+  <data name="Host_AlertConnectedBodyFmt" xml:space="preserve"><value>{0} 正在远程控制本计算机</value></data>
+  <data name="Session_ClipboardTransferTitle" xml:space="preserve"><value>剪切板与文件传输</value></data>
+  <data name="Session_SharedClipboardHeader" xml:space="preserve"><value>共享剪切板（主控端 → 被控端）</value></data>
+  <data name="Session_FileTransferHeader" xml:space="preserve"><value>文件传输（双向复制粘贴）</value></data>
+  <data name="Session_ToastSharedClipboardOn" xml:space="preserve"><value>已开启共享剪切板（主控端 → 被控端）</value></data>
+  <data name="Session_ToastSharedClipboardOff" xml:space="preserve"><value>已关闭共享剪切板</value></data>
+  <data name="Session_ToastFileTransferOn" xml:space="preserve"><value>已开启文件传输，可直接复制粘贴文件</value></data>
+  <data name="Session_ToastFileTransferOff" xml:space="preserve"><value>已关闭文件传输</value></data>
+  <data name="Session_ToastHostFileTransferDisabled" xml:space="preserve"><value>被控端已在设置中关闭文件传输权限</value></data>
+  <data name="Session_ToastClipboardTooLargeFmt" xml:space="preserve"><value>剪切板内容超出单次同步上限（{0} MB）</value></data>
+  <data name="Session_FileSendingFmt" xml:space="preserve"><value>正在发送到被控端：{0}（{1}%）</value></data>
+  <data name="Session_FileReceivingFmt" xml:space="preserve"><value>正在从被控端接收：{0}（{1}%）</value></data>
+  <data name="Session_FileSentReadyFmt" xml:space="preserve"><value>已发送 {0} 个项目到被控端，可直接 Ctrl+V 粘贴</value></data>
+  <data name="Session_FileReceivedReadyFmt" xml:space="preserve"><value>已从被控端接收 {0} 个项目，可在本地 Ctrl+V 粘贴</value></data>
+  <data name="Session_ToastFileTooLargeFmt" xml:space="preserve"><value>文件总大小超出单次传输上限（{0} MB）</value></data>
+  <data name="Session_ToastFileDirectionBlocked" xml:space="preserve"><value>当前文件传输方向设置不允许该方向传输</value></data>
+  <data name="Session_ToastFileTransferFailed" xml:space="preserve"><value>文件传输失败，请重新复制再试</value></data>
+  <data name="Set_SecClipboardTransfer" xml:space="preserve"><value>剪切板与文件传输</value></data>
+  <data name="Set_SharedClipboardDefault" xml:space="preserve"><value>默认开启共享剪切板</value></data>
+  <data name="Set_SharedClipboardDefaultDesc" xml:space="preserve"><value>由主控端单向同步文本与图片到被控端，也可在远控窗口菜单中随时开关</value></data>
+  <data name="Set_SharedClipboardImages" xml:space="preserve"><value>同步剪切板图片</value></data>
+  <data name="Set_SharedClipboardImagesDesc" xml:space="preserve"><value>开启共享剪切板时，除纯文本外同时同步截图与图片</value></data>
+  <data name="Set_SharedClipboardMaxSize" xml:space="preserve"><value>剪切板单次同步大小上限</value></data>
+  <data name="Set_FileTransferDefault" xml:space="preserve"><value>默认开启文件传输</value></data>
+  <data name="Set_FileTransferDefaultDesc" xml:space="preserve"><value>开启后支持主控端与被控端直接复制粘贴文件，也可在远控窗口菜单中随时开关</value></data>
+  <data name="Set_FileTransferDirection" xml:space="preserve"><value>文件传输方向</value></data>
+  <data name="Set_FileDirBidirectional" xml:space="preserve"><value>双向复制粘贴</value></data>
+  <data name="Set_FileDirCtrlToHost" xml:space="preserve"><value>仅主控端 → 被控端</value></data>
+  <data name="Set_FileDirHostToCtrl" xml:space="preserve"><value>仅被控端 → 主控端</value></data>
+  <data name="Set_FileTransferMaxSize" xml:space="preserve"><value>单次文件传输大小上限</value></data>
+  <data name="Set_FileTransferClearCache" xml:space="preserve"><value>清理文件传输临时缓存</value></data>
+  <data name="Set_FileTransferClearCacheDesc" xml:space="preserve"><value>清理复制粘贴文件时在临时目录中缓存的历史中转文件</value></data>
+  <data name="Set_ClearCacheBtn" xml:space="preserve"><value>立即清理</value></data>
+  <data name="Set_FileTransferCacheClearedFmt" xml:space="preserve"><value>已清理文件传输临时缓存，释放 {0} MB</value></data>
+  <data name="Set_FileTransferCacheEmpty" xml:space="preserve"><value>当前没有需要清理的文件传输缓存</value></data>
+  <data name="Host_RowAllowFileTransfer" xml:space="preserve"><value>允许主控端使用文件传输</value></data>
+  <data name="Host_RowAllowFileTransferDesc" xml:space="preserve"><value>允许远控连接期间在主控端与本机之间通过复制粘贴传输文件</value></data>
+  <data name="Host_SecAlerts" xml:space="preserve"><value>被控端连接提醒</value></data>
+  <data name="Host_RowNotifyOnConnect" xml:space="preserve"><value>被远控连接时发送 Windows 系统通知</value></data>
+  <data name="Host_RowNotifyOnConnectDesc" xml:space="preserve"><value>当有远程设备连接控制本机时，在屏幕右下角弹出 Windows 默认通知提醒</value></data>
+  <data name="Host_RowFlashTaskbarOnConnect" xml:space="preserve"><value>被远控连接时任务栏标签标红提醒</value></data>
+  <data name="Host_RowFlashTaskbarOnConnectDesc" xml:space="preserve"><value>被控连接后任务栏上的 Osmium 窗口标签常亮红色，手动对焦窗口一次或断开后自动恢复常规</value></data>
 </root>

@@ -311,6 +311,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_LastFrameIsHdr10Pq = false;
         m_HasLastFrame = false;
         m_ConsecutiveTimeouts = 0;
+        m_ConsecutiveDuplFailures = 0;
+        m_GdiFallbackUntilMs = 0;
     }
 
     bool HostCapture::RefreshMonitorBoundsForGdi()
@@ -680,16 +682,27 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         QueryOutputHdrStateAndWhite(m_DeviceName.c_str(), m_OutputColorSpace, m_OutputIsHdr, m_SdrWhiteScale);
         m_LastWhiteQueryMs = NowMillis();
 
-        const DXGI_FORMAT kCaptureFormats[] = {
+        const DXGI_FORMAT kHdrCaptureFormats[] = {
             DXGI_FORMAT_R16G16B16A16_FLOAT,
             DXGI_FORMAT_R10G10B10A2_UNORM,
+            DXGI_FORMAT_B8G8R8A8_UNORM
+        };
+        const DXGI_FORMAT kSdrCaptureFormats[] = {
             DXGI_FORMAT_B8G8R8A8_UNORM
         };
         ComPtr<IDXGIOutput5> output5;
         if (SUCCEEDED(targetOutput.As(&output5)) && output5)
         {
-            hr = output5->DuplicateOutput1(m_Device.Get(), 0, ARRAYSIZE(kCaptureFormats), kCaptureFormats,
-                                           &m_Duplication);
+            if (m_OutputIsHdr)
+            {
+                hr = output5->DuplicateOutput1(m_Device.Get(), 0, ARRAYSIZE(kHdrCaptureFormats), kHdrCaptureFormats,
+                                               &m_Duplication);
+            }
+            else
+            {
+                hr = output5->DuplicateOutput1(m_Device.Get(), 0, ARRAYSIZE(kSdrCaptureFormats), kSdrCaptureFormats,
+                                               &m_Duplication);
+            }
         }
         else
         {
@@ -748,9 +761,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         outFrame.isHdr10Pq = false;
         RefreshOutputHdrState();
 
+        const uint64_t nowMs = NowMillis();
+        if (m_GdiFallbackUntilMs != 0 && nowMs < m_GdiFallbackUntilMs)
+        {
+            RefreshMonitorBoundsForGdi();
+            return CaptureViaGdi(outFrame);
+        }
+
         if (!m_Duplication)
         {
-            uint64_t nowMs = NowMillis();
             if (nowMs - m_LastDuplRetryMs >= 250)
             {
                 m_LastDuplRetryMs = nowMs;
@@ -777,6 +796,19 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             bool wantPqNow = preferPqHdr && m_OutputIsHdr;
             if (m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPqNow)
             {
+                if (!m_LastFrameIsHdr10Pq && m_ConsecutiveTimeouts >= 30)
+                {
+                    m_ConsecutiveTimeouts = 0;
+                    if (CaptureViaGdi(outFrame))
+                    {
+                        if (!m_CaptureCursor && outFrame.width == m_Width && outFrame.height == m_Height &&
+                            outFrame.bgra.size() == static_cast<size_t>(m_Width) * static_cast<size_t>(m_Height) * 4)
+                        {
+                            m_LastFrameBgra = outFrame.bgra;
+                        }
+                        return true;
+                    }
+                }
                 outFrame.width = m_Width;
                 outFrame.height = m_Height;
                 outFrame.stride = m_Width * 4;
@@ -800,10 +832,21 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         if (FAILED(hr))
         {
-            OSM_LOG_WARN("AcquireNextFrame failed (hr=0x%08X); reinitializing duplication", hr);
+            m_ConsecutiveDuplFailures++;
+            OSM_LOG_WARN("AcquireNextFrame failed (hr=0x%08X, count=%u); reinitializing duplication",
+                         hr, m_ConsecutiveDuplFailures);
             m_LastDuplRetryMs = NowMillis();
+            if (m_ConsecutiveDuplFailures >= 3)
+            {
+                OSM_LOG_WARN("DXGI Desktop Duplication repeatedly failed; falling back to GDI for 5s");
+                ReleaseD3DResources();
+                m_GdiFallbackUntilMs = m_LastDuplRetryMs + 5000;
+                m_ConsecutiveDuplFailures = 0;
+                RefreshMonitorBoundsForGdi();
+                return CaptureViaGdi(outFrame);
+            }
             InitDuplication();
-            if (!m_Duplication)
+            if (!m_Duplication || !m_HasLastFrame)
             {
                 RefreshMonitorBoundsForGdi();
                 return CaptureViaGdi(outFrame);
@@ -813,6 +856,14 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         m_ConsecutiveTimeouts = 0;
 
+        if (frameInfo.LastPresentTime.QuadPart == 0 && !m_HasLastFrame)
+        {
+            m_Duplication->ReleaseFrame();
+            RefreshMonitorBoundsForGdi();
+            return CaptureViaGdi(outFrame);
+        }
+
+        bool mapSucceeded = false;
         ComPtr<ID3D11Texture2D> acquiredTex;
         if (SUCCEEDED(desktopRes.As(&acquiredTex)))
         {
@@ -829,12 +880,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                              m_OutputIsHdr ? 1 : 0, m_SdrWhiteScale);
             }
 
-            if (acqDesc.Width != static_cast<UINT>(m_Width) || acqDesc.Height != static_cast<UINT>(m_Height))
+            if (acqDesc.Width > 0 && acqDesc.Height > 0 &&
+                (acqDesc.Width != static_cast<UINT>(m_Width) || acqDesc.Height != static_cast<UINT>(m_Height)))
             {
-                m_Duplication->ReleaseFrame();
-                m_LastDuplRetryMs = NowMillis();
-                InitDuplication();
-                return false;
+                m_Width = static_cast<int>(acqDesc.Width);
+                m_Height = static_cast<int>(acqDesc.Height);
+                m_DesktopRect.right = m_DesktopRect.left + m_Width;
+                m_DesktopRect.bottom = m_DesktopRect.top + m_Height;
+                m_StagingTex.Reset();
+                m_StagingFmt = DXGI_FORMAT_UNKNOWN;
             }
 
             bool copied = false;
@@ -845,12 +899,24 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 outputPq = preferPqHdr && m_OutputIsHdr;
                 copied = ConvertAcquiredTexture(acquiredTex.Get(), acqDesc, outputPq);
             }
-            else
+            else if (acqDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM)
             {
-                if (!m_StagingTex || m_StagingFmt != DXGI_FORMAT_B8G8R8A8_UNORM ||
-                    m_Width != static_cast<int>(acqDesc.Width) || m_Height != static_cast<int>(acqDesc.Height))
+                if (!m_StagingTex || m_StagingFmt != DXGI_FORMAT_B8G8R8A8_UNORM)
                 {
-                    EnsureHdrTonemapPipeline(acqDesc.Width, acqDesc.Height, acqDesc.Format, DXGI_FORMAT_B8G8R8A8_UNORM);
+                    m_StagingTex.Reset();
+                    D3D11_TEXTURE2D_DESC stDesc{};
+                    stDesc.Width = acqDesc.Width;
+                    stDesc.Height = acqDesc.Height;
+                    stDesc.MipLevels = 1;
+                    stDesc.ArraySize = 1;
+                    stDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                    stDesc.SampleDesc.Count = 1;
+                    stDesc.Usage = D3D11_USAGE_STAGING;
+                    stDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+                    if (SUCCEEDED(m_Device->CreateTexture2D(&stDesc, nullptr, &m_StagingTex)))
+                    {
+                        m_StagingFmt = DXGI_FORMAT_B8G8R8A8_UNORM;
+                    }
                 }
                 if (m_StagingTex && m_StagingFmt == acqDesc.Format)
                 {
@@ -875,10 +941,29 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 m_Context->Unmap(m_StagingTex.Get(), 0);
                 m_LastFrameIsHdr10Pq = outputPq;
                 m_HasLastFrame = true;
+                mapSucceeded = true;
             }
         }
 
         m_Duplication->ReleaseFrame();
+
+        if (!mapSucceeded)
+        {
+            m_ConsecutiveDuplFailures++;
+            if (m_ConsecutiveDuplFailures >= 3)
+            {
+                OSM_LOG_WARN("DXGI frame readback failed %u times; falling back to GDI for 5s",
+                             m_ConsecutiveDuplFailures);
+                ReleaseD3DResources();
+                m_GdiFallbackUntilMs = NowMillis() + 5000;
+                m_ConsecutiveDuplFailures = 0;
+            }
+            RefreshMonitorBoundsForGdi();
+            return CaptureViaGdi(outFrame);
+        }
+
+        m_ConsecutiveDuplFailures = 0;
+        m_GdiFallbackUntilMs = 0;
 
         if (!m_HasLastFrame) return false;
         outFrame.width = m_Width;

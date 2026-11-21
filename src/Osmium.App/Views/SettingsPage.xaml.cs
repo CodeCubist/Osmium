@@ -126,6 +126,9 @@ public sealed partial class SettingsPage : Page
         HostCaptureCursorSwitch.IsEnabled = !locked;
         HostAllowDriverMgmtSwitch.IsEnabled = !locked;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && HostAllowDriverMgmtSwitch.IsOn;
+        HostAllowFileTransferSwitch.IsEnabled = !locked;
+        HostNotifyOnConnectSwitch.IsEnabled = !locked;
+        HostFlashTaskbarOnConnectSwitch.IsEnabled = !locked;
         InstallDriversBtn.IsEnabled = !locked;
         if (locked)
         {
@@ -377,6 +380,9 @@ public sealed partial class SettingsPage : Page
         HostAllowDriverMgmtSwitch.IsOn = s.HostAllowRemoteDriverMgmt;
         HostRequireDriverConfirmSwitch.IsOn = s.HostRequireDriverConfirm;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && s.HostAllowRemoteDriverMgmt;
+        HostAllowFileTransferSwitch.IsOn = s.HostAllowFileTransfer;
+        HostNotifyOnConnectSwitch.IsOn = s.HostNotifyOnConnect;
+        HostFlashTaskbarOnConnectSwitch.IsOn = s.HostFlashTaskbarOnConnect;
         RefreshHostDriverRowStatus();
 
         StunPortBox.Value = s.StunPortOverride;
@@ -422,6 +428,12 @@ public sealed partial class SettingsPage : Page
         KeepAwakeSwitch.IsOn = s.KeepAwake;
         CloseToTraySwitch.IsOn = s.CloseToTray;
         HideToTrayOnMinimizeSwitch.IsOn = s.HideToTrayOnMinimize;
+        SharedClipboardDefaultSwitch.IsOn = s.EnableSharedClipboard;
+        SharedClipboardImagesSwitch.IsOn = s.SharedClipboardSyncImages;
+        SelectByTag(SharedClipboardMaxSizeCombo, Math.Clamp(s.SharedClipboardMaxSizeMb, 2, 32).ToString());
+        FileTransferDefaultSwitch.IsOn = s.EnableFileTransfer;
+        SelectByTag(FileTransferDirectionCombo, ((int)s.FileTransferDirection).ToString());
+        SelectByTag(FileTransferMaxSizeCombo, Math.Clamp(s.FileTransferMaxSizeMb, 64, 2048).ToString());
         ShowSidebarDevicesSwitch.IsOn = s.ShowSameAccountDevicesInSidebar;
         LaunchOnStartupSwitch.IsOn = StartupHelper.IsAutoStartEnabled();
         RenderDeviceManagementPanel();
@@ -452,6 +464,25 @@ public sealed partial class SettingsPage : Page
         RowHideToTrayOnMinimize.Title = LocalizationService.GetString("Set_HideToTrayOnMinimize");
         RowLaunchOnStartup.Title = LocalizationService.GetString("Set_AutoStart");
         RowLaunchOnStartup.Description = LocalizationService.GetString("Set_AutoStartDesc");
+
+        SecClipboardTransferTitle.Text = LocalizationService.GetString("Set_SecClipboardTransfer");
+        RowSharedClipboardDefault.Title = LocalizationService.GetString("Set_SharedClipboardDefault");
+        RowSharedClipboardDefault.Description = LocalizationService.GetString("Set_SharedClipboardDefaultDesc");
+        RowSharedClipboardImages.Title = LocalizationService.GetString("Set_SharedClipboardImages");
+        RowSharedClipboardImages.Description = LocalizationService.GetString("Set_SharedClipboardImagesDesc");
+        RowSharedClipboardMaxSize.Title = LocalizationService.GetString("Set_SharedClipboardMaxSize");
+        RowFileTransferDefault.Title = LocalizationService.GetString("Set_FileTransferDefault");
+        RowFileTransferDefault.Description = LocalizationService.GetString("Set_FileTransferDefaultDesc");
+        RowFileTransferDirection.Title = LocalizationService.GetString("Set_FileTransferDirection");
+        RowFileTransferMaxSize.Title = LocalizationService.GetString("Set_FileTransferMaxSize");
+        RowFileTransferClearCache.Title = LocalizationService.GetString("Set_FileTransferClearCache");
+        RowFileTransferClearCache.Description = LocalizationService.GetString("Set_FileTransferClearCacheDesc");
+        ClearTransferCacheBtn.Content = LocalizationService.GetString("Set_ClearCacheBtn");
+
+        LocalizationService.SetComboItems(FileTransferDirectionCombo,
+            ("Set_FileDirBidirectional", "0"),
+            ("Set_FileDirCtrlToHost", "1"),
+            ("Set_FileDirHostToCtrl", "2"));
 
         LocalizationService.SetComboItems(LanguageCombo,
             ("Set_LangAuto", "auto"), ("Set_LangZh", "zh-CN"), ("Set_LangEn", "en-US"));
@@ -485,6 +516,13 @@ public sealed partial class SettingsPage : Page
         RowHostAllowRemoteDriverMgmt.Description = LocalizationService.GetString("Host_RowAllowDriverMgmtDesc");
         RowHostRequireDriverConfirm.Title = LocalizationService.GetString("Host_RowRequireDriverConfirm");
         RowHostRequireDriverConfirm.Description = LocalizationService.GetString("Host_RowRequireDriverConfirmDesc");
+        RowHostAllowFileTransfer.Title = LocalizationService.GetString("Host_RowAllowFileTransfer");
+        RowHostAllowFileTransfer.Description = LocalizationService.GetString("Host_RowAllowFileTransferDesc");
+        SecHostAlertsTitle.Text = LocalizationService.GetString("Host_SecAlerts");
+        RowHostNotifyOnConnect.Title = LocalizationService.GetString("Host_RowNotifyOnConnect");
+        RowHostNotifyOnConnect.Description = LocalizationService.GetString("Host_RowNotifyOnConnectDesc");
+        RowHostFlashTaskbarOnConnect.Title = LocalizationService.GetString("Host_RowFlashTaskbarOnConnect");
+        RowHostFlashTaskbarOnConnect.Description = LocalizationService.GetString("Host_RowFlashTaskbarOnConnectDesc");
         RefreshHostDriverRowStatus();
 
         HostMaxResCombo.Items.Clear();
@@ -671,6 +709,9 @@ public sealed partial class SettingsPage : Page
         s.HostCaptureCursor = HostCaptureCursorSwitch.IsOn;
         s.HostAllowRemoteDriverMgmt = HostAllowDriverMgmtSwitch.IsOn;
         s.HostRequireDriverConfirm = HostRequireDriverConfirmSwitch.IsOn;
+        s.HostAllowFileTransfer = HostAllowFileTransferSwitch.IsOn;
+        s.HostNotifyOnConnect = HostNotifyOnConnectSwitch.IsOn;
+        s.HostFlashTaskbarOnConnect = HostFlashTaskbarOnConnectSwitch.IsOn;
         HostRequireDriverConfirmSwitch.IsEnabled = s.HostAllowRemoteDriverMgmt;
         App.Engine.SettingsService.SaveSettings();
     }

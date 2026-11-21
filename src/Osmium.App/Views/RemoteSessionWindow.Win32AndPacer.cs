@@ -434,6 +434,7 @@ public sealed partial class RemoteSessionWindow : Window
         StopMousePacer();
         ReleaseCursorCapture(manualPause: false);
         DetachInputWndProcAndHooks();
+        DisposeAuxTransferChannel();
         _winUiBlankCursor?.Dispose();
         _winUiBlankCursor = null;
         _mousePacerWake.Dispose();
@@ -448,6 +449,7 @@ public sealed partial class RemoteSessionWindow : Window
         _statsDel = null;
         _endedDel = null;
         _statusJsonDel = null;
+        _auxDataDel = null;
         _logDel = null;
         _wndProcDel = null;
         _enumChildDel = null;
@@ -656,4 +658,12 @@ public sealed partial class RemoteSessionWindow : Window
 
     [DllImport("winmm.dll")]
     private static extern uint timeEndPeriod(uint uPeriod);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
 }

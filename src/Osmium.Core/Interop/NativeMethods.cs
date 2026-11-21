@@ -291,6 +291,9 @@ public delegate void OsmiumHostEndedDelegate(int reasonCode, [MarshalAs(Unmanage
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 public delegate int OsmiumHostDriverConfirmDelegate(int actionType);
 
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+public delegate void OsmiumAuxDataDelegate(IntPtr data, int length);
+
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct OsmiumClientCallbacks
 {
@@ -299,6 +302,7 @@ public struct OsmiumClientCallbacks
     public IntPtr OnEnded;
     public IntPtr OnLog;
     public IntPtr OnStatusJson;
+    public IntPtr OnAuxData;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
@@ -308,6 +312,7 @@ public struct OsmiumHostCallbacks
     public IntPtr OnEnded;
     public IntPtr OnLog;
     public IntPtr OnConfirmDriverAction;
+    public IntPtr OnAuxData;
 }
 
 public static class NativeMethods
@@ -415,6 +420,9 @@ public static class NativeMethods
     public static extern void Osmium_StopHostSession(IntPtr hostHandle);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_HostSendAuxData(IntPtr hostHandle, byte[] data, int length);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_StartClientEmbedded(
         IntPtr transport,
         IntPtr swapChainPanelIUnknown,
@@ -482,6 +490,9 @@ public static class NativeMethods
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_ClientSetMute(IntPtr clientHandle, int muted);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_ClientSendAuxData(IntPtr clientHandle, byte[] data, int length);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_RunClientSession(

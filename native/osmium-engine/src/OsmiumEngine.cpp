@@ -462,6 +462,10 @@ namespace
         uint64_t lastStatsMs = NowMillis();
         uint64_t lastMonitorTickMs = 0;
         uint64_t lastStatusPushMs = 0;
+        uint64_t lastEncodedPacketMs = NowMillis();
+        uint64_t lastEncoderRecoverMs = 0;
+        uint32_t consecutiveEncodeErrors = 0;
+        uint32_t consecutiveEmptyEncodes = 0;
         double avgEncodeMs = 0.0;
         CapturedFrame capFrame;
         std::vector<EncodedPacket> encodedPackets;
@@ -476,6 +480,9 @@ namespace
             if (ctx->reconfigNeeded.exchange(false))
             {
                 reconfigurePipeline(false);
+                consecutiveEncodeErrors = 0;
+                consecutiveEmptyEncodes = 0;
+                lastEncodedPacketMs = NowMillis();
             }
 
             bool wantVirtMouse = false;
@@ -583,6 +590,7 @@ namespace
                 uint64_t encStartUs = NowMicros();
                 if (ctx->encoder.EncodeFrame(capFrame.bgra.data(), capFrame.stride, capFrame.isHdr10Pq, encodedPackets))
                 {
+                    consecutiveEncodeErrors = 0;
                     double encMs = static_cast<double>(NowMicros() - encStartUs) / 1000.0;
                     avgEncodeMs = (avgEncodeMs * 0.85) + (encMs * 0.15);
 
@@ -590,6 +598,7 @@ namespace
                     if (ctx->encoder.IsPqHdrActive() && capFrame.isHdr10Pq) cFlags |= proto::kVideoFlagHdr;
                     if (ctx->encoder.IsYuv444Active()) cFlags |= proto::kVideoFlagYuv444;
 
+                    bool sentAnyPacket = false;
                     for (const auto& ep : encodedPackets)
                     {
                         if (ep.data.empty()) continue;
@@ -629,11 +638,43 @@ namespace
 
                         ctx->framesEncodedWindow.fetch_add(1);
                         ctx->totalEncodedFrames.fetch_add(1);
+                        sentAnyPacket = true;
+                    }
+
+                    if (sentAnyPacket)
+                    {
+                        consecutiveEmptyEncodes = 0;
+                        lastEncodedPacketMs = NowMillis();
+                    }
+                    else
+                    {
+                        consecutiveEmptyEncodes++;
                     }
                 }
                 else
                 {
                     ctx->droppedFrames.fetch_add(1);
+                    consecutiveEncodeErrors++;
+                }
+
+                uint64_t encNowMs = NowMillis();
+                bool encoderStalled = consecutiveEncodeErrors >= 8 ||
+                    (consecutiveEmptyEncodes >= 15 && (encNowMs - lastEncodedPacketMs) >= 1000);
+                if (encoderStalled && (encNowMs - lastEncoderRecoverMs) >= 1500)
+                {
+                    lastEncoderRecoverMs = encNowMs;
+                    std::string stalledEnc = ctx->encoder.GetEncoderName();
+                    OSM_LOG_WARN(
+                        "Host video encoder %s stalled/failed (errors=%u, empty=%u); recovering pipeline",
+                        stalledEnc.c_str(), consecutiveEncodeErrors, consecutiveEmptyEncodes);
+                    if (ctx->encoder.IsHardwareEncoder() && ctx->config.encoderPreference != 1 && !stalledEnc.empty())
+                    {
+                        ctx->encoder.ExcludeEncoderForSession(stalledEnc);
+                    }
+                    consecutiveEncodeErrors = 0;
+                    consecutiveEmptyEncodes = 0;
+                    lastEncodedPacketMs = encNowMs;
+                    reconfigurePipeline(false);
                 }
             }
 
@@ -811,6 +852,15 @@ namespace
                     ctx->sysActionQueue.push_back(p->action);
                 }
                 ctx->sysActionCv.notify_one();
+            }
+            else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
+            {
+                if (ctx->callbacks.onAuxData)
+                {
+                    ctx->callbacks.onAuxData(
+                        plain.data() + sizeof(proto::AppPacketHeader),
+                        static_cast<int32_t>(plain.size() - sizeof(proto::AppPacketHeader)));
+                }
             }
             else if (type == proto::AppPacketType::Disconnect)
             {
@@ -1087,6 +1137,15 @@ namespace
                 const auto* pong = reinterpret_cast<const proto::PingPongPayload*>(plain.data());
                 uint64_t rttUs = NowMicros() - pong->timestampUs;
                 ctx->transport->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+            }
+            else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
+            {
+                if (ctx->callbacks.onAuxData)
+                {
+                    ctx->callbacks.onAuxData(
+                        plain.data() + sizeof(proto::AppPacketHeader),
+                        static_cast<int32_t>(plain.size() - sizeof(proto::AppPacketHeader)));
+                }
             }
             else if (type == proto::AppPacketType::Disconnect)
             {
@@ -1862,6 +1921,31 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
     delete ctx;
 }
 
+OSMIUM_API int32_t Osmium_HostSendAuxData(void* hostHandle, const uint8_t* data, int32_t length)
+{
+    if (!hostHandle || !data || length <= 0 ||
+        static_cast<size_t>(length) > proto::kMaxAuxDataPayload)
+    {
+        return 0;
+    }
+
+    auto* ctx = static_cast<HostSessionContext*>(hostHandle);
+    if (!ctx->transport || ctx->stopFlag.load(std::memory_order_acquire))
+    {
+        return 0;
+    }
+
+    uint8_t pkt[sizeof(proto::AppPacketHeader) + proto::kMaxAuxDataPayload];
+    memset(pkt, 0, sizeof(proto::AppPacketHeader));
+    memcpy(pkt + sizeof(proto::AppPacketHeader), data, static_cast<size_t>(length));
+    return ctx->transport->SendEncrypted(
+               proto::AppPacketType::AuxData,
+               pkt,
+               sizeof(proto::AppPacketHeader) + static_cast<size_t>(length))
+               ? 1
+               : 0;
+}
+
 OSMIUM_API int32_t Osmium_StartClientEmbedded(
     void* transport,
     void* swapChainPanelIUnknown,
@@ -2198,6 +2282,32 @@ OSMIUM_API void Osmium_ClientSetMute(void* clientHandle, int32_t muted)
 {
     if (!clientHandle) return;
     static_cast<EmbeddedClientContext*>(clientHandle)->audioPlayer.SetMuted(muted != 0);
+}
+
+OSMIUM_API int32_t Osmium_ClientSendAuxData(void* clientHandle, const uint8_t* data, int32_t length)
+{
+    if (!clientHandle || !data || length <= 0 ||
+        static_cast<size_t>(length) > proto::kMaxAuxDataPayload)
+    {
+        return 0;
+    }
+
+    auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
+    if (!ctx->transport || ctx->stopFlag.load(std::memory_order_acquire) ||
+        ctx->remoteEnded.load(std::memory_order_acquire))
+    {
+        return 0;
+    }
+
+    uint8_t pkt[sizeof(proto::AppPacketHeader) + proto::kMaxAuxDataPayload];
+    memset(pkt, 0, sizeof(proto::AppPacketHeader));
+    memcpy(pkt + sizeof(proto::AppPacketHeader), data, static_cast<size_t>(length));
+    return ctx->transport->SendEncrypted(
+               proto::AppPacketType::AuxData,
+               pkt,
+               sizeof(proto::AppPacketHeader) + static_cast<size_t>(length))
+               ? 1
+               : 0;
 }
 
 OSMIUM_API int32_t Osmium_RunClientSession(
