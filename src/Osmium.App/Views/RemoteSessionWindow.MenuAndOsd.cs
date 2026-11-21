@@ -267,7 +267,7 @@ public sealed partial class RemoteSessionWindow : Window
         }
 
         UpdateOsdDisplay();
-        if (SessionMenuFlyout.IsOpen)
+        if (SessionMenuFlyout.IsOpen && DebugInfoExpander.IsExpanded)
         {
             DebugInfoBodyText.Text = BuildDebugSnapshotText();
         }
@@ -564,69 +564,6 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    private void AutoUnlockToggle_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_isUpdatingUi || _clientHandle == IntPtr.Zero) return;
-        _autoUnlockEnabled = AutoUnlockToggle.IsOn;
-        if (!_autoUnlockEnabled)
-        {
-            NativeMethods.Osmium_ClientSetAutoUnlock(_clientHandle, 0, null);
-        }
-        else if (!string.IsNullOrEmpty(_sessionAutoUnlockSecret))
-        {
-            NativeMethods.Osmium_ClientSetAutoUnlock(_clientHandle, 1, _sessionAutoUnlockSecret);
-        }
-    }
-
-    private void ApplyAutoUnlock_Click(object sender, RoutedEventArgs e)
-    {
-        if (_clientHandle == IntPtr.Zero) return;
-
-        string entered = AutoUnlockSecretBox.Password;
-        if (!string.IsNullOrEmpty(entered))
-        {
-            _sessionAutoUnlockSecret = entered;
-            App.Engine.SettingsService.SetAutoUnlockSecret(_launchArgs.TargetDeviceId, entered);
-            AutoUnlockSecretBox.PlaceholderText = LocalizationService.GetString("Session_AutoUnlockSavedPlaceholder");
-            AutoUnlockSecretBox.Password = string.Empty;
-        }
-
-        if (string.IsNullOrEmpty(_sessionAutoUnlockSecret))
-        {
-            ShowTopToast(LocalizationService.GetString("Session_ToastEnterPassword"));
-            return;
-        }
-
-        _autoUnlockEnabled = true;
-        _isUpdatingUi = true;
-        AutoUnlockToggle.IsOn = true;
-        _isUpdatingUi = false;
-
-        NativeMethods.Osmium_ClientSetAutoUnlock(_clientHandle, 1, _sessionAutoUnlockSecret);
-        NativeMethods.Osmium_ClientSendSystemAction(_clientHandle, 3);
-        ShowTopToast(LocalizationService.GetString("Session_ToastAutoUnlockEnabled"));
-    }
-
-    private void ClearAutoUnlock_Click(object sender, RoutedEventArgs e)
-    {
-        _sessionAutoUnlockSecret = string.Empty;
-        _autoUnlockEnabled = false;
-        AutoUnlockSecretBox.Password = string.Empty;
-        AutoUnlockSecretBox.PlaceholderText = LocalizationService.GetString("Session_AutoUnlockPlaceholder");
-
-        _isUpdatingUi = true;
-        AutoUnlockToggle.IsOn = false;
-        _isUpdatingUi = false;
-
-        App.Engine.SettingsService.SetAutoUnlockSecret(_launchArgs.TargetDeviceId, null);
-        if (_clientHandle != IntPtr.Zero)
-        {
-            NativeMethods.Osmium_ClientSetAutoUnlock(_clientHandle, 0, null);
-        }
-
-        ShowTopToast(LocalizationService.GetString("Session_ToastAutoUnlockCleared"));
-    }
-
     private void RemoteInstallDrivers_Click(object sender, RoutedEventArgs e)
     {
         if (_clientHandle == IntPtr.Zero) return;
@@ -663,6 +600,11 @@ public sealed partial class RemoteSessionWindow : Window
             App.Engine.SettingsService.SaveSettings();
             ApplyOsdVisibilityAndDetailLayout();
         }
+    }
+
+    private void DebugInfoExpander_Expanding(Expander sender, ExpanderExpandingEventArgs args)
+    {
+        DebugInfoBodyText.Text = BuildDebugSnapshotText();
     }
 
     private void CopyDebugInfo_Click(object sender, RoutedEventArgs e)
@@ -757,7 +699,10 @@ public sealed partial class RemoteSessionWindow : Window
     {
         SettingsFlyout_Opened(sender, e);
         RefreshLocalMicList();
-        DebugInfoBodyText.Text = BuildDebugSnapshotText();
+        if (DebugInfoExpander.IsExpanded)
+        {
+            DebugInfoBodyText.Text = BuildDebugSnapshotText();
+        }
     }
 
     private void SettingsFlyout_Closed(object? sender, object e)

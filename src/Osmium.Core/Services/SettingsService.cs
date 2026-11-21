@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Osmium.Core.Models;
@@ -70,6 +68,17 @@ public sealed class SettingsService
             else
             {
                 Settings = new OsmiumSettings();
+            }
+
+            if (Settings.SettingsSchemaVersion < 2)
+            {
+                if (Settings.TargetWidth == 1920 && Settings.TargetHeight == 1080)
+                {
+                    Settings.TargetWidth = 0;
+                    Settings.TargetHeight = 0;
+                }
+
+                Settings.SettingsSchemaVersion = 2;
             }
 
             if (File.Exists(_identityPath))
@@ -182,166 +191,6 @@ public sealed class SettingsService
             {
                 Settings.RecentSessions.Clear();
                 SaveSettings();
-            }
-        }
-    }
-
-    public bool HasAutoUnlockSecret(string targetDeviceId)
-    {
-        lock (_lock)
-        {
-            string normalized = DeviceIdentity.NormalizeDeviceId(targetDeviceId);
-            return !string.IsNullOrEmpty(normalized)
-                   && Settings.AutoUnlockCredentials.TryGetValue(normalized, out var cipher)
-                   && !string.IsNullOrWhiteSpace(cipher);
-        }
-    }
-
-    public string? GetAutoUnlockSecret(string targetDeviceId)
-    {
-        lock (_lock)
-        {
-            string normalized = DeviceIdentity.NormalizeDeviceId(targetDeviceId);
-            if (string.IsNullOrEmpty(normalized) ||
-                !Settings.AutoUnlockCredentials.TryGetValue(normalized, out var cipherBase64) ||
-                string.IsNullOrWhiteSpace(cipherBase64))
-            {
-                return null;
-            }
-
-            try
-            {
-                byte[] cipher = Convert.FromBase64String(cipherBase64);
-                byte[]? plain = UnprotectBytes(cipher);
-                if (plain == null || plain.Length == 0) return null;
-                try
-                {
-                    return Encoding.UTF8.GetString(plain);
-                }
-                finally
-                {
-                    Array.Clear(plain, 0, plain.Length);
-                }
-            }
-            catch
-            {
-                return null;
-            }
-        }
-    }
-
-    public void SetAutoUnlockSecret(string targetDeviceId, string? secret)
-    {
-        lock (_lock)
-        {
-            string normalized = DeviceIdentity.NormalizeDeviceId(targetDeviceId);
-            if (string.IsNullOrEmpty(normalized)) return;
-
-            if (string.IsNullOrEmpty(secret))
-            {
-                if (Settings.AutoUnlockCredentials.Remove(normalized))
-                {
-                    SaveSettings();
-                }
-
-                return;
-            }
-
-            byte[] plain = Encoding.UTF8.GetBytes(secret);
-            try
-            {
-                byte[]? cipher = ProtectBytes(plain);
-                if (cipher != null)
-                {
-                    Settings.AutoUnlockCredentials[normalized] = Convert.ToBase64String(cipher);
-                    SaveSettings();
-                }
-            }
-            finally
-            {
-                Array.Clear(plain, 0, plain.Length);
-            }
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct DataBlob
-    {
-        public int Size;
-        public IntPtr Data;
-    }
-
-    private const uint CryptProtectUiForbidden = 0x01;
-
-    [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CryptProtectData(
-        in DataBlob dataIn,
-        string? dataDescr,
-        IntPtr optionalEntropy,
-        IntPtr reserved,
-        IntPtr promptStruct,
-        uint flags,
-        out DataBlob dataOut);
-
-    [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CryptUnprotectData(
-        in DataBlob dataIn,
-        IntPtr dataDescr,
-        IntPtr optionalEntropy,
-        IntPtr reserved,
-        IntPtr promptStruct,
-        uint flags,
-        out DataBlob dataOut);
-
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr LocalFree(IntPtr hMem);
-
-    private static unsafe byte[]? ProtectBytes(byte[] plain)
-    {
-        if (plain.Length == 0) return [];
-        fixed (byte* p = plain)
-        {
-            var blobIn = new DataBlob { Size = plain.Length, Data = (IntPtr)p };
-            if (!CryptProtectData(in blobIn, "OsmiumUnlockSecret", IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
-                    CryptProtectUiForbidden, out var blobOut))
-            {
-                return null;
-            }
-
-            try
-            {
-                byte[] result = new byte[blobOut.Size];
-                Marshal.Copy(blobOut.Data, result, 0, blobOut.Size);
-                return result;
-            }
-            finally
-            {
-                if (blobOut.Data != IntPtr.Zero) LocalFree(blobOut.Data);
-            }
-        }
-    }
-
-    private static unsafe byte[]? UnprotectBytes(byte[] cipher)
-    {
-        if (cipher.Length == 0) return [];
-        fixed (byte* p = cipher)
-        {
-            var blobIn = new DataBlob { Size = cipher.Length, Data = (IntPtr)p };
-            if (!CryptUnprotectData(in blobIn, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
-                    CryptProtectUiForbidden, out var blobOut))
-            {
-                return null;
-            }
-
-            try
-            {
-                byte[] result = new byte[blobOut.Size];
-                Marshal.Copy(blobOut.Data, result, 0, blobOut.Size);
-                return result;
-            }
-            finally
-            {
-                if (blobOut.Data != IntPtr.Zero) LocalFree(blobOut.Data);
             }
         }
     }

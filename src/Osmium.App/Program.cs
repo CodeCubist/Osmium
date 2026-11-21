@@ -177,14 +177,6 @@ public static class Program
                 return true;
             }
 
-            if (string.Equals(args[i], "--unlock-once", StringComparison.OrdinalIgnoreCase))
-            {
-                uint pid = 0;
-                if (i + 1 < args.Length) uint.TryParse(args[i + 1], out pid);
-                exitCode = NativeMethods.Osmium_RunOneShotUnlockService(pid) != 0 ? 0 : 1;
-                return true;
-            }
-
             if (string.Equals(args[i], "--install-drivers", StringComparison.OrdinalIgnoreCase))
             {
                 exitCode = NativeMethods.Osmium_InstallVirtualDrivers() != 0 ? 0 : 1;

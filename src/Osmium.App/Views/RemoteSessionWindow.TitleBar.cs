@@ -646,21 +646,55 @@ public sealed partial class RemoteSessionWindow : Window
                 }
             }
 
-            ViewScaleCombo.Items.Clear();
             int selectedIdx = 0;
+            if (_targetCustomWidth > 0 && _targetCustomHeight > 0)
+            {
+                int fitW = nativeW;
+                int fitH = nativeH;
+                if (nativeW > _targetCustomWidth || nativeH > _targetCustomHeight)
+                {
+                    double boxScale = Math.Min((double)_targetCustomWidth / nativeW,
+                        (double)_targetCustomHeight / nativeH);
+                    fitW = Math.Max(320, ((int)Math.Round(nativeW * boxScale)) & ~1);
+                    fitH = Math.Max(180, ((int)Math.Round(nativeH * boxScale)) & ~1);
+                }
+
+                int matchIdx = -1;
+                for (int i = 0; i < opts.Count; i++)
+                {
+                    if (Math.Abs(opts[i].TargetW - fitW) <= 8 && Math.Abs(opts[i].TargetH - fitH) <= 8)
+                    {
+                        matchIdx = i;
+                        break;
+                    }
+                }
+
+                if (matchIdx < 0 && (fitW < nativeW || fitH < nativeH))
+                {
+                    opts.Add(new(
+                        LocalizationService.Format("Session_ScaleBoxFmt", _targetCustomWidth, _targetCustomHeight, fitW,
+                            fitH), 0, fitW, fitH));
+                    matchIdx = opts.Count - 1;
+                }
+
+                selectedIdx = matchIdx >= 0 ? matchIdx : 0;
+            }
+            else
+            {
+                for (int i = 0; i < opts.Count; i++)
+                {
+                    if (opts[i].Percent > 0 && opts[i].Percent == _targetScalePercent)
+                    {
+                        selectedIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            ViewScaleCombo.Items.Clear();
             for (int i = 0; i < opts.Count; i++)
             {
                 ViewScaleCombo.Items.Add(new ComboBoxItem { Content = opts[i].Label, Tag = opts[i] });
-                if (_targetCustomWidth > 0 && _targetCustomHeight > 0 &&
-                    Math.Abs(opts[i].TargetW - _targetCustomWidth) <= 8 &&
-                    Math.Abs(opts[i].TargetH - _targetCustomHeight) <= 8)
-                {
-                    selectedIdx = i;
-                }
-                else if (opts[i].Percent > 0 && opts[i].Percent == _targetScalePercent)
-                {
-                    selectedIdx = i;
-                }
             }
 
             ViewScaleCombo.SelectedIndex = selectedIdx;
@@ -679,18 +713,21 @@ public sealed partial class RemoteSessionWindow : Window
         int nativeH = _hostStatus.NativeHeight > 0
             ? _hostStatus.NativeHeight
             : Math.Max(1080, _latestStats.NativeHeight);
-        int reqW = _targetCustomWidth > 0 ? Math.Min(_targetCustomWidth, nativeW) : nativeW;
-        int reqH = _targetCustomHeight > 0 ? Math.Min(_targetCustomHeight, nativeH) : nativeH;
+        bool useNative = _targetCustomWidth <= 0 || _targetCustomHeight <= 0;
+        int effW = useNative ? nativeW : Math.Min(_targetCustomWidth, nativeW);
+        int effH = useNative ? nativeH : Math.Min(_targetCustomHeight, nativeH);
+        int sendW = useNative ? 0 : effW;
+        int sendH = useNative ? 0 : effH;
 
-        double pixelRatio = Math.Clamp((double)(reqW * (long)reqH) / Math.Max(1L, (long)nativeW * nativeH), 0.12, 1.0);
-        int defaultAtRes = OsmiumSettings.GetDefaultBitrateKbps(reqW, reqH, _currentFps, _enableYuv444);
+        double pixelRatio = Math.Clamp((double)(effW * (long)effH) / Math.Max(1L, (long)nativeW * nativeH), 0.12, 1.0);
+        int defaultAtRes = OsmiumSettings.GetDefaultBitrateKbps(effW, effH, _currentFps, _enableYuv444);
         int scaledMax = Math.Max(1500, (int)Math.Round(_baseBitrateKbps * pixelRatio * (_enableYuv444 ? 1.5 : 1.0)));
         int bitrate = Math.Clamp(Math.Min(scaledMax, defaultAtRes), 1500, 500000);
 
         NativeMethods.Osmium_ClientUpdateVideoParams(
             _clientHandle,
-            reqW,
-            reqH,
+            sendW,
+            sendH,
             _currentFps,
             bitrate,
             (_hostStatus.HostHdrEnabled && _enableHdr) ? 1 : 0,

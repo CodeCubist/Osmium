@@ -1234,8 +1234,7 @@ namespace osmium
         const bool ok = useEncryption
                             ? EncryptFrameWithEncKey(plainPtr, payloadLen, wireBuf, wireLen)
                             : FramePlaintext(plainPtr, payloadLen, wireBuf, wireLen);
-        if (payloadLen <= 256 || pktType == proto::AppPacketType::ControlAutoUnlock || pktType ==
-            proto::AppPacketType::AuthRequest)
+        if (payloadLen <= 256 || pktType == proto::AppPacketType::AuthRequest)
         {
             SecureZeroMemory(plainPtr, payloadLen);
         }

@@ -204,7 +204,6 @@ OSMIUM_API int32_t Osmium_InstallVirtualDrivers(void);
 OSMIUM_API int32_t Osmium_UninstallVirtualDrivers(void);
 OSMIUM_API int32_t Osmium_RunSystemService(void);
 OSMIUM_API int32_t Osmium_RunOneShotSasService(void);
-OSMIUM_API int32_t Osmium_RunOneShotUnlockService(uint32_t parentPid);
 
 OSMIUM_API int32_t Osmium_GetConnectedGamepads(OsmiumGamepadInfo* outGamepads, int32_t maxCount);
 OSMIUM_API int32_t Osmium_PollGamepadState(int32_t joystickIndex, OsmiumGamepadLiveState* outState);
@@ -283,7 +282,6 @@ OSMIUM_API void Osmium_ClientSetVirtualAudio(
     int32_t virtualMic,
     const char* localMicDeviceId);
 OSMIUM_API void Osmium_ClientSendSystemAction(void* clientHandle, int32_t action);
-OSMIUM_API void Osmium_ClientSetAutoUnlock(void* clientHandle, int32_t enabled, const char* secretUtf8);
 OSMIUM_API void Osmium_ClientSendKey(void* clientHandle, uint16_t vkCode, uint16_t scanCode, int32_t isDown,
                                      int32_t isExtended);
 OSMIUM_API void Osmium_ClientSendMouseMove(void* clientHandle, int32_t isAbsolute, float xOrDeltaX, float yOrDeltaY);

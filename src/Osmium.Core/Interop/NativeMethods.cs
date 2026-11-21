@@ -350,9 +350,6 @@ public static class NativeMethods
     public static extern int Osmium_RunOneShotSasService();
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int Osmium_RunOneShotUnlockService(uint parentPid);
-
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_GetConnectedGamepads([Out] OsmiumGamepadInfo[] outGamepads, int maxCount);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -459,12 +456,6 @@ public static class NativeMethods
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_ClientSendSystemAction(IntPtr clientHandle, int action);
-
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void Osmium_ClientSetAutoUnlock(
-        IntPtr clientHandle,
-        int enabled,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string? secretUtf8);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_ClientSendKey(IntPtr clientHandle, ushort vkCode, ushort scanCode, int isDown,

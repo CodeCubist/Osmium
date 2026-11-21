@@ -256,13 +256,6 @@ namespace
                 ctx->lastActionMsg = ok ? "TASKMGR_OPENED" : "TASKMGR_FAILED";
                 ctx->statusDirty.store(true);
             }
-            else if (action == static_cast<int32_t>(proto::SystemActionId::TriggerUnlock))
-            {
-                bool ok = ctx->systemAgent.TriggerAutoUnlockNow();
-                std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                ctx->lastActionMsg = ok ? "UNLOCKED" : "UNLOCK_TRIGGERED";
-                ctx->statusDirty.store(true);
-            }
             else if (action == static_cast<int32_t>(proto::SystemActionId::InstallVirtualDrivers) ||
                 action == static_cast<int32_t>(proto::SystemActionId::UninstallVirtualDrivers))
             {
@@ -333,8 +326,12 @@ namespace
         {
             std::lock_guard<std::mutex> lock(ctx->cfgMutex);
             ctx->activeDisplayIndex = ctx->config.displayIndex;
-            ctx->reqWidth = ctx->config.maxWidth > 0 ? ctx->config.maxWidth : ctx->clientProfile.targetWidth;
-            ctx->reqHeight = ctx->config.maxHeight > 0 ? ctx->config.maxHeight : ctx->clientProfile.targetHeight;
+            int32_t hostMaxW = ctx->config.maxWidth;
+            int32_t hostMaxH = ctx->config.maxHeight;
+            int32_t cliW = ctx->clientProfile.targetWidth;
+            int32_t cliH = ctx->clientProfile.targetHeight;
+            ctx->reqWidth = (hostMaxW > 0 && cliW > 0) ? std::min(hostMaxW, cliW) : (hostMaxW > 0 ? hostMaxW : cliW);
+            ctx->reqHeight = (hostMaxH > 0 && cliH > 0) ? std::min(hostMaxH, cliH) : (hostMaxH > 0 ? hostMaxH : cliH);
             ctx->reqFps = ctx->config.maxFps > 0 ? ctx->config.maxFps : 60;
             if (ctx->clientProfile.fps > 0 && ctx->clientProfile.fps < ctx->reqFps)
             {
@@ -395,13 +392,24 @@ namespace
 
             int capW = ctx->capture.GetWidth();
             int capH = ctx->capture.GetHeight();
+            int effReqW = reqW;
+            int effReqH = reqH;
+            if (ctx->config.maxWidth > 0 && (effReqW <= 0 || ctx->config.maxWidth < effReqW))
+            {
+                effReqW = ctx->config.maxWidth;
+            }
+            if (ctx->config.maxHeight > 0 && (effReqH <= 0 || ctx->config.maxHeight < effReqH))
+            {
+                effReqH = ctx->config.maxHeight;
+            }
+
             int outW = capW;
             int outH = capH;
 
-            if (reqW > 0 && reqH > 0 && (capW > reqW || capH > reqH))
+            if (effReqW > 0 && effReqH > 0 && (capW > effReqW || capH > effReqH))
             {
-                double scale = std::min(1.0, std::min(static_cast<double>(reqW) / capW,
-                                                      static_cast<double>(reqH) / capH));
+                double scale = std::min(1.0, std::min(static_cast<double>(effReqW) / capW,
+                                                      static_cast<double>(effReqH) / capH));
                 outW = std::max(256, static_cast<int>(capW * scale) & ~1);
                 outH = std::max(144, static_cast<int>(capH * scale) & ~1);
             }
@@ -492,7 +500,6 @@ namespace
             if (nowMs - lastMonitorTickMs >= 150)
             {
                 lastMonitorTickMs = nowMs;
-                ctx->systemAgent.TickAutoUnlock();
                 ctx->capture.RefreshOutputHdrState();
                 bool curHostHdr = ctx->capture.IsOutputHdr();
                 if (curHostHdr != ctx->lastHostHdr)
@@ -796,20 +803,6 @@ namespace
                     ctx->sysActionQueue.push_back(p->action);
                 }
                 ctx->sysActionCv.notify_one();
-            }
-            else if (type == proto::AppPacketType::ControlAutoUnlock && plain.size() >= sizeof(
-                proto::ControlAutoUnlockPayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlAutoUnlockPayload*>(plain.data());
-                size_t secBytes = std::min<size_t>(p->secretBytes,
-                                                   plain.size() - sizeof(proto::ControlAutoUnlockPayload));
-                std::string sec(reinterpret_cast<const char*>(plain.data() + sizeof(proto::ControlAutoUnlockPayload)),
-                                secBytes);
-                ctx->systemAgent.SetAutoUnlockCredential(p->enabled != 0, sec.c_str());
-                if (!sec.empty())
-                    SecureZeroMemory(sec.data(), sec.size());
-                ctx->systemAgent.TickAutoUnlock();
-                ctx->statusDirty.store(true);
             }
             else if (type == proto::AppPacketType::Disconnect)
             {
@@ -1515,11 +1508,6 @@ OSMIUM_API int32_t Osmium_RunOneShotSasService(void)
     return HostSystemAgent::RunOneShotSasServiceMain();
 }
 
-OSMIUM_API int32_t Osmium_RunOneShotUnlockService(uint32_t parentPid)
-{
-    return HostSystemAgent::RunOneShotUnlockServiceMain(parentPid);
-}
-
 OSMIUM_API int32_t Osmium_GetConnectedGamepads(OsmiumGamepadInfo* outGamepads, int32_t maxCount)
 {
     if (!outGamepads || maxCount <= 0) return 0;
@@ -2089,29 +2077,6 @@ OSMIUM_API void Osmium_ClientSendSystemAction(void* clientHandle, int32_t action
     proto::ControlSystemActionPayload pkt{};
     pkt.action = action;
     ctx->transport->SendEncrypted(proto::AppPacketType::ControlSystemAction, &pkt, sizeof(pkt));
-}
-
-OSMIUM_API void Osmium_ClientSetAutoUnlock(void* clientHandle, int32_t enabled, const char* secretUtf8)
-{
-    if (!clientHandle) return;
-    auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
-    if (!ctx->transport) return;
-    std::string sec = (secretUtf8 && *secretUtf8) ? std::string(secretUtf8) : std::string();
-    if (sec.size() > 256) sec.resize(256);
-
-    std::vector<uint8_t> pkt(sizeof(proto::ControlAutoUnlockPayload) + sec.size());
-    auto* hdr = reinterpret_cast<proto::ControlAutoUnlockPayload*>(pkt.data());
-    memset(hdr, 0, sizeof(*hdr));
-    hdr->enabled = enabled ? 1 : 0;
-    hdr->secretBytes = static_cast<uint16_t>(sec.size());
-    if (!sec.empty())
-    {
-        memcpy(pkt.data() + sizeof(proto::ControlAutoUnlockPayload), sec.data(), sec.size());
-        SecureZeroMemory(sec.data(), sec.size());
-    }
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlAutoUnlock, pkt.data(), pkt.size());
-    if (!pkt.empty())
-        SecureZeroMemory(pkt.data(), pkt.size());
 }
 
 OSMIUM_API void Osmium_ClientSendKey(void* clientHandle, uint16_t vkCode, uint16_t scanCode, int32_t isDown,

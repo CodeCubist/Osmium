@@ -155,6 +155,7 @@
   <data name="Tray_Exit" xml:space="preserve"><value>Exit Osmium</value></data>
   <data name="Tray_TooltipControlling" xml:space="preserve"><value>Osmium - Remote Control Active</value></data>
   <data name="Set_ResTitle" xml:space="preserve"><value>Resolution</value></data>
+  <data name="Set_ResAutoHost" xml:space="preserve"><value>Follow Host Native Resolution</value></data>
   <data name="Set_ResNativeLabel" xml:space="preserve"><value>Display {0} - {1}×{2}</value></data>
   <data name="Set_ResCustomLabel" xml:space="preserve"><value>Custom - {0}×{1}</value></data>
   <data name="Set_FpsTitle" xml:space="preserve"><value>Frame Rate Limit</value></data>
@@ -367,14 +368,9 @@
   <data name="Session_OsdCompact" xml:space="preserve"><value>Compact</value></data>
   <data name="Session_OsdStandard" xml:space="preserve"><value>Standard</value></data>
   <data name="Session_OsdDetailed" xml:space="preserve"><value>Detailed</value></data>
-  <data name="Session_SysControlTitle" xml:space="preserve"><value>System Control &amp; Auto Unlock</value></data>
+  <data name="Session_SysControlTitle" xml:space="preserve"><value>System Control</value></data>
   <data name="Session_ScreenLocked" xml:space="preserve"><value>Screen Locked</value></data>
   <data name="Session_TaskManagerBtn" xml:space="preserve"><value>Task Manager</value></data>
-  <data name="Session_AutoUnlockHeader" xml:space="preserve"><value>Auto unlock when lock screen detected</value></data>
-  <data name="Session_AutoUnlockPlaceholder" xml:space="preserve"><value>Enter host password or PIN</value></data>
-  <data name="Session_AutoUnlockSavedPlaceholder" xml:space="preserve"><value>Encrypted credential saved; leave blank to keep</value></data>
-  <data name="Session_ApplyUnlockBtn" xml:space="preserve"><value>Apply &amp; Unlock</value></data>
-  <data name="Session_ClearPasswordBtn" xml:space="preserve"><value>Clear Password</value></data>
   <data name="Session_WindowControlTitle" xml:space="preserve"><value>Session Window</value></data>
   <data name="Session_ToggleFullscreenTooltip" xml:space="preserve"><value>Toggle Fullscreen</value></data>
   <data name="Session_FullscreenEnter" xml:space="preserve"><value>Fullscreen</value></data>
@@ -386,16 +382,12 @@
   <data name="Session_EndedByHost" xml:space="preserve"><value>Host ended the session</value></data>
   <data name="Session_EndedFmt" xml:space="preserve"><value>Disconnected: {0}</value></data>
   <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>Cursor locked to host virtual mouse - Press Ctrl+Alt+Shift+M to release</value></data>
-  <data name="Session_ToastEnterPassword" xml:space="preserve"><value>Enter host Windows password or PIN first</value></data>
-  <data name="Session_ToastAutoUnlockEnabled" xml:space="preserve"><value>Auto unlock enabled</value></data>
-  <data name="Session_ToastAutoUnlockCleared" xml:space="preserve"><value>Auto unlock credentials cleared</value></data>
   <data name="Session_ToastDriverInstallSent" xml:space="preserve"><value>Requested remote virtual driver install...</value></data>
   <data name="Session_ToastDriverUninstallSent" xml:space="preserve"><value>Requested remote virtual driver uninstall...</value></data>
   <data name="Session_ToastDebugCopied" xml:space="preserve"><value>Diagnostics copied to clipboard</value></data>
   <data name="Session_NoticeSasSent" xml:space="preserve"><value>Sent Ctrl + Alt + Del to host</value></data>
   <data name="Session_NoticeSasNeedsAdmin" xml:space="preserve"><value>Ctrl+Alt+Del requires host admin or service privilege</value></data>
   <data name="Session_NoticeTaskMgrOpened" xml:space="preserve"><value>Opened Task Manager on host</value></data>
-  <data name="Session_NoticeUnlocked" xml:space="preserve"><value>Host lock screen unlocked automatically</value></data>
   <data name="Session_NoticeDriverInstalled" xml:space="preserve"><value>Virtual peripheral driver installed on host</value></data>
   <data name="Session_NoticeDriverInstallFailed" xml:space="preserve"><value>Host virtual peripheral driver install failed or UAC denied</value></data>
   <data name="Session_NoticeDriverUninstalled" xml:space="preserve"><value>Virtual peripheral driver uninstalled on host</value></data>

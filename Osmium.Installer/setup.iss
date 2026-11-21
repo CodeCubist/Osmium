@@ -53,11 +53,6 @@ Name: "chs"; MessagesFile: "ChineseSimplified.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-chs.DownloadingVC=正在获取必要组件 (Visual C++ v14 Redistributable)...
-chs.InstallingVC=正在部署必要组件 (Visual C++ v14 Redistributable)，请稍候...
-chs.InstallFailedVC=必要组件 (Visual C++ v14 Redistributable) 部署未成功。请稍后手动安装环境，主程序将继续安装。
-chs.DownloadFailedVC=无法获取必要组件 (Visual C++ v14 Redistributable)。请检查网络连接状态，或稍后手动完成安装。主程序将继续安装。
-
 chs.DownloadingWebView2=正在获取必要组件 (Microsoft Edge WebView2 运行时)...
 chs.InstallingWebView2=正在部署必要组件 (Microsoft Edge WebView2 运行时)，请稍候...
 chs.InstallFailedWebView2=必要组件 (Microsoft Edge WebView2 运行时) 部署未成功。请稍后手动安装环境，主程序将继续安装。
@@ -65,11 +60,6 @@ chs.DownloadFailedWebView2=无法获取必要组件 (Microsoft Edge WebView2 运
 
 chs.RuntimeExecFailed=必要组件安装程序无法执行。请稍后手动安装环境，主程序将继续安装。
 chs.InstallingDrivers=正在部署虚拟外设与手柄驱动，请稍候...
-
-en.DownloadingVC=Retrieving prerequisite (Visual C++ v14 Redistributable)...
-en.InstallingVC=Deploying prerequisite (Visual C++ v14 Redistributable), please wait...
-en.InstallFailedVC=The deployment of the prerequisite (Visual C++ v14 Redistributable) was unsuccessful. Please install it manually later. The main installation will now continue.
-en.DownloadFailedVC=Unable to retrieve the prerequisite (Visual C++ v14 Redistributable). Please verify your network connection or install it manually later. The main installation will now continue.
 
 en.DownloadingWebView2=Retrieving prerequisite (Microsoft Edge WebView2 Runtime)...
 en.InstallingWebView2=Deploying prerequisite (Microsoft Edge WebView2 Runtime), please wait...
@@ -120,18 +110,6 @@ Type: dirifempty;     Name: "{app}"
 var
   GDesktopIconExists: Boolean;
   DownloadPage: TDownloadWizardPage;
-
-function IsVCRedistInstalled: Boolean;
-var
-  Installed: Cardinal;
-begin
-  Result := False;
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Installed', Installed) then
-  begin
-    if Installed = 1 then
-      Result := True;
-  end;
-end;
 
 function GetWebView2Version(var Version: string): Boolean;
 var
@@ -220,62 +198,32 @@ begin
 
   if CurPageID = wpReady then
   begin
-    if (not IsVCRedistInstalled()) or NeedWebView2Update() then
+    if NeedWebView2Update() then
     begin
       DownloadPage.Show;
       try
-        if not IsVCRedistInstalled() then
-        begin
-          DownloadPage.Clear;
-          DownloadPage.Add('https://aka.ms/vs/17/release/vc_redist.x64.exe', 'vc_redist.x64.exe', '');
-          try
-            DownloadPage.SetText(ExpandConstant('{cm:DownloadingVC}'), '');
-            DownloadPage.Download;
-            DownloadPage.SetText(ExpandConstant('{cm:InstallingVC}'), '');
+        DownloadPage.Clear;
+        DownloadPage.Add('https://go.microsoft.com/fwlink/?linkid=2124701', 'WebView2Setup.exe', '');
+        try
+          DownloadPage.SetText(ExpandConstant('{cm:DownloadingWebView2}'), '');
+          DownloadPage.Download;
+          DownloadPage.SetText(ExpandConstant('{cm:InstallingWebView2}'), '');
 
-            if Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /passive /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
+          if Exec(ExpandConstant('{tmp}\WebView2Setup.exe'), '/silent /install', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
+          begin
+            if (ResultCode <> 0) and (ResultCode <> 1641) and (ResultCode <> 3010) then
             begin
-              if (ResultCode <> 0) and (ResultCode <> 1641) and (ResultCode <> 3010) then
-              begin
-                 MsgBox(ExpandConstant('{cm:InstallFailedVC}'), mbError, MB_OK);
-              end;
-            end
-            else
-            begin
-              MsgBox(ExpandConstant('{cm:RuntimeExecFailed}'), mbError, MB_OK);
+               MsgBox(ExpandConstant('{cm:InstallFailedWebView2}'), mbError, MB_OK);
             end;
-          except
-            if not DownloadPage.AbortedByUser then
-              MsgBox(ExpandConstant('{cm:DownloadFailedVC}'), mbError, MB_OK);
+          end
+          else
+          begin
+            MsgBox(ExpandConstant('{cm:RuntimeExecFailed}'), mbError, MB_OK);
           end;
+        except
+          if not DownloadPage.AbortedByUser then
+            MsgBox(ExpandConstant('{cm:DownloadFailedWebView2}'), mbError, MB_OK);
         end;
-
-        if NeedWebView2Update() then
-        begin
-          DownloadPage.Clear;
-          DownloadPage.Add('https://go.microsoft.com/fwlink/?linkid=2124701', 'WebView2Setup.exe', '');
-          try
-            DownloadPage.SetText(ExpandConstant('{cm:DownloadingWebView2}'), '');
-            DownloadPage.Download;
-            DownloadPage.SetText(ExpandConstant('{cm:InstallingWebView2}'), '');
-
-            if Exec(ExpandConstant('{tmp}\WebView2Setup.exe'), '/silent /install', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
-            begin
-              if (ResultCode <> 0) and (ResultCode <> 1641) and (ResultCode <> 3010) then
-              begin
-                 MsgBox(ExpandConstant('{cm:InstallFailedWebView2}'), mbError, MB_OK);
-              end;
-            end
-            else
-            begin
-              MsgBox(ExpandConstant('{cm:RuntimeExecFailed}'), mbError, MB_OK);
-            end;
-          except
-            if not DownloadPage.AbortedByUser then
-              MsgBox(ExpandConstant('{cm:DownloadFailedWebView2}'), mbError, MB_OK);
-          end;
-        end;
-
       finally
         DownloadPage.Hide;
       end;
@@ -361,3 +309,4 @@ begin
   if CurUninstallStep = usUninstall then
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#AppName}');
 end;
+```[cite: 1]

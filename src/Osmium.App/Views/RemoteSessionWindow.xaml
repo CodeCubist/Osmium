@@ -411,16 +411,6 @@
                                                 <Button x:Name="TaskManagerBtn"
                                                         Click="OpenTaskManager_Click" />
                                             </StackPanel>
-                                            <ToggleSwitch x:Name="AutoUnlockToggle"
-                                                          Toggled="AutoUnlockToggle_Toggled" />
-                                            <controls:TogglePasswordBox x:Name="AutoUnlockSecretBox" CornerRadius="6" />
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button x:Name="ApplyAutoUnlockBtn"
-                                                        Style="{StaticResource AccentButtonStyle}"
-                                                        Click="ApplyAutoUnlock_Click" />
-                                                <Button x:Name="ClearAutoUnlockBtn"
-                                                        Click="ClearAutoUnlock_Click" />
-                                            </StackPanel>
                                         </StackPanel>
 
 
@@ -439,26 +429,37 @@
                                         </StackPanel>
 
 
-                                        <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Spacing="8">
-                                            <Grid>
+                                        <Expander x:Name="DebugInfoExpander"
+                                                  Grid.Row="2"
+                                                  Grid.Column="1"
+                                                  Grid.ColumnSpan="2"
+                                                  IsExpanded="False"
+                                                  HorizontalAlignment="Stretch"
+                                                  HorizontalContentAlignment="Stretch"
+                                                  VerticalAlignment="Top"
+                                                  Padding="12,10"
+                                                  Expanding="DebugInfoExpander_Expanding">
+                                            <Expander.Header>
                                                 <TextBlock x:Name="SessionDebugInfoTitleText"
                                                            FontSize="12"
                                                            Opacity="0.9"
                                                            VerticalAlignment="Center" />
+                                            </Expander.Header>
+                                            <StackPanel Spacing="8">
                                                 <Button x:Name="CopyDebugInfoBtn"
                                                         HorizontalAlignment="Right"
                                                         Padding="10,4"
                                                         FontSize="12"
                                                         Click="CopyDebugInfo_Click" />
-                                            </Grid>
-                                            <TextBlock x:Name="DebugInfoBodyText"
-                                                       FontFamily="Consolas"
-                                                       FontSize="11.5"
-                                                       LineHeight="18"
-                                                       Opacity="0.82"
-                                                       TextWrapping="Wrap"
-                                                       IsTextSelectionEnabled="True" />
-                                        </StackPanel>
+                                                <TextBlock x:Name="DebugInfoBodyText"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11.5"
+                                                           LineHeight="18"
+                                                           Opacity="0.82"
+                                                           TextWrapping="Wrap"
+                                                           IsTextSelectionEnabled="True" />
+                                            </StackPanel>
+                                        </Expander>
                                     </Grid>
                                 </StackPanel>
                             </ScrollViewer>

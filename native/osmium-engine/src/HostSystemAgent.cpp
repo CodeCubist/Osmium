@@ -58,33 +58,6 @@ namespace osmium
             in.ki.dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | (extended ? KEYEVENTF_EXTENDEDKEY : 0);
             SendInput(1, &in, sizeof(INPUT));
         }
-
-        void SendUnicodeStringKeys(const std::wstring& wstr)
-        {
-            for (wchar_t ch : wstr)
-            {
-                INPUT down{};
-                down.type = INPUT_KEYBOARD;
-                down.ki.wScan = ch;
-                down.ki.dwFlags = KEYEVENTF_UNICODE;
-                SendInput(1, &down, sizeof(INPUT));
-
-                INPUT up = down;
-                up.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-                SendInput(1, &up, sizeof(INPUT));
-                Sleep(18);
-            }
-        }
-
-        std::wstring Utf8ToWide(const std::string& utf8)
-        {
-            if (utf8.empty()) return {};
-            int n = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
-            if (n <= 0) return {};
-            std::wstring w(static_cast<size_t>(n), L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), w.data(), n);
-            return w;
-        }
     }
 
     HostSystemAgent::~HostSystemAgent()
@@ -292,82 +265,19 @@ namespace osmium
         m_ModifiedSasReg = false;
     }
 
-    bool HostSystemAgent::InvokeSasViaLocalSystemHelper(const std::string* optionalUnlockSecret)
+    bool HostSystemAgent::InvokeSasViaLocalSystemHelper()
     {
         HANDLE hPipe = CreateFileW(kSysPipeName, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
         if (hPipe != INVALID_HANDLE_VALUE)
         {
-            std::string cmd = optionalUnlockSecret ? ("UNLOCK:" + *optionalUnlockSecret) : "SAS";
+            const char cmd[] = "SAS";
             DWORD written = 0;
-            BOOL ok = WriteFile(hPipe, cmd.data(), static_cast<DWORD>(cmd.size()), &written, nullptr);
+            BOOL ok = WriteFile(hPipe, cmd, 3, &written, nullptr);
             char reply[32]{};
             DWORD rd = 0;
             if (ok) ReadFile(hPipe, reply, sizeof(reply) - 1, &rd, nullptr);
             CloseHandle(hPipe);
             return ok && strncmp(reply, "OK", 2) == 0;
-        }
-
-        if (optionalUnlockSecret != nullptr)
-        {
-            if (!DriverSetupHelper::IsProcessElevated()) return false;
-            wchar_t exePath[MAX_PATH]{};
-            GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-            DWORD pid = GetCurrentProcessId();
-            wchar_t svcName[64]{};
-            swprintf_s(svcName, L"OsmiumUnlockOnceSvc_%lu", pid);
-            wchar_t pipeName[96]{};
-            swprintf_s(pipeName, L"\\\\.\\pipe\\OsmiumUnlockOnce_%lu", pid);
-            std::wstring binCmd = std::wstring(L"\"") + exePath + L"\" --unlock-once " + std::to_wstring(pid);
-
-            SECURITY_ATTRIBUTES sa{};
-            sa.nLength = sizeof(sa);
-            PSECURITY_DESCRIPTOR pSd = nullptr;
-            ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:(A;;GA;;;SY)(A;;GA;;;BA)", SDDL_REVISION_1, &pSd,
-                                                                 nullptr);
-            sa.lpSecurityDescriptor = pSd;
-            HANDLE pipe = CreateNamedPipeW(
-                pipeName, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                1, 512, 512, 0, pSd ? &sa : nullptr);
-            if (pSd) LocalFree(pSd);
-            if (pipe == INVALID_HANDLE_VALUE) return false;
-
-            SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
-            if (!scm)
-            {
-                CloseHandle(pipe);
-                return false;
-            }
-
-            SC_HANDLE svc = CreateServiceW(
-                scm, svcName, L"Osmium One-Shot Unlock Helper",
-                SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_DEMAND_START,
-                SERVICE_ERROR_IGNORE, binCmd.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
-            bool ok = false;
-            if (svc)
-            {
-                OVERLAPPED ov{};
-                ov.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-                ConnectNamedPipe(pipe, &ov);
-                if (StartServiceW(svc, 0, nullptr))
-                {
-                    if (WaitForSingleObject(ov.hEvent, 4000) == WAIT_OBJECT_0)
-                    {
-                        DWORD wr = 0;
-                        WriteFile(pipe, optionalUnlockSecret->data(), static_cast<DWORD>(optionalUnlockSecret->size()),
-                                  &wr, nullptr);
-                        FlushFileBuffers(pipe);
-                        ok = true;
-                    }
-                }
-                if (ov.hEvent) CloseHandle(ov.hEvent);
-                DeleteService(svc);
-                CloseServiceHandle(svc);
-            }
-            CloseServiceHandle(scm);
-            DisconnectNamedPipe(pipe);
-            CloseHandle(pipe);
-            return ok;
         }
 
         if (!DriverSetupHelper::IsProcessElevated()) return false;
@@ -417,7 +327,7 @@ namespace osmium
             }
         }
 
-        if (InvokeSasViaLocalSystemHelper(nullptr))
+        if (InvokeSasViaLocalSystemHelper())
         {
             OSM_LOG_INFO("Sent SAS (Ctrl+Alt+Del) via LocalSystem helper");
             return true;
@@ -486,139 +396,8 @@ namespace osmium
         return true;
     }
 
-    void HostSystemAgent::SetAutoUnlockCredential(bool enabled, const char* secretUtf8)
-    {
-        std::lock_guard<std::mutex> lock(m_Mutex);
-        if (!m_AutoUnlockSecret.empty())
-        {
-            SecureZeroMemory(m_AutoUnlockSecret.data(), m_AutoUnlockSecret.size());
-            m_AutoUnlockSecret.clear();
-        }
-        m_AutoUnlockEnabled = enabled;
-        if (enabled && secretUtf8 && *secretUtf8)
-        {
-            m_AutoUnlockSecret = secretUtf8;
-        }
-        m_UnlockAttemptedThisLock = false;
-        m_LastUnlockStatus = enabled ? "Armed" : "Disabled";
-    }
-
-    bool HostSystemAgent::TypeUnlockSequenceOnCurrentDesktop(const std::string& secretUtf8)
-    {
-        if (secretUtf8.empty()) return false;
-
-        SetThreadExecutionState(ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED);
-        INPUT wake{};
-        wake.type = INPUT_MOUSE;
-        wake.mi.dwFlags = MOUSEEVENTF_MOVE;
-        SendInput(1, &wake, sizeof(INPUT));
-        Sleep(120);
-
-        SendKeyVk(VK_SPACE, true);
-        SendKeyVk(VK_SPACE, false);
-        Sleep(450);
-
-        std::wstring wide = Utf8ToWide(secretUtf8);
-        SendUnicodeStringKeys(wide);
-        if (!wide.empty())
-        {
-            SecureZeroMemory(wide.data(), wide.size() * sizeof(wchar_t));
-        }
-
-        Sleep(400);
-        if (IsSessionLocked())
-        {
-            SendKeyVk(VK_RETURN, true);
-            SendKeyVk(VK_RETURN, false);
-            Sleep(500);
-        }
-        return !IsSessionLocked();
-    }
-
-    bool HostSystemAgent::TriggerAutoUnlockNow()
-    {
-        std::string secretCopy;
-        {
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            secretCopy = m_AutoUnlockSecret;
-        }
-        if (secretCopy.empty()) return false;
-
-        bool ok = false;
-        if (DriverSetupHelper::IsRunningAsSystem())
-        {
-            HDESK oldDesk = GetThreadDesktop(GetCurrentThreadId());
-            HDESK inputDesk = nullptr;
-            SyncThreadDesktopToInput(&inputDesk);
-            ok = TypeUnlockSequenceOnCurrentDesktop(secretCopy);
-            if (oldDesk) SetThreadDesktop(oldDesk);
-            if (inputDesk) CloseDesktop(inputDesk);
-        }
-        else if (InvokeSasViaLocalSystemHelper(&secretCopy))
-        {
-            ok = true;
-        }
-        else
-        {
-            SyncThreadDesktopToInput();
-            ok = TypeUnlockSequenceOnCurrentDesktop(secretCopy);
-        }
-
-        SecureZeroMemory(secretCopy.data(), secretCopy.size());
-
-        std::lock_guard<std::mutex> lock(m_Mutex);
-        m_LastUnlockStatus = ok ? "Unlocked" : "UnlockAttempted";
-        return ok;
-    }
-
-    void HostSystemAgent::TickAutoUnlock()
-    {
-        bool locked = IsSessionLocked();
-        std::string secretCopy;
-        bool shouldTry = false;
-
-        {
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            if (!locked)
-            {
-                m_WasLocked = false;
-                m_UnlockAttemptedThisLock = false;
-                return;
-            }
-            m_WasLocked = true;
-            if (m_AutoUnlockEnabled && !m_AutoUnlockSecret.empty() && !m_UnlockAttemptedThisLock)
-            {
-                m_UnlockAttemptedThisLock = true;
-                secretCopy = m_AutoUnlockSecret;
-                shouldTry = true;
-            }
-        }
-
-        if (shouldTry)
-        {
-            TriggerAutoUnlockNow();
-            SecureZeroMemory(secretCopy.data(), secretCopy.size());
-        }
-    }
-
-    std::string HostSystemAgent::GetLastUnlockStatus() const
-    {
-        return m_LastUnlockStatus;
-    }
-
     void HostSystemAgent::ResetOnDisconnect()
     {
-        {
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            if (!m_AutoUnlockSecret.empty())
-            {
-                SecureZeroMemory(m_AutoUnlockSecret.data(), m_AutoUnlockSecret.size());
-                m_AutoUnlockSecret.clear();
-            }
-            m_AutoUnlockEnabled = false;
-            m_UnlockAttemptedThisLock = false;
-            m_LastUnlockStatus.clear();
-        }
         RestoreSoftwareSasPolicy();
     }
 
@@ -626,8 +405,6 @@ namespace osmium
     {
         SERVICE_STATUS_HANDLE g_SvcStatusHandle = nullptr;
         HANDLE g_SvcStopEvent = nullptr;
-        uint32_t g_UnlockParentPid = 0;
-        const wchar_t kOneShotUnlockSvcPrefix[] = L"OsmiumUnlockOnceSvc";
 
         void ReportSvcStatus(DWORD state, DWORD exitCode = NO_ERROR, DWORD waitHint = 0)
         {
@@ -712,13 +489,6 @@ namespace osmium
                                 ok = true;
                             }
                         }
-                        else if (cmd.rfind("UNLOCK:", 0) == 0)
-                        {
-                            HostSystemAgent agent;
-                            agent.SetAutoUnlockCredential(true, cmd.substr(7).c_str());
-                            ok = agent.TriggerAutoUnlockNow();
-                            agent.ResetOnDisconnect();
-                        }
                         SecureZeroMemory(cmd.data(), cmd.size());
                         const char* rep = ok ? "OK" : "ERR";
                         DWORD wr = 0;
@@ -752,56 +522,6 @@ namespace osmium
     {
         SERVICE_TABLE_ENTRYW tbl[] = {
             {const_cast<LPWSTR>(kServiceName), SystemSvcMain},
-            {nullptr, nullptr}
-        };
-        return StartServiceCtrlDispatcherW(tbl) ? 0 : static_cast<int>(GetLastError());
-    }
-
-    static VOID WINAPI OneShotUnlockCtrlHandler(DWORD ctrl)
-    {
-        if (ctrl == SERVICE_CONTROL_STOP || ctrl == SERVICE_CONTROL_SHUTDOWN)
-        {
-            ReportSvcStatus(SERVICE_STOPPED);
-        }
-    }
-
-    static VOID WINAPI OneShotUnlockServiceMain(DWORD, LPWSTR*)
-    {
-        wchar_t svcName[64]{};
-        swprintf_s(svcName, L"OsmiumUnlockOnceSvc_%lu", g_UnlockParentPid);
-        g_SvcStatusHandle = RegisterServiceCtrlHandlerW(svcName, OneShotUnlockCtrlHandler);
-        ReportSvcStatus(SERVICE_RUNNING);
-
-        wchar_t pipeName[96]{};
-        swprintf_s(pipeName, L"\\\\.\\pipe\\OsmiumUnlockOnce_%lu", g_UnlockParentPid);
-        HANDLE pipe = CreateFileW(pipeName, GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
-        if (pipe != INVALID_HANDLE_VALUE)
-        {
-            char buf[512]{};
-            DWORD rd = 0;
-            if (ReadFile(pipe, buf, sizeof(buf) - 1, &rd, nullptr) && rd > 0)
-            {
-                std::string sec(buf, rd);
-                SecureZeroMemory(buf, sizeof(buf));
-                HostSystemAgent agent;
-                agent.SetAutoUnlockCredential(true, sec.c_str());
-                agent.TriggerAutoUnlockNow();
-                agent.ResetOnDisconnect();
-                SecureZeroMemory(sec.data(), sec.size());
-            }
-            CloseHandle(pipe);
-        }
-
-        ReportSvcStatus(SERVICE_STOPPED);
-    }
-
-    int HostSystemAgent::RunOneShotUnlockServiceMain(uint32_t parentPid)
-    {
-        g_UnlockParentPid = parentPid;
-        wchar_t svcName[64]{};
-        swprintf_s(svcName, L"OsmiumUnlockOnceSvc_%lu", parentPid);
-        SERVICE_TABLE_ENTRYW tbl[] = {
-            {svcName, OneShotUnlockServiceMain},
             {nullptr, nullptr}
         };
         return StartServiceCtrlDispatcherW(tbl) ? 0 : static_cast<int>(GetLastError());

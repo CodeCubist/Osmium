@@ -193,17 +193,23 @@ public sealed class OsmiumSettings
         set;
     } = false;
 
+    public int SettingsSchemaVersion
+    {
+        get;
+        set;
+    } = 0;
+
     public int TargetWidth
     {
         get;
         set;
-    } = 1920;
+    } = 0;
 
     public int TargetHeight
     {
         get;
         set;
-    } = 1080;
+    } = 0;
 
     public int Fps
     {
@@ -445,16 +451,12 @@ public sealed class OsmiumSettings
         set;
     } = [];
 
-    public Dictionary<string, string> AutoUnlockCredentials
-    {
-        get;
-        set;
-    } = new(StringComparer.OrdinalIgnoreCase);
-
     public static int GetDefaultBitrateKbps(int width, int height, int fps, bool yuv444 = false)
     {
+        int effW = width > 0 ? width : 1920;
+        int effH = height > 0 ? height : 1080;
         double fpsFactor = (fps <= 60 ? fps : Math.Sqrt(fps / 60.0) * 60.0) / 30.0;
-        long pixels = (long)Math.Max(1, width) * Math.Max(1, height);
+        long pixels = (long)Math.Max(1, effW) * Math.Max(1, effH);
         (long px, double factor)[] table =
         [
             (640L * 360L, 1.0),

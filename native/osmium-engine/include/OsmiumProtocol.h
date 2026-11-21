@@ -49,7 +49,6 @@ namespace osmium::proto
         ControlMouseMode = 0x3A,
         ControlVirtualAudio = 0x3C,
         ControlSystemAction = 0x3D,
-        ControlAutoUnlock = 0x3E,
         HostStatusJson = 0x3F
     };
 
@@ -74,7 +73,6 @@ namespace osmium::proto
     {
         SendCtrlAltDel = 1,
         OpenTaskManager = 2,
-        TriggerUnlock = 3,
         InstallVirtualDrivers = 4,
         UninstallVirtualDrivers = 5
     };
@@ -235,14 +233,6 @@ namespace osmium::proto
     {
         AppPacketHeader hdr;
         int32_t action;
-    };
-
-    struct ControlAutoUnlockPayload
-    {
-        AppPacketHeader hdr;
-        int32_t enabled;
-        uint16_t secretBytes;
-        uint16_t reserved2;
     };
 
 #pragma pack(pop)

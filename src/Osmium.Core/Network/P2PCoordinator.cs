@@ -271,12 +271,6 @@ public sealed class RemoteSessionLaunchArgs
         get;
         init;
     }
-
-    public string? SavedAutoUnlockSecret
-    {
-        get;
-        init;
-    }
 }
 
 public sealed class HostSessionActiveInfo
@@ -951,7 +945,6 @@ public sealed partial class P2PCoordinator : IDisposable
                 aesKey = null;
 
                 var s = _settings.Settings;
-                string? savedUnlock = _settings.GetAutoUnlockSecret(normalizedTarget);
                 var clientCfg = new OsmiumClientConfig
                 {
                     WindowTitle = $"Osmium - {challenge.HostName} ({DeviceIdentity.FormatDeviceId(normalizedTarget)})",
@@ -1066,8 +1059,7 @@ public sealed partial class P2PCoordinator : IDisposable
                         SignalingServerUrl = sigUrl,
                         SignalingServerHost = sigHost,
                         SignalingServerIp = sigIp,
-                        InitialConfig = clientCfg,
-                        SavedAutoUnlockSecret = savedUnlock
+                        InitialConfig = clientCfg
                     };
 
                     lock (_clientLock)

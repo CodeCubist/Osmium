@@ -699,13 +699,17 @@ public sealed partial class SettingsPage : Page
         }
 
         entries = entries.OrderBy(e => (long)e.w * e.h).ToList();
+        entries.Insert(0, (0, 0, LocalizationService.GetString("Set_ResAutoHost")));
 
         int matchedIdx = -1;
         for (int i = 0; i < entries.Count; i++)
         {
             var e = entries[i];
             ClientResCombo.Items.Add(new ComboBoxItem { Content = e.label, Tag = $"{e.w}x{e.h}" });
-            if (e.w == currentW && e.h == currentH) matchedIdx = i;
+            if ((currentW <= 0 || currentH <= 0) && e.w == 0 && e.h == 0)
+                matchedIdx = i;
+            else if (e.w == currentW && e.h == currentH)
+                matchedIdx = i;
         }
 
         if (matchedIdx < 0)

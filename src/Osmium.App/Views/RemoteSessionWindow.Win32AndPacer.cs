@@ -438,8 +438,6 @@ public sealed partial class RemoteSessionWindow : Window
         _winUiBlankCursor = null;
         _mousePacerWake.Dispose();
 
-        _sessionAutoUnlockSecret = string.Empty;
-
         IntPtr handle = Interlocked.Exchange(ref _clientHandle, IntPtr.Zero);
         if (handle != IntPtr.Zero)
         {

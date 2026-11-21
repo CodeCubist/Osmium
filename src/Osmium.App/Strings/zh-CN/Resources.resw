@@ -155,6 +155,7 @@
   <data name="Tray_Exit" xml:space="preserve"><value>退出 Osmium</value></data>
   <data name="Tray_TooltipControlling" xml:space="preserve"><value>Osmium - 正在被远程控制</value></data>
   <data name="Set_ResTitle" xml:space="preserve"><value>分辨率</value></data>
+  <data name="Set_ResAutoHost" xml:space="preserve"><value>跟随被控端原生分辨率</value></data>
   <data name="Set_ResNativeLabel" xml:space="preserve"><value>显示器 {0} - {1}×{2}</value></data>
   <data name="Set_ResCustomLabel" xml:space="preserve"><value>自定义 - {0}×{1}</value></data>
   <data name="Set_FpsTitle" xml:space="preserve"><value>帧率上限</value></data>
@@ -367,14 +368,9 @@
   <data name="Session_OsdCompact" xml:space="preserve"><value>简洁</value></data>
   <data name="Session_OsdStandard" xml:space="preserve"><value>标准</value></data>
   <data name="Session_OsdDetailed" xml:space="preserve"><value>详细</value></data>
-  <data name="Session_SysControlTitle" xml:space="preserve"><value>系统控制与自动解锁</value></data>
+  <data name="Session_SysControlTitle" xml:space="preserve"><value>系统控制</value></data>
   <data name="Session_ScreenLocked" xml:space="preserve"><value>当前已锁屏</value></data>
   <data name="Session_TaskManagerBtn" xml:space="preserve"><value>任务管理器</value></data>
-  <data name="Session_AutoUnlockHeader" xml:space="preserve"><value>检测到锁屏时自动解锁</value></data>
-  <data name="Session_AutoUnlockPlaceholder" xml:space="preserve"><value>输入被控端密码或 PIN 码</value></data>
-  <data name="Session_AutoUnlockSavedPlaceholder" xml:space="preserve"><value>已加密保存凭据，留空则保持不变</value></data>
-  <data name="Session_ApplyUnlockBtn" xml:space="preserve"><value>应用并解锁</value></data>
-  <data name="Session_ClearPasswordBtn" xml:space="preserve"><value>清除密码</value></data>
   <data name="Session_WindowControlTitle" xml:space="preserve"><value>会话窗口控制</value></data>
   <data name="Session_ToggleFullscreenTooltip" xml:space="preserve"><value>切换全屏</value></data>
   <data name="Session_FullscreenEnter" xml:space="preserve"><value>全屏视图</value></data>
@@ -386,16 +382,12 @@
   <data name="Session_EndedByHost" xml:space="preserve"><value>被控端已主动断开连接</value></data>
   <data name="Session_EndedFmt" xml:space="preserve"><value>连接已断开: {0}</value></data>
   <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>已捕获光标至被控端虚拟鼠标 - 按 Ctrl+Alt+Shift+M 退出锁定</value></data>
-  <data name="Session_ToastEnterPassword" xml:space="preserve"><value>请先输入被控端 Windows 登录密码或 PIN 码</value></data>
-  <data name="Session_ToastAutoUnlockEnabled" xml:space="preserve"><value>已启用锁屏自动解锁配置</value></data>
-  <data name="Session_ToastAutoUnlockCleared" xml:space="preserve"><value>已清除该设备的自动解锁凭据</value></data>
   <data name="Session_ToastDriverInstallSent" xml:space="preserve"><value>已向被控端发起虚拟驱动安装请求...</value></data>
   <data name="Session_ToastDriverUninstallSent" xml:space="preserve"><value>已向被控端发起虚拟驱动卸载请求...</value></data>
   <data name="Session_ToastDebugCopied" xml:space="preserve"><value>已复制连接调试信息</value></data>
   <data name="Session_NoticeSasSent" xml:space="preserve"><value>已向被控端发送 Ctrl + Alt + Del</value></data>
   <data name="Session_NoticeSasNeedsAdmin" xml:space="preserve"><value>Ctrl+Alt+Del 需要被控端管理员或服务权限</value></data>
   <data name="Session_NoticeTaskMgrOpened" xml:space="preserve"><value>已在被控端打开任务管理器</value></data>
-  <data name="Session_NoticeUnlocked" xml:space="preserve"><value>已自动完成被控端锁屏解锁</value></data>
   <data name="Session_NoticeDriverInstalled" xml:space="preserve"><value>已在被控端成功安装虚拟外设驱动</value></data>
   <data name="Session_NoticeDriverInstallFailed" xml:space="preserve"><value>被控端虚拟外设驱动安装失败或未通过 UAC 授权</value></data>
   <data name="Session_NoticeDriverUninstalled" xml:space="preserve"><value>已在被控端成功卸载虚拟外设驱动</value></data>

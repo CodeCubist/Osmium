@@ -212,8 +212,6 @@ public sealed partial class RemoteSessionWindow : Window
     private List<HostStatusDisplayDto> _renderedTabs = [];
     private readonly List<DisplayTabVisual> _tabVisuals = [];
     private List<OsmiumAudioDeviceInfo> _localMicDevices = [];
-    private string _sessionAutoUnlockSecret = string.Empty;
-    private bool _autoUnlockEnabled;
     private bool _firstVideoFrameSeen;
     private bool _pipelineInitFailed;
     private string? _endedReasonMsg;
@@ -263,12 +261,6 @@ public sealed partial class RemoteSessionWindow : Window
         _targetScalePercent = Math.Clamp(s.ClientScalePercent, 25, 100);
         _targetCustomWidth = launchArgs.InitialConfig.TargetWidth;
         _targetCustomHeight = launchArgs.InitialConfig.TargetHeight;
-
-        if (!string.IsNullOrEmpty(launchArgs.SavedAutoUnlockSecret))
-        {
-            _sessionAutoUnlockSecret = launchArgs.SavedAutoUnlockSecret;
-            _autoUnlockEnabled = true;
-        }
 
         _uiTimer = DispatcherQueue.CreateTimer();
         _uiTimer.Interval = TimeSpan.FromMilliseconds(250);
@@ -454,7 +446,6 @@ public sealed partial class RemoteSessionWindow : Window
             OsdDetailCombo.SelectedIndex = Math.Clamp((int)s.OsdDetailLevel, 0, 2);
             ApplyOsdVisibilityAndDetailLayout();
 
-            AutoUnlockToggle.IsOn = _autoUnlockEnabled;
             ApplyLocalization();
         }
         finally
@@ -503,8 +494,7 @@ public sealed partial class RemoteSessionWindow : Window
 
             foreach (var toggle in new[]
                      {
-                         HdrToggle, Yuv444Toggle, VsyncToggle, VirtualSpeakerToggle, VirtualMicToggle, OsdToggleSwitch,
-                         AutoUnlockToggle
+                         HdrToggle, Yuv444Toggle, VsyncToggle, VirtualSpeakerToggle, VirtualMicToggle, OsdToggleSwitch
                      })
             {
                 toggle.OnContent = onLabel;
@@ -541,14 +531,6 @@ public sealed partial class RemoteSessionWindow : Window
             SessionSysControlTitleText.Text = LocalizationService.GetString("Session_SysControlTitle");
             HostLockedPill.Text = LocalizationService.GetString("Session_ScreenLocked");
             TaskManagerBtn.Content = LocalizationService.GetString("Session_TaskManagerBtn");
-            AutoUnlockToggle.Header = LocalizationService.GetString("Session_AutoUnlockHeader");
-
-            bool hasCredential = !string.IsNullOrEmpty(_sessionAutoUnlockSecret) ||
-                                 App.Engine.SettingsService.HasAutoUnlockSecret(_launchArgs.TargetDeviceId);
-            AutoUnlockSecretBox.PlaceholderText = LocalizationService.GetString(
-                hasCredential ? "Session_AutoUnlockSavedPlaceholder" : "Session_AutoUnlockPlaceholder");
-            ApplyAutoUnlockBtn.Content = LocalizationService.GetString("Session_ApplyUnlockBtn");
-            ClearAutoUnlockBtn.Content = LocalizationService.GetString("Session_ClearPasswordBtn");
 
             SessionWindowControlTitleText.Text = LocalizationService.GetString("Session_WindowControlTitle");
             ToolTipService.SetToolTip(FullscreenBtn, LocalizationService.GetString("Session_ToggleFullscreenTooltip"));
@@ -565,7 +547,7 @@ public sealed partial class RemoteSessionWindow : Window
             _renderedTabs.Clear();
             RebuildDisplayTabsIfChanged();
             UpdateOsdDisplay();
-            if (SessionMenuFlyout.IsOpen)
+            if (SessionMenuFlyout.IsOpen && DebugInfoExpander.IsExpanded)
             {
                 DebugInfoBodyText.Text = BuildDebugSnapshotText();
             }
@@ -735,11 +717,6 @@ public sealed partial class RemoteSessionWindow : Window
         DispatcherQueue.TryEnqueue(UpdateVideoSwapChainSize);
         SyncKeyboardHookAndCursorCapture();
 
-        if (_autoUnlockEnabled && !string.IsNullOrEmpty(_sessionAutoUnlockSecret))
-        {
-            NativeMethods.Osmium_ClientSetAutoUnlock(_clientHandle, 1, _sessionAutoUnlockSecret);
-        }
-
         if (_virtualSpeakerEnabled || _virtualMicEnabled)
         {
             NativeMethods.Osmium_ClientSetVirtualAudio(
@@ -774,6 +751,14 @@ public sealed partial class RemoteSessionWindow : Window
 
             if (nativeSizeChanged && dto.NativeWidth > 0 && dto.NativeHeight > 0)
             {
+                if (_targetCustomWidth <= 0 && _targetCustomHeight <= 0 &&
+                    _targetScalePercent > 0 && _targetScalePercent < 100)
+                {
+                    _targetCustomWidth = Math.Max(320, ((int)Math.Round(dto.NativeWidth * _targetScalePercent / 100.0)) & ~1);
+                    _targetCustomHeight = Math.Max(180, ((int)Math.Round(dto.NativeHeight * _targetScalePercent / 100.0)) & ~1);
+                    SendUpdatedVideoParams();
+                }
+
                 RebuildScaleOptions(dto.NativeWidth, dto.NativeHeight);
                 if (dto.StreamWidth > 0 && dto.StreamHeight > 0)
                 {
@@ -795,7 +780,6 @@ public sealed partial class RemoteSessionWindow : Window
                     "SAS_SENT" => "Session_NoticeSasSent",
                     "SAS_NEEDS_ADMIN" => "Session_NoticeSasNeedsAdmin",
                     "TASKMGR_OPENED" => "Session_NoticeTaskMgrOpened",
-                    "UNLOCKED" => "Session_NoticeUnlocked",
                     "DRIVER_INSTALLED" => "Session_NoticeDriverInstalled",
                     "DRIVER_INSTALL_FAILED" => "Session_NoticeDriverInstallFailed",
                     "DRIVER_UNINSTALLED" => "Session_NoticeDriverUninstalled",

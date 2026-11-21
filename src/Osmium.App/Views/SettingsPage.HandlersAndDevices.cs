@@ -53,14 +53,16 @@ public sealed partial class SettingsPage : Page
     private async void CustomRes_Click(object sender, RoutedEventArgs e)
     {
         var s = App.Engine.SettingsService.Settings;
+        int initW = s.TargetWidth > 0 ? s.TargetWidth : 1920;
+        int initH = s.TargetHeight > 0 ? s.TargetHeight : 1080;
         var wBox = new NumberBox
         {
-            Header = LocalizationService.GetString("Set_CustomResWidth"), Value = s.TargetWidth, Minimum = 256,
+            Header = LocalizationService.GetString("Set_CustomResWidth"), Value = initW, Minimum = 256,
             Maximum = 8192
         };
         var hBox = new NumberBox
         {
-            Header = LocalizationService.GetString("Set_CustomResHeight"), Value = s.TargetHeight, Minimum = 144,
+            Header = LocalizationService.GetString("Set_CustomResHeight"), Value = initH, Minimum = 144,
             Maximum = 4320
         };
         var panel = new StackPanel { Spacing = 10 };
@@ -80,8 +82,8 @@ public sealed partial class SettingsPage : Page
 
         if (await dlg.ShowAsync() == ContentDialogResult.Primary)
         {
-            int w = double.IsNaN(wBox.Value) ? s.TargetWidth : Math.Clamp((int)wBox.Value, 256, 8192);
-            int h = double.IsNaN(hBox.Value) ? s.TargetHeight : Math.Clamp((int)hBox.Value, 144, 4320);
+            int w = double.IsNaN(wBox.Value) ? initW : Math.Clamp((int)wBox.Value, 256, 8192);
+            int h = double.IsNaN(hBox.Value) ? initH : Math.Clamp((int)hBox.Value, 144, 4320);
             s.TargetWidth = w & ~1;
             s.TargetHeight = h & ~1;
 
