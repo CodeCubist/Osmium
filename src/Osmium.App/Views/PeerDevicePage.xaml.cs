@@ -201,7 +201,8 @@ public sealed partial class PeerDevicePage : Page
             PeerDeviceNameText.Text = DeviceIdentity.FormatDeviceId(_targetDeviceId);
             PeerDeviceIdText.Text = string.Empty;
             SetPillState(online: false, streaming: false);
-            ActivePeerBanner.IsOpen = false;
+            ActivePeerBanner.Visibility = Visibility.Collapsed;
+            ActivePeerBanner.IsExpanded = false;
             BannerBlacklistBtn.Visibility = Visibility.Collapsed;
             DockBlacklistBtn.Visibility = Visibility.Visible;
             DockBlacklistDivider.Visibility = Visibility.Visible;
@@ -255,16 +256,22 @@ public sealed partial class PeerDevicePage : Page
 
             string whoWhomText = LocalizationService.Format("Session_WhoControllingWhomFmt", who, whom);
 
-            ActivePeerBanner.Title = whoWhomText;
-            ActivePeerBanner.Message = !string.IsNullOrWhiteSpace(dev.ControllerDeviceId)
+            ActivePeerBannerTitle.Text = whoWhomText;
+            ActivePeerBannerMessage.Text = !string.IsNullOrWhiteSpace(dev.ControllerDeviceId)
                 ? DeviceIdentity.FormatDeviceId(dev.ControllerDeviceId)
                 : dev.DeviceName;
-            ActivePeerBanner.IsOpen = true;
+            if (ActivePeerBanner.Visibility != Visibility.Visible)
+            {
+                ActivePeerBanner.IsExpanded = false;
+                ActivePeerBanner.Visibility = Visibility.Visible;
+            }
+
             PeerControllingTitleText.Text = whoWhomText;
         }
         else
         {
-            ActivePeerBanner.IsOpen = false;
+            ActivePeerBanner.Visibility = Visibility.Collapsed;
+            ActivePeerBanner.IsExpanded = false;
         }
 
         bool hideBlacklist = dev.IsBeingControlled && isSelfAccount;

@@ -83,10 +83,10 @@ public sealed partial class RemoteHomePage : Page
 
         UpdateHeroWallpaper();
         UpdateHostControllingHeadline();
-        if (streaming && !ActiveHostBanner.IsOpen)
+        if (streaming && ActiveHostBanner.Visibility != Visibility.Visible)
         {
             var info = App.Engine.Coordinator.ActiveHostSessionInfo;
-            if (info != null && string.IsNullOrWhiteSpace(ActiveHostBanner.Message))
+            if (info != null && string.IsNullOrWhiteSpace(ActiveHostBannerMessage.Text))
             {
                 bool isSameAccount = IsSameAccountController(info);
                 string peerLabel = isSameAccount
@@ -96,10 +96,16 @@ public sealed partial class RemoteHomePage : Page
                             ? info.ControllerDeviceName
                             : info.PeerName)
                     : info.PeerName;
-                ActiveHostBanner.Message = $"{peerLabel} - {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
+                ActiveHostBannerMessage.Text = $"{peerLabel} - {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
             }
 
-            ActiveHostBanner.IsOpen = true;
+            ActiveHostBanner.IsExpanded = false;
+            ActiveHostBanner.Visibility = Visibility.Visible;
+        }
+        else if (!streaming && ActiveHostBanner.Visibility == Visibility.Visible)
+        {
+            ActiveHostBanner.Visibility = Visibility.Collapsed;
+            ActiveHostBanner.IsExpanded = false;
         }
 
         UpdateHostControllingOverlay(streaming);
@@ -247,7 +253,8 @@ public sealed partial class RemoteHomePage : Page
     private void DisconnectHostSession_Click(object sender, RoutedEventArgs e)
     {
         App.Engine.Coordinator.StopHostSession();
-        ActiveHostBanner.IsOpen = false;
+        ActiveHostBanner.Visibility = Visibility.Collapsed;
+        ActiveHostBanner.IsExpanded = false;
         UpdateHostStatusPill();
     }
 
@@ -258,7 +265,8 @@ public sealed partial class RemoteHomePage : Page
         string localDevId = App.Engine.SettingsService.Identity.DeviceId;
         await App.Engine.Coordinator.BlacklistControllerOnDeviceAsync(localDevId);
         App.Engine.Coordinator.StopHostSession();
-        ActiveHostBanner.IsOpen = false;
+        ActiveHostBanner.Visibility = Visibility.Collapsed;
+        ActiveHostBanner.IsExpanded = false;
         UpdateHostStatusPill();
     }
 

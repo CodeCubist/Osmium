@@ -55,8 +55,13 @@ public sealed partial class RemoteHomePage : Page
                             ? info.ControllerDeviceName
                             : info.PeerName)
                     : info.PeerName;
-                ActiveHostBanner.IsOpen = true;
-                ActiveHostBanner.Message = $"{peerLabel} - {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
+                if (ActiveHostBanner.Visibility != Visibility.Visible)
+                {
+                    ActiveHostBanner.IsExpanded = false;
+                    ActiveHostBanner.Visibility = Visibility.Visible;
+                }
+
+                ActiveHostBannerMessage.Text = $"{peerLabel} - {DeviceIdentity.FormatDeviceId(info.PeerDeviceId)}";
                 UpdateHostControllingHeadline();
                 UpdateHostStatusPill();
             });
@@ -64,9 +69,9 @@ public sealed partial class RemoteHomePage : Page
         engine.Coordinator.HostStatsUpdated += stats =>
             DispatcherQueue.TryEnqueue(() =>
             {
-                if (ActiveHostBanner.IsOpen)
+                if (ActiveHostBanner.Visibility == Visibility.Visible)
                 {
-                    ActiveHostBanner.Message =
+                    ActiveHostBannerMessage.Text =
                         $"{stats.CaptureWidth}×{stats.CaptureHeight} @ {stats.Fps:F1} FPS - {stats.BitrateMbps:F2} Mbps - RTT {stats.RttMs} ms";
                 }
             });
@@ -75,7 +80,8 @@ public sealed partial class RemoteHomePage : Page
             DispatcherQueue.TryEnqueue(() =>
             {
                 _fallbackHostStartUtc = null;
-                ActiveHostBanner.IsOpen = false;
+                ActiveHostBanner.Visibility = Visibility.Collapsed;
+                ActiveHostBanner.IsExpanded = false;
                 UpdateHostControllingHeadline();
                 UpdateHostStatusPill();
             });
@@ -286,7 +292,7 @@ public sealed partial class RemoteHomePage : Page
             }
 
             string headline = LocalizationService.Format("Session_WhoControllingWhomFmt", who, whom);
-            ActiveHostBanner.Title = headline;
+            ActiveHostBannerTitle.Text = headline;
             HostControllingTitleText.Text = headline;
             BlacklistHostControllerBtn.Visibility =
                 App.Engine.AccountService.IsLoggedIn &&
@@ -297,7 +303,7 @@ public sealed partial class RemoteHomePage : Page
         }
         else
         {
-            ActiveHostBanner.Title = LocalizationService.GetString("Title_HostStreaming");
+            ActiveHostBannerTitle.Text = LocalizationService.GetString("Title_HostStreaming");
             HostControllingTitleText.Text = LocalizationService.GetString("Home_HostControllingOverlay");
             BlacklistHostControllerBtn.Visibility = Visibility.Collapsed;
         }
