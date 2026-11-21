@@ -774,7 +774,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 ConnectChallengeEventArgs challenge;
                 using (var challengeTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
-                    challengeTimeout.CancelAfter(TimeSpan.FromSeconds(15));
+                    challengeTimeout.CancelAfter(TimeSpan.FromSeconds(20));
                     using var reg =
                         challengeTimeout.Token.Register(() => challengeTcs.TrySetCanceled(challengeTimeout.Token));
                     var finished = await Task.WhenAny(challengeTcs.Task, rejectTcs.Task);
@@ -838,7 +838,7 @@ public sealed partial class P2PCoordinator : IDisposable
 
                 using (var authTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
-                    authTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                    authTimeout.CancelAfter(TimeSpan.FromSeconds(15));
                     using var reg = authTimeout.Token.Register(() => authVerifiedTcs.TrySetCanceled(authTimeout.Token));
                     var finished = await Task.WhenAny(authVerifiedTcs.Task, rejectTcs.Task);
                     if (finished == rejectTcs.Task)
@@ -856,7 +856,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 VersionCheckResultEventArgs versionRes;
                 using (var verTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
-                    verTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                    verTimeout.CancelAfter(TimeSpan.FromSeconds(15));
                     using var reg = verTimeout.Token.Register(() => versionResultTcs.TrySetCanceled(verTimeout.Token));
                     var finished = await Task.WhenAny(versionResultTcs.Task, rejectTcs.Task);
                     if (finished == rejectTcs.Task)
@@ -892,15 +892,34 @@ public sealed partial class P2PCoordinator : IDisposable
                     return (false, Tr("Conn_BindFailed", "Unable to bind local UDP transport port"));
                 }
 
-                await _signaling.SendBridgeCandidatesAsync(sessionId, candSb.ToString());
+                string localCandidatesJson = candSb.ToString();
+                await _signaling.SendBridgeCandidatesAsync(sessionId, localCandidatesJson);
 
                 BridgeReadyEventArgs bridge;
                 using (var bridgeTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
-                    bridgeTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                    bridgeTimeout.CancelAfter(TimeSpan.FromSeconds(18));
                     using var reg =
                         bridgeTimeout.Token.Register(() => bridgeReadyTcs.TrySetCanceled(bridgeTimeout.Token));
-                    var finished = await Task.WhenAny(bridgeReadyTcs.Task, rejectTcs.Task);
+                    var waitBridgeTask = Task.WhenAny(bridgeReadyTcs.Task, rejectTcs.Task);
+                    while (!waitBridgeTask.IsCompleted && !bridgeTimeout.IsCancellationRequested)
+                    {
+                        using var retryDelayCts = CancellationTokenSource.CreateLinkedTokenSource(bridgeTimeout.Token);
+                        var retryDelay = Task.Delay(TimeSpan.FromSeconds(4), retryDelayCts.Token);
+                        var step = await Task.WhenAny(waitBridgeTask, retryDelay);
+                        if (step == waitBridgeTask)
+                        {
+                            retryDelayCts.Cancel();
+                            break;
+                        }
+
+                        if (!bridgeTimeout.IsCancellationRequested)
+                        {
+                            await _signaling.SendBridgeCandidatesAsync(sessionId, localCandidatesJson);
+                        }
+                    }
+
+                    var finished = await waitBridgeTask;
                     if (finished == rejectTcs.Task)
                     {
                         var (_, msg) = FormatReject(await rejectTcs.Task);
@@ -925,7 +944,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     sessionToken,
                     1,
                     bridge.CandidatesJson,
-                    2400,
+                    6000,
                     out transportRoute,
                     epSb,
                     epSb.Capacity), ct);
@@ -984,7 +1003,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 try
                 {
                     authRes = await Task.Run(
-                        () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, 5000), ct);
+                        () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, 8000), ct);
                 }
                 finally
                 {

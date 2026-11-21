@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
@@ -465,6 +466,101 @@ public sealed partial class SignalingClient : IDisposable
         return failures;
     }
 
+    private void OnNetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
+    {
+        if (e.IsAvailable)
+        {
+            NotifyNetworkRecovered();
+        }
+    }
+
+    private void OnNetworkAddressChanged(object? sender, EventArgs e)
+    {
+        NotifyNetworkRecovered();
+    }
+
+    private void NotifyNetworkRecovered()
+    {
+        if (Volatile.Read(ref _disposed) != 0) return;
+
+        CancellationTokenSource? delayWake = null;
+        CancellationTokenSource? connectWake = null;
+        CancellationTokenSource? heartbeatWake = null;
+
+        lock (_wakeLock)
+        {
+            delayWake = _reconnectDelayWakeCts;
+            if (!_isTransportRegistered)
+            {
+                long startedTick = _activeConnectStartedTickMs;
+                if (_activeConnectWakeCts != null &&
+                    startedTick > 0 &&
+                    Environment.TickCount64 - startedTick >= StaleConnectAbortMinAgeMs)
+                {
+                    connectWake = _activeConnectWakeCts;
+                }
+            }
+            else
+            {
+                heartbeatWake = _heartbeatWakeCts;
+            }
+        }
+
+        try
+        {
+            delayWake?.Cancel();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            connectWake?.Cancel();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            heartbeatWake?.Cancel();
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task DelayWithWakeAsync(TimeSpan delay, bool isHeartbeatWait, CancellationToken ct)
+    {
+        using var wakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        lock (_wakeLock)
+        {
+            if (isHeartbeatWait)
+                _heartbeatWakeCts = wakeCts;
+            else
+                _reconnectDelayWakeCts = wakeCts;
+        }
+
+        try
+        {
+            await Task.Delay(delay, wakeCts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            lock (_wakeLock)
+            {
+                if (isHeartbeatWait && ReferenceEquals(_heartbeatWakeCts, wakeCts))
+                    _heartbeatWakeCts = null;
+                else if (!isHeartbeatWait && ReferenceEquals(_reconnectDelayWakeCts, wakeCts))
+                    _reconnectDelayWakeCts = null;
+            }
+        }
+    }
+
     private async Task RunHeartbeatLoopAsync(
         ClientWebSocket ws,
         TaskCompletionSource<bool> registerTcs,
@@ -513,7 +609,8 @@ public sealed partial class SignalingClient : IDisposable
                 : HeartbeatRetryDelay;
             firstTick = false;
 
-            await Task.Delay(waitDelay, ct);
+            await DelayWithWakeAsync(waitDelay, isHeartbeatWait: true, ct);
+            if (ct.IsCancellationRequested) break;
 
             var pongTcs = BeginPendingPong();
             bool sent;
@@ -589,7 +686,8 @@ public sealed partial class SignalingClient : IDisposable
 
             try
             {
-                if (State != SignalingConnectionState.Connected)
+                if (State == SignalingConnectionState.Disconnected &&
+                    Volatile.Read(ref _consecutiveFailures) < OfflineFailureThreshold)
                 {
                     SetState(SignalingConnectionState.Connecting, $"Connecting to {_serverUrl}");
                 }
@@ -649,16 +747,40 @@ public sealed partial class SignalingClient : IDisposable
                     }
                 };
                 using var invoker = new HttpMessageInvoker(ipv4Handler);
-                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                using var connectWakeCts = new CancellationTokenSource();
+                using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct, connectWakeCts.Token);
+                connectCts.CancelAfter(ConnectTimeout);
+
+                lock (_wakeLock)
                 {
-                    connectCts.CancelAfter(ConnectTimeout);
+                    _activeConnectWakeCts = connectWakeCts;
+                    _activeConnectStartedTickMs = Environment.TickCount64;
+                }
+
+                try
+                {
                     await ws.ConnectAsync(serverUri, invoker, connectCts.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && connectWakeCts.IsCancellationRequested)
+                {
+                    continue;
+                }
+                finally
+                {
+                    lock (_wakeLock)
+                    {
+                        if (ReferenceEquals(_activeConnectWakeCts, connectWakeCts))
+                        {
+                            _activeConnectWakeCts = null;
+                            _activeConnectStartedTickMs = 0;
+                        }
+                    }
                 }
 
                 _ws = ws;
                 _isTransportRegistered = false;
                 var registerTcs = BeginPendingRegister();
-                await SendJsonAsync(ws, new
+                bool registerSent = await SendJsonAsync(ws, new
                 {
                     type = "register",
                     deviceId = _deviceId,
@@ -667,6 +789,10 @@ public sealed partial class SignalingClient : IDisposable
                     osVersion = Environment.OSVersion.VersionString,
                     ltoken = _ltoken
                 }, ct);
+                if (!registerSent)
+                {
+                    throw new IOException("Failed to send register payload");
+                }
 
                 using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var pingTask = Task.Run(
@@ -732,9 +858,9 @@ public sealed partial class SignalingClient : IDisposable
                     : ReconnectDelay;
                 try
                 {
-                    await Task.Delay(delay, ct);
+                    await DelayWithWakeAsync(delay, isHeartbeatWait: false, ct);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     break;
                 }
@@ -759,6 +885,10 @@ public sealed partial class SignalingClient : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+        NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
+        NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
         Stop();
         _sendLock.Dispose();
     }

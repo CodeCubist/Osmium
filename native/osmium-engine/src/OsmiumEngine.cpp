@@ -724,6 +724,14 @@ namespace
                 auto pong = *reinterpret_cast<const proto::PingPongPayload*>(plain.data());
                 ctx->transport->SendEncrypted(proto::AppPacketType::Pong, &pong, sizeof(pong));
             }
+            else if (type == proto::AppPacketType::AuthRequest)
+            {
+                proto::AuthResponsePayload resp{};
+                resp.accepted = 1;
+                resp.errorCode = 0;
+                CopyStringSafe(resp.message, sizeof(resp.message), "Authenticated");
+                ctx->transport->SendEncrypted(proto::AppPacketType::AuthResponse, &resp, sizeof(resp));
+            }
             else if (type == proto::AppPacketType::ClientMicAudioFrame && plain.size() >= sizeof(
                 proto::AudioFrameHeader))
             {
@@ -1763,8 +1771,9 @@ OSMIUM_API int32_t Osmium_WaitClientAuthHost(
                 resp.accepted = 1;
                 resp.errorCode = 0;
                 CopyStringSafe(resp.message, sizeof(resp.message), "Authenticated");
-                for (int i = 0; i < 3; ++i)
+                for (int i = 0; i < 4; ++i)
                 {
+                    if (i > 0) Sleep(15);
                     t->SendEncrypted(proto::AppPacketType::AuthResponse, &resp, sizeof(resp));
                 }
                 if (outNegotiatedProfile)

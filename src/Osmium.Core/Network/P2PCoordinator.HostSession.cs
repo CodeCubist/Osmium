@@ -124,7 +124,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     hostEncrypt);
 
                 ConnectAuthEventArgs authMsg;
-                using (var authTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                using (var authTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
                 using (authTimeout.Token.Register(() => authTcs.TrySetCanceled()))
                 {
                     try
@@ -165,7 +165,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     AppVersionInfo.Current);
 
                 VersionCheckResultEventArgs versionRes;
-                using (var verTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                using (var verTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
                 using (verTimeout.Token.Register(() => versionResultTcs.TrySetCanceled()))
                 {
                     try
@@ -197,14 +197,32 @@ public sealed partial class P2PCoordinator : IDisposable
                     return;
                 }
 
-                await _signaling.SendBridgeCandidatesAsync(args.SessionId, candSb.ToString());
+                string localCandidatesJson = candSb.ToString();
+                await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
 
                 BridgeReadyEventArgs bridge;
-                using (var bridgeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                using (var bridgeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18)))
                 using (bridgeTimeout.Token.Register(() => bridgeReadyTcs.TrySetCanceled()))
                 {
                     try
                     {
+                        while (!bridgeReadyTcs.Task.IsCompleted && !bridgeTimeout.IsCancellationRequested)
+                        {
+                            using var retryDelayCts = CancellationTokenSource.CreateLinkedTokenSource(bridgeTimeout.Token);
+                            var retryDelay = Task.Delay(TimeSpan.FromSeconds(4), retryDelayCts.Token);
+                            var step = await Task.WhenAny(bridgeReadyTcs.Task, retryDelay);
+                            if (step == bridgeReadyTcs.Task)
+                            {
+                                retryDelayCts.Cancel();
+                                break;
+                            }
+
+                            if (!bridgeTimeout.IsCancellationRequested)
+                            {
+                                await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+                            }
+                        }
+
                         bridge = await bridgeReadyTcs.Task;
                     }
                     catch (OperationCanceledException)
@@ -221,7 +239,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     sessionToken,
                     2,
                     bridge.CandidatesJson,
-                    2400,
+                    6000,
                     out transportRoute,
                     epSb,
                     epSb.Capacity);
@@ -245,7 +263,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     tempTag,
                     fixedTag,
                     hasFixed ? 1 : 0,
-                    8000,
+                    12000,
                     out negotiatedProfile);
 
                 if (authOk != 1)

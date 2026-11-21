@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
@@ -369,9 +370,11 @@ public sealed partial class SignalingClient : IDisposable
     private const int OfflineFailureThreshold = 3;
     private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan HeartbeatRetryDelay = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(8);
-    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan HeartbeatRetryDelay = TimeSpan.FromMilliseconds(1500);
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromMilliseconds(1500);
+    private const long StaleConnectAbortMinAgeMs = 800;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -382,10 +385,16 @@ public sealed partial class SignalingClient : IDisposable
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly object _stateLock = new();
     private readonly object _heartbeatLock = new();
+    private readonly object _wakeLock = new();
 
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
+    private CancellationTokenSource? _reconnectDelayWakeCts;
+    private CancellationTokenSource? _activeConnectWakeCts;
+    private CancellationTokenSource? _heartbeatWakeCts;
+    private long _activeConnectStartedTickMs;
+    private int _disposed;
     private volatile bool _isTransportRegistered;
     private int _consecutiveFailures;
     private TaskCompletionSource<bool>? _pendingRegister;
@@ -446,6 +455,8 @@ public sealed partial class SignalingClient : IDisposable
     public SignalingClient(LoggingService log)
     {
         _log = log;
+        NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
+        NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
     }
 
     public static string NormalizeServerUrl(string? raw)
@@ -713,20 +724,46 @@ public sealed partial class SignalingClient : IDisposable
         string json = JsonSerializer.Serialize(payload);
         byte[] bytes = Encoding.UTF8.GetBytes(json);
 
-        await _sendLock.WaitAsync(ct);
+        using var sendTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        sendTimeoutCts.CancelAfter(SendTimeout);
+        CancellationToken sendToken = sendTimeoutCts.Token;
+
+        bool lockAcquired = false;
         try
         {
+            await _sendLock.WaitAsync(sendToken);
+            lockAcquired = true;
+
             if (ws.State == WebSocketState.Open)
             {
-                await ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
+                await ws.SendAsync(bytes, WebSocketMessageType.Text, true, sendToken);
                 return true;
+            }
+
+            return false;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            try
+            {
+                ws.Abort();
+            }
+            catch
+            {
             }
 
             return false;
         }
         finally
         {
-            _sendLock.Release();
+            if (lockAcquired)
+            {
+                _sendLock.Release();
+            }
         }
     }
 }

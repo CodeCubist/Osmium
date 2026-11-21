@@ -363,7 +363,9 @@ namespace osmium
                 memcpy(rfcReq + 8, &reqId, 8);
                 memcpy(rfcReq + 16, m_NoncePrefix, 4);
 
-                for (int attempt = 0; attempt < 3; ++attempt)
+                static constexpr uint64_t kStunWaitBudgetsMs[] = {250, 350, 500, 700, 900};
+                bool stunResolved = false;
+                for (int attempt = 0; attempt < 5 && !stunResolved; ++attempt)
                 {
                     if (useRfc5389)
                     {
@@ -374,18 +376,28 @@ namespace osmium
                         RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), osmReq, sizeof(osmReq));
                     }
 
-                    fd_set rfds;
-                    FD_ZERO(&rfds);
-                    FD_SET(m_Sock4, &rfds);
-                    timeval tv{0, 220000};
-                    int sel = select(0, &rfds, nullptr, nullptr, &tv);
-                    if (sel > 0)
+                    const uint64_t attemptDeadline = NowMillis() + kStunWaitBudgetsMs[attempt];
+                    while (!stunResolved)
                     {
+                        uint64_t nowMs = NowMillis();
+                        if (nowMs >= attemptDeadline) break;
+                        uint64_t remMs = attemptDeadline - nowMs;
+
+                        fd_set rfds;
+                        FD_ZERO(&rfds);
+                        FD_SET(m_Sock4, &rfds);
+                        timeval tv{};
+                        tv.tv_sec = static_cast<long>(remMs / 1000);
+                        tv.tv_usec = static_cast<long>((remMs % 1000) * 1000);
+                        int sel = select(0, &rfds, nullptr, nullptr, &tv);
+                        if (sel <= 0) break;
+
                         uint8_t resp[256]{};
                         sockaddr_in from{};
                         int fromLen = sizeof(from);
                         int n = recvfrom(m_Sock4, reinterpret_cast<char*>(resp), sizeof(resp), 0,
                                          reinterpret_cast<sockaddr*>(&from), &fromLen);
+                        if (n <= 0) continue;
 
                         uint16_t mappedPort = 0;
                         uint8_t mappedIpBytes[4]{};
@@ -465,7 +477,7 @@ namespace osmium
                             {
                                 OSM_LOG_WARN("Ignored STUN mapped address inside carrier/reserved NAT range");
                             }
-                            break;
+                            stunResolved = true;
                         }
                     }
                 }
@@ -653,8 +665,8 @@ namespace osmium
         memcpy(punchAckPkt + 8, m_SessionToken, 16);
 
         const uint64_t tStart = NowMillis();
-        const uint64_t tStartTier2 = hasTier1 ? 120ULL : 0ULL;
-        const uint64_t tStartTier3 = tStartTier2 + (hasTier2 ? 380ULL : 0ULL);
+        const uint64_t tStartTier2 = hasTier1 ? 100ULL : 0ULL;
+        const uint64_t tStartTier3 = tStartTier2 + (hasTier2 ? 250ULL : 0ULL);
         const uint64_t deadline = tStart + static_cast<uint64_t>(std::max(600, punchTimeoutMs));
 
         uint64_t lastBlastMs = 0;
@@ -673,7 +685,8 @@ namespace osmium
             if (ackGraceDeadline > 0 && now >= ackGraceDeadline) break;
 
             uint64_t elapsed = now - tStart;
-            if (now - lastBlastMs >= 45)
+            const uint64_t blastIntervalMs = elapsed < 1200ULL ? 45ULL : (elapsed < 3000ULL ? 85ULL : 140ULL);
+            if (lastBlastMs == 0 || now - lastBlastMs >= blastIntervalMs)
             {
                 lastBlastMs = now;
                 for (const auto& cand : peerCandidates)
@@ -770,8 +783,9 @@ namespace osmium
             return false;
         }
 
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 4; ++i)
         {
+            if (i > 0) Sleep(10);
             RawSendTo(bestSock, bestPeer, bestPeerLen, punchAckPkt, sizeof(punchAckPkt));
         }
 
