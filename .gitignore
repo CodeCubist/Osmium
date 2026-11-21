@@ -498,9 +498,27 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 
-# Keep drivers and app publish profiles
+# Keep drivers, Opus architecture sources, and app publish profiles
 !native/drivers/
 !native/drivers/**
+!native/deps/opus/celt/x86/
+!native/deps/opus/celt/x86/**
+!native/deps/opus/celt/arm/
+!native/deps/opus/celt/arm/**
+!native/deps/opus/dnn/x86/
+!native/deps/opus/dnn/x86/**
+!native/deps/opus/dnn/arm/
+!native/deps/opus/dnn/arm/**
+!native/deps/opus/silk/x86/
+!native/deps/opus/silk/x86/**
+!native/deps/opus/silk/arm/
+!native/deps/opus/silk/arm/**
+!native/deps/opus/silk/fixed/x86/
+!native/deps/opus/silk/fixed/x86/**
+!native/deps/opus/silk/fixed/arm/
+!native/deps/opus/silk/fixed/arm/**
+!native/deps/opus/silk/float/x86/
+!native/deps/opus/silk/float/x86/**
 !src/Osmium.App/Properties/PublishProfiles/*.pubxml
 
 # Cloudflare Wrangler & temporary folders
