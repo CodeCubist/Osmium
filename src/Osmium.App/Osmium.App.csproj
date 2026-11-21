@@ -16,7 +16,7 @@
         <ApplicationIcon>..\..\assets\osmium.ico</ApplicationIcon>
         <Platforms>x64</Platforms>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-        <SelfContained>false</SelfContained>
+        <SelfContained>true</SelfContained>
         <UseWinUI>true</UseWinUI>
         <WindowsPackageType>None</WindowsPackageType>
         <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>

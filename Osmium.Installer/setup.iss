@@ -53,11 +53,6 @@ Name: "chs"; MessagesFile: "ChineseSimplified.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-chs.DownloadingDotNet=正在获取必要组件 (Microsoft .NET 8.0 桌面运行时)...
-chs.InstallingDotNet=正在部署必要组件 (Microsoft .NET 8.0 桌面运行时)，请稍候...
-chs.InstallFailed=必要组件 (.NET 8.0 桌面运行时) 部署未成功。此组件为运行该程序所必需，请稍后手动安装。主程序将继续安装。
-chs.DownloadFailed=无法获取必要组件 (.NET 8.0 桌面运行时)。请检查网络连接状态，或稍后手动完成安装。主程序将继续安装。
-
 chs.DownloadingVC=正在获取必要组件 (Visual C++ v14 Redistributable)...
 chs.InstallingVC=正在部署必要组件 (Visual C++ v14 Redistributable)，请稍候...
 chs.InstallFailedVC=必要组件 (Visual C++ v14 Redistributable) 部署未成功。请稍后手动安装环境，主程序将继续安装。
@@ -70,11 +65,6 @@ chs.DownloadFailedWebView2=无法获取必要组件 (Microsoft Edge WebView2 运
 
 chs.RuntimeExecFailed=必要组件安装程序无法执行。请稍后手动安装环境，主程序将继续安装。
 chs.InstallingDrivers=正在部署虚拟外设与手柄驱动，请稍候...
-
-en.DownloadingDotNet=Retrieving prerequisite (Microsoft .NET 8.0 Desktop Runtime)...
-en.InstallingDotNet=Deploying prerequisite (Microsoft .NET 8.0 Desktop Runtime), please wait...
-en.InstallFailed=The deployment of the prerequisite (.NET 8.0 Desktop Runtime) was unsuccessful. This component is required; please install it manually later. The main installation will now continue.
-en.DownloadFailed=Unable to retrieve the prerequisite (.NET 8.0 Desktop Runtime). Please verify your network connection or install it manually later. The main installation will now continue.
 
 en.DownloadingVC=Retrieving prerequisite (Visual C++ v14 Redistributable)...
 en.InstallingVC=Deploying prerequisite (Visual C++ v14 Redistributable), please wait...
@@ -130,40 +120,6 @@ Type: dirifempty;     Name: "{app}"
 var
   GDesktopIconExists: Boolean;
   DownloadPage: TDownloadWizardPage;
-
-function IsDotNet8DesktopRuntimeInstalled: Boolean;
-var
-  FindRec: TFindRec;
-  Names: TArrayOfString;
-  I: Integer;
-begin
-  Result := False;
-  if FindFirst(ExpandConstant('{pf64}\dotnet\shared\Microsoft.WindowsDesktop.App\8.0.*'), FindRec) then
-  begin
-    try
-      repeat
-        if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
-        begin
-          Result := True;
-          Exit;
-        end;
-      until not FindNext(FindRec);
-    finally
-      FindClose(FindRec);
-    end;
-  end;
-  if RegGetValueNames(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App', Names) then
-  begin
-    for I := 0 to GetArrayLength(Names) - 1 do
-    begin
-      if Pos('8.0.', Names[I]) = 1 then
-      begin
-        Result := True;
-        Exit;
-      end;
-    end;
-  end;
-end;
 
 function IsVCRedistInstalled: Boolean;
 var
@@ -264,36 +220,10 @@ begin
 
   if CurPageID = wpReady then
   begin
-    if (not IsDotNet8DesktopRuntimeInstalled()) or (not IsVCRedistInstalled()) or NeedWebView2Update() then
+    if (not IsVCRedistInstalled()) or NeedWebView2Update() then
     begin
       DownloadPage.Show;
       try
-        if not IsDotNet8DesktopRuntimeInstalled() then
-        begin
-          DownloadPage.Clear;
-          DownloadPage.Add('https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe', 'dotnet-desktop-runtime.exe', '');
-          try
-            DownloadPage.SetText(ExpandConstant('{cm:DownloadingDotNet}'), '');
-            DownloadPage.Download;
-            DownloadPage.SetText(ExpandConstant('{cm:InstallingDotNet}'), '');
-
-            if Exec(ExpandConstant('{tmp}\dotnet-desktop-runtime.exe'), '/install /passive /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
-            begin
-              if (ResultCode <> 0) and (ResultCode <> 1641) and (ResultCode <> 3010) then
-              begin
-                 MsgBox(ExpandConstant('{cm:InstallFailed}'), mbError, MB_OK);
-              end;
-            end
-            else
-            begin
-              MsgBox(ExpandConstant('{cm:RuntimeExecFailed}'), mbError, MB_OK);
-            end;
-          except
-            if not DownloadPage.AbortedByUser then
-              MsgBox(ExpandConstant('{cm:DownloadFailed}'), mbError, MB_OK);
-          end;
-        end;
-
         if not IsVCRedistInstalled() then
         begin
           DownloadPage.Clear;
