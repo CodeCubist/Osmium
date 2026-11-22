@@ -59,7 +59,8 @@ namespace osmium
             const uint8_t* data,
             size_t len,
             const OsmiumClientStats& statsSnapshot,
-            double& outDecodeMs);
+            double& outDecodeMs,
+            bool forceImmediatePresent = false);
 
         void UpdateOverlayStats(const OsmiumClientStats& statsSnapshot);
 
@@ -76,8 +77,8 @@ namespace osmium
         bool InitVideoProcessor(int srcW, int srcH, DXGI_FORMAT srcFmt, bool srcHdr);
         bool InitQuadRenderer();
         bool EnsureDecoder(proto::VideoCodecId codecId, int width, int height, uint8_t colorFlags, bool isKeyFrame);
-        bool PresentD3D11Frame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats);
-        bool PresentSoftwareFrame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats);
+        bool PresentD3D11Frame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats, bool forceImmediatePresent);
+        bool PresentSoftwareFrame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats, bool forceImmediatePresent);
         bool RenderHwSurfaceLocked(ID3D11Texture2D* srcTex, UINT subresource, int frameW, int frameH, bool srcHdr,
                                    UINT syncInterval, const OsmiumClientStats* stats);
         bool RenderBgraQuadLocked(int fw, int fh, bool srcHdr, UINT syncInterval, const OsmiumClientStats* stats);

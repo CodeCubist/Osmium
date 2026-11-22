@@ -614,6 +614,7 @@
   <data name="Conn_BlockedWhileHost" xml:space="preserve"><value>Cannot control other devices while this computer is being remotely controlled</value></data>
   <data name="Session_RouteRelay" xml:space="preserve"><value>Cloud Relay</value></data>
   <data name="Conn_SwitchingRelay" xml:space="preserve"><value>Direct connection unavailable, switching to Cloud Relay...</value></data>
+  <data name="Conn_PunchRetryingFmt" xml:space="preserve"><value>Retrying direct connection ({0}/{1})...</value></data>
   <data name="Conn_VerifyingRelay" xml:space="preserve"><value>Cloud relay active, verifying access code...</value></data>
   <data name="Session_ControlCenter" xml:space="preserve"><value>Control Center</value></data>
   <data name="Session_MenuDisplay" xml:space="preserve"><value>Display</value></data>

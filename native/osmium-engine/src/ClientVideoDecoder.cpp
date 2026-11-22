@@ -50,7 +50,7 @@ VSOut main(uint vid : SV_VertexID) {
 
         const char* kQuadPsSource = R"(
 cbuffer CbQuad : register(b0) {
-    uint quadMode; // 0 = sRGB->sRGB, 1 = PQ->PQ, 2 = PQ->sRGB tonemap, 3 = sRGB->PQ (200 nits ref)
+    uint quadMode;
     float sdrRefNits;
     float2 pad;
 };
@@ -892,10 +892,6 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             (colorFlags != m_CurrentColorFlags && isKeyFrame));
         if (!streamChanged)
         {
-            if (m_NeedsKeyframe && !isKeyFrame)
-            {
-                return false;
-            }
             return true;
         }
 
@@ -941,8 +937,9 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
 
         m_CodecCtx->width = width;
         m_CodecCtx->height = height;
-        m_CodecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-        m_CodecCtx->flags2 |= AV_CODEC_FLAG2_FAST;
+        m_CodecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY | AV_CODEC_FLAG_OUTPUT_CORRUPT;
+        m_CodecCtx->flags2 |= AV_CODEC_FLAG2_FAST | AV_CODEC_FLAG2_SHOW_ALL;
+        m_CodecCtx->err_recognition = 0;
 
         bool useHw = (m_DecoderPref != 2);
         m_IsHardware = false;
@@ -1006,7 +1003,8 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         const uint8_t* data,
         size_t len,
         const OsmiumClientStats& statsSnapshot,
-        double& outDecodeMs)
+        double& outDecodeMs,
+        bool forceImmediatePresent)
     {
         std::lock_guard<std::mutex> lock(m_RenderMutex);
         outDecodeMs = 0.0;
@@ -1024,9 +1022,12 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         int err = avcodec_send_packet(m_CodecCtx, m_Pkt);
         if (err < 0)
         {
-            avcodec_flush_buffers(m_CodecCtx);
-            m_NeedsKeyframe = true;
-            m_ConsecutiveNoOutput = 0;
+            m_ConsecutiveNoOutput++;
+            if (m_ConsecutiveNoOutput >= 4)
+            {
+                avcodec_flush_buffers(m_CodecCtx);
+                m_ConsecutiveNoOutput = 0;
+            }
             return false;
         }
 
@@ -1040,10 +1041,13 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             }
             if (err < 0)
             {
-                avcodec_flush_buffers(m_CodecCtx);
-                m_NeedsKeyframe = true;
-                m_ConsecutiveNoOutput = 0;
-                return false;
+                m_ConsecutiveNoOutput++;
+                if (m_ConsecutiveNoOutput >= 4)
+                {
+                    avcodec_flush_buffers(m_CodecCtx);
+                    m_ConsecutiveNoOutput = 0;
+                }
+                return renderedAny;
             }
 
             const bool srcHdr = ((colorFlags & proto::kVideoFlagHdr) != 0) &&
@@ -1055,18 +1059,18 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
 
             if (m_Frame->format == AV_PIX_FMT_D3D11)
             {
-                if (!PresentD3D11Frame(m_Frame, srcHdr, statsSnapshot))
+                if (!PresentD3D11Frame(m_Frame, srcHdr, statsSnapshot, forceImmediatePresent))
                 {
                     av_frame_unref(m_SwFrame);
                     if (av_hwframe_transfer_data(m_SwFrame, m_Frame, 0) >= 0)
                     {
-                        PresentSoftwareFrame(m_SwFrame, srcHdr, statsSnapshot);
+                        PresentSoftwareFrame(m_SwFrame, srcHdr, statsSnapshot, forceImmediatePresent);
                     }
                 }
             }
             else
             {
-                PresentSoftwareFrame(m_Frame, srcHdr, statsSnapshot);
+                PresentSoftwareFrame(m_Frame, srcHdr, statsSnapshot, forceImmediatePresent);
             }
             renderedAny = true;
             av_frame_unref(m_Frame);
@@ -1081,9 +1085,10 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         if (err == AVERROR(EAGAIN))
         {
             m_ConsecutiveNoOutput++;
-            if (m_ConsecutiveNoOutput >= 3)
+            if (m_ConsecutiveNoOutput >= 4)
             {
-                m_NeedsKeyframe = true;
+                avcodec_flush_buffers(m_CodecCtx);
+                m_ConsecutiveNoOutput = 0;
                 return false;
             }
             return true;
@@ -1210,13 +1215,15 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         return true;
     }
 
-    bool ClientVideoDecoder::PresentD3D11Frame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats)
+    bool ClientVideoDecoder::PresentD3D11Frame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats,
+                                               bool forceImmediatePresent)
     {
         auto* srcTex = reinterpret_cast<ID3D11Texture2D*>(frame->data[0]);
         UINT subresource = static_cast<UINT>(reinterpret_cast<intptr_t>(frame->data[1]));
         if (!srcTex) return false;
 
-        if (!RenderHwSurfaceLocked(srcTex, subresource, frame->width, frame->height, srcHdr, m_Vsync.load() ? 1U : 0U,
+        const UINT syncInterval = (forceImmediatePresent || !m_Vsync.load()) ? 0U : 1U;
+        if (!RenderHwSurfaceLocked(srcTex, subresource, frame->width, frame->height, srcHdr, syncInterval,
                                    &stats))
         {
             return false;
@@ -1328,7 +1335,8 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         return true;
     }
 
-    bool ClientVideoDecoder::PresentSoftwareFrame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats)
+    bool ClientVideoDecoder::PresentSoftwareFrame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats,
+                                                  bool forceImmediatePresent)
     {
         if (!m_SwapChain || !m_BackbufferRtv || !m_VS || !m_PS) return false;
 
@@ -1392,7 +1400,8 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             m_Context->Unmap(m_BgraTex.Get(), 0);
         }
 
-        if (!RenderBgraQuadLocked(fw, fh, srcHdr, m_Vsync.load() ? 1U : 0U, &stats))
+        const UINT syncInterval = (forceImmediatePresent || !m_Vsync.load()) ? 0U : 1U;
+        if (!RenderBgraQuadLocked(fw, fh, srcHdr, syncInterval, &stats))
         {
             return false;
         }

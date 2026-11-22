@@ -62,6 +62,7 @@ namespace osmium::proto
 
     constexpr uint8_t kVideoFlagHdr = 0x01;
     constexpr uint8_t kVideoFlagYuv444 = 0x02;
+    constexpr uint8_t kAppFlagHasActionSeq = 0x01;
 
     enum class MouseModeId : int32_t
     {

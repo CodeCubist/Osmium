@@ -178,6 +178,7 @@ namespace osmium
         m_Sock6 = INVALID_SOCKET;
         m_ActiveSock = INVALID_SOCKET;
         m_UdpConnected.store(false, std::memory_order_release);
+        m_PunchAttemptCount = 0;
         if (s4 != INVALID_SOCKET) closesocket(s4);
         if (s6 != INVALID_SOCKET && s6 != s4) closesocket(s6);
     }
@@ -378,6 +379,11 @@ namespace osmium
 
             sockaddr_in stunAddr4{};
             if (!ResolveIPv4(target.host.c_str(), target.port, stunAddr4)) continue;
+            if (!m_HasStunKeepaliveAddr)
+            {
+                m_StunKeepaliveAddr = stunAddr4;
+                m_HasStunKeepaliveAddr = true;
+            }
 
             sockaddr_storage stunSs{};
             memcpy(&stunSs, &stunAddr4, sizeof(sockaddr_in));
@@ -653,11 +659,66 @@ namespace osmium
     {
         if (m_Sock4 == INVALID_SOCKET || !sessionToken) return false;
 
+        const int32_t attempt = ++m_PunchAttemptCount;
         memcpy(m_SessionToken, sessionToken, 16);
         m_LocalRole = localRole;
         outTransportRoute = 0;
 
+        u_long nbInit = 1;
+        ioctlsocket(m_Sock4, FIONBIO, &nbInit);
+        if (m_Sock6 != INVALID_SOCKET)
+        {
+            ioctlsocket(m_Sock6, FIONBIO, &nbInit);
+        }
+
         auto peerCandidates = ParseCandidatesJson(peerCandidatesJson);
+        if (attempt >= 3 && !peerCandidates.empty())
+        {
+            std::vector<CandidateEndpoint> expanded;
+            for (const auto& c : peerCandidates)
+            {
+                if (c.tier != 3 || c.addr.ss_family != AF_INET) continue;
+                const auto* baseSa = reinterpret_cast<const sockaddr_in*>(&c.addr);
+                const int basePort = ntohs(baseSa->sin_port);
+                static constexpr int kOffsets[] = {-1, 1, 2};
+                for (int off : kOffsets)
+                {
+                    int p = basePort + off;
+                    if (p <= 0 || p > 65535) continue;
+                    CandidateEndpoint extra = c;
+                    reinterpret_cast<sockaddr_in*>(&extra.addr)->sin_port = htons(static_cast<uint16_t>(p));
+                    bool exists = false;
+                    for (const auto& cur : peerCandidates)
+                    {
+                        if (IsSameAddr(cur.addr, extra.addr))
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists)
+                    {
+                        for (const auto& cur : expanded)
+                        {
+                            if (IsSameAddr(cur.addr, extra.addr))
+                            {
+                                exists = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!exists)
+                    {
+                        expanded.push_back(extra);
+                    }
+                }
+            }
+            for (auto& ex : expanded)
+            {
+                peerCandidates.push_back(std::move(ex));
+            }
+        }
+
         bool hasTier1 = false, hasTier2 = false, hasTier3 = false;
         {
             std::string pLan4, pPub6, pSrflx;
@@ -690,6 +751,22 @@ namespace osmium
             return false;
         }
 
+        if (attempt >= 2 && m_HasStunKeepaliveAddr)
+        {
+            uint8_t keepReq[20]{};
+            uint64_t reqId = NowMicros();
+            keepReq[1] = 0x01;
+            keepReq[4] = 0x21;
+            keepReq[5] = 0x12;
+            keepReq[6] = 0xA4;
+            keepReq[7] = 0x42;
+            memcpy(keepReq + 8, &reqId, 8);
+            memcpy(keepReq + 16, m_NoncePrefix, 4);
+            sockaddr_storage stunSs{};
+            memcpy(&stunSs, &m_StunKeepaliveAddr, sizeof(sockaddr_in));
+            RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), keepReq, sizeof(keepReq));
+        }
+
         uint8_t punchPkt[24]{};
         memcpy(punchPkt, proto::kMagic, 4);
         punchPkt[4] = proto::kVersion;
@@ -705,8 +782,8 @@ namespace osmium
         memcpy(punchAckPkt + 8, m_SessionToken, 16);
 
         const uint64_t tStart = NowMillis();
-        const uint64_t tStartTier2 = hasTier1 ? 100ULL : 0ULL;
-        const uint64_t tStartTier3 = tStartTier2 + (hasTier2 ? 250ULL : 0ULL);
+        const uint64_t tStartTier2 = (attempt == 1 && hasTier1) ? 80ULL : 0ULL;
+        const uint64_t tStartTier3 = (attempt == 1) ? (tStartTier2 + (hasTier2 ? 180ULL : 0ULL)) : 0ULL;
         const uint64_t deadline = tStart + static_cast<uint64_t>(std::max(600, punchTimeoutMs));
 
         uint64_t lastBlastMs = 0;
@@ -725,7 +802,7 @@ namespace osmium
             if (ackGraceDeadline > 0 && now >= ackGraceDeadline) break;
 
             uint64_t elapsed = now - tStart;
-            const uint64_t blastIntervalMs = elapsed < 1200ULL ? 45ULL : (elapsed < 3000ULL ? 85ULL : 140ULL);
+            const uint64_t blastIntervalMs = elapsed < 1000ULL ? 35ULL : (elapsed < 2200ULL ? 65ULL : 110ULL);
             if (lastBlastMs == 0 || now - lastBlastMs >= blastIntervalMs)
             {
                 lastBlastMs = now;
@@ -751,7 +828,7 @@ namespace osmium
             FD_SET(m_Sock4, &rfds);
             if (m_Sock6 != INVALID_SOCKET)
                 FD_SET(m_Sock6, &rfds);
-            timeval tv{0, 30000};
+            timeval tv{0, 20000};
             int sel = select(0, &rfds, nullptr, nullptr, &tv);
             if (sel > 0)
             {
@@ -759,60 +836,65 @@ namespace osmium
                 for (SOCKET rs : readySocks)
                 {
                     if (rs == INVALID_SOCKET || !FD_ISSET(rs, &rfds)) continue;
-                    uint8_t buf[2048];
-                    sockaddr_storage from{};
-                    int fromLen = sizeof(from);
-                    int n = recvfrom(rs, reinterpret_cast<char*>(buf), sizeof(buf), 0,
-                                     reinterpret_cast<sockaddr*>(&from), &fromLen);
-                    if (n >= 24 && memcmp(buf, proto::kMagic, 4) == 0 && buf[4] == proto::kVersion)
+                    for (int drain = 0; drain < 32; ++drain)
                     {
-                        auto type = static_cast<proto::WireMsgType>(buf[5]);
-                        if ((type == proto::WireMsgType::Punch || type == proto::WireMsgType::PunchAck) &&
-                            memcmp(buf + 8, m_SessionToken, 16) == 0 &&
-                            buf[6] != static_cast<uint8_t>(localRole))
+                        uint8_t buf[2048];
+                        sockaddr_storage from{};
+                        int fromLen = sizeof(from);
+                        int n = recvfrom(rs, reinterpret_cast<char*>(buf), sizeof(buf), 0,
+                                         reinterpret_cast<sockaddr*>(&from), &fromLen);
+                        if (n <= 0) break;
+                        if (n >= 24 && memcmp(buf, proto::kMagic, 4) == 0 && buf[4] == proto::kVersion)
                         {
-                            int tier = ClassifySockAddrTier(from);
-                            for (const auto& c : peerCandidates)
+                            auto type = static_cast<proto::WireMsgType>(buf[5]);
+                            if ((type == proto::WireMsgType::Punch || type == proto::WireMsgType::PunchAck) &&
+                                memcmp(buf + 8, m_SessionToken, 16) == 0 &&
+                                buf[6] != static_cast<uint8_t>(localRole))
                             {
-                                if (IsSameAddr(c.addr, from))
+                                int tier = ClassifySockAddrTier(from);
+                                for (const auto& c : peerCandidates)
                                 {
-                                    tier = c.tier;
-                                    break;
+                                    if (IsSameAddr(c.addr, from))
+                                    {
+                                        tier = c.tier;
+                                        break;
+                                    }
                                 }
-                            }
 
-                            RawSendTo(rs, from, fromLen, punchAckPkt, sizeof(punchAckPkt));
+                                RawSendTo(rs, from, fromLen, punchAckPkt, sizeof(punchAckPkt));
 
-                            if (!receivedPunch || tier < bestTier)
-                            {
-                                bestTier = tier;
-                                bestPeer = from;
-                                bestPeerLen = fromLen;
-                                bestSock = rs;
-                                receivedPunch = true;
-                            }
-                            if (type == proto::WireMsgType::PunchAck)
-                            {
-                                if (!receivedAck || tier < bestTier)
+                                if (!receivedPunch || tier < bestTier)
                                 {
-                                    receivedAck = true;
                                     bestTier = tier;
                                     bestPeer = from;
                                     bestPeerLen = fromLen;
                                     bestSock = rs;
+                                    receivedPunch = true;
                                 }
-                                if (bestTier == 1 || (!hasTier1 && bestTier == 2))
+                                if (type == proto::WireMsgType::PunchAck)
                                 {
-                                    ackGraceDeadline = NowMillis();
-                                    break;
-                                }
-                                else if (ackGraceDeadline == 0)
-                                {
-                                    ackGraceDeadline = NowMillis() + 50;
+                                    if (!receivedAck || tier < bestTier)
+                                    {
+                                        receivedAck = true;
+                                        bestTier = tier;
+                                        bestPeer = from;
+                                        bestPeerLen = fromLen;
+                                        bestSock = rs;
+                                    }
+                                    if (bestTier == 1 || (!hasTier1 && bestTier == 2))
+                                    {
+                                        ackGraceDeadline = NowMillis();
+                                        break;
+                                    }
+                                    else if (ackGraceDeadline == 0)
+                                    {
+                                        ackGraceDeadline = NowMillis() + 50;
+                                    }
                                 }
                             }
                         }
                     }
+                    if (ackGraceDeadline > 0 && NowMillis() >= ackGraceDeadline) break;
                 }
             }
         }
@@ -1284,6 +1366,7 @@ namespace osmium
         m_Sock6 = INVALID_SOCKET;
         m_ActiveSock = INVALID_SOCKET;
         m_UdpConnected.store(false, std::memory_order_release);
+        m_PunchAttemptCount = 0;
         if (s4 != INVALID_SOCKET) closesocket(s4);
         if (s6 != INVALID_SOCKET && s6 != s4) closesocket(s6);
 
@@ -1467,13 +1550,17 @@ namespace osmium
                 fn = m_RelaySendFn;
             }
             if (!fn || m_Closed.load()) return false;
-            bool isDroppable = false;
+            int32_t dropGroupId = 0;
             if (pktType == proto::AppPacketType::VideoChunk && payloadLen >= sizeof(proto::VideoChunkHeader))
             {
                 const auto* vhdr = reinterpret_cast<const proto::VideoChunkHeader*>(payload);
-                isDroppable = (vhdr->isKeyFrame == 0);
+                if (vhdr->isKeyFrame == 0)
+                {
+                    const uint32_t g = vhdr->frameId & 0x7FFFFFFFU;
+                    dropGroupId = static_cast<int32_t>(g == 0 ? 1U : g);
+                }
             }
-            return fn(wireBuf, wireLen, isDroppable);
+            return fn(wireBuf, wireLen, dropGroupId);
         }
 
         if (m_UdpConnected.load(std::memory_order_acquire))

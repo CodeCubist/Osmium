@@ -127,7 +127,7 @@ public sealed partial class P2PCoordinator : IDisposable
             _signaling.BridgeReady += OnBridgeReady;
             _signaling.RelayFallbackReceived += OnRelayFallback;
 
-            int transportRoute;
+            int transportRoute = 0;
             var epSb = new StringBuilder(128);
             OsmiumClientConfig negotiatedProfile;
             bool bridgeReadyReached = false;
@@ -252,15 +252,43 @@ public sealed partial class P2PCoordinator : IDisposable
 
                 aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
 
-                int punchOk = NativeMethods.Osmium_ConnectPeerP2P(
-                    transport,
-                    sessionToken,
-                    2,
-                    bridge.CandidatesJson,
-                    3500,
-                    out transportRoute,
-                    epSb,
-                    epSb.Capacity);
+                const int maxDirectAttempts = 3;
+                int punchOk = 0;
+                for (int attempt = 1; attempt <= maxDirectAttempts; attempt++)
+                {
+                    if (attempt > 1)
+                    {
+                        try
+                        {
+                            await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    long attemptStartMs = Environment.TickCount64;
+                    epSb.Clear();
+                    punchOk = await Task.Run(() => NativeMethods.Osmium_ConnectPeerP2P(
+                        transport,
+                        sessionToken,
+                        2,
+                        bridge.CandidatesJson,
+                        2500,
+                        out transportRoute,
+                        epSb,
+                        epSb.Capacity));
+
+                    if (punchOk != 0)
+                    {
+                        break;
+                    }
+
+                    if (Environment.TickCount64 - attemptStartMs < 200 || relayFallbackTcs.Task.IsCompleted)
+                    {
+                        break;
+                    }
+                }
 
                 async Task<bool> SwitchHostToCloudRelayAsync()
                 {
@@ -295,7 +323,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
                     var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
                     hostRelay = new CloudRelayTransport(transport, relayLabel, _log);
-                    bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 10000, CancellationToken.None);
+                    bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 12000, CancellationToken.None);
                     if (!relayOk)
                     {
                         hostRelay.Dispose();
@@ -309,7 +337,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     return true;
                 }
 
-                if (punchOk == 0 || relayFallbackTcs.Task.IsCompleted)
+                if (punchOk == 0)
                 {
                     if (!await SwitchHostToCloudRelayAsync())
                     {
@@ -324,7 +352,9 @@ public sealed partial class P2PCoordinator : IDisposable
                     NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                 }
 
-                int hostAuthTimeoutMs = transportRoute == 4 ? 12000 : 5000;
+                int hostAuthTimeoutMs = transportRoute == 4
+                    ? 12000
+                    : (relayFallbackTcs.Task.IsCompleted ? 2500 : 5500);
                 int authOk = NativeMethods.Osmium_WaitClientAuthHost(
                     transport,
                     tempTag,

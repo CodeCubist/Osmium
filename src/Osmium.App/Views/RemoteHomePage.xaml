@@ -5,8 +5,8 @@
     xmlns:helpers="using:Osmium.App.Helpers"
     NavigationCacheMode="Required">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="18" HorizontalAlignment="Stretch">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="-16,0,-16,0">
+        <StackPanel Spacing="18" HorizontalAlignment="Stretch" Margin="16,0,16,12">
 
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                 <Border x:Name="HostStatePill"
@@ -89,6 +89,8 @@
 
 
             <Grid>
+                <Border x:Name="HeroCardShadowHost" IsHitTestVisible="False" />
+
                 <Grid x:Name="HeroCardClipGrid" SizeChanged="HeroCardClipGrid_SizeChanged">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="240" />

@@ -23,7 +23,7 @@ namespace osmium
         CloudRelay = 4
     };
 
-    using RelaySendFunc = std::function<bool(const uint8_t* data, size_t len, bool isDroppable)>;
+    using RelaySendFunc = std::function<bool(const uint8_t* data, size_t len, int32_t dropGroupId)>;
 
     struct CandidateEndpoint
     {
@@ -107,6 +107,9 @@ namespace osmium
         uint16_t m_LocalPort6 = 0;
         std::atomic<uint16_t> m_ActiveLocalPort{0};
         bool m_HasPublicV6 = false;
+        sockaddr_in m_StunKeepaliveAddr{};
+        bool m_HasStunKeepaliveAddr = false;
+        int32_t m_PunchAttemptCount = 0;
 
         uint8_t m_SessionToken[16]{};
         proto::PeerRole m_LocalRole = proto::PeerRole::Client;

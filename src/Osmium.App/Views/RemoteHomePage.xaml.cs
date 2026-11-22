@@ -22,6 +22,7 @@ public sealed partial class RemoteHomePage : Page
     private Storyboard? _wallpaperFadeStoryboard;
     private Storyboard? _overlayFadeStoryboard;
     private readonly DispatcherTimer _hostDurationTimer = new();
+    private readonly HeroCardShadowController _heroShadow = new();
     private DateTimeOffset? _fallbackHostStartUtc;
 
     public RemoteHomePage()
@@ -32,7 +33,11 @@ public sealed partial class RemoteHomePage : Page
 
         Loaded += RemoteHomePage_Loaded;
         Unloaded += RemoteHomePage_Unloaded;
-        ActualThemeChanged += (_, _) => UpdateHeroWallpaper();
+        ActualThemeChanged += (_, _) =>
+        {
+            UpdateHeroWallpaper();
+            UpdateHeroRoundedClip();
+        };
         LocalizationService.LanguageChanged += () => DispatcherQueue.TryEnqueue(ApplyLocalization);
 
         PopupCornerHelper.AttachMenuFlyout(DeviceHeaderFlyout, HostStatePill);
@@ -141,6 +146,12 @@ public sealed partial class RemoteHomePage : Page
             geometry.Size = new Vector2((float)HeroCardClipGrid.ActualWidth, (float)HeroCardClipGrid.ActualHeight);
 
             visual.Clip = compositor.CreateGeometricClip(geometry);
+            _heroShadow.Update(
+                HeroCardShadowHost,
+                HeroCardClipGrid.ActualWidth,
+                HeroCardClipGrid.ActualHeight,
+                12f,
+                ActualTheme == ElementTheme.Dark);
         }
         catch
         {

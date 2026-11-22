@@ -27,6 +27,7 @@ public sealed partial class PeerDevicePage : Page
     private Storyboard? _overlayFadeStoryboard;
     private readonly DispatcherTimer _durationTimer = new();
     private readonly DispatcherTimer _cooldownTimer = new();
+    private readonly HeroCardShadowController _heroShadow = new();
     private Action<string>? _activeStageSink;
     private Action? _activeStreamStartedSink;
 
@@ -41,7 +42,11 @@ public sealed partial class PeerDevicePage : Page
 
         Loaded += PeerDevicePage_Loaded;
         Unloaded += PeerDevicePage_Unloaded;
-        ActualThemeChanged += (_, _) => _ = UpdateWallpaperAsync();
+        ActualThemeChanged += (_, _) =>
+        {
+            _ = UpdateWallpaperAsync();
+            UpdateHeroRoundedClip();
+        };
         LocalizationService.LanguageChanged += () => DispatcherQueue.TryEnqueue(() =>
         {
             ApplyLocalization();
@@ -126,6 +131,12 @@ public sealed partial class PeerDevicePage : Page
             geometry.CornerRadius = new Vector2(12f, 12f);
             geometry.Size = new Vector2((float)HeroCardClipGrid.ActualWidth, (float)HeroCardClipGrid.ActualHeight);
             visual.Clip = compositor.CreateGeometricClip(geometry);
+            _heroShadow.Update(
+                HeroCardShadowHost,
+                HeroCardClipGrid.ActualWidth,
+                HeroCardClipGrid.ActualHeight,
+                12f,
+                ActualTheme == ElementTheme.Dark);
         }
         catch
         {

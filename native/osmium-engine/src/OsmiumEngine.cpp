@@ -152,6 +152,73 @@ namespace
         return out;
     }
 
+    class ActionSeqDeduplicator
+    {
+    public:
+        bool Accept(uint16_t seq)
+        {
+            if (seq == 0) return true;
+            if (!m_HasSeq)
+            {
+                m_HasSeq = true;
+                m_MaxSeq = seq;
+                m_Window[0] = 1ULL;
+                m_Window[1] = 0ULL;
+                m_Window[2] = 0ULL;
+                m_Window[3] = 0ULL;
+                return true;
+            }
+
+            const int16_t diff = static_cast<int16_t>(seq - m_MaxSeq);
+            if (diff == 0) return false;
+            if (diff > 0)
+            {
+                const uint32_t shift = static_cast<uint32_t>(diff);
+                if (shift >= 256U)
+                {
+                    m_Window[0] = 1ULL;
+                    m_Window[1] = 0ULL;
+                    m_Window[2] = 0ULL;
+                    m_Window[3] = 0ULL;
+                }
+                else
+                {
+                    const uint32_t wordShift = shift / 64U;
+                    const uint32_t bitShift = shift % 64U;
+                    uint64_t next[4]{};
+                    for (uint32_t i = 0; i < 4U; ++i)
+                    {
+                        if (i + wordShift < 4U)
+                        {
+                            next[i + wordShift] |= (m_Window[i] << bitShift);
+                        }
+                        if (bitShift > 0U && i + wordShift + 1U < 4U)
+                        {
+                            next[i + wordShift + 1U] |= (m_Window[i] >> (64U - bitShift));
+                        }
+                    }
+                    memcpy(m_Window, next, sizeof(m_Window));
+                    m_Window[0] |= 1ULL;
+                }
+                m_MaxSeq = seq;
+                return true;
+            }
+
+            const uint32_t age = static_cast<uint32_t>(-static_cast<int32_t>(diff));
+            if (age >= 256U) return false;
+            const uint32_t wordIdx = age / 64U;
+            const uint64_t mask = 1ULL << (age % 64U);
+            if ((m_Window[wordIdx] & mask) != 0ULL) return false;
+            m_Window[wordIdx] |= mask;
+            return true;
+        }
+
+    private:
+        bool m_HasSeq = false;
+        uint16_t m_MaxSeq = 0;
+        uint64_t m_Window[4]{};
+    };
+
     struct HostSessionContext
     {
         OsmiumTransport* transport = nullptr;
@@ -165,6 +232,7 @@ namespace
         HostInputInjector injector;
         UsbIpVirtualDevices virtualUsb;
         HostSystemAgent systemAgent;
+        ActionSeqDeduplicator actionDedup;
 
         std::mutex cfgMutex;
         int32_t activeDisplayIndex = 0;
@@ -185,6 +253,7 @@ namespace
 
         std::atomic<bool> reconfigNeeded{false};
         std::atomic<bool> statusDirty{true};
+        std::atomic<bool> idrRecoveryPending{true};
         std::atomic<bool> stopFlag{false};
 
         std::atomic<uint32_t> frameIdCounter{1};
@@ -701,35 +770,49 @@ namespace
                         if (totalChunks > 65535) continue;
 
                         const bool paceUdpBurst = (!isRelayRoute && totalChunks > 12);
-                        uint64_t nextPaceUs = paceUdpBurst ? NowMicros() : 0;
+                        const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 48 &&
+                            ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
+                        const int passCount = sendKeyRedundantPass ? 2 : 1;
 
-                        for (size_t ci = 0; ci < totalChunks; ++ci)
+                        for (int pass = 0; pass < passCount; ++pass)
                         {
-                            size_t offset = ci * maxChunkPayload;
-                            size_t sliceLen = std::min(maxChunkPayload, ep.data.size() - offset);
-
-                            chunkBuf.resize(sizeof(proto::VideoChunkHeader) + sliceLen);
-                            auto* hdr = reinterpret_cast<proto::VideoChunkHeader*>(chunkBuf.data());
-                            memset(hdr, 0, sizeof(*hdr));
-                            hdr->frameId = frameId;
-                            hdr->chunkIndex = static_cast<uint16_t>(ci);
-                            hdr->totalChunks = static_cast<uint16_t>(totalChunks);
-                            hdr->codecId = static_cast<uint8_t>(ep.codecId);
-                            hdr->isKeyFrame = ep.isKeyFrame ? 1 : 0;
-                            hdr->width = static_cast<uint16_t>(ctx->encoder.GetOutWidth());
-                            hdr->height = static_cast<uint16_t>(ctx->encoder.GetOutHeight());
-                            hdr->colorFlags = cFlags;
-                            hdr->captureTimeUs = capFrame.captureTimeUs;
-                            memcpy(chunkBuf.data() + sizeof(proto::VideoChunkHeader), ep.data.data() + offset,
-                                   sliceLen);
-
-                            ctx->transport->SendEncrypted(proto::AppPacketType::VideoChunk, chunkBuf.data(),
-                                                          chunkBuf.size());
-                            ctx->bytesSentWindow.fetch_add(chunkBuf.size());
-                            if (paceUdpBurst && (ci % 6) == 5 && (ci + 1) < totalChunks)
+                            uint64_t nextPaceUs = paceUdpBurst ? NowMicros() : 0;
+                            for (size_t ci = 0; ci < totalChunks; ++ci)
                             {
-                                nextPaceUs = std::max(nextPaceUs + 120ULL, NowMicros() + 80ULL);
-                                while (NowMicros() < nextPaceUs)
+                                size_t offset = ci * maxChunkPayload;
+                                size_t sliceLen = std::min(maxChunkPayload, ep.data.size() - offset);
+
+                                chunkBuf.resize(sizeof(proto::VideoChunkHeader) + sliceLen);
+                                auto* hdr = reinterpret_cast<proto::VideoChunkHeader*>(chunkBuf.data());
+                                memset(hdr, 0, sizeof(*hdr));
+                                hdr->frameId = frameId;
+                                hdr->chunkIndex = static_cast<uint16_t>(ci);
+                                hdr->totalChunks = static_cast<uint16_t>(totalChunks);
+                                hdr->codecId = static_cast<uint8_t>(ep.codecId);
+                                hdr->isKeyFrame = ep.isKeyFrame ? 1 : 0;
+                                hdr->width = static_cast<uint16_t>(ctx->encoder.GetOutWidth());
+                                hdr->height = static_cast<uint16_t>(ctx->encoder.GetOutHeight());
+                                hdr->colorFlags = cFlags;
+                                hdr->captureTimeUs = capFrame.captureTimeUs;
+                                memcpy(chunkBuf.data() + sizeof(proto::VideoChunkHeader), ep.data.data() + offset,
+                                       sliceLen);
+
+                                ctx->transport->SendEncrypted(proto::AppPacketType::VideoChunk, chunkBuf.data(),
+                                                              chunkBuf.size());
+                                ctx->bytesSentWindow.fetch_add(chunkBuf.size());
+                                if (paceUdpBurst && (ci % 6) == 5 && (ci + 1) < totalChunks)
+                                {
+                                    nextPaceUs = std::max(nextPaceUs + 120ULL, NowMicros() + 80ULL);
+                                    while (NowMicros() < nextPaceUs)
+                                    {
+                                        _mm_pause();
+                                    }
+                                }
+                            }
+                            if (pass + 1 < passCount)
+                            {
+                                uint64_t gapUntil = NowMicros() + 300ULL;
+                                while (NowMicros() < gapUntil)
                                 {
                                     _mm_pause();
                                 }
@@ -822,11 +905,11 @@ namespace
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         std::vector<uint8_t> plain;
         uint64_t lastPeerRxMs = NowMillis();
-        constexpr uint64_t kClientKeepaliveTimeoutMs = 6000;
+        constexpr uint64_t kClientKeepaliveTimeoutMs = 8000;
 
         while (!ctx->stopFlag.load())
         {
-            int r = ctx->transport->ReceiveEncrypted(plain, 50);
+            int r = ctx->transport->ReceiveEncrypted(plain, 10);
             if (r < 0)
             {
                 if (!ctx->stopFlag.load() && ctx->callbacks.onEnded)
@@ -851,9 +934,19 @@ namespace
             }
 
             lastPeerRxMs = NowMillis();
+            const auto* appHdr = reinterpret_cast<const proto::AppPacketHeader*>(plain.data());
+            if ((appHdr->flags & proto::kAppFlagHasActionSeq) != 0 && appHdr->reserved != 0)
+            {
+                if (!ctx->actionDedup.Accept(appHdr->reserved))
+                {
+                    continue;
+                }
+            }
+
             auto type = static_cast<proto::AppPacketType>(plain[0]);
             if (type == proto::AppPacketType::VideoIdrRequest)
             {
+                ctx->idrRecoveryPending.store(true, std::memory_order_release);
                 ctx->encoder.ForceKeyFrame();
             }
             else if (type == proto::AppPacketType::Ping && plain.size() >= sizeof(proto::PingPongPayload))
@@ -1014,6 +1107,7 @@ namespace
     bool TryAssembleVideoChunk(
         std::map<uint32_t, PendingFrameChunks>& pending,
         uint32_t& lastCompletedFrameId,
+        uint32_t& lastCompletedKeyFrameId,
         const proto::VideoChunkHeader* hdr,
         const uint8_t* dataPtr,
         size_t dataBytes,
@@ -1022,7 +1116,12 @@ namespace
         bool& outHadDrop)
     {
         outHadDrop = false;
-        if (hdr->frameId <= lastCompletedFrameId || hdr->totalChunks == 0 || hdr->chunkIndex >= hdr->totalChunks)
+        if (hdr->totalChunks == 0 || hdr->chunkIndex >= hdr->totalChunks)
+        {
+            return false;
+        }
+        const bool isKey = hdr->isKeyFrame != 0;
+        if (hdr->frameId <= lastCompletedFrameId && (!isKey || hdr->frameId <= lastCompletedKeyFrameId))
         {
             return false;
         }
@@ -1031,16 +1130,23 @@ namespace
         {
             outFrame.frameId = hdr->frameId;
             outFrame.codecId = static_cast<proto::VideoCodecId>(hdr->codecId);
-            outFrame.isKeyFrame = hdr->isKeyFrame != 0;
+            outFrame.isKeyFrame = isKey;
             outFrame.width = hdr->width;
             outFrame.height = hdr->height;
             outFrame.colorFlags = hdr->colorFlags;
             outFrame.payload.assign(dataPtr, dataPtr + dataBytes);
 
-            lastCompletedFrameId = hdr->frameId;
+            if (hdr->frameId > lastCompletedFrameId)
+            {
+                lastCompletedFrameId = hdr->frameId;
+            }
+            if (isKey && hdr->frameId > lastCompletedKeyFrameId)
+            {
+                lastCompletedKeyFrameId = hdr->frameId;
+            }
             for (auto it = pending.begin(); it != pending.end();)
             {
-                if (it->first < lastCompletedFrameId)
+                if (it->first < lastCompletedFrameId && (isKey || !it->second.isKeyFrame))
                 {
                     it = pending.erase(it);
                     outHadDrop = true;
@@ -1138,12 +1244,19 @@ namespace
         outFrame.colorFlags = pf.colorFlags;
         outFrame.payload = std::move(pf.flatBuf);
 
-        lastCompletedFrameId = hdr->frameId;
+        if (hdr->frameId > lastCompletedFrameId)
+        {
+            lastCompletedFrameId = hdr->frameId;
+        }
+        if (outFrame.isKeyFrame && hdr->frameId > lastCompletedKeyFrameId)
+        {
+            lastCompletedKeyFrameId = hdr->frameId;
+        }
         pending.erase(hdr->frameId);
 
         for (auto it = pending.begin(); it != pending.end();)
         {
-            if (it->first < lastCompletedFrameId)
+            if (it->first < lastCompletedFrameId && (outFrame.isKeyFrame || !it->second.isKeyFrame))
             {
                 it = pending.erase(it);
                 outHadDrop = true;
@@ -1155,6 +1268,14 @@ namespace
         }
         return true;
     }
+
+    struct PendingUdpAction
+    {
+        proto::AppPacketType type = proto::AppPacketType::InputKey;
+        std::vector<uint8_t> payload;
+        uint64_t nextSendUs = 0;
+        int remaining = 0;
+    };
 
     struct EmbeddedClientContext
     {
@@ -1172,6 +1293,13 @@ namespace
         std::mutex queueMutex;
         std::condition_variable queueCv;
         std::deque<AssembledVideoFrame> frameQueue;
+
+        std::atomic<uint32_t> actionSeqCounter{1};
+        std::mutex retxMutex;
+        std::deque<PendingUdpAction> udpRetxQueue;
+        std::atomic<bool> hasLastAbsMouse{false};
+        std::atomic<float> lastAbsMouseX{0.5f};
+        std::atomic<float> lastAbsMouseY{0.5f};
 
         std::atomic<uint32_t> receivedFrames{0};
         std::atomic<uint32_t> droppedFrames{0};
@@ -1230,12 +1358,25 @@ namespace
         c->enableYuv444.store(y444);
     }
 
+    void SendReliableIdrRequest(OsmiumTransport* transport)
+    {
+        if (!transport) return;
+        proto::AppPacketHeader idrReq{};
+        transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+        if (transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        {
+            transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+        }
+    }
+
     void EmbeddedClientRecvLoop(EmbeddedClientContext* ctx)
     {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         std::map<uint32_t, PendingFrameChunks> pending;
         uint32_t lastCompletedFrameId = 0;
+        uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
+        uint64_t lastRecvIdrReqMs = 0;
         std::vector<uint8_t> plain;
 
         while (!ctx->stopFlag.load())
@@ -1262,6 +1403,10 @@ namespace
                         {
                             lastCompletedFrameId = it->first;
                         }
+                        if (it->second.isKeyFrame && it->first > lastCompletedKeyFrameId)
+                        {
+                            lastCompletedKeyFrameId = it->first;
+                        }
                         it = pending.erase(it);
                         purged = true;
                     }
@@ -1273,8 +1418,11 @@ namespace
                 if (purged)
                 {
                     ctx->droppedFrames.fetch_add(1);
-                    proto::AppPacketHeader idrReq{};
-                    ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                    if (nowMs - lastRecvIdrReqMs >= 150)
+                    {
+                        lastRecvIdrReqMs = nowMs;
+                        SendReliableIdrRequest(ctx->transport);
+                    }
                 }
             }
             if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
@@ -1290,6 +1438,7 @@ namespace
                 if (TryAssembleVideoChunk(
                         pending,
                         lastCompletedFrameId,
+                        lastCompletedKeyFrameId,
                         hdr,
                         plain.data() + sizeof(proto::VideoChunkHeader),
                         plain.size() - sizeof(proto::VideoChunkHeader),
@@ -1301,8 +1450,11 @@ namespace
                     if (hadDrop)
                     {
                         ctx->droppedFrames.fetch_add(1);
-                        proto::AppPacketHeader idrReq{};
-                        ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                        if (nowMs - lastRecvIdrReqMs >= 150)
+                        {
+                            lastRecvIdrReqMs = nowMs;
+                            SendReliableIdrRequest(ctx->transport);
+                        }
                     }
 
                     {
@@ -1364,6 +1516,84 @@ namespace
         }
     }
 
+    uint16_t AllocateActionSeq(EmbeddedClientContext* ctx)
+    {
+        uint32_t v = ctx->actionSeqCounter.fetch_add(1, std::memory_order_relaxed);
+        uint16_t s = static_cast<uint16_t>(v & 0xFFFFU);
+        if (s == 0)
+        {
+            v = ctx->actionSeqCounter.fetch_add(1, std::memory_order_relaxed);
+            s = static_cast<uint16_t>(v & 0xFFFFU);
+            if (s == 0) s = 1;
+        }
+        return s;
+    }
+
+    void SendMustExecuteAction(EmbeddedClientContext* ctx, proto::AppPacketType type, void* payload, size_t payloadLen)
+    {
+        if (!ctx || !ctx->transport || !payload || payloadLen < sizeof(proto::AppPacketHeader)) return;
+
+        auto* hdr = reinterpret_cast<proto::AppPacketHeader*>(payload);
+        hdr->flags |= proto::kAppFlagHasActionSeq;
+        hdr->reserved = AllocateActionSeq(ctx);
+
+        ctx->transport->SendEncrypted(type, payload, payloadLen);
+
+        if (ctx->transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        {
+            PendingUdpAction item;
+            item.type = type;
+            item.payload.assign(reinterpret_cast<const uint8_t*>(payload),
+                                reinterpret_cast<const uint8_t*>(payload) + payloadLen);
+            item.nextSendUs = NowMicros() + 4000ULL;
+            item.remaining = 2;
+            {
+                std::lock_guard<std::mutex> rl(ctx->retxMutex);
+                if (ctx->udpRetxQueue.size() >= 96)
+                {
+                    ctx->udpRetxQueue.pop_front();
+                }
+                ctx->udpRetxQueue.push_back(std::move(item));
+            }
+            ctx->queueCv.notify_one();
+        }
+    }
+
+    bool FlushPendingUdpActions(EmbeddedClientContext* ctx)
+    {
+        if (!ctx || !ctx->transport) return false;
+        const uint64_t nowUs = NowMicros();
+        std::vector<PendingUdpAction> toSend;
+        bool hasMore = false;
+        {
+            std::lock_guard<std::mutex> rl(ctx->retxMutex);
+            for (auto it = ctx->udpRetxQueue.begin(); it != ctx->udpRetxQueue.end();)
+            {
+                if (nowUs >= it->nextSendUs)
+                {
+                    PendingUdpAction copy;
+                    copy.type = it->type;
+                    copy.payload = it->payload;
+                    toSend.push_back(std::move(copy));
+                    it->remaining--;
+                    if (it->remaining <= 0)
+                    {
+                        it = ctx->udpRetxQueue.erase(it);
+                        continue;
+                    }
+                    it->nextSendUs = nowUs + 8000ULL;
+                }
+                ++it;
+            }
+            hasMore = !ctx->udpRetxQueue.empty();
+        }
+        for (const auto& pkt : toSend)
+        {
+            ctx->transport->SendEncrypted(pkt.type, pkt.payload.data(), pkt.payload.size());
+        }
+        return hasMore;
+    }
+
     void EmbeddedClientRenderLoop(EmbeddedClientContext* ctx)
     {
         ScopedHighResTimer hiResTimer;
@@ -1378,18 +1608,17 @@ namespace
         uint32_t renderedWindow = 0;
         double avgDecodeMs = 0.0;
         bool firedStarted = false;
-        bool waitingForKeyframe = true;
+        bool hasRenderedFirstFrame = false;
         uint64_t lastIdrReqMs = 0;
         uint64_t lastStatsMs = NowMillis();
         uint64_t lastPingMs = 0;
 
-        {
-            proto::AppPacketHeader idrReq{};
-            ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
-        }
+        SendReliableIdrRequest(ctx->transport);
 
         while (!ctx->stopFlag.load() && !ctx->remoteEnded.load())
         {
+            bool hasPendingRetx = FlushPendingUdpActions(ctx);
+
             uint64_t nowMs = NowMillis();
             if (nowMs - lastPingMs >= 500)
             {
@@ -1406,7 +1635,7 @@ namespace
                 std::unique_lock<std::mutex> ql(ctx->queueMutex);
                 if (ctx->frameQueue.empty())
                 {
-                    ctx->queueCv.wait_for(ql, std::chrono::milliseconds(8));
+                    ctx->queueCv.wait_for(ql, std::chrono::milliseconds(hasPendingRetx ? 3 : 8));
                 }
                 if (ctx->frameQueue.size() > 1)
                 {
@@ -1435,37 +1664,35 @@ namespace
                 }
             }
 
-            if (queuedAfterPop >= 6 && (nowMs - lastIdrReqMs >= 300))
+            FlushPendingUdpActions(ctx);
+
+            if (queuedAfterPop >= 6 && (nowMs - lastIdrReqMs >= 250))
             {
                 lastIdrReqMs = nowMs;
-                proto::AppPacketHeader idrReq{};
-                ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                SendReliableIdrRequest(ctx->transport);
             }
 
             if (!hasFrame)
             {
                 ctx->decoder.RepaintIfResized();
-                if (waitingForKeyframe && (nowMs - lastIdrReqMs >= 350))
+                if (!hasRenderedFirstFrame && (nowMs - lastIdrReqMs >= 150))
                 {
                     lastIdrReqMs = nowMs;
-                    proto::AppPacketHeader idrReq{};
-                    ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                    SendReliableIdrRequest(ctx->transport);
                 }
             }
             else
             {
-                if (waitingForKeyframe && !nextFrame.isKeyFrame)
+                if (!hasRenderedFirstFrame && !nextFrame.isKeyFrame)
                 {
-                    if (nowMs - lastIdrReqMs >= 250)
+                    if (nowMs - lastIdrReqMs >= 150)
                     {
                         lastIdrReqMs = nowMs;
-                        proto::AppPacketHeader idrReq{};
-                        ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                        SendReliableIdrRequest(ctx->transport);
                     }
                 }
                 else
                 {
-                    waitingForKeyframe = false;
                     double decMs = 0.0;
                     stats.videoWidth = nextFrame.width;
                     stats.videoHeight = nextFrame.height;
@@ -1484,10 +1711,12 @@ namespace
                         nextFrame.payload.data(),
                         nextFrame.payload.size(),
                         stats,
-                        decMs);
+                        decMs,
+                        queuedAfterPop > 0);
 
                     if (ok)
                     {
+                        hasRenderedFirstFrame = true;
                         ctx->enableHdr.store((nextFrame.colorFlags & proto::kVideoFlagHdr) != 0 ? 1 : 0);
                         ctx->enableYuv444.store((nextFrame.colorFlags & proto::kVideoFlagYuv444) != 0 ? 1 : 0);
                         decodedTotal++;
@@ -1507,16 +1736,10 @@ namespace
                             }
                         }
                     }
-                    else
+                    else if (nowMs - lastIdrReqMs >= 200)
                     {
-                        waitingForKeyframe = true;
-                        if (nowMs - lastIdrReqMs >= 250)
-                        {
-                            lastIdrReqMs = nowMs;
-                            proto::AppPacketHeader idrReq{};
-                            ctx->transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq,
-                                                          sizeof(idrReq));
-                        }
+                        lastIdrReqMs = nowMs;
+                        SendReliableIdrRequest(ctx->transport);
                     }
                 }
             }
@@ -1977,9 +2200,9 @@ OSMIUM_API int32_t Osmium_EnableTransportRelay(
     return t->EnableRelay(
                sessionToken16,
                role,
-               [onSendRelay](const uint8_t* data, size_t len, bool isDroppable) -> bool
+               [onSendRelay](const uint8_t* data, size_t len, int32_t dropGroupId) -> bool
                {
-                   return onSendRelay(data, static_cast<int32_t>(len), isDroppable ? 1 : 0) != 0;
+                   return onSendRelay(data, static_cast<int32_t>(len), dropGroupId) != 0;
                },
                relayEndpointLabel)
                ? 1
@@ -2045,7 +2268,7 @@ OSMIUM_API int32_t Osmium_AuthenticateClient(
     while (NowMillis() < deadline)
     {
         uint64_t now = NowMillis();
-        if (now - lastSend >= 250)
+        if (now - lastSend >= 150)
         {
             lastSend = now;
             t->SendEncrypted(proto::AppPacketType::AuthRequest, &req, sizeof(req));
@@ -2286,12 +2509,12 @@ OSMIUM_API int32_t Osmium_StartClientEmbedded(
         vp.bitrateKbps = config->bitrateKbps;
         vp.enableHdr = config->enableHdr;
         vp.enableYuv444 = config->enableYuv444;
-        ctx->transport->SendEncrypted(proto::AppPacketType::ControlVideoParams, &vp, sizeof(vp));
+        SendMustExecuteAction(ctx, proto::AppPacketType::ControlVideoParams, &vp, sizeof(vp));
 
         proto::ControlMouseModePayload mp{};
         mp.mouseMode = config->mouseMode;
         mp.hideHostCursor = (config->mouseMode == 0) ? 1 : 0;
-        ctx->transport->SendEncrypted(proto::AppPacketType::ControlMouseMode, &mp, sizeof(mp));
+        SendMustExecuteAction(ctx, proto::AppPacketType::ControlMouseMode, &mp, sizeof(mp));
     }
 
     *outClientHandle = ctx;
@@ -2360,8 +2583,7 @@ OSMIUM_API void Osmium_ClientSwitchDisplay(void* clientHandle, int32_t displayIn
     if (!ctx->transport) return;
     proto::ControlSwitchDisplayPayload pkt{};
     pkt.displayIndex = displayIndex;
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientUpdateVideoParams(
@@ -2386,7 +2608,7 @@ OSMIUM_API void Osmium_ClientUpdateVideoParams(
     pkt.bitrateKbps = bitrateKbps;
     pkt.enableHdr = enableHdr;
     pkt.enableYuv444 = enableYuv444;
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlVideoParams, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::ControlVideoParams, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientSetMouseMode(void* clientHandle, int32_t mouseMode, int32_t hideHostCursor)
@@ -2398,7 +2620,7 @@ OSMIUM_API void Osmium_ClientSetMouseMode(void* clientHandle, int32_t mouseMode,
     proto::ControlMouseModePayload pkt{};
     pkt.mouseMode = mouseMode;
     pkt.hideHostCursor = hideHostCursor;
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlMouseMode, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::ControlMouseMode, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientSetVirtualAudio(
@@ -2414,7 +2636,7 @@ OSMIUM_API void Osmium_ClientSetVirtualAudio(
     proto::ControlVirtualAudioPayload pkt{};
     pkt.virtualSpeakerEnabled = virtualSpeaker ? 1 : 0;
     pkt.virtualMicEnabled = virtualMic ? 1 : 0;
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlVirtualAudio, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::ControlVirtualAudio, &pkt, sizeof(pkt));
 
     if (virtualMic)
     {
@@ -2447,7 +2669,7 @@ OSMIUM_API void Osmium_ClientSendSystemAction(void* clientHandle, int32_t action
     if (!ctx->transport) return;
     proto::ControlSystemActionPayload pkt{};
     pkt.action = action;
-    ctx->transport->SendEncrypted(proto::AppPacketType::ControlSystemAction, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::ControlSystemAction, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientSendKey(void* clientHandle, uint16_t vkCode, uint16_t scanCode, int32_t isDown,
@@ -2461,7 +2683,7 @@ OSMIUM_API void Osmium_ClientSendKey(void* clientHandle, uint16_t vkCode, uint16
     pkt.scanCode = scanCode;
     pkt.isDown = isDown ? 1 : 0;
     pkt.isExtended = isExtended ? 1 : 0;
-    ctx->transport->SendEncrypted(proto::AppPacketType::InputKey, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::InputKey, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientSendMouseMove(void* clientHandle, int32_t isAbsolute, float xOrDeltaX, float yOrDeltaY)
@@ -2469,6 +2691,12 @@ OSMIUM_API void Osmium_ClientSendMouseMove(void* clientHandle, int32_t isAbsolut
     if (!clientHandle) return;
     auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
     if (!ctx->transport) return;
+    if (isAbsolute)
+    {
+        ctx->lastAbsMouseX.store(xOrDeltaX, std::memory_order_relaxed);
+        ctx->lastAbsMouseY.store(yOrDeltaY, std::memory_order_relaxed);
+        ctx->hasLastAbsMouse.store(true, std::memory_order_release);
+    }
     proto::InputMouseMovePayload pkt{};
     pkt.isAbsolute = isAbsolute ? 1 : 0;
     pkt.xOrDeltaX = xOrDeltaX;
@@ -2481,10 +2709,19 @@ OSMIUM_API void Osmium_ClientSendMouseButton(void* clientHandle, uint8_t button,
     if (!clientHandle) return;
     auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
     if (!ctx->transport) return;
+    if (ctx->transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay) &&
+        ctx->hasLastAbsMouse.load(std::memory_order_acquire))
+    {
+        proto::InputMouseMovePayload mv{};
+        mv.isAbsolute = 1;
+        mv.xOrDeltaX = ctx->lastAbsMouseX.load(std::memory_order_relaxed);
+        mv.yOrDeltaY = ctx->lastAbsMouseY.load(std::memory_order_relaxed);
+        ctx->transport->SendEncrypted(proto::AppPacketType::InputMouseMove, &mv, sizeof(mv));
+    }
     proto::InputMouseButtonPayload pkt{};
     pkt.button = button;
     pkt.isDown = isDown ? 1 : 0;
-    ctx->transport->SendEncrypted(proto::AppPacketType::InputMouseButton, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::InputMouseButton, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientSendMouseWheel(void* clientHandle, int16_t deltaX, int16_t deltaY)
@@ -2495,7 +2732,7 @@ OSMIUM_API void Osmium_ClientSendMouseWheel(void* clientHandle, int16_t deltaX, 
     proto::InputMouseWheelPayload pkt{};
     pkt.deltaX = deltaX;
     pkt.deltaY = deltaY;
-    ctx->transport->SendEncrypted(proto::AppPacketType::InputMouseWheel, &pkt, sizeof(pkt));
+    SendMustExecuteAction(ctx, proto::AppPacketType::InputMouseWheel, &pkt, sizeof(pkt));
 }
 
 OSMIUM_API void Osmium_ClientPollInput(void* clientHandle, int32_t windowFocused)
@@ -2666,7 +2903,9 @@ OSMIUM_API int32_t Osmium_RunClientSession(
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         std::map<uint32_t, PendingFrameChunks> pending;
         uint32_t lastCompletedFrameId = 0;
+        uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
+        uint64_t lastRecvIdrReqMs = 0;
         std::vector<uint8_t> plain;
 
         while (!recvStop.load() && !g_ClientStopRequested.load())
@@ -2689,6 +2928,10 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                     if (nowMs - it->second.createdMs > staleTimeoutMs)
                     {
                         if (it->first > lastCompletedFrameId) lastCompletedFrameId = it->first;
+                        if (it->second.isKeyFrame && it->first > lastCompletedKeyFrameId)
+                        {
+                            lastCompletedKeyFrameId = it->first;
+                        }
                         it = pending.erase(it);
                         purged = true;
                     }
@@ -2700,8 +2943,11 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 if (purged)
                 {
                     droppedFrames.fetch_add(1);
-                    proto::AppPacketHeader idrReq{};
-                    t->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                    if (nowMs - lastRecvIdrReqMs >= 150)
+                    {
+                        lastRecvIdrReqMs = nowMs;
+                        SendReliableIdrRequest(t);
+                    }
                 }
             }
             if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
@@ -2717,6 +2963,7 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 if (TryAssembleVideoChunk(
                         pending,
                         lastCompletedFrameId,
+                        lastCompletedKeyFrameId,
                         hdr,
                         plain.data() + sizeof(proto::VideoChunkHeader),
                         plain.size() - sizeof(proto::VideoChunkHeader),
@@ -2728,8 +2975,11 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                     if (hadDrop)
                     {
                         droppedFrames.fetch_add(1);
-                        proto::AppPacketHeader idrReq{};
-                        t->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                        if (nowMs - lastRecvIdrReqMs >= 150)
+                        {
+                            lastRecvIdrReqMs = nowMs;
+                            SendReliableIdrRequest(t);
+                        }
                     }
 
                     {
@@ -2763,10 +3013,7 @@ OSMIUM_API int32_t Osmium_RunClientSession(
         }
     });
 
-    {
-        proto::AppPacketHeader idrReq{};
-        t->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
-    }
+    SendReliableIdrRequest(t);
 
     OsmiumClientStats stats{};
     stats.transportRoute = t->GetTransportRoute();
@@ -2774,7 +3021,7 @@ OSMIUM_API int32_t Osmium_RunClientSession(
 
     uint32_t decodedTotal = 0, renderedWindow = 0;
     double avgDecodeMs = 0.0;
-    bool firedStarted = false, waitingForKeyframe = true;
+    bool firedStarted = false, hasRenderedFirstFrame = false;
     uint64_t lastIdrReqMs = 0, lastStatsMs = NowMillis(), lastPingMs = 0, lastGamepadPollMs = 0;
 
     while (!g_ClientStopRequested.load() && !remoteEnded.load())
@@ -2819,13 +3066,33 @@ OSMIUM_API int32_t Osmium_RunClientSession(
 
         AssembledVideoFrame nextFrame;
         bool hasFrame = false;
+        size_t queuedAfterPop = 0;
         {
             std::unique_lock<std::mutex> ql(queueMutex);
             if (frameQueue.empty()) queueCv.wait_for(ql, std::chrono::milliseconds(4));
+            if (frameQueue.size() > 1)
+            {
+                size_t latestKeyIdx = 0;
+                for (size_t i = frameQueue.size(); i > 0; --i)
+                {
+                    if (frameQueue[i - 1].isKeyFrame)
+                    {
+                        latestKeyIdx = i - 1;
+                        break;
+                    }
+                }
+                if (latestKeyIdx > 0)
+                {
+                    frameQueue.erase(frameQueue.begin(),
+                                     frameQueue.begin() + static_cast<std::ptrdiff_t>(latestKeyIdx));
+                    droppedFrames.fetch_add(static_cast<uint32_t>(latestKeyIdx));
+                }
+            }
             if (!frameQueue.empty())
             {
                 nextFrame = std::move(frameQueue.front());
                 frameQueue.pop_front();
+                queuedAfterPop = frameQueue.size();
                 hasFrame = true;
             }
         }
@@ -2833,27 +3100,24 @@ OSMIUM_API int32_t Osmium_RunClientSession(
         if (!hasFrame)
         {
             decoder.RepaintIfResized();
-            if (waitingForKeyframe && (nowMs - lastIdrReqMs >= 350))
+            if (!hasRenderedFirstFrame && (nowMs - lastIdrReqMs >= 150))
             {
                 lastIdrReqMs = nowMs;
-                proto::AppPacketHeader idrReq{};
-                t->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                SendReliableIdrRequest(t);
             }
         }
         else
         {
-            if (waitingForKeyframe && !nextFrame.isKeyFrame)
+            if (!hasRenderedFirstFrame && !nextFrame.isKeyFrame)
             {
-                if (nowMs - lastIdrReqMs >= 250)
+                if (nowMs - lastIdrReqMs >= 150)
                 {
                     lastIdrReqMs = nowMs;
-                    proto::AppPacketHeader idrReq{};
-                    t->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+                    SendReliableIdrRequest(t);
                 }
             }
             else
             {
-                waitingForKeyframe = false;
                 double decMs = 0.0;
                 stats.videoWidth = nextFrame.width;
                 stats.videoHeight = nextFrame.height;
@@ -2863,10 +3127,11 @@ OSMIUM_API int32_t Osmium_RunClientSession(
 
                 bool ok = decoder.DecodeAndRenderFrame(
                     nextFrame.codecId, nextFrame.isKeyFrame, nextFrame.width, nextFrame.height, nextFrame.colorFlags,
-                    nextFrame.payload.data(), nextFrame.payload.size(), stats, decMs);
+                    nextFrame.payload.data(), nextFrame.payload.size(), stats, decMs, queuedAfterPop > 0);
 
                 if (ok)
                 {
+                    hasRenderedFirstFrame = true;
                     decodedTotal++;
                     renderedWindow++;
                     avgDecodeMs = avgDecodeMs * 0.85 + decMs * 0.15;
@@ -2880,15 +3145,10 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                         }
                     }
                 }
-                else
+                else if (nowMs - lastIdrReqMs >= 200)
                 {
-                    waitingForKeyframe = true;
-                    if (nowMs - lastIdrReqMs >= 250)
-                    {
-                        lastIdrReqMs = nowMs;
-                        proto::AppPacketHeader idrReq{};
-                        t->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
-                    }
+                    lastIdrReqMs = nowMs;
+                    SendReliableIdrRequest(t);
                 }
             }
         }

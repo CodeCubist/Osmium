@@ -992,18 +992,51 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
                 }
 
-                ClientStageUpdated?.Invoke(Tr("Conn_Punching", "Establishing direct connection..."));
+                const int maxDirectAttempts = 3;
                 var epSb = new StringBuilder(128);
                 int transportRoute = 0;
-                int punchOk = await Task.Run(() => NativeMethods.Osmium_ConnectPeerP2P(
-                    transport,
-                    sessionToken,
-                    1,
-                    bridge.CandidatesJson,
-                    3500,
-                    out transportRoute,
-                    epSb,
-                    epSb.Capacity), ct);
+                int punchOk = 0;
+                for (int attempt = 1; attempt <= maxDirectAttempts; attempt++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    ClientStageUpdated?.Invoke(attempt == 1
+                        ? Tr("Conn_Punching", "Establishing direct connection...")
+                        : Tr("Conn_PunchRetryingFmt", "Retrying direct connection ({0}/{1})...", attempt,
+                            maxDirectAttempts));
+
+                    if (attempt > 1)
+                    {
+                        try
+                        {
+                            await _signaling.SendBridgeCandidatesAsync(sessionId, localCandidatesJson);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    long attemptStartMs = Environment.TickCount64;
+                    epSb.Clear();
+                    punchOk = await Task.Run(() => NativeMethods.Osmium_ConnectPeerP2P(
+                        transport,
+                        sessionToken,
+                        1,
+                        bridge.CandidatesJson,
+                        2500,
+                        out transportRoute,
+                        epSb,
+                        epSb.Capacity), ct);
+
+                    if (punchOk != 0)
+                    {
+                        break;
+                    }
+
+                    if (Environment.TickCount64 - attemptStartMs < 200 || relayFallbackTcs.Task.IsCompleted)
+                    {
+                        break;
+                    }
+                }
 
                 async Task<bool> SwitchToCloudRelayAsync()
                 {
@@ -1044,7 +1077,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
                     var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, sessionId, "client", rToken);
                     clientRelay = new CloudRelayTransport(transport, relayLabel, _log);
-                    bool relayOk = await clientRelay.ConnectAndBindAsync(relayUri, sessionToken, 1, 10000, ct);
+                    bool relayOk = await clientRelay.ConnectAndBindAsync(relayUri, sessionToken, 1, 12000, ct);
                     if (!relayOk)
                     {
                         clientRelay.Dispose();
@@ -1058,7 +1091,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     return true;
                 }
 
-                if (punchOk == 0 || relayFallbackTcs.Task.IsCompleted)
+                if (punchOk == 0)
                 {
                     if (!await SwitchToCloudRelayAsync())
                     {
@@ -1112,7 +1145,9 @@ public sealed partial class P2PCoordinator : IDisposable
                 int authRes;
                 try
                 {
-                    int authTimeoutMs = transportRoute == 4 ? 10000 : 4500;
+                    int authTimeoutMs = transportRoute == 4
+                        ? 10000
+                        : (relayFallbackTcs.Task.IsCompleted ? 2500 : 5000);
                     authRes = await Task.Run(
                         () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, authTimeoutMs), ct);
 

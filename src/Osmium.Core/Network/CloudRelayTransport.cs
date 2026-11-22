@@ -28,10 +28,12 @@ public sealed class CloudRelayTransport : IDisposable
     private readonly TaskCompletionSource<bool> _peerReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
     private readonly ConcurrentQueue<(byte[] Buf, int Len)> _highPriorityQueue = new();
-    private readonly ConcurrentQueue<(byte[] Buf, int Len)> _videoQueue = new();
+    private readonly object _videoQueueLock = new();
+    private readonly Queue<(byte[] Buf, int Len, int GroupId)> _videoQueue = new();
     private readonly SemaphoreSlim _sendSignal = new(0, 1);
     private int _signalPending;
     private int _queuedVideoBytes;
+    private int _droppedVideoGroupId;
     private int _disposed;
 
     private OsmiumRelaySendDelegate? _sendDelegate;
@@ -174,7 +176,7 @@ public sealed class CloudRelayTransport : IDisposable
         }
     }
 
-    private int OnNativeSendRelay(IntPtr dataPtr, int length, int isDroppable)
+    private int OnNativeSendRelay(IntPtr dataPtr, int length, int dropGroupId)
     {
         if (Volatile.Read(ref _disposed) != 0 || dataPtr == IntPtr.Zero || length <= 0 || length > MaxPacketBytes)
         {
@@ -186,27 +188,47 @@ public sealed class CloudRelayTransport : IDisposable
             return 0;
         }
 
-        bool droppable = isDroppable != 0;
-        if (droppable)
+        if (dropGroupId > 0)
         {
-            while (Volatile.Read(ref _queuedVideoBytes) + length > MaxQueuedVideoBytes &&
-                   _videoQueue.TryDequeue(out var stale))
+            if (dropGroupId == Volatile.Read(ref _droppedVideoGroupId))
             {
-                Interlocked.Add(ref _queuedVideoBytes, -stale.Len);
-                ArrayPool<byte>.Shared.Return(stale.Buf);
+                return 1;
             }
-        }
 
-        byte[] rented = ArrayPool<byte>.Shared.Rent(length);
-        Marshal.Copy(dataPtr, rented, 0, length);
+            lock (_videoQueueLock)
+            {
+                if (dropGroupId == _droppedVideoGroupId)
+                {
+                    return 1;
+                }
 
-        if (droppable)
-        {
-            Interlocked.Add(ref _queuedVideoBytes, length);
-            _videoQueue.Enqueue((rented, length));
+                while (_queuedVideoBytes + length > MaxQueuedVideoBytes && _videoQueue.Count > 0)
+                {
+                    int targetGroup = _videoQueue.Peek().GroupId;
+                    Volatile.Write(ref _droppedVideoGroupId, targetGroup);
+                    while (_videoQueue.Count > 0 && _videoQueue.Peek().GroupId == targetGroup)
+                    {
+                        var stale = _videoQueue.Dequeue();
+                        _queuedVideoBytes -= stale.Len;
+                        ArrayPool<byte>.Shared.Return(stale.Buf);
+                    }
+
+                    if (targetGroup == dropGroupId)
+                    {
+                        return 1;
+                    }
+                }
+
+                byte[] rentedVideo = ArrayPool<byte>.Shared.Rent(length);
+                Marshal.Copy(dataPtr, rentedVideo, 0, length);
+                _queuedVideoBytes += length;
+                _videoQueue.Enqueue((rentedVideo, length, dropGroupId));
+            }
         }
         else
         {
+            byte[] rented = ArrayPool<byte>.Shared.Rent(length);
+            Marshal.Copy(dataPtr, rented, 0, length);
             _highPriorityQueue.Enqueue((rented, length));
         }
 
@@ -222,6 +244,29 @@ public sealed class CloudRelayTransport : IDisposable
         }
 
         return 1;
+    }
+
+    private bool TryDequeueVideoChunk(out (byte[] Buf, int Len, int GroupId) item)
+    {
+        lock (_videoQueueLock)
+        {
+            while (_videoQueue.Count > 0)
+            {
+                var next = _videoQueue.Dequeue();
+                _queuedVideoBytes -= next.Len;
+                if (next.GroupId == _droppedVideoGroupId)
+                {
+                    ArrayPool<byte>.Shared.Return(next.Buf);
+                    continue;
+                }
+
+                item = next;
+                return true;
+            }
+        }
+
+        item = default;
+        return false;
     }
 
     private async Task SendLoopAsync(CancellationToken ct)
@@ -272,9 +317,8 @@ public sealed class CloudRelayTransport : IDisposable
                         continue;
                     }
                     
-                    while (_highPriorityQueue.IsEmpty && _videoQueue.TryDequeue(out var vid))
+                    while (_highPriorityQueue.IsEmpty && TryDequeueVideoChunk(out var vid))
                     {
-                        Interlocked.Add(ref _queuedVideoBytes, -vid.Len);
                         try
                         {
                             int needed = 2 + vid.Len;
@@ -456,10 +500,16 @@ public sealed class CloudRelayTransport : IDisposable
             ArrayPool<byte>.Shared.Return(hi.Buf);
         }
 
-        while (_videoQueue.TryDequeue(out var vid))
+        lock (_videoQueueLock)
         {
-            Interlocked.Add(ref _queuedVideoBytes, -vid.Len);
-            ArrayPool<byte>.Shared.Return(vid.Buf);
+            while (_videoQueue.Count > 0)
+            {
+                var vid = _videoQueue.Dequeue();
+                _queuedVideoBytes -= vid.Len;
+                ArrayPool<byte>.Shared.Return(vid.Buf);
+            }
+
+            _queuedVideoBytes = 0;
         }
     }
 

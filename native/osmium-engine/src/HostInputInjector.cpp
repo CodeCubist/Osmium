@@ -79,6 +79,25 @@ namespace osmium
         }
     }
 
+    namespace
+    {
+        UINT SendInputWithDesktopRetry(INPUT& input, HDESK* lastDesk)
+        {
+            UINT sent = SendInput(1, &input, sizeof(INPUT));
+            if (sent == 0)
+            {
+                if (lastDesk && *lastDesk)
+                {
+                    CloseDesktop(*lastDesk);
+                    *lastDesk = nullptr;
+                }
+                HostSystemAgent::SyncThreadDesktopToInput(lastDesk);
+                sent = SendInput(1, &input, sizeof(INPUT));
+            }
+            return sent;
+        }
+    }
+
     void HostInputInjector::HandleKey(const proto::InputKeyPayload& pkt)
     {
         HostSystemAgent::SyncThreadDesktopToInput(&m_LastInputDesk);
@@ -95,7 +114,7 @@ namespace osmium
         if (!pkt.isDown) flags |= KEYEVENTF_KEYUP;
         if (pkt.isExtended) flags |= KEYEVENTF_EXTENDEDKEY;
         input.ki.dwFlags = flags;
-        SendInput(1, &input, sizeof(INPUT));
+        SendInputWithDesktopRetry(input, &m_LastInputDesk);
     }
 
     void HostInputInjector::HandleMouseMove(const proto::InputMouseMovePayload& pkt)
@@ -239,7 +258,7 @@ namespace osmium
         default: return;
         }
 
-        if (SendInput(1, &input, sizeof(INPUT)) == 0 && !m_LoggedSendErr)
+        if (SendInputWithDesktopRetry(input, &m_LastInputDesk) == 0 && !m_LoggedSendErr)
         {
             m_LoggedSendErr = true;
             OSM_LOG_WARN("Host SendInput(mouse button %u) failed (err=%lu)", pkt.button, GetLastError());
@@ -275,7 +294,7 @@ namespace osmium
             input.type = INPUT_MOUSE;
             input.mi.dwFlags = MOUSEEVENTF_WHEEL;
             input.mi.mouseData = static_cast<DWORD>(static_cast<int32_t>(pkt.deltaY));
-            SendInput(1, &input, sizeof(INPUT));
+            SendInputWithDesktopRetry(input, &m_LastInputDesk);
         }
         if (pkt.deltaX != 0)
         {
@@ -283,7 +302,7 @@ namespace osmium
             input.type = INPUT_MOUSE;
             input.mi.dwFlags = MOUSEEVENTF_HWHEEL;
             input.mi.mouseData = static_cast<DWORD>(static_cast<int32_t>(pkt.deltaX));
-            SendInput(1, &input, sizeof(INPUT));
+            SendInputWithDesktopRetry(input, &m_LastInputDesk);
         }
     }
 

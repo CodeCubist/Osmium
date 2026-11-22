@@ -614,6 +614,7 @@
   <data name="Conn_BlockedWhileHost" xml:space="preserve"><value>当前本机正在被远程控制，无法同时远控其他设备</value></data>
   <data name="Session_RouteRelay" xml:space="preserve"><value>云端中继</value></data>
   <data name="Conn_SwitchingRelay" xml:space="preserve"><value>直连通道不可达，正在自动切换云端中继...</value></data>
+  <data name="Conn_PunchRetryingFmt" xml:space="preserve"><value>直连通道重试中（第 {0}/{1} 次）...</value></data>
   <data name="Conn_VerifyingRelay" xml:space="preserve"><value>云端中继通道已建立，正在校验访问凭证...</value></data>
   <data name="Session_ControlCenter" xml:space="preserve"><value>控制中心</value></data>
   <data name="Session_MenuDisplay" xml:space="preserve"><value>显示器</value></data>
