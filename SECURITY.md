@@ -62,5 +62,5 @@ Out of scope:
 ## Verifying Official Releases
 
 Always download Osmium from the official
-[GitHub Releases](https://github.com/CodeCubist/Osmium/releases) or official
+[GitHub Releases](https://github.com/OsmiumRemote/Osmium/releases) or official
 build artifacts, and treat unexpectedly modified binaries as suspect.

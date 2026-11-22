@@ -9,7 +9,7 @@ and troubleshooting notes.
 ## Still Need Help?
 
 - **Found a bug?** Open an issue using the *Bug Report* template:
-  [Issues](https://github.com/CodeCubist/Osmium/issues/new/choose)
+  [Issues](https://github.com/OsmiumRemote/Osmium/issues/new/choose)
   Please make sure you are on the latest version first.
 - **Have a suggestion or feature request?** Use the *Suggestions & Feature
   Requests* template on the same page.

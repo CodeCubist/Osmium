@@ -19,7 +19,7 @@ This project and everyone participating in it is governed by the [Contributor Co
 
 We welcome contributions in many forms:
 
-- Bug reports and feature requests via [GitHub Issues](https://github.com/CodeCubist/Osmium/issues).
+- Bug reports and feature requests via [GitHub Issues](https://github.com/OsmiumRemote/Osmium/issues).
 - Documentation improvements.
 - Translations of the user interface and documentation.
 - Code fixes, performance optimizations, and new features.
@@ -45,7 +45,7 @@ We welcome contributions in many forms:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/CodeCubist/Osmium.git
+   git clone https://github.com/OsmiumRemote/Osmium.git
    ```
 2. Build the native C++ engine (`OsmiumEngine`, including `SDL3` and `opus`):
    ```powershell
@@ -99,5 +99,5 @@ Open an issue using the **Suggestions & Feature Requests** template. Please desc
 
 ## Community
 
-- Discussions and issue tracking happen on [GitHub](https://github.com/CodeCubist/Osmium).
+- Discussions and issue tracking happen on [GitHub](https://github.com/OsmiumRemote/Osmium).
 - Maintainer contact: [Telegram](https://t.me/codecubist).
