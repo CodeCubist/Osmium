@@ -19,6 +19,7 @@ public sealed partial class RemoteHomePage : Page
     private bool? _appliedWallpaperOffline;
     private bool? _appliedWallpaperBlurred;
     private bool _isControllingOverlayVisible;
+    private bool _systemServiceBarDismissed;
     private Storyboard? _wallpaperFadeStoryboard;
     private Storyboard? _overlayFadeStoryboard;
     private readonly DispatcherTimer _hostDurationTimer = new();
@@ -105,24 +106,31 @@ public sealed partial class RemoteHomePage : Page
     private void OnAccountDevicesChanged(IReadOnlyList<AccountDeviceDto> _)
         => OnAccountStateChanged();
 
+    private void OnSystemServiceStatusChanged()
+        => DispatcherQueue.TryEnqueue(UpdateSystemServiceBar);
+
     private void RemoteHomePage_Loaded(object sender, RoutedEventArgs e)
     {
         App.Engine.AccountService.SessionChanged -= OnAccountStateChanged;
         App.Engine.AccountService.SessionChanged += OnAccountStateChanged;
         App.Engine.AccountService.SameAccountDevicesChanged -= OnAccountDevicesChanged;
         App.Engine.AccountService.SameAccountDevicesChanged += OnAccountDevicesChanged;
+        SystemServiceHelper.StatusChanged -= OnSystemServiceStatusChanged;
+        SystemServiceHelper.StatusChanged += OnSystemServiceStatusChanged;
 
         UpdateHeroRoundedClip();
         ApplyLocalization();
         UpdateDeviceHeader();
         UpdateHostStatusPill();
         UpdateDockActionLabels();
+        UpdateSystemServiceBar();
     }
 
     private void RemoteHomePage_Unloaded(object sender, RoutedEventArgs e)
     {
         App.Engine.AccountService.SessionChanged -= OnAccountStateChanged;
         App.Engine.AccountService.SameAccountDevicesChanged -= OnAccountDevicesChanged;
+        SystemServiceHelper.StatusChanged -= OnSystemServiceStatusChanged;
         _hostDurationTimer.Stop();
     }
 

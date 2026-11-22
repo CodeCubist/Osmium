@@ -307,6 +307,16 @@
   <data name="Host_DriversUninstallBtn" xml:space="preserve"><value>Uninstall Driver</value></data>
   <data name="Host_DriversUninstallTitle" xml:space="preserve"><value>Uninstall Virtual Driver</value></data>
   <data name="Host_DriversUninstallConfirm" xml:space="preserve"><value>Remove USB/IP virtual peripheral driver and Driver Store packages from this PC?</value></data>
+  <data name="Host_RowSystemService" xml:space="preserve"><value>System Input Service</value></data>
+  <data name="Host_SystemServiceReady" xml:space="preserve"><value>Running</value></data>
+  <data name="Host_SystemServiceMissing" xml:space="preserve"><value>Not enabled</value></data>
+  <data name="Host_SystemServiceInstallBtn" xml:space="preserve"><value>Enable Service</value></data>
+  <data name="Host_SystemServiceReinstallBtn" xml:space="preserve"><value>Repair / Reinstall</value></data>
+  <data name="Host_SystemServiceUninstallBtn" xml:space="preserve"><value>Uninstall Service</value></data>
+  <data name="Host_SystemServiceUninstallTitle" xml:space="preserve"><value>Uninstall System Input Service</value></data>
+  <data name="Host_SystemServiceUninstallConfirm" xml:space="preserve"><value>Without this service, standard-privilege remote control cannot interact with elevated windows or UAC prompts. Continue?</value></data>
+  <data name="Home_SystemServicePrompt" xml:space="preserve"><value>System input service is not enabled; remote control may stop responding on elevated windows</value></data>
+  <data name="Home_SystemServiceEnableBtn" xml:space="preserve"><value>Enable Now</value></data>
   <data name="Host_RowAllowDriverMgmt" xml:space="preserve"><value>Allow remote virtual driver install / uninstall</value></data>
   <data name="Host_RowAllowDriverMgmtDesc" xml:space="preserve"><value>Allow connected controller to deploy or remove virtual drivers on this host</value></data>
   <data name="Host_RowRequireDriverConfirm" xml:space="preserve"><value>Require local confirmation before remote driver change</value></data>

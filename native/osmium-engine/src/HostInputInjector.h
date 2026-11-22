@@ -2,6 +2,7 @@
 
 #include "OsmiumCommon.h"
 #include "OsmiumProtocol.h"
+#include "HostSystemAgent.h"
 #include <atomic>
 #include <mutex>
 
@@ -12,7 +13,11 @@ namespace osmium
     class HostInputInjector
     {
     public:
-        HostInputInjector() = default;
+        explicit HostInputInjector(bool allowAgentForwarding = true);
+        ~HostInputInjector();
+
+        HostInputInjector(const HostInputInjector&) = delete;
+        HostInputInjector& operator=(const HostInputInjector&) = delete;
 
         void SetTargetDisplayRect(RECT rect);
         void SetEnabled(bool enabled) { m_Enabled = enabled; }
@@ -23,6 +28,13 @@ namespace osmium
         void ReleaseAllInputs();
 
     private:
+        bool WillUseVirtualMouse(const uint8_t* data, size_t len) const;
+        bool EnsureAgentConnectedLocked();
+        void CloseAgentPipeLocked();
+        bool SendAgentMessageLocked(AgentInputOp op, const void* payload, size_t payloadLen);
+        bool TryForwardPacketToAgent(const uint8_t* data, size_t len);
+        bool TryForwardReleaseAllToAgent();
+
         void HandleKey(const proto::InputKeyPayload& pkt);
         void HandleMouseMove(const proto::InputMouseMovePayload& pkt);
         void HandleMouseButton(const proto::InputMouseButtonPayload& pkt);
@@ -39,5 +51,12 @@ namespace osmium
         int32_t m_WheelAccumY = 0;
         bool m_LoggedFirstMove = false;
         bool m_LoggedSendErr = false;
+
+        bool m_AllowAgentForwarding = true;
+        std::mutex m_AgentMutex;
+        HANDLE m_AgentPipe = INVALID_HANDLE_VALUE;
+        uint64_t m_LastAgentProbeMs = 0;
+        std::atomic<bool> m_AgentRectDirty{true};
+        bool m_LoggedAgentErr = false;
     };
 }

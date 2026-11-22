@@ -2035,6 +2035,26 @@ OSMIUM_API int32_t Osmium_RunOneShotSasService(void)
     return HostSystemAgent::RunOneShotSasServiceMain();
 }
 
+OSMIUM_API int32_t Osmium_RunInputAgent(void)
+{
+    return HostSystemAgent::RunInputAgentMain();
+}
+
+OSMIUM_API int32_t Osmium_InstallSystemService(void)
+{
+    return HostSystemAgent::InstallSystemService() ? 1 : 0;
+}
+
+OSMIUM_API int32_t Osmium_UninstallSystemService(void)
+{
+    return HostSystemAgent::UninstallSystemService() ? 1 : 0;
+}
+
+OSMIUM_API int32_t Osmium_IsSystemServiceRunning(void)
+{
+    return HostSystemAgent::IsSystemServiceRunning() ? 1 : 0;
+}
+
 OSMIUM_API int32_t Osmium_GetConnectedGamepads(OsmiumGamepadInfo* outGamepads, int32_t maxCount)
 {
     if (!outGamepads || maxCount <= 0) return 0;

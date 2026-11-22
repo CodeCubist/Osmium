@@ -60,6 +60,7 @@ chs.DownloadFailedWebView2=无法获取必要组件 (Microsoft Edge WebView2 运
 
 chs.RuntimeExecFailed=必要组件安装程序无法执行。请稍后手动安装环境，主程序将继续安装。
 chs.InstallingDrivers=正在部署虚拟外设与手柄驱动，请稍候...
+chs.InstallingService=正在注册系统辅助服务，请稍候...
 
 en.DownloadingWebView2=Retrieving prerequisite (Microsoft Edge WebView2 Runtime)...
 en.InstallingWebView2=Deploying prerequisite (Microsoft Edge WebView2 Runtime), please wait...
@@ -68,6 +69,7 @@ en.DownloadFailedWebView2=Unable to retrieve the prerequisite (Microsoft Edge We
 
 en.RuntimeExecFailed=The prerequisite installer failed to execute. Please install it manually later. The main installation will now continue.
 en.InstallingDrivers=Deploying virtual USB and gamepad drivers, please wait...
+en.InstallingService=Registering Osmium system service, please wait...
 
 [Tasks]
 Name: "desktopicon";    Description: "创建桌面快捷方式";       GroupDescription: "附加快捷方式:"
@@ -90,10 +92,12 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
     Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
+Filename: "{app}\{#AppExe}"; Parameters: "--install-service"; StatusMsg: "{cm:InstallingService}"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#AppExe}"; Parameters: "--install-drivers"; StatusMsg: "{cm:InstallingDrivers}"; Flags: runhidden waituntilterminated; Tasks: installdrivers
-Filename: "{app}\{#AppExe}"; Description: "立即启动 {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "立即启动 {#AppName}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
+Filename: "{app}\{#AppExe}"; Parameters: "--uninstall-service"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "UninstallOsmiumService"
 Filename: "{app}\{#AppExe}"; Parameters: "--uninstall-drivers"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "UninstallOsmiumDrivers"
 
 [InstallDelete]
@@ -257,6 +261,12 @@ begin
   begin
     UninstStr := RemoveQuotes(UninstStr);
     Exec(UninstStr, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+
+  if Exec(ExpandConstant('{sys}\sc.exe'), 'stop OsmiumSvc', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    if ResultCode = 0 then
+      Sleep(800);
   end;
 end;
 

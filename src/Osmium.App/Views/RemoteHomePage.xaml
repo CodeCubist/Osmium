@@ -53,6 +53,22 @@
             </StackPanel>
 
 
+            <InfoBar
+                x:Name="SystemServiceBar"
+                Visibility="Collapsed"
+                IsOpen="False"
+                Severity="Informational"
+                IsClosable="True"
+                CloseButtonClick="SystemServiceBar_CloseButtonClick">
+                <InfoBar.ActionButton>
+                    <Button x:Name="EnableSystemServiceBtn"
+                            Style="{StaticResource AccentButtonStyle}"
+                            CornerRadius="6"
+                            Click="EnableSystemServiceBtn_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
+
             <Expander
                 x:Name="ActiveHostBanner"
                 Visibility="Collapsed"

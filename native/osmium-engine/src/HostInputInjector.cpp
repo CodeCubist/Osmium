@@ -1,17 +1,242 @@
 #include "HostInputInjector.h"
 #include "HostSystemAgent.h"
+#include "DriverSetupHelper.h"
 #include "UsbIpVirtualDevices.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <vector>
 
 namespace osmium
 {
+    HostInputInjector::HostInputInjector(bool allowAgentForwarding)
+        : m_AllowAgentForwarding(allowAgentForwarding)
+    {
+    }
+
+    HostInputInjector::~HostInputInjector()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_AgentMutex);
+            CloseAgentPipeLocked();
+        }
+        if (m_LastInputDesk)
+        {
+            CloseDesktop(m_LastInputDesk);
+            m_LastInputDesk = nullptr;
+        }
+    }
+
     void HostInputInjector::SetTargetDisplayRect(RECT rect)
     {
-        std::lock_guard<std::mutex> lock(m_RectMutex);
-        m_DisplayRect = rect;
+        {
+            std::lock_guard<std::mutex> lock(m_RectMutex);
+            m_DisplayRect = rect;
+        }
+        m_AgentRectDirty.store(true);
+    }
+
+    bool HostInputInjector::WillUseVirtualMouse(const uint8_t* data, size_t len) const
+    {
+        if (!m_UseVirtualMouse.load() || !m_VirtualDevices || !m_VirtualDevices->HasActiveHidConsumer())
+        {
+            return false;
+        }
+        if (!data || len < sizeof(proto::AppPacketHeader))
+        {
+            return false;
+        }
+
+        const auto* hdr = reinterpret_cast<const proto::AppPacketHeader*>(data);
+        switch (static_cast<proto::AppPacketType>(hdr->type))
+        {
+        case proto::AppPacketType::InputMouseMove:
+            if (len >= sizeof(proto::InputMouseMovePayload))
+            {
+                const auto* pkt = reinterpret_cast<const proto::InputMouseMovePayload*>(data);
+                return !pkt->isAbsolute;
+            }
+            return false;
+        case proto::AppPacketType::InputMouseButton:
+            return len >= sizeof(proto::InputMouseButtonPayload);
+        case proto::AppPacketType::InputMouseWheel:
+            return len >= sizeof(proto::InputMouseWheelPayload);
+        default:
+            return false;
+        }
+    }
+
+    void HostInputInjector::CloseAgentPipeLocked()
+    {
+        if (m_AgentPipe != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(m_AgentPipe);
+            m_AgentPipe = INVALID_HANDLE_VALUE;
+        }
+    }
+
+    bool HostInputInjector::EnsureAgentConnectedLocked()
+    {
+        if (!m_AllowAgentForwarding)
+        {
+            return false;
+        }
+
+        static const bool s_RunningAsSystem = DriverSetupHelper::IsRunningAsSystem();
+        if (s_RunningAsSystem)
+        {
+            return false;
+        }
+
+        if (m_AgentPipe != INVALID_HANDLE_VALUE)
+        {
+            return true;
+        }
+
+        const uint64_t nowMs = NowMillis();
+        if (m_LastAgentProbeMs != 0 && (nowMs - m_LastAgentProbeMs) < 1500)
+        {
+            return false;
+        }
+        m_LastAgentProbeMs = nowMs;
+
+        DWORD mySid = 0;
+        if (!ProcessIdToSessionId(GetCurrentProcessId(), &mySid))
+        {
+            return false;
+        }
+
+        std::wstring pipeName = HostSystemAgent::GetInputAgentPipeName(mySid);
+        auto tryOpenPipe = [&]() -> HANDLE
+        {
+            HANDLE h = CreateFileW(
+                pipeName.c_str(),
+                GENERIC_READ | GENERIC_WRITE,
+                0,
+                nullptr,
+                OPEN_EXISTING,
+                0,
+                nullptr);
+            if (h == INVALID_HANDLE_VALUE && GetLastError() == ERROR_PIPE_BUSY)
+            {
+                if (WaitNamedPipeW(pipeName.c_str(), 150))
+                {
+                    h = CreateFileW(
+                        pipeName.c_str(),
+                        GENERIC_READ | GENERIC_WRITE,
+                        0,
+                        nullptr,
+                        OPEN_EXISTING,
+                        0,
+                        nullptr);
+                }
+            }
+            return h;
+        };
+
+        HANDLE h = tryOpenPipe();
+        if (h == INVALID_HANDLE_VALUE)
+        {
+            if (HostSystemAgent::RequestServiceEnsureInputAgent(1500))
+            {
+                h = tryOpenPipe();
+            }
+        }
+
+        if (h == INVALID_HANDLE_VALUE)
+        {
+            return false;
+        }
+
+        DWORD mode = PIPE_READMODE_MESSAGE;
+        SetNamedPipeHandleState(h, &mode, nullptr, nullptr);
+        m_AgentPipe = h;
+        m_AgentRectDirty.store(true);
+        m_LoggedAgentErr = false;
+        OSM_LOG_INFO("HostInputInjector connected to SYSTEM input agent (session=%lu)", mySid);
+        return true;
+    }
+
+    bool HostInputInjector::SendAgentMessageLocked(AgentInputOp op, const void* payload, size_t payloadLen)
+    {
+        if (m_AgentPipe == INVALID_HANDLE_VALUE || payloadLen > 65536)
+        {
+            return false;
+        }
+
+        const size_t totalLen = sizeof(AgentInputMsgHeader) + payloadLen;
+        AgentInputMsgHeader hdr{};
+        hdr.magic = kAgentInputMagic;
+        hdr.op = static_cast<uint8_t>(op);
+        hdr.payloadLen = static_cast<uint32_t>(payloadLen);
+
+        uint8_t stackBuf[512];
+        std::vector<uint8_t> heapBuf;
+        uint8_t* buf = stackBuf;
+        if (totalLen > sizeof(stackBuf))
+        {
+            heapBuf.resize(totalLen);
+            buf = heapBuf.data();
+        }
+
+        memcpy(buf, &hdr, sizeof(hdr));
+        if (payloadLen > 0 && payload)
+        {
+            memcpy(buf + sizeof(hdr), payload, payloadLen);
+        }
+
+        DWORD written = 0;
+        BOOL ok = WriteFile(m_AgentPipe, buf, static_cast<DWORD>(totalLen), &written, nullptr);
+        if (!ok || written != static_cast<DWORD>(totalLen))
+        {
+            DWORD err = GetLastError();
+            CloseAgentPipeLocked();
+            if (!m_LoggedAgentErr)
+            {
+                m_LoggedAgentErr = true;
+                OSM_LOG_WARN("HostInputInjector write to SYSTEM input agent failed (err=%lu), falling back locally", err);
+            }
+            const uint64_t nowMs = NowMillis();
+            m_LastAgentProbeMs = (nowMs > 1200) ? (nowMs - 1200) : 0;
+            return false;
+        }
+        return true;
+    }
+
+    bool HostInputInjector::TryForwardPacketToAgent(const uint8_t* data, size_t len)
+    {
+        std::lock_guard<std::mutex> lock(m_AgentMutex);
+        if (!EnsureAgentConnectedLocked())
+        {
+            return false;
+        }
+
+        if (m_AgentRectDirty.exchange(false))
+        {
+            RECT rect{};
+            {
+                std::lock_guard<std::mutex> rlock(m_RectMutex);
+                rect = m_DisplayRect;
+            }
+            if (!SendAgentMessageLocked(AgentInputOp::SetDisplayRect, &rect, sizeof(rect)))
+            {
+                m_AgentRectDirty.store(true);
+                return false;
+            }
+        }
+
+        return SendAgentMessageLocked(AgentInputOp::InjectPacket, data, len);
+    }
+
+    bool HostInputInjector::TryForwardReleaseAllToAgent()
+    {
+        std::lock_guard<std::mutex> lock(m_AgentMutex);
+        if (!EnsureAgentConnectedLocked())
+        {
+            return false;
+        }
+        return SendAgentMessageLocked(AgentInputOp::ReleaseAllInputs, nullptr, 0);
     }
 
     void HostInputInjector::InjectPacket(const uint8_t* data, size_t len)
@@ -19,7 +244,25 @@ namespace osmium
         if (!m_Enabled.load() || !data || len < sizeof(proto::AppPacketHeader)) return;
 
         const auto* hdr = reinterpret_cast<const proto::AppPacketHeader*>(data);
-        switch (static_cast<proto::AppPacketType>(hdr->type))
+        const auto pktType = static_cast<proto::AppPacketType>(hdr->type);
+        const bool isInputPkt =
+            pktType == proto::AppPacketType::InputKey ||
+            pktType == proto::AppPacketType::InputMouseMove ||
+            pktType == proto::AppPacketType::InputMouseButton ||
+            pktType == proto::AppPacketType::InputMouseWheel ||
+            pktType == proto::AppPacketType::InputUnicodeText;
+
+        if (!isInputPkt) return;
+
+        if (m_AllowAgentForwarding && !WillUseVirtualMouse(data, len))
+        {
+            if (TryForwardPacketToAgent(data, len))
+            {
+                return;
+            }
+        }
+
+        switch (pktType)
         {
         case proto::AppPacketType::InputKey:
             if (len >= sizeof(proto::InputKeyPayload))
@@ -55,6 +298,16 @@ namespace osmium
 
     void HostInputInjector::ReleaseAllInputs()
     {
+        if (m_AllowAgentForwarding && TryForwardReleaseAllToAgent())
+        {
+            if (m_LastInputDesk)
+            {
+                CloseDesktop(m_LastInputDesk);
+                m_LastInputDesk = nullptr;
+            }
+            return;
+        }
+
         HostSystemAgent::SyncThreadDesktopToInput(&m_LastInputDesk);
 
         const WORD modifiers[] = {VK_LCONTROL, VK_RCONTROL, VK_LSHIFT, VK_RSHIFT, VK_LMENU, VK_RMENU, VK_LWIN, VK_RWIN};

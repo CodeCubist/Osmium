@@ -358,6 +358,18 @@ public static class NativeMethods
     public static extern int Osmium_RunOneShotSasService();
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_RunInputAgent();
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_InstallSystemService();
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_UninstallSystemService();
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_IsSystemServiceRunning();
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_GetConnectedGamepads([Out] OsmiumGamepadInfo[] outGamepads, int maxCount);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

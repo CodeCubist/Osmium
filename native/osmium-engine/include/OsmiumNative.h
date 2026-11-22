@@ -208,6 +208,10 @@ OSMIUM_API int32_t Osmium_InstallVirtualDrivers(void);
 OSMIUM_API int32_t Osmium_UninstallVirtualDrivers(void);
 OSMIUM_API int32_t Osmium_RunSystemService(void);
 OSMIUM_API int32_t Osmium_RunOneShotSasService(void);
+OSMIUM_API int32_t Osmium_RunInputAgent(void);
+OSMIUM_API int32_t Osmium_InstallSystemService(void);
+OSMIUM_API int32_t Osmium_UninstallSystemService(void);
+OSMIUM_API int32_t Osmium_IsSystemServiceRunning(void);
 
 OSMIUM_API int32_t Osmium_GetConnectedGamepads(OsmiumGamepadInfo* outGamepads, int32_t maxCount);
 OSMIUM_API int32_t Osmium_PollGamepadState(int32_t joystickIndex, OsmiumGamepadLiveState* outState);

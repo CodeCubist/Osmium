@@ -341,6 +341,69 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void RefreshHostSystemServiceRowStatus()
+    {
+        if (RowHostSystemService == null) return;
+        bool ready = SystemServiceHelper.IsServiceReady();
+        RowHostSystemService.Description = ready
+            ? LocalizationService.GetString("Host_SystemServiceReady")
+            : LocalizationService.GetString("Host_SystemServiceMissing");
+        InstallSystemServiceBtn.Content = ready
+            ? LocalizationService.GetString("Host_SystemServiceReinstallBtn")
+            : LocalizationService.GetString("Host_SystemServiceInstallBtn");
+        UninstallSystemServiceBtn.Content = LocalizationService.GetString("Host_SystemServiceUninstallBtn");
+        bool locked = App.Engine.Coordinator.IsHostStreaming;
+        InstallSystemServiceBtn.IsEnabled = !locked;
+        UninstallSystemServiceBtn.IsEnabled = ready && !locked;
+    }
+
+    private async Task ExecuteHostSystemServiceOpAsync(bool install)
+    {
+        InstallSystemServiceBtn.IsEnabled = false;
+        UninstallSystemServiceBtn.IsEnabled = false;
+        try
+        {
+            if (install)
+                await SystemServiceHelper.InstallAsync();
+            else
+                await SystemServiceHelper.UninstallAsync();
+        }
+        finally
+        {
+            RefreshHostSystemServiceRowStatus();
+        }
+    }
+
+    private async void InstallSystemServiceBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
+        await ExecuteHostSystemServiceOpAsync(install: true);
+    }
+
+    private async void UninstallSystemServiceBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
+        if (XamlRoot != null)
+        {
+            var dlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Host_SystemServiceUninstallTitle"),
+                Content = LocalizationService.GetString("Host_SystemServiceUninstallConfirm"),
+                PrimaryButtonText = LocalizationService.GetString("Dialog_Ok"),
+                CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+                DefaultButton = ContentDialogButton.Close
+            };
+            if (await dlg.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+
+        await ExecuteHostSystemServiceOpAsync(install: false);
+    }
+
     private void RefreshHostDriverRowStatus()
     {
         try

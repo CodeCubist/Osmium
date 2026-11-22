@@ -307,6 +307,16 @@
   <data name="Host_DriversUninstallBtn" xml:space="preserve"><value>卸载驱动</value></data>
   <data name="Host_DriversUninstallTitle" xml:space="preserve"><value>卸载虚拟外设驱动</value></data>
   <data name="Host_DriversUninstallConfirm" xml:space="preserve"><value>将从本机移除 USB/IP 虚拟外设驱动及其驱动存储包，确定继续？</value></data>
+  <data name="Host_RowSystemService" xml:space="preserve"><value>系统输入服务</value></data>
+  <data name="Host_SystemServiceReady" xml:space="preserve"><value>运行中</value></data>
+  <data name="Host_SystemServiceMissing" xml:space="preserve"><value>未启用</value></data>
+  <data name="Host_SystemServiceInstallBtn" xml:space="preserve"><value>启用服务</value></data>
+  <data name="Host_SystemServiceReinstallBtn" xml:space="preserve"><value>修复/重装</value></data>
+  <data name="Host_SystemServiceUninstallBtn" xml:space="preserve"><value>卸载服务</value></data>
+  <data name="Host_SystemServiceUninstallTitle" xml:space="preserve"><value>卸载系统输入服务</value></data>
+  <data name="Host_SystemServiceUninstallConfirm" xml:space="preserve"><value>卸载后，普通权限下远控将无法操作管理员窗口与系统权限界面，确定继续？</value></data>
+  <data name="Home_SystemServicePrompt" xml:space="preserve"><value>未启用系统输入服务，最小化或切换至管理员窗口时远控可能无响应</value></data>
+  <data name="Home_SystemServiceEnableBtn" xml:space="preserve"><value>一键启用</value></data>
   <data name="Host_RowAllowDriverMgmt" xml:space="preserve"><value>允许远控端远程安装 / 卸载驱动</value></data>
   <data name="Host_RowAllowDriverMgmtDesc" xml:space="preserve"><value>开启远控后允许主控端为本机部署或清理虚拟外设驱动</value></data>
   <data name="Host_RowRequireDriverConfirm" xml:space="preserve"><value>远程驱动管理前需本机弹窗确认</value></data>

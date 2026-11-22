@@ -27,9 +27,18 @@ public static class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        if (HandleHeadlessServiceArgs(args, out int headlessExitCode))
+        try
         {
-            Environment.ExitCode = headlessExitCode;
+            if (HandleHeadlessServiceArgs(args, out int headlessExitCode))
+            {
+                Environment.ExitCode = headlessExitCode;
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            ReportFatalError("HeadlessService", ex, showDialog: false);
+            Environment.ExitCode = ex.HResult != 0 ? ex.HResult : 1;
             return;
         }
 
@@ -167,13 +176,31 @@ public static class Program
         {
             if (string.Equals(args[i], "--service", StringComparison.OrdinalIgnoreCase))
             {
-                exitCode = NativeMethods.Osmium_RunSystemService() != 0 ? 0 : 1;
+                exitCode = NativeMethods.Osmium_RunSystemService();
                 return true;
             }
 
             if (string.Equals(args[i], "--sas-once", StringComparison.OrdinalIgnoreCase))
             {
-                exitCode = NativeMethods.Osmium_RunOneShotSasService() != 0 ? 0 : 1;
+                exitCode = NativeMethods.Osmium_RunOneShotSasService();
+                return true;
+            }
+
+            if (string.Equals(args[i], "--input-agent", StringComparison.OrdinalIgnoreCase))
+            {
+                exitCode = NativeMethods.Osmium_RunInputAgent();
+                return true;
+            }
+
+            if (string.Equals(args[i], "--install-service", StringComparison.OrdinalIgnoreCase))
+            {
+                exitCode = NativeMethods.Osmium_InstallSystemService() != 0 ? 0 : 1;
+                return true;
+            }
+
+            if (string.Equals(args[i], "--uninstall-service", StringComparison.OrdinalIgnoreCase))
+            {
+                exitCode = NativeMethods.Osmium_UninstallSystemService() != 0 ? 0 : 1;
                 return true;
             }
 

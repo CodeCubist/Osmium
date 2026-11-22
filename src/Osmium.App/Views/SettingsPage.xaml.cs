@@ -52,6 +52,9 @@ public sealed partial class SettingsPage : Page
     private void OnSameAccountDevicesChanged(IReadOnlyList<AccountDeviceDto> _)
         => DispatcherQueue.TryEnqueue(RenderDeviceManagementPanel);
 
+    private void OnSystemServiceStatusChanged()
+        => DispatcherQueue.TryEnqueue(RefreshHostSystemServiceRowStatus);
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
@@ -72,6 +75,8 @@ public sealed partial class SettingsPage : Page
         App.Engine.AccountService.SessionChanged += OnAccountSessionChanged;
         App.Engine.AccountService.SameAccountDevicesChanged -= OnSameAccountDevicesChanged;
         App.Engine.AccountService.SameAccountDevicesChanged += OnSameAccountDevicesChanged;
+        SystemServiceHelper.StatusChanged -= OnSystemServiceStatusChanged;
+        SystemServiceHelper.StatusChanged += OnSystemServiceStatusChanged;
 
         _loading = true;
         ApplyLocalization();
@@ -102,6 +107,7 @@ public sealed partial class SettingsPage : Page
     {
         App.Engine.AccountService.SessionChanged -= OnAccountSessionChanged;
         App.Engine.AccountService.SameAccountDevicesChanged -= OnSameAccountDevicesChanged;
+        SystemServiceHelper.StatusChanged -= OnSystemServiceStatusChanged;
     }
 
     private void ApplyHostSecurityLockState()
@@ -129,13 +135,16 @@ public sealed partial class SettingsPage : Page
         HostAllowFileTransferSwitch.IsEnabled = !locked;
         HostNotifyOnConnectSwitch.IsEnabled = !locked;
         HostFlashTaskbarOnConnectSwitch.IsEnabled = !locked;
+        InstallSystemServiceBtn.IsEnabled = !locked;
         InstallDriversBtn.IsEnabled = !locked;
         if (locked)
         {
+            UninstallSystemServiceBtn.IsEnabled = false;
             UninstallDriversBtn.IsEnabled = false;
         }
         else
         {
+            RefreshHostSystemServiceRowStatus();
             RefreshHostDriverRowStatus();
         }
 
@@ -383,6 +392,7 @@ public sealed partial class SettingsPage : Page
         HostAllowFileTransferSwitch.IsOn = s.HostAllowFileTransfer;
         HostNotifyOnConnectSwitch.IsOn = s.HostNotifyOnConnect;
         HostFlashTaskbarOnConnectSwitch.IsOn = s.HostFlashTaskbarOnConnect;
+        RefreshHostSystemServiceRowStatus();
         RefreshHostDriverRowStatus();
 
         StunPortBox.Value = s.StunPortOverride;
@@ -511,6 +521,7 @@ public sealed partial class SettingsPage : Page
         RowHostAudio.Title = LocalizationService.GetString("Host_RowAudio");
         RowHostInput.Title = LocalizationService.GetString("Host_RowInput");
         RowHostCursor.Title = LocalizationService.GetString("Host_RowCursor");
+        RowHostSystemService.Title = LocalizationService.GetString("Host_RowSystemService");
         RowHostDrivers.Title = LocalizationService.GetString("Host_RowDrivers");
         RowHostAllowRemoteDriverMgmt.Title = LocalizationService.GetString("Host_RowAllowDriverMgmt");
         RowHostAllowRemoteDriverMgmt.Description = LocalizationService.GetString("Host_RowAllowDriverMgmtDesc");
@@ -523,6 +534,7 @@ public sealed partial class SettingsPage : Page
         RowHostNotifyOnConnect.Description = LocalizationService.GetString("Host_RowNotifyOnConnectDesc");
         RowHostFlashTaskbarOnConnect.Title = LocalizationService.GetString("Host_RowFlashTaskbarOnConnect");
         RowHostFlashTaskbarOnConnect.Description = LocalizationService.GetString("Host_RowFlashTaskbarOnConnectDesc");
+        RefreshHostSystemServiceRowStatus();
         RefreshHostDriverRowStatus();
 
         HostMaxResCombo.Items.Clear();

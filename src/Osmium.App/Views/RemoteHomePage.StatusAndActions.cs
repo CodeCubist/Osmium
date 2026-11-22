@@ -34,9 +34,47 @@ public sealed partial class RemoteHomePage : Page
         FlyoutOpenGamepad.Text = LocalizationService.GetString("Nav_GamepadMapper");
         FlyoutOpenSettings.Text = LocalizationService.GetString("Nav_Settings");
 
+        SystemServiceBar.Message = LocalizationService.GetString("Home_SystemServicePrompt");
+        EnableSystemServiceBtn.Content = LocalizationService.GetString("Home_SystemServiceEnableBtn");
+
         UpdateDeviceHeader();
         UpdateHostStatusPill();
         UpdateDockActionLabels();
+        UpdateSystemServiceBar();
+    }
+
+    private void UpdateSystemServiceBar()
+    {
+        if (SystemServiceBar == null) return;
+
+        bool streaming = App.Engine.Coordinator.IsHostStreaming;
+        bool shouldShow = !_systemServiceBarDismissed
+                          && !SystemServiceHelper.IsServiceReady()
+                          && !SystemServiceHelper.IsCurrentProcessElevated();
+
+        SystemServiceBar.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
+        SystemServiceBar.IsOpen = shouldShow;
+        EnableSystemServiceBtn.IsEnabled = !streaming;
+    }
+
+    private void SystemServiceBar_CloseButtonClick(InfoBar sender, object args)
+    {
+        _systemServiceBarDismissed = true;
+        SystemServiceBar.Visibility = Visibility.Collapsed;
+    }
+
+    private async void EnableSystemServiceBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
+        EnableSystemServiceBtn.IsEnabled = false;
+        try
+        {
+            await SystemServiceHelper.InstallAsync();
+        }
+        finally
+        {
+            UpdateSystemServiceBar();
+        }
     }
 
     private void UpdateHostStatusPill()
@@ -84,6 +122,7 @@ public sealed partial class RemoteHomePage : Page
         DockRemoteAssistBtn.IsEnabled = !securityLocked;
         QuickLaunchAssistBtn.IsEnabled = !securityLocked;
         FlyoutToggleApproval.IsEnabled = !securityLocked;
+        EnableSystemServiceBtn.IsEnabled = !securityLocked;
 
         UpdateHeroWallpaper();
         UpdateHostControllingHeadline();
