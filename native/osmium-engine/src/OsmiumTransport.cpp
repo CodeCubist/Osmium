@@ -169,6 +169,7 @@ namespace osmium
         {
             std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
             m_RelayRecvQueue.clear();
+            m_RelayFreePool.clear();
         }
         m_RelayRecvCv.notify_all();
         SOCKET s4 = m_Sock4;
@@ -176,6 +177,7 @@ namespace osmium
         m_Sock4 = INVALID_SOCKET;
         m_Sock6 = INVALID_SOCKET;
         m_ActiveSock = INVALID_SOCKET;
+        m_UdpConnected.store(false, std::memory_order_release);
         if (s4 != INVALID_SOCKET) closesocket(s4);
         if (s6 != INVALID_SOCKET && s6 != s4) closesocket(s6);
     }
@@ -220,7 +222,7 @@ namespace osmium
 
         auto configureUdpSock = [](SOCKET s)
         {
-            int bufSize = 8 * 1024 * 1024;
+            int bufSize = 16 * 1024 * 1024;
             setsockopt(s, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&bufSize), sizeof(bufSize));
             setsockopt(s, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<const char*>(&bufSize), sizeof(bufSize));
             BOOL newBehavior = FALSE;
@@ -857,6 +859,15 @@ namespace osmium
             setsockopt(m_ActiveSock, IPPROTO_IP, IP_TOS, reinterpret_cast<const char*>(&tos), sizeof(tos));
         }
 
+        if (connect(m_ActiveSock, reinterpret_cast<const sockaddr*>(&m_PeerDirectAddr), m_PeerDirectAddrLen) == 0)
+        {
+            m_UdpConnected.store(true, std::memory_order_release);
+        }
+        else
+        {
+            m_UdpConnected.store(false, std::memory_order_release);
+        }
+
         outTransportRoute = m_Route.load();
         outActiveEndpoint = SockAddrToString(m_PeerDirectAddr);
         const char* routeLabel = outTransportRoute == 1
@@ -1272,6 +1283,7 @@ namespace osmium
         m_Sock4 = INVALID_SOCKET;
         m_Sock6 = INVALID_SOCKET;
         m_ActiveSock = INVALID_SOCKET;
+        m_UdpConnected.store(false, std::memory_order_release);
         if (s4 != INVALID_SOCKET) closesocket(s4);
         if (s6 != INVALID_SOCKET && s6 != s4) closesocket(s6);
 
@@ -1293,6 +1305,7 @@ namespace osmium
         {
             std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
             m_RelayRecvQueue.clear();
+            m_RelayFreePool.clear();
         }
         {
             std::lock_guard<std::mutex> fnl(m_RelaySendMutex);
@@ -1313,20 +1326,88 @@ namespace osmium
 
     bool OsmiumTransport::PushRelayPacket(const uint8_t* data, size_t len)
     {
-        if (!m_RelayMode.load(std::memory_order_acquire) || m_Closed.load() || !data || len < 8 || len > 4096)
+        if (!m_RelayMode.load(std::memory_order_acquire) || m_Closed.load() || !data || len < 8 || len > 32768)
         {
             return false;
         }
         {
             std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
-            if (m_RelayRecvQueue.size() >= 512)
+            if (m_RelayRecvQueue.size() >= 256)
             {
+                auto dropped = std::move(m_RelayRecvQueue.front());
                 m_RelayRecvQueue.pop_front();
+                if (m_RelayFreePool.size() < 64 && dropped.capacity() <= 36864)
+                {
+                    dropped.clear();
+                    m_RelayFreePool.push_back(std::move(dropped));
+                }
             }
-            m_RelayRecvQueue.emplace_back(data, data + len);
+            std::vector<uint8_t> buf;
+            if (!m_RelayFreePool.empty())
+            {
+                buf = std::move(m_RelayFreePool.back());
+                m_RelayFreePool.pop_back();
+            }
+            buf.assign(data, data + len);
+            m_RelayRecvQueue.push_back(std::move(buf));
         }
         m_RelayRecvCv.notify_one();
         return true;
+    }
+
+    bool OsmiumTransport::PushRelayBatch(const uint8_t* batchData, size_t batchLen)
+    {
+        if (!m_RelayMode.load(std::memory_order_acquire) || m_Closed.load() || !batchData || batchLen < 10)
+        {
+            return false;
+        }
+
+        size_t pushed = 0;
+        {
+            std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
+            size_t pos = 0;
+            while (pos + 2 <= batchLen)
+            {
+                const uint16_t pktLen = static_cast<uint16_t>(batchData[pos]) |
+                                        (static_cast<uint16_t>(batchData[pos + 1]) << 8);
+                pos += 2;
+                if (pktLen == 0 || pos + pktLen > batchLen) break;
+                if (pktLen < 8 || pktLen > 32768)
+                {
+                    pos += pktLen;
+                    continue;
+                }
+
+                if (m_RelayRecvQueue.size() >= 256)
+                {
+                    auto dropped = std::move(m_RelayRecvQueue.front());
+                    m_RelayRecvQueue.pop_front();
+                    if (m_RelayFreePool.size() < 64 && dropped.capacity() <= 36864)
+                    {
+                        dropped.clear();
+                        m_RelayFreePool.push_back(std::move(dropped));
+                    }
+                }
+
+                std::vector<uint8_t> buf;
+                if (!m_RelayFreePool.empty())
+                {
+                    buf = std::move(m_RelayFreePool.back());
+                    m_RelayFreePool.pop_back();
+                }
+                buf.assign(batchData + pos, batchData + pos + pktLen);
+                m_RelayRecvQueue.push_back(std::move(buf));
+                pushed++;
+                pos += pktLen;
+            }
+        }
+
+        if (pushed > 0)
+        {
+            m_RelayRecvCv.notify_one();
+            return true;
+        }
+        return false;
     }
 
     bool OsmiumTransport::SendEncrypted(
@@ -1386,8 +1467,26 @@ namespace osmium
                 fn = m_RelaySendFn;
             }
             if (!fn || m_Closed.load()) return false;
-            const bool isDroppable = (pktType == proto::AppPacketType::VideoChunk);
+            bool isDroppable = false;
+            if (pktType == proto::AppPacketType::VideoChunk && payloadLen >= sizeof(proto::VideoChunkHeader))
+            {
+                const auto* vhdr = reinterpret_cast<const proto::VideoChunkHeader*>(payload);
+                isDroppable = (vhdr->isKeyFrame == 0);
+            }
             return fn(wireBuf, wireLen, isDroppable);
+        }
+
+        if (m_UdpConnected.load(std::memory_order_acquire))
+        {
+            const char* ptr = reinterpret_cast<const char*>(wireBuf);
+            const int iLen = static_cast<int>(wireLen);
+            int sent = send(m_ActiveSock, ptr, iLen, 0);
+            if (sent == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
+            {
+                SwitchToThread();
+                sent = send(m_ActiveSock, ptr, iLen, 0);
+            }
+            return sent == iLen;
         }
 
         return RawSendTo(m_ActiveSock, m_PeerDirectAddr, m_PeerDirectAddrLen, wireBuf, wireLen);
@@ -1421,23 +1520,44 @@ namespace osmium
                     m_RelayRecvQueue.pop_front();
                 }
 
-                if (pkt.size() < 8 || memcmp(pkt.data(), proto::kMagic, 4) != 0) continue;
-                auto wireType = static_cast<proto::WireMsgType>(pkt[5]);
-                if (wireType == proto::WireMsgType::Punch || wireType == proto::WireMsgType::PunchAck) continue;
+                auto recyclePkt = [this](std::vector<uint8_t>& buf)
+                {
+                    if (buf.capacity() > 0 && buf.capacity() <= 36864)
+                    {
+                        std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
+                        if (m_RelayFreePool.size() < 64)
+                        {
+                            buf.clear();
+                            m_RelayFreePool.push_back(std::move(buf));
+                        }
+                    }
+                };
 
+                if (pkt.size() < 8 || memcmp(pkt.data(), proto::kMagic, 4) != 0)
+                {
+                    recyclePkt(pkt);
+                    continue;
+                }
+                auto wireType = static_cast<proto::WireMsgType>(pkt[5]);
+                if (wireType == proto::WireMsgType::Punch || wireType == proto::WireMsgType::PunchAck)
+                {
+                    recyclePkt(pkt);
+                    continue;
+                }
+
+                bool decoded = false;
                 if (m_EncryptionEnabled.load(std::memory_order_acquire))
                 {
-                    if (DecryptFrame(pkt.data(), pkt.size(), outPlaintext))
-                    {
-                        return static_cast<int>(outPlaintext.size());
-                    }
+                    decoded = DecryptFrame(pkt.data(), pkt.size(), outPlaintext);
                 }
                 else
                 {
-                    if (UnframePlaintext(pkt.data(), pkt.size(), outPlaintext))
-                    {
-                        return static_cast<int>(outPlaintext.size());
-                    }
+                    decoded = UnframePlaintext(pkt.data(), pkt.size(), outPlaintext);
+                }
+                recyclePkt(pkt);
+                if (decoded)
+                {
+                    return static_cast<int>(outPlaintext.size());
                 }
             }
             return -1;
@@ -1446,13 +1566,16 @@ namespace osmium
         if (m_ActiveSock == INVALID_SOCKET) return -1;
 
         const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1, timeoutMs));
+        const bool udpConn = m_UdpConnected.load(std::memory_order_acquire);
         while (!m_Closed.load())
         {
             uint8_t buf[4096];
             sockaddr_storage from{};
             int fromLen = sizeof(from);
-            int n = recvfrom(m_ActiveSock, reinterpret_cast<char*>(buf), sizeof(buf), 0,
-                             reinterpret_cast<sockaddr*>(&from), &fromLen);
+            int n = udpConn
+                        ? recv(m_ActiveSock, reinterpret_cast<char*>(buf), sizeof(buf), 0)
+                        : recvfrom(m_ActiveSock, reinterpret_cast<char*>(buf), sizeof(buf), 0,
+                                   reinterpret_cast<sockaddr*>(&from), &fromLen);
 
             if (n < 0)
             {
@@ -1497,7 +1620,14 @@ namespace osmium
                     ack[5] = static_cast<uint8_t>(proto::WireMsgType::PunchAck);
                     ack[6] = static_cast<uint8_t>(m_LocalRole);
                     memcpy(ack + 8, m_SessionToken, 16);
-                    RawSendTo(m_ActiveSock, from, fromLen, ack, sizeof(ack));
+                    if (udpConn)
+                    {
+                        send(m_ActiveSock, reinterpret_cast<const char*>(ack), sizeof(ack), 0);
+                    }
+                    else
+                    {
+                        RawSendTo(m_ActiveSock, from, fromLen, ack, sizeof(ack));
+                    }
                 }
                 continue;
             }

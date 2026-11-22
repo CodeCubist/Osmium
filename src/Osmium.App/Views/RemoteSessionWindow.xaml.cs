@@ -85,7 +85,10 @@ public sealed partial class RemoteSessionWindow : Window
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
     private readonly RemoteSessionLaunchArgs _launchArgs;
-    private readonly Stopwatch _sessionClock = Stopwatch.StartNew();
+    private readonly Stopwatch _sessionClock = new();
+    private int _clientConfirmSent;
+    private bool _sessionMutuallyEstablished;
+    private long _lastConfirmRetryTickMs;
     private readonly DispatcherQueueTimer _uiTimer;
     private readonly DispatcherQueueTimer _gamepadTimer;
     private readonly DispatcherQueueTimer _toastHideTimer;
@@ -331,6 +334,7 @@ public sealed partial class RemoteSessionWindow : Window
             ApplyTitleBarChromeTheme();
             UpdateTabSelectionStyles();
         };
+        App.Engine.Coordinator.ClientSessionEstablished += OnCoordinatorClientSessionEstablished;
         App.Engine.Coordinator.ClientSessionEnded += OnCoordinatorClientSessionEnded;
         LocalizationService.LanguageChanged += OnLanguageChanged;
     }
@@ -605,6 +609,7 @@ public sealed partial class RemoteSessionWindow : Window
             {
                 if (_isClosed || _remoteSessionEnded) return;
                 _firstVideoFrameSeen = true;
+                NotifyClientReadyForMutualConfirm();
                 if (w > 0 && h > 0)
                 {
                     _cachedStreamWidth = w;
@@ -642,6 +647,7 @@ public sealed partial class RemoteSessionWindow : Window
                 if (!_firstVideoFrameSeen && copy.RenderedFrames > 0)
                 {
                     _firstVideoFrameSeen = true;
+                    NotifyClientReadyForMutualConfirm();
                     WaitingProgressRing.IsActive = false;
                     WaitingProgressRing.Visibility = Visibility.Collapsed;
                     WaitingVideoOverlay.Visibility = Visibility.Collapsed;

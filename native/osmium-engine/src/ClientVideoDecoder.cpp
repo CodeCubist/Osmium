@@ -298,6 +298,12 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             return false;
         }
 
+        ComPtr<IDXGIDevice1> dxgiDevice1;
+        if (SUCCEEDED(m_Device.As(&dxgiDevice1)) && dxgiDevice1)
+        {
+            dxgiDevice1->SetMaximumFrameLatency(1);
+        }
+
         m_Device.As(&m_VideoDevice);
         m_Context.As(&m_VideoContext);
 

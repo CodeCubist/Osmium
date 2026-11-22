@@ -349,11 +349,16 @@ public sealed partial class P2PCoordinator : IDisposable
     private CloudRelayTransport? _activeHostRelay;
     private string? _activeHostSessionId;
     private string? _activeHostPeerId;
+    private volatile bool _hostSessionEstablished;
+    private HostSessionActiveInfo? _pendingHostSessionInfo;
+    private bool _pendingHostRefreshTempCode;
+    private CancellationTokenSource? _hostConfirmTimeoutCts;
 
     private readonly object _clientLock = new();
     private string? _activeClientSessionId;
     private string? _activeClientTargetId;
     private bool _peerEndedClientSession;
+    private bool _activeClientSessionEstablished;
     private int _activeClientSessionCount;
     private long _connectCooldownUntilTickMs;
 
@@ -421,15 +426,29 @@ public sealed partial class P2PCoordinator : IDisposable
 
     public event Action<string>? ClientStageUpdated;
     public event Action? ClientStreamStarted;
+    public event Action<string, long>? ClientSessionEstablished;
     public event Action<OsmiumClientStats>? ClientStatsUpdated;
     public event Action<string>? ClientSessionEnded;
     public event Action<int>? ConnectCooldownChanged;
     public event Action? RemoteSessionStateChanged;
 
-    public bool IsHostStreaming => _activeHostHandle != IntPtr.Zero;
+    private bool HasActiveHostPipeline => _activeHostHandle != IntPtr.Zero;
+    public bool IsHostStreaming => _activeHostHandle != IntPtr.Zero && _hostSessionEstablished;
     public bool IsClientSessionActive => Volatile.Read(ref _activeClientSessionCount) > 0;
     public bool IsAnyRemoteSessionActive => IsHostStreaming || IsClientSessionActive;
     public bool EffectiveAllowRemoteControl => _settings.Settings.AllowRemoteControl && !IsClientSessionActive;
+
+    public bool IsClientSessionEstablished(string sessionId)
+    {
+        lock (_clientLock)
+        {
+            return _activeClientSessionEstablished &&
+                   string.Equals(_activeClientSessionId, sessionId, StringComparison.Ordinal);
+        }
+    }
+
+    public Task ConfirmClientSessionAsync(string sessionId)
+        => string.IsNullOrWhiteSpace(sessionId) ? Task.CompletedTask : _signaling.SendSessionConfirmAsync(sessionId);
 
     public DateTimeOffset? HostSessionStartedAtUtc
     {
@@ -464,6 +483,7 @@ public sealed partial class P2PCoordinator : IDisposable
 
         _signaling.IncomingConnect += OnIncomingConnect;
         _signaling.SessionEnded += OnSignalingSessionEnded;
+        _signaling.SessionEstablishedReceived += OnSignalingSessionEstablished;
         _signaling.ConnectCooldownUpdated += OnSignalingConnectCooldownUpdated;
     }
 
@@ -471,7 +491,7 @@ public sealed partial class P2PCoordinator : IDisposable
     {
         string norm = DeviceIdentity.NormalizeDeviceId(targetHostDeviceId);
         await _signaling.SendAccountForceDisconnectAsync(norm);
-        if (norm == _settings.Identity.DeviceId && IsHostStreaming)
+        if (norm == _settings.Identity.DeviceId && HasActiveHostPipeline)
         {
             StopHostSession();
         }
@@ -481,7 +501,7 @@ public sealed partial class P2PCoordinator : IDisposable
     {
         string norm = DeviceIdentity.NormalizeDeviceId(targetHostDeviceId);
         await _signaling.SendAccountBlacklistUserAsync(norm);
-        if (norm == _settings.Identity.DeviceId && IsHostStreaming)
+        if (norm == _settings.Identity.DeviceId && HasActiveHostPipeline)
         {
             StopHostSession();
         }
@@ -660,6 +680,8 @@ public sealed partial class P2PCoordinator : IDisposable
         var (stunHost, stunPort) = GetStunEndpoint();
         IntPtr transport = IntPtr.Zero;
         CloudRelayTransport? clientRelay = null;
+        bool bridgeReadyReached = false;
+        bool launchedSessionHandledEnd = false;
 
         int activeClientsAfterInc = Interlocked.Increment(ref _activeClientSessionCount);
         if (activeClientsAfterInc == 1)
@@ -962,6 +984,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     try
                     {
                         bridge = await bridgeReadyTcs.Task;
+                        bridgeReadyReached = true;
                     }
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
@@ -1056,7 +1079,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     TargetWidth = s.TargetWidth,
                     TargetHeight = s.TargetHeight,
                     Fps = s.Fps,
-                    BitrateKbps = transportRoute == 4 ? Math.Min(s.BitrateKbps, 12000) : s.BitrateKbps,
+                    BitrateKbps = transportRoute == 4 ? Math.Min(s.BitrateKbps, 16000) : s.BitrateKbps,
                     WindowMode = (int)s.WindowMode,
                     CodecPreference = (int)s.VideoCodec,
                     DecoderPreference = (int)s.VideoDecoderMode,
@@ -1097,7 +1120,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         if (await SwitchToCloudRelayAsync())
                         {
-                            clientCfg.BitrateKbps = Math.Min(clientCfg.BitrateKbps, 12000);
+                            clientCfg.BitrateKbps = Math.Min(clientCfg.BitrateKbps, 16000);
                             ClientStageUpdated?.Invoke(
                                 Tr("Conn_VerifyingRelay", "Cloud relay active, verifying access code..."));
                             authRes = await Task.Run(
@@ -1192,6 +1215,7 @@ public sealed partial class P2PCoordinator : IDisposable
                         _activeClientSessionId = sessionId;
                         _activeClientTargetId = normalizedTarget;
                         _peerEndedClientSession = false;
+                        _activeClientSessionEstablished = false;
                     }
 
                     try
@@ -1201,19 +1225,31 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
                     finally
                     {
+                        launchedSessionHandledEnd = true;
                         bool peerEnded;
+                        bool wasEstablished;
                         lock (_clientLock)
                         {
                             peerEnded = _peerEndedClientSession;
+                            wasEstablished = _activeClientSessionEstablished;
                             _activeClientSessionId = null;
                             _activeClientTargetId = null;
                             _peerEndedClientSession = false;
+                            _activeClientSessionEstablished = false;
                         }
 
                         if (!peerEnded)
                         {
-                            await SendClientSessionEndAndAwaitCooldownAsync(sessionId, normalizedTarget,
-                                "Client closed session");
+                            if (wasEstablished)
+                            {
+                                await SendClientSessionEndAndAwaitCooldownAsync(sessionId, normalizedTarget,
+                                    "Client closed session");
+                            }
+                            else
+                            {
+                                await _signaling.SendSessionEndAsync(sessionId, normalizedTarget,
+                                    "Client closed before mutual confirmation", role: "client", failed: true);
+                            }
                         }
                     }
 
@@ -1223,6 +1259,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 _clientStartedDelegate = (w, h, codec, dec) =>
                 {
                     _log.Info($"Client stream started: {w}x{h} {codec} via {dec}");
+                    _ = ConfirmClientSessionAsync(sessionId);
                     ClientStreamStarted?.Invoke();
                 };
                 _clientStatsDelegate = (in OsmiumClientStats stats) =>
@@ -1248,9 +1285,41 @@ public sealed partial class P2PCoordinator : IDisposable
                 };
 
                 clientCfg.ShowPerformanceOverlay = s.ShowPerformanceOverlay ? 1 : 0;
-                await Task.Run(() => NativeMethods.Osmium_RunClientSession(transport, in clientCfg, in callbacks),
-                    CancellationToken.None);
-                await SendClientSessionEndAndAwaitCooldownAsync(sessionId, normalizedTarget, "Client closed session");
+                lock (_clientLock)
+                {
+                    _activeClientSessionId = sessionId;
+                    _activeClientTargetId = normalizedTarget;
+                    _peerEndedClientSession = false;
+                    _activeClientSessionEstablished = false;
+                }
+                try
+                {
+                    await Task.Run(() => NativeMethods.Osmium_RunClientSession(transport, in clientCfg, in callbacks),
+                        CancellationToken.None);
+                }
+                finally
+                {
+                    launchedSessionHandledEnd = true;
+                    bool wasEstablished;
+                    lock (_clientLock)
+                    {
+                        wasEstablished = _activeClientSessionEstablished;
+                        _activeClientSessionId = null;
+                        _activeClientTargetId = null;
+                        _peerEndedClientSession = false;
+                        _activeClientSessionEstablished = false;
+                    }
+
+                    if (wasEstablished)
+                    {
+                        await SendClientSessionEndAndAwaitCooldownAsync(sessionId, normalizedTarget, "Client closed session");
+                    }
+                    else
+                    {
+                        await _signaling.SendSessionEndAsync(sessionId, normalizedTarget,
+                            "Client closed before mutual confirmation", role: "client", failed: true);
+                    }
+                }
                 return (true, Tr("Conn_SessionEnded", "Session ended"));
             }
             finally
@@ -1276,6 +1345,12 @@ public sealed partial class P2PCoordinator : IDisposable
         }
         finally
         {
+            if (bridgeReadyReached && !launchedSessionHandledEnd)
+            {
+                _ = _signaling.SendSessionEndAsync(sessionId, normalizedTarget,
+                    "Client connection failed before session established", role: "client", failed: true);
+            }
+
             clientRelay?.Dispose();
             if (transport != IntPtr.Zero)
             {

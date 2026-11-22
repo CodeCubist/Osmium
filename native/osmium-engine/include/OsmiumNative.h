@@ -244,6 +244,11 @@ OSMIUM_API int32_t Osmium_PushTransportRelayPacket(
     const uint8_t* data,
     int32_t length);
 
+OSMIUM_API int32_t Osmium_PushTransportRelayBatch(
+    void* transport,
+    const uint8_t* batchData,
+    int32_t batchLength);
+
 OSMIUM_API int32_t Osmium_SetTransportKey(void* transport, const uint8_t* aesKey32);
 OSMIUM_API int32_t Osmium_SetTransportEncryption(void* transport, int32_t enableEncryption);
 

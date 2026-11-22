@@ -371,6 +371,33 @@ public sealed class RelayFallbackEventArgs : EventArgs
     } = string.Empty;
 }
 
+public sealed class SessionEstablishedEventArgs : EventArgs
+{
+    public required string SessionId
+    {
+        get;
+        init;
+    }
+
+    public long StartedAtUnixMs
+    {
+        get;
+        init;
+    }
+
+    public string ClientDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string HostDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+}
+
 public sealed class ConnectRejectEventArgs : EventArgs
 {
     public required string SessionId
@@ -484,6 +511,7 @@ public sealed partial class SignalingClient : IDisposable
     public event Action<VersionCheckResultEventArgs>? VersionCheckResultReceived;
     public event Action<BridgeReadyEventArgs>? BridgeReady;
     public event Action<RelayFallbackEventArgs>? RelayFallbackReceived;
+    public event Action<SessionEstablishedEventArgs>? SessionEstablishedReceived;
     public event Action<ConnectAcceptEventArgs>? ConnectAccepted;
     public event Action<ConnectRejectEventArgs>? ConnectRejected;
     public event Action<int, string>? ConnectCooldownUpdated;
@@ -696,6 +724,16 @@ public sealed partial class SignalingClient : IDisposable
         });
     }
 
+    public async Task SendSessionConfirmAsync(string sessionId)
+    {
+        if (!_isTransportRegistered || string.IsNullOrWhiteSpace(sessionId)) return;
+        await SendJsonAsync(new
+        {
+            type = "session_confirm",
+            sessionId
+        });
+    }
+
     public async Task SendConnectAcceptAsync(
         string sessionId,
         string targetClientDeviceId,
@@ -730,7 +768,8 @@ public sealed partial class SignalingClient : IDisposable
         });
     }
 
-    public async Task SendSessionEndAsync(string sessionId, string targetDeviceId, string reason, string? role = null)
+    public async Task SendSessionEndAsync(string sessionId, string targetDeviceId, string reason, string? role = null,
+        bool failed = false)
     {
         if (!_isTransportRegistered) return;
         await SendJsonAsync(new
@@ -739,7 +778,8 @@ public sealed partial class SignalingClient : IDisposable
             sessionId,
             targetDeviceId,
             reason,
-            role
+            role,
+            failed
         });
     }
 

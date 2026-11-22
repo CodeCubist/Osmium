@@ -266,6 +266,13 @@ public sealed partial class RemoteSessionWindow : Window
             SyncKeyboardHookAndCursorCapture();
         }
 
+        if (_firstVideoFrameSeen && !_sessionMutuallyEstablished && !_remoteSessionEnded &&
+            Environment.TickCount64 - _lastConfirmRetryTickMs >= 2000)
+        {
+            _lastConfirmRetryTickMs = Environment.TickCount64;
+            _ = App.Engine.Coordinator.ConfirmClientSessionAsync(_launchArgs.SessionId);
+        }
+
         UpdateOsdDisplay();
     }
 

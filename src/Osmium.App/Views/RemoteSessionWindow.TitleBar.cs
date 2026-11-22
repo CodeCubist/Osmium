@@ -337,12 +337,12 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void ApplyTitleBarChromeTheme()
     {
+        SessionMenuButton.Background = new SolidColorBrush(Colors.Transparent);
         if (_isFullscreen)
         {
             AppTitleBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x8C, 0x14, 0x18, 0x21));
             TitleBarBottomDivider.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF));
             RemoteHostTitleText.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0xF8, 0xFA, 0xFC));
-            SessionMenuButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF));
             SessionMenuButton.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF5, 0xF8, 0xFA, 0xFC));
         }
         else
@@ -353,10 +353,6 @@ public sealed partial class RemoteSessionWindow : Window
                 "TextFillColorPrimaryBrush",
                 Windows.UI.Color.FromArgb(0xFF, 0x18, 0x1C, 0x24),
                 Windows.UI.Color.FromArgb(0xFF, 0xF3, 0xF6, 0xFA));
-            SessionMenuButton.Background = ResolveThemeBrush(
-                "OsmiumSubtlePillBrush",
-                Windows.UI.Color.FromArgb(0x0B, 0, 0, 0),
-                Windows.UI.Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF));
             SessionMenuButton.Foreground = ResolveThemeBrush(
                 "TextFillColorPrimaryBrush",
                 Windows.UI.Color.FromArgb(0xFF, 0x18, 0x1C, 0x24),
@@ -756,6 +752,11 @@ public sealed partial class RemoteSessionWindow : Window
         int defaultAtRes = OsmiumSettings.GetDefaultBitrateKbps(effW, effH, _currentFps, _enableYuv444);
         int scaledMax = Math.Max(1500, (int)Math.Round(_baseBitrateKbps * pixelRatio * (_enableYuv444 ? 1.5 : 1.0)));
         int bitrate = Math.Clamp(Math.Min(scaledMax, defaultAtRes), 1500, 500000);
+        int activeRoute = _latestStats.TransportRoute > 0 ? _latestStats.TransportRoute : _launchArgs.TransportRoute;
+        if (activeRoute == 4)
+        {
+            bitrate = Math.Min(bitrate, 16000);
+        }
 
         NativeMethods.Osmium_ClientUpdateVideoParams(
             _clientHandle,
@@ -871,6 +872,40 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
+    private void OnCoordinatorClientSessionEstablished(string sessionId, long startedAtUnixMs)
+    {
+        if (_isClosed || _remoteSessionEnded) return;
+        if (!string.Equals(sessionId, _launchArgs.SessionId, StringComparison.Ordinal)) return;
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isClosed || _remoteSessionEnded || _sessionMutuallyEstablished) return;
+            _sessionMutuallyEstablished = true;
+            _sessionClock.Restart();
+            UpdateOsdDisplay();
+        });
+    }
+
+    private void NotifyClientReadyForMutualConfirm()
+    {
+        if (_isClosed || _remoteSessionEnded || _sessionMutuallyEstablished) return;
+
+        if (Interlocked.Exchange(ref _clientConfirmSent, 1) == 0)
+        {
+            _lastConfirmRetryTickMs = Environment.TickCount64;
+            _ = App.Engine.Coordinator.ConfirmClientSessionAsync(_launchArgs.SessionId);
+        }
+
+        if (App.Engine.Coordinator.IsClientSessionEstablished(_launchArgs.SessionId))
+        {
+            _sessionMutuallyEstablished = true;
+            if (!_sessionClock.IsRunning)
+            {
+                _sessionClock.Restart();
+            }
+        }
+    }
+
     private void OnCoordinatorClientSessionEnded(string reason)
     {
         if (_isClosed) return;
@@ -887,6 +922,7 @@ public sealed partial class RemoteSessionWindow : Window
         if (_isClosed || _remoteSessionEnded) return;
         _remoteSessionEnded = true;
         _endedReasonMsg = msg;
+        _sessionClock.Stop();
 
         _uiTimer.Stop();
         _gamepadTimer.Stop();

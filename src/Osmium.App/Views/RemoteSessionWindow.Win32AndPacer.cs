@@ -423,6 +423,8 @@ public sealed partial class RemoteSessionWindow : Window
         _isClosed = true;
         _remoteSessionEnded = true;
 
+        _sessionClock.Stop();
+        App.Engine.Coordinator.ClientSessionEstablished -= OnCoordinatorClientSessionEstablished;
         App.Engine.Coordinator.ClientSessionEnded -= OnCoordinatorClientSessionEnded;
         LocalizationService.LanguageChanged -= OnLanguageChanged;
 

@@ -62,6 +62,7 @@ namespace osmium
             const char* endpointLabel);
 
         bool PushRelayPacket(const uint8_t* data, size_t len);
+        bool PushRelayBatch(const uint8_t* batchData, size_t batchLen);
 
         bool SetSessionKey(const uint8_t aesKey[32]);
         void SetEncryptionEnabled(bool enabled) { m_EncryptionEnabled.store(enabled, std::memory_order_release); }
@@ -114,6 +115,7 @@ namespace osmium
         int m_PeerDirectAddrLen = 0;
         std::atomic<int32_t> m_Route{0};
         std::atomic<bool> m_Connected{false};
+        std::atomic<bool> m_UdpConnected{false};
         std::atomic<bool> m_Closed{false};
         std::atomic<bool> m_EncryptionEnabled{true};
 
@@ -147,6 +149,7 @@ namespace osmium
         std::mutex m_RelayRecvMutex;
         std::condition_variable m_RelayRecvCv;
         std::deque<std::vector<uint8_t>> m_RelayRecvQueue;
+        std::vector<std::vector<uint8_t>> m_RelayFreePool;
         std::string m_RelayEndpointStr;
     };
 }

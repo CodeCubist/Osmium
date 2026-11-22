@@ -404,6 +404,12 @@ public static class NativeMethods
         int length);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_PushTransportRelayBatch(
+        IntPtr transport,
+        byte[] batchData,
+        int batchLength);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_SetTransportKey(IntPtr transport, byte[] aesKey32);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

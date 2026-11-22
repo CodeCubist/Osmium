@@ -252,8 +252,26 @@
                         Padding="10,0"
                         CornerRadius="6"
                         VerticalAlignment="Center"
-                        Background="{ThemeResource OsmiumSubtlePillBrush}"
-                        BorderThickness="0">
+                        Background="Transparent"
+                        BorderThickness="0"
+                        IsTabStop="False"
+                        UseSystemFocusVisuals="False">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="RootBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <FontIcon FontFamily="{StaticResource FluentIconsFont}"
                                   Glyph="&#xEABB;"

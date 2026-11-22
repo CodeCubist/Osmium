@@ -239,5 +239,7 @@ namespace osmium::proto
 #pragma pack(pop)
 
     constexpr size_t kMaxVideoChunkPayload = 1240;
+    constexpr size_t kMaxLanVideoChunkPayload = 1380;
+    constexpr size_t kMaxRelayVideoChunkPayload = 16384;
     constexpr size_t kMaxAuxDataPayload = 1240;
 }

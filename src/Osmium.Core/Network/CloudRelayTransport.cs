@@ -1,5 +1,9 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -11,20 +15,23 @@ namespace Osmium.Core.Network;
 
 public sealed class CloudRelayTransport : IDisposable
 {
-    private const int MaxBatchPayloadBytes = 16384;
-    private const int MaxQueuedDroppablePackets = 64;
+    private const int MaxPacketBytes = 32768;
+    private const int MaxBatchPayloadBytes = 32768;
+    private const int MaxQueuedVideoBytes = 384 * 1024;
     private const int MaxIncomingFrameBytes = 131072;
+    private const int SocketBufferBytes = 512 * 1024;
 
     private readonly IntPtr _nativeTransport;
     private readonly LoggingService _log;
     private readonly ClientWebSocket _ws = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly TaskCompletionSource<bool> _peerReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    private readonly ConcurrentQueue<(byte[] Data, bool Droppable)> _sendQueue = new();
+    
+    private readonly ConcurrentQueue<(byte[] Buf, int Len)> _highPriorityQueue = new();
+    private readonly ConcurrentQueue<(byte[] Buf, int Len)> _videoQueue = new();
     private readonly SemaphoreSlim _sendSignal = new(0, 1);
     private int _signalPending;
-    private int _queuedDroppableCount;
+    private int _queuedVideoBytes;
     private int _disposed;
 
     private OsmiumRelaySendDelegate? _sendDelegate;
@@ -39,6 +46,9 @@ public sealed class CloudRelayTransport : IDisposable
         EndpointLabel = string.IsNullOrWhiteSpace(endpointLabel) ? "Cloud Relay (WSS)" : endpointLabel;
         _log = log;
         _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        _ws.Options.HttpVersion = HttpVersion.Version11;
+        _ws.Options.HttpVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        _ws.Options.DangerousDeflateOptions = null;
     }
 
     public static Uri BuildRelayUri(string signalingServerUrl, string relayPath, string sessionId, string role, string relayToken)
@@ -68,8 +78,66 @@ public sealed class CloudRelayTransport : IDisposable
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
             using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
             using var connectLinked = CancellationTokenSource.CreateLinkedTokenSource(linked.Token, connectTimeout.Token);
+            
+            using var handler = new SocketsHttpHandler
+            {
+                ConnectCallback = async (context, token) =>
+                {
+                    string host = context.DnsEndPoint.Host;
+                    int port = context.DnsEndPoint.Port;
+                    Socket socket;
+                    try
+                    {
+                        IPAddress[] v4Addrs = IPAddress.TryParse(host, out var parsed)
+                            ? (parsed.AddressFamily == AddressFamily.InterNetwork ? [parsed] : [])
+                            : await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, token);
 
-            await _ws.ConnectAsync(relayUri, connectLinked.Token);
+                        if (v4Addrs.Length > 0)
+                        {
+                            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+                            {
+                                NoDelay = true,
+                                SendBufferSize = SocketBufferBytes,
+                                ReceiveBufferSize = SocketBufferBytes
+                            };
+                            try
+                            {
+                                await socket.ConnectAsync(v4Addrs, port, token);
+                                return new NetworkStream(socket, ownsSocket: true);
+                            }
+                            catch
+                            {
+                                socket.Dispose();
+                                throw;
+                            }
+                        }
+                    }
+                    catch when (!token.IsCancellationRequested)
+                    {
+                        
+                    }
+
+                    socket = new Socket(SocketType.Stream, ProtocolType.Tcp)
+                    {
+                        NoDelay = true,
+                        SendBufferSize = SocketBufferBytes,
+                        ReceiveBufferSize = SocketBufferBytes
+                    };
+                    try
+                    {
+                        await socket.ConnectAsync(context.DnsEndPoint, token);
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch
+                    {
+                        socket.Dispose();
+                        throw;
+                    }
+                }
+            };
+            using var invoker = new HttpMessageInvoker(handler);
+
+            await _ws.ConnectAsync(relayUri, invoker, connectLinked.Token);
             _log.Info($"CloudRelayTransport connected ({(localRole == 2 ? "host" : "client")}): {EndpointLabel}");
 
             _sendDelegate = OnNativeSendRelay;
@@ -108,7 +176,7 @@ public sealed class CloudRelayTransport : IDisposable
 
     private int OnNativeSendRelay(IntPtr dataPtr, int length, int isDroppable)
     {
-        if (Volatile.Read(ref _disposed) != 0 || dataPtr == IntPtr.Zero || length <= 0 || length > 4096)
+        if (Volatile.Read(ref _disposed) != 0 || dataPtr == IntPtr.Zero || length <= 0 || length > MaxPacketBytes)
         {
             return 0;
         }
@@ -119,20 +187,29 @@ public sealed class CloudRelayTransport : IDisposable
         }
 
         bool droppable = isDroppable != 0;
-        if (droppable && Volatile.Read(ref _queuedDroppableCount) >= MaxQueuedDroppablePackets)
-        {
-            // Shed excess queued video chunks under relay backpressure to protect input latency
-            return 1;
-        }
-
-        byte[] copy = new byte[length];
-        Marshal.Copy(dataPtr, copy, 0, length);
         if (droppable)
         {
-            Interlocked.Increment(ref _queuedDroppableCount);
+            while (Volatile.Read(ref _queuedVideoBytes) + length > MaxQueuedVideoBytes &&
+                   _videoQueue.TryDequeue(out var stale))
+            {
+                Interlocked.Add(ref _queuedVideoBytes, -stale.Len);
+                ArrayPool<byte>.Shared.Return(stale.Buf);
+            }
         }
 
-        _sendQueue.Enqueue((copy, droppable));
+        byte[] rented = ArrayPool<byte>.Shared.Rent(length);
+        Marshal.Copy(dataPtr, rented, 0, length);
+
+        if (droppable)
+        {
+            Interlocked.Add(ref _queuedVideoBytes, length);
+            _videoQueue.Enqueue((rented, length));
+        }
+        else
+        {
+            _highPriorityQueue.Enqueue((rented, length));
+        }
+
         if (Interlocked.Exchange(ref _signalPending, 1) == 0)
         {
             try
@@ -149,7 +226,7 @@ public sealed class CloudRelayTransport : IDisposable
 
     private async Task SendLoopAsync(CancellationToken ct)
     {
-        byte[] batchBuf = new byte[MaxBatchPayloadBytes + 4096];
+        byte[] batchBuf = new byte[MaxBatchPayloadBytes + MaxPacketBytes + 16];
         try
         {
             while (!ct.IsCancellationRequested && _ws.State == WebSocketState.Open)
@@ -160,33 +237,71 @@ public sealed class CloudRelayTransport : IDisposable
                 while (!ct.IsCancellationRequested && _ws.State == WebSocketState.Open)
                 {
                     int offset = 0;
-                    bool hasImmediate = false;
-
-                    while (_sendQueue.TryDequeue(out var item))
+                    
+                    while (_highPriorityQueue.TryDequeue(out var hi))
                     {
-                        if (item.Droppable)
+                        try
                         {
-                            Interlocked.Decrement(ref _queuedDroppableCount);
+                            int needed = 2 + hi.Len;
+                            if (offset > 0 && offset + needed > MaxBatchPayloadBytes)
+                            {
+                                await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
+                                    WebSocketMessageType.Binary, endOfMessage: true, ct);
+                                offset = 0;
+                            }
+
+                            BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)hi.Len);
+                            Buffer.BlockCopy(hi.Buf, 0, batchBuf, offset + 2, hi.Len);
+                            offset += needed;
                         }
-                        else
+                        finally
                         {
-                            hasImmediate = true;
+                            ArrayPool<byte>.Shared.Return(hi.Buf);
                         }
 
-                        int needed = 2 + item.Data.Length;
-                        if (offset > 0 && offset + needed > MaxBatchPayloadBytes)
+                        if (offset >= MaxBatchPayloadBytes)
                         {
-                            await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset), WebSocketMessageType.Binary,
-                                endOfMessage: true, ct);
-                            offset = 0;
-                            hasImmediate = !item.Droppable;
+                            break;
+                        }
+                    }
+
+                    if (offset > 0)
+                    {
+                        await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
+                            WebSocketMessageType.Binary, endOfMessage: true, ct);
+                        continue;
+                    }
+                    
+                    while (_highPriorityQueue.IsEmpty && _videoQueue.TryDequeue(out var vid))
+                    {
+                        Interlocked.Add(ref _queuedVideoBytes, -vid.Len);
+                        try
+                        {
+                            int needed = 2 + vid.Len;
+                            if (offset > 0 && offset + needed > MaxBatchPayloadBytes)
+                            {
+                                await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
+                                    WebSocketMessageType.Binary, endOfMessage: true, ct);
+                                offset = 0;
+                                if (!_highPriorityQueue.IsEmpty)
+                                {
+                                    BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(0, 2), (ushort)vid.Len);
+                                    Buffer.BlockCopy(vid.Buf, 0, batchBuf, 2, vid.Len);
+                                    offset = needed;
+                                    break;
+                                }
+                            }
+
+                            BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)vid.Len);
+                            Buffer.BlockCopy(vid.Buf, 0, batchBuf, offset + 2, vid.Len);
+                            offset += needed;
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(vid.Buf);
                         }
 
-                        BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)item.Data.Length);
-                        Buffer.BlockCopy(item.Data, 0, batchBuf, offset + 2, item.Data.Length);
-                        offset += needed;
-
-                        if (hasImmediate || offset >= MaxBatchPayloadBytes)
+                        if (offset >= MaxBatchPayloadBytes)
                         {
                             break;
                         }
@@ -197,8 +312,8 @@ public sealed class CloudRelayTransport : IDisposable
                         break;
                     }
 
-                    await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset), WebSocketMessageType.Binary,
-                        endOfMessage: true, ct);
+                    await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
+                        WebSocketMessageType.Binary, endOfMessage: true, ct);
                 }
             }
         }
@@ -216,15 +331,46 @@ public sealed class CloudRelayTransport : IDisposable
 
     private async Task ReceiveLoopAsync(CancellationToken ct)
     {
-        byte[] recvBuf = new byte[32768];
-        using var frameMs = new MemoryStream(32768);
+        byte[] recvBuf = new byte[65536];
+        using var frameMs = new MemoryStream(65536);
         try
         {
             while (!ct.IsCancellationRequested && _ws.State == WebSocketState.Open)
             {
+                WebSocketReceiveResult result = await _ws.ReceiveAsync(new ArraySegment<byte>(recvBuf), ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    _peerReadyTcs.TrySetResult(false);
+                    return;
+                }
+                
+                if (result.EndOfMessage)
+                {
+                    if (result.MessageType == WebSocketMessageType.Binary && result.Count >= 10)
+                    {
+                        _peerReadyTcs.TrySetResult(true);
+                        if (Volatile.Read(ref _disposed) == 0)
+                        {
+                            NativeMethods.Osmium_PushTransportRelayBatch(_nativeTransport, recvBuf, result.Count);
+                        }
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Text && result.Count > 0)
+                    {
+                        string text = Encoding.UTF8.GetString(recvBuf, 0, result.Count);
+                        HandleControlText(text);
+                    }
+
+                    continue;
+                }
+                
                 frameMs.SetLength(0);
-                WebSocketReceiveResult result;
-                do
+                bool overflowed = false;
+                if (result.Count > 0)
+                {
+                    frameMs.Write(recvBuf, 0, result.Count);
+                }
+
+                while (!result.EndOfMessage)
                 {
                     result = await _ws.ReceiveAsync(new ArraySegment<byte>(recvBuf), ct);
                     if (result.MessageType == WebSocketMessageType.Close)
@@ -233,17 +379,21 @@ public sealed class CloudRelayTransport : IDisposable
                         return;
                     }
 
-                    if (frameMs.Length + result.Count > MaxIncomingFrameBytes)
+                    if (!overflowed)
                     {
-                        frameMs.SetLength(0);
-                        break;
+                        if (frameMs.Length + result.Count > MaxIncomingFrameBytes)
+                        {
+                            overflowed = true;
+                            frameMs.SetLength(0);
+                        }
+                        else if (result.Count > 0)
+                        {
+                            frameMs.Write(recvBuf, 0, result.Count);
+                        }
                     }
+                }
 
-                    if (result.Count > 0)
-                    {
-                        frameMs.Write(recvBuf, 0, result.Count);
-                    }
-                } while (!result.EndOfMessage);
+                if (overflowed) continue;
 
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
@@ -256,11 +406,14 @@ public sealed class CloudRelayTransport : IDisposable
                     continue;
                 }
 
-                if (result.MessageType == WebSocketMessageType.Binary && frameMs.Length >= 2)
+                if (result.MessageType == WebSocketMessageType.Binary && frameMs.Length >= 10)
                 {
-                    // Any binary packet from peer also implies peer is already ready
                     _peerReadyTcs.TrySetResult(true);
-                    DispatchBinaryBatch(frameMs.GetBuffer(), (int)frameMs.Length);
+                    if (Volatile.Read(ref _disposed) == 0)
+                    {
+                        NativeMethods.Osmium_PushTransportRelayBatch(_nativeTransport, frameMs.GetBuffer(),
+                            (int)frameMs.Length);
+                    }
                 }
             }
         }
@@ -296,24 +449,17 @@ public sealed class CloudRelayTransport : IDisposable
         }
     }
 
-    private readonly byte[] _dispatchScratch = new byte[4096];
-
-    private void DispatchBinaryBatch(byte[] buffer, int totalLen)
+    private void DrainAndReturnPooledQueues()
     {
-        if (Volatile.Read(ref _disposed) != 0) return;
-
-        int pos = 0;
-        while (pos + 2 <= totalLen)
+        while (_highPriorityQueue.TryDequeue(out var hi))
         {
-            int pktLen = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(pos, 2));
-            pos += 2;
-            if (pktLen <= 0 || pktLen > _dispatchScratch.Length || pos + pktLen > totalLen) break;
+            ArrayPool<byte>.Shared.Return(hi.Buf);
+        }
 
-            Buffer.BlockCopy(buffer, pos, _dispatchScratch, 0, pktLen);
-            pos += pktLen;
-
-            if (Volatile.Read(ref _disposed) != 0) return;
-            NativeMethods.Osmium_PushTransportRelayPacket(_nativeTransport, _dispatchScratch, pktLen);
+        while (_videoQueue.TryDequeue(out var vid))
+        {
+            Interlocked.Add(ref _queuedVideoBytes, -vid.Len);
+            ArrayPool<byte>.Shared.Return(vid.Buf);
         }
     }
 
@@ -357,6 +503,7 @@ public sealed class CloudRelayTransport : IDisposable
         {
         }
 
+        DrainAndReturnPooledQueues();
         _ws.Dispose();
         _sendSignal.Dispose();
         _cts.Dispose();

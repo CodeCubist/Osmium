@@ -27,7 +27,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 return;
             }
 
-            if (IsHostStreaming)
+            if (HasActiveHostPipeline)
             {
                 await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "HOST_BUSY",
                     "Another remote control session is already active");
@@ -130,6 +130,7 @@ public sealed partial class P2PCoordinator : IDisposable
             int transportRoute;
             var epSb = new StringBuilder(128);
             OsmiumClientConfig negotiatedProfile;
+            bool bridgeReadyReached = false;
             try
             {
                 await _signaling.SendConnectChallengeAsync(
@@ -240,6 +241,7 @@ public sealed partial class P2PCoordinator : IDisposable
                         }
 
                         bridge = await bridgeReadyTcs.Task;
+                        bridgeReadyReached = true;
                     }
                     catch (OperationCanceledException)
                     {
@@ -376,7 +378,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     MaxHeight = s.HostMaxHeight,
                     MaxFps = s.HostMaxFps,
                     MaxBitrateKbps = transportRoute == 4
-                        ? Math.Min(s.HostMaxBitrateKbps > 0 ? s.HostMaxBitrateKbps : 12000, 12000)
+                        ? Math.Min(s.HostMaxBitrateKbps > 0 ? s.HostMaxBitrateKbps : 16000, 16000)
                         : s.HostMaxBitrateKbps,
                     CodecPreference = (int)s.HostCodec,
                     EncoderPreference = (int)s.HostEncoderMode,
@@ -570,6 +572,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 };
 
                 startedHost = true;
+                var confirmWatchdogCts = new CancellationTokenSource();
                 lock (_hostLock)
                 {
                     _activeHostHandle = hostHandle;
@@ -577,19 +580,58 @@ public sealed partial class P2PCoordinator : IDisposable
                     _activeHostRelay = hostRelay;
                     _activeHostSessionId = args.SessionId;
                     _activeHostPeerId = args.ClientDeviceId;
-                    HostSessionStartedAtUtc = DateTimeOffset.UtcNow;
-                    ActiveHostSessionInfo = activeInfo;
+                    _hostSessionEstablished = false;
+                    _pendingHostSessionInfo = activeInfo;
+                    _pendingHostRefreshTempCode = !args.SameAccountVerified &&
+                        _settings.Identity.RefreshPolicy != AccessCodeRefreshPolicy.ManualOnly;
+                    _hostConfirmTimeoutCts?.Cancel();
+                    _hostConfirmTimeoutCts?.Dispose();
+                    _hostConfirmTimeoutCts = confirmWatchdogCts;
+                    HostSessionStartedAtUtc = null;
+                    ActiveHostSessionInfo = null;
                 }
 
-                StartHostClipboardWatcher(auxChannel);
+                string confirmSid = args.SessionId;
+                await _signaling.SendSessionConfirmAsync(confirmSid);
 
-                if (!args.SameAccountVerified && _settings.Identity.RefreshPolicy != AccessCodeRefreshPolicy.ManualOnly)
+                _ = Task.Run(async () =>
                 {
-                    _settings.RefreshTemporaryAccessCode();
-                }
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(2), confirmWatchdogCts.Token);
+                        bool stillPending;
+                        lock (_hostLock)
+                        {
+                            stillPending = _activeHostHandle != IntPtr.Zero &&
+                                           !_hostSessionEstablished &&
+                                           string.Equals(_activeHostSessionId, confirmSid, StringComparison.Ordinal);
+                        }
+                        if (stillPending)
+                        {
+                            await _signaling.SendSessionConfirmAsync(confirmSid);
+                        }
 
-                HostSessionStarted?.Invoke(activeInfo);
-                RemoteSessionStateChanged?.Invoke();
+                        await Task.Delay(TimeSpan.FromSeconds(13), confirmWatchdogCts.Token);
+                        bool timedOut;
+                        lock (_hostLock)
+                        {
+                            timedOut = _activeHostHandle != IntPtr.Zero &&
+                                       !_hostSessionEstablished &&
+                                       string.Equals(_activeHostSessionId, confirmSid, StringComparison.Ordinal);
+                        }
+                        if (timedOut)
+                        {
+                            _log.Warn($"Host session {confirmSid} timed out waiting for controller mutual confirmation");
+                            StopHostSession(notifyPeer: true, notifyEndedReason: "Mutual confirmation timed out");
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch
+                    {
+                    }
+                });
             }
             finally
             {
@@ -600,17 +642,94 @@ public sealed partial class P2PCoordinator : IDisposable
                 if (aesKey != null) CryptographicOperations.ZeroMemory(aesKey);
                 CryptographicOperations.ZeroMemory(tempTag);
                 CryptographicOperations.ZeroMemory(fixedTag);
-                if (!startedHost && transport != IntPtr.Zero)
+                if (!startedHost)
                 {
-                    Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
-                    hostRelay?.Dispose();
-                    NativeMethods.Osmium_DestroyTransport(transport);
+                    if (bridgeReadyReached)
+                    {
+                        _ = _signaling.SendSessionEndAsync(args.SessionId, args.ClientDeviceId,
+                            "Host failed to establish session", role: "host", failed: true);
+                    }
+
+                    if (transport != IntPtr.Zero)
+                    {
+                        Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
+                        hostRelay?.Dispose();
+                        NativeMethods.Osmium_DestroyTransport(transport);
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
             _log.Error($"HandleIncomingConnectAsync error: {ex}");
+        }
+    }
+
+    private void OnSignalingSessionEstablished(SessionEstablishedEventArgs args)
+    {
+        if (string.IsNullOrWhiteSpace(args.SessionId)) return;
+
+        HostSessionActiveInfo? confirmedHostInfo = null;
+        bool shouldRefreshTempCode = false;
+        AuxTransferChannel? auxCh = null;
+        CancellationTokenSource? confirmCts = null;
+
+        lock (_hostLock)
+        {
+            if (_activeHostHandle != IntPtr.Zero &&
+                !_hostSessionEstablished &&
+                string.Equals(_activeHostSessionId, args.SessionId, StringComparison.Ordinal))
+            {
+                _hostSessionEstablished = true;
+                confirmedHostInfo = _pendingHostSessionInfo;
+                _pendingHostSessionInfo = null;
+                shouldRefreshTempCode = _pendingHostRefreshTempCode;
+                _pendingHostRefreshTempCode = false;
+                confirmCts = _hostConfirmTimeoutCts;
+                _hostConfirmTimeoutCts = null;
+                HostSessionStartedAtUtc = DateTimeOffset.UtcNow;
+                ActiveHostSessionInfo = confirmedHostInfo;
+                auxCh = Volatile.Read(ref _hostAuxChannel);
+            }
+        }
+
+        if (confirmedHostInfo != null)
+        {
+            if (confirmCts != null)
+            {
+                try { confirmCts.Cancel(); } catch { }
+                confirmCts.Dispose();
+            }
+
+            if (auxCh != null)
+            {
+                StartHostClipboardWatcher(auxCh);
+            }
+
+            if (shouldRefreshTempCode)
+            {
+                _settings.RefreshTemporaryAccessCode();
+            }
+
+            _log.Info($"Host session mutually confirmed by both peers: {args.SessionId}");
+            HostSessionStarted?.Invoke(confirmedHostInfo);
+            RemoteSessionStateChanged?.Invoke();
+        }
+
+        bool matchesClient = false;
+        lock (_clientLock)
+        {
+            if (string.Equals(_activeClientSessionId, args.SessionId, StringComparison.Ordinal))
+            {
+                _activeClientSessionEstablished = true;
+                matchesClient = true;
+            }
+        }
+
+        if (matchesClient)
+        {
+            _log.Info($"Client session mutually confirmed by both peers: {args.SessionId}");
+            ClientSessionEstablished?.Invoke(args.SessionId, args.StartedAtUnixMs);
         }
     }
 
@@ -731,24 +850,38 @@ public sealed partial class P2PCoordinator : IDisposable
         IntPtr handle;
         IntPtr transport;
         CloudRelayTransport? hostRelay;
+        CancellationTokenSource? confirmCts;
         string? sid;
         string? peerId;
         bool hadSession;
+        bool wasEstablished;
         lock (_hostLock)
         {
             handle = _activeHostHandle;
             transport = _activeHostTransport;
             hostRelay = _activeHostRelay;
+            confirmCts = _hostConfirmTimeoutCts;
             sid = _activeHostSessionId;
             peerId = _activeHostPeerId;
+            wasEstablished = _hostSessionEstablished;
             hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero || hostRelay != null;
             _activeHostHandle = IntPtr.Zero;
             _activeHostTransport = IntPtr.Zero;
             _activeHostRelay = null;
+            _hostConfirmTimeoutCts = null;
             _activeHostSessionId = null;
             _activeHostPeerId = null;
+            _hostSessionEstablished = false;
+            _pendingHostSessionInfo = null;
+            _pendingHostRefreshTempCode = false;
             HostSessionStartedAtUtc = null;
             ActiveHostSessionInfo = null;
+        }
+
+        if (confirmCts != null)
+        {
+            try { confirmCts.Cancel(); } catch { }
+            confirmCts.Dispose();
         }
 
         if (!hadSession) return;
@@ -770,11 +903,14 @@ public sealed partial class P2PCoordinator : IDisposable
 
         if (notifyPeer && !string.IsNullOrEmpty(sid) && !string.IsNullOrEmpty(peerId))
         {
-            _ = _signaling.SendSessionEndAsync(sid, peerId, notifyEndedReason, role: "host");
+            _ = _signaling.SendSessionEndAsync(sid, peerId, notifyEndedReason, role: "host", failed: !wasEstablished);
         }
 
-        HostSessionEnded?.Invoke(notifyEndedReason);
-        RemoteSessionStateChanged?.Invoke();
+        if (wasEstablished)
+        {
+            HostSessionEnded?.Invoke(notifyEndedReason);
+            RemoteSessionStateChanged?.Invoke();
+        }
     }
 
     public void StopClientSession() => NativeMethods.Osmium_StopClientSession();
@@ -784,6 +920,7 @@ public sealed partial class P2PCoordinator : IDisposable
     {
         _signaling.IncomingConnect -= OnIncomingConnect;
         _signaling.SessionEnded -= OnSignalingSessionEnded;
+        _signaling.SessionEstablishedReceived -= OnSignalingSessionEstablished;
         _signaling.ConnectCooldownUpdated -= OnSignalingConnectCooldownUpdated;
         StopHostSession();
     }

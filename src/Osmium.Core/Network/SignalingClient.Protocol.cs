@@ -291,6 +291,26 @@ public sealed partial class SignalingClient : IDisposable
                     RelayFallbackReceived?.Invoke(args);
                     break;
                 }
+                case "session_established":
+                {
+                    var args = new SessionEstablishedEventArgs
+                    {
+                        SessionId = root.TryGetProperty("sessionId", out var esid) && esid.ValueKind == JsonValueKind.String
+                            ? esid.GetString() ?? string.Empty
+                            : string.Empty,
+                        StartedAtUnixMs = root.TryGetProperty("startedAt", out var esa) && esa.ValueKind == JsonValueKind.Number
+                            ? esa.GetInt64()
+                            : 0,
+                        ClientDeviceId = root.TryGetProperty("clientDeviceId", out var ecid) && ecid.ValueKind == JsonValueKind.String
+                            ? ecid.GetString() ?? string.Empty
+                            : string.Empty,
+                        HostDeviceId = root.TryGetProperty("hostDeviceId", out var ehid) && ehid.ValueKind == JsonValueKind.String
+                            ? ehid.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    SessionEstablishedReceived?.Invoke(args);
+                    break;
+                }
                 case "connect_accept":
                 {
                     var args = new ConnectAcceptEventArgs
