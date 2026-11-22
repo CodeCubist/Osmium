@@ -13,24 +13,19 @@
             
             <Border Style="{StaticResource OsmiumCardContainerStyle}" Padding="22,18">
                 <StackPanel Spacing="18">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
+                    <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                         <TextBlock x:Name="ThisDeviceHeader"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center" />
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <TextBlock x:Name="AllowAssistLabel" FontSize="13" VerticalAlignment="Center" />
                             <ToggleSwitch x:Name="AllowRemoteSwitch"
                                           Style="{StaticResource OsmiumCompactToggleStyle}"
                                           Toggled="AllowRemoteSwitch_Toggled" />
                         </StackPanel>
-                    </Grid>
+                    </StackPanel>
 
                     <Grid ColumnSpacing="20">
                         <Grid.ColumnDefinitions>
@@ -51,21 +46,37 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Bottom">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock x:Name="VerifyMethodLabel"
-                                           FontSize="12"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           VerticalAlignment="Center" />
-                                <ComboBox x:Name="VerifyMethodCombo"
-                                          MinWidth="165"
-                                          CornerRadius="6"
-                                          SelectionChanged="VerifyMethodCombo_SelectionChanged" />
-                            </StackPanel>
+                            <Border Background="{ThemeResource OsmiumSubtlePillBrush}"
+                                    CornerRadius="6"
+                                    Height="36"
+                                    Padding="12,0">
+                                <Grid ColumnSpacing="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="VerifyMethodLabel"
+                                               Grid.Column="0"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                    <ComboBox x:Name="VerifyMethodCombo"
+                                              Grid.Column="1"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Center"
+                                              MinWidth="148"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              CornerRadius="4"
+                                              SelectionChanged="VerifyMethodCombo_SelectionChanged" />
+                                </Grid>
+                            </Border>
 
                             <Border Background="{ThemeResource OsmiumSubtlePillBrush}"
                                     CornerRadius="6"
-                                    Padding="12,5">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    Height="36"
+                                    Padding="12,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock x:Name="AccessCodePrefixText"
                                                FontSize="13"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
