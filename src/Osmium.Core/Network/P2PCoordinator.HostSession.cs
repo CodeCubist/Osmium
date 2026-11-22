@@ -20,7 +20,7 @@ public sealed partial class P2PCoordinator : IDisposable
     {
         try
         {
-            if (!_settings.Settings.AllowRemoteControl)
+            if (!EffectiveAllowRemoteControl)
             {
                 await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "REMOTE_DISABLED",
                     "Host disabled remote control");
@@ -55,6 +55,13 @@ public sealed partial class P2PCoordinator : IDisposable
                         "Host user declined connection");
                     return;
                 }
+
+                if (!EffectiveAllowRemoteControl)
+                {
+                    await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "REMOTE_DISABLED",
+                        "Host disabled remote control");
+                    return;
+                }
             }
 
             byte[] sessionToken = Convert.FromHexString(args.SessionId);
@@ -82,6 +89,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 : new byte[32];
             byte[]? aesKey = null;
             IntPtr transport = IntPtr.Zero;
+            CloudRelayTransport? hostRelay = null;
             bool startedHost = false;
 
             var authTcs =
@@ -91,6 +99,8 @@ public sealed partial class P2PCoordinator : IDisposable
                     TaskCreationOptions.RunContinuationsAsynchronously);
             var bridgeReadyTcs =
                 new TaskCompletionSource<BridgeReadyEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var relayFallbackTcs =
+                new TaskCompletionSource<RelayFallbackEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             void OnAuth(ConnectAuthEventArgs a)
             {
@@ -107,9 +117,15 @@ public sealed partial class P2PCoordinator : IDisposable
                 if (br.SessionId == args.SessionId) bridgeReadyTcs.TrySetResult(br);
             }
 
+            void OnRelayFallback(RelayFallbackEventArgs rf)
+            {
+                if (rf.SessionId == args.SessionId) relayFallbackTcs.TrySetResult(rf);
+            }
+
             _signaling.ConnectAuthReceived += OnAuth;
             _signaling.VersionCheckResultReceived += OnVersionResult;
             _signaling.BridgeReady += OnBridgeReady;
+            _signaling.RelayFallbackReceived += OnRelayFallback;
 
             int transportRoute;
             var epSb = new StringBuilder(128);
@@ -239,14 +255,65 @@ public sealed partial class P2PCoordinator : IDisposable
                     sessionToken,
                     2,
                     bridge.CandidatesJson,
-                    6000,
+                    3500,
                     out transportRoute,
                     epSb,
                     epSb.Capacity);
 
-                if (punchOk == 0)
+                async Task<bool> SwitchHostToCloudRelayAsync()
                 {
-                    return;
+                    try
+                    {
+                        await _signaling.SendRelayFallbackAsync(args.SessionId);
+                    }
+                    catch
+                    {
+                    }
+
+                    string rToken = bridge.RelayToken;
+                    string rPath = string.IsNullOrWhiteSpace(bridge.RelayPath) ? "/relay" : bridge.RelayPath;
+                    if (string.IsNullOrWhiteSpace(rToken))
+                    {
+                        using var tokCts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+                        try
+                        {
+                            var rf = await relayFallbackTcs.Task.WaitAsync(tokCts.Token);
+                            rToken = rf.RelayToken;
+                            if (!string.IsNullOrWhiteSpace(rf.RelayPath)) rPath = rf.RelayPath;
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(rToken)) return false;
+
+                    hostRelay?.Dispose();
+                    string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
+                    string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
+                    var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
+                    hostRelay = new CloudRelayTransport(transport, relayLabel, _log);
+                    bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 10000, CancellationToken.None);
+                    if (!relayOk)
+                    {
+                        hostRelay.Dispose();
+                        hostRelay = null;
+                        return false;
+                    }
+
+                    transportRoute = 4;
+                    epSb.Clear();
+                    epSb.Append(relayLabel);
+                    return true;
+                }
+
+                if (punchOk == 0 || relayFallbackTcs.Task.IsCompleted)
+                {
+                    if (!await SwitchHostToCloudRelayAsync())
+                    {
+                        _log.Warn($"Host failed both direct P2P and Cloud Relay for {args.ClientDeviceId}");
+                        return;
+                    }
                 }
 
                 NativeMethods.Osmium_SetTransportEncryption(transport, hostEncrypt ? 1 : 0);
@@ -255,16 +322,31 @@ public sealed partial class P2PCoordinator : IDisposable
                     NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                 }
 
-                CryptographicOperations.ZeroMemory(aesKey);
-                aesKey = null;
-
+                int hostAuthTimeoutMs = transportRoute == 4 ? 12000 : 5000;
                 int authOk = NativeMethods.Osmium_WaitClientAuthHost(
                     transport,
                     tempTag,
                     fixedTag,
                     hasFixed ? 1 : 0,
-                    12000,
+                    hostAuthTimeoutMs,
                     out negotiatedProfile);
+
+                if (authOk != 1 && transportRoute != 4)
+                {
+                    if (await SwitchHostToCloudRelayAsync())
+                    {
+                        authOk = NativeMethods.Osmium_WaitClientAuthHost(
+                            transport,
+                            tempTag,
+                            fixedTag,
+                            hasFixed ? 1 : 0,
+                            12000,
+                            out negotiatedProfile);
+                    }
+                }
+
+                CryptographicOperations.ZeroMemory(aesKey);
+                aesKey = null;
 
                 if (authOk != 1)
                 {
@@ -293,7 +375,9 @@ public sealed partial class P2PCoordinator : IDisposable
                     MaxWidth = s.HostMaxWidth,
                     MaxHeight = s.HostMaxHeight,
                     MaxFps = s.HostMaxFps,
-                    MaxBitrateKbps = s.HostMaxBitrateKbps,
+                    MaxBitrateKbps = transportRoute == 4
+                        ? Math.Min(s.HostMaxBitrateKbps > 0 ? s.HostMaxBitrateKbps : 12000, 12000)
+                        : s.HostMaxBitrateKbps,
                     CodecPreference = (int)s.HostCodec,
                     EncoderPreference = (int)s.HostEncoderMode,
                     CaptureAudio = s.HostCaptureAudio ? 1 : 0,
@@ -432,6 +516,14 @@ public sealed partial class P2PCoordinator : IDisposable
                         System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostAuxDataDelegate)
                 };
 
+                if (!EffectiveAllowRemoteControl)
+                {
+                    auxChannel.Dispose();
+                    await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "REMOTE_DISABLED",
+                        "Host disabled remote control");
+                    return;
+                }
+
                 Volatile.Write(ref _hostAuxChannel, auxChannel);
                 if (NativeMethods.Osmium_StartHostSession(transport, in hostCfg, in negotiatedProfile, in callbacks,
                         out IntPtr hostHandle) == 0)
@@ -482,6 +574,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     _activeHostHandle = hostHandle;
                     _activeHostTransport = transport;
+                    _activeHostRelay = hostRelay;
                     _activeHostSessionId = args.SessionId;
                     _activeHostPeerId = args.ClientDeviceId;
                     HostSessionStartedAtUtc = DateTimeOffset.UtcNow;
@@ -503,12 +596,14 @@ public sealed partial class P2PCoordinator : IDisposable
                 _signaling.ConnectAuthReceived -= OnAuth;
                 _signaling.VersionCheckResultReceived -= OnVersionResult;
                 _signaling.BridgeReady -= OnBridgeReady;
+                _signaling.RelayFallbackReceived -= OnRelayFallback;
                 if (aesKey != null) CryptographicOperations.ZeroMemory(aesKey);
                 CryptographicOperations.ZeroMemory(tempTag);
                 CryptographicOperations.ZeroMemory(fixedTag);
                 if (!startedHost && transport != IntPtr.Zero)
                 {
                     Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
+                    hostRelay?.Dispose();
                     NativeMethods.Osmium_DestroyTransport(transport);
                 }
             }
@@ -635,6 +730,7 @@ public sealed partial class P2PCoordinator : IDisposable
     {
         IntPtr handle;
         IntPtr transport;
+        CloudRelayTransport? hostRelay;
         string? sid;
         string? peerId;
         bool hadSession;
@@ -642,11 +738,13 @@ public sealed partial class P2PCoordinator : IDisposable
         {
             handle = _activeHostHandle;
             transport = _activeHostTransport;
+            hostRelay = _activeHostRelay;
             sid = _activeHostSessionId;
             peerId = _activeHostPeerId;
-            hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero;
+            hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero || hostRelay != null;
             _activeHostHandle = IntPtr.Zero;
             _activeHostTransport = IntPtr.Zero;
+            _activeHostRelay = null;
             _activeHostSessionId = null;
             _activeHostPeerId = null;
             HostSessionStartedAtUtc = null;
@@ -662,6 +760,8 @@ public sealed partial class P2PCoordinator : IDisposable
         {
             NativeMethods.Osmium_StopHostSession(handle);
         }
+
+        hostRelay?.Dispose();
 
         if (transport != IntPtr.Zero)
         {

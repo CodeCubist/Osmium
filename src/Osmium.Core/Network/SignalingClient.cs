@@ -330,6 +330,45 @@ public sealed class BridgeReadyEventArgs : EventArgs
         get;
         init;
     }
+
+    public string RelayToken
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RelayPath
+    {
+        get;
+        init;
+    } = "/relay";
+}
+
+public sealed class RelayFallbackEventArgs : EventArgs
+{
+    public required string SessionId
+    {
+        get;
+        init;
+    }
+
+    public string RelayToken
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RelayPath
+    {
+        get;
+        init;
+    } = "/relay";
+
+    public string FromDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
 }
 
 public sealed class ConnectRejectEventArgs : EventArgs
@@ -444,6 +483,7 @@ public sealed partial class SignalingClient : IDisposable
     public event Action<ConnectAuthVerifiedEventArgs>? ConnectAuthVerified;
     public event Action<VersionCheckResultEventArgs>? VersionCheckResultReceived;
     public event Action<BridgeReadyEventArgs>? BridgeReady;
+    public event Action<RelayFallbackEventArgs>? RelayFallbackReceived;
     public event Action<ConnectAcceptEventArgs>? ConnectAccepted;
     public event Action<ConnectRejectEventArgs>? ConnectRejected;
     public event Action<int, string>? ConnectCooldownUpdated;
@@ -644,6 +684,15 @@ public sealed partial class SignalingClient : IDisposable
             type = "bridge_candidates",
             sessionId,
             candidates = candDoc.RootElement
+        });
+    }
+
+    public async Task SendRelayFallbackAsync(string sessionId)
+    {
+        await SendJsonAsync(new
+        {
+            type = "relay_fallback",
+            sessionId
         });
     }
 

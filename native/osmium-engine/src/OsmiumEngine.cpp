@@ -193,18 +193,25 @@ namespace
             << ",\"lastAction\":\"" << EscapeJson(lastAct.c_str()) << "\""
             << ",\"displays\":[";
 
-        size_t maxDisp = std::min<size_t>(displays.size(), 6);
+        size_t maxDisp = std::min<size_t>(displays.size(), 8);
         for (size_t i = 0; i < maxDisp; ++i)
         {
             const auto& d = displays[i];
-            if (i > 0) oss << ",";
-            oss << "{\"index\":" << d.index
-                << ",\"width\":" << d.width
-                << ",\"height\":" << d.height
-                << ",\"refreshRate\":" << d.refreshRate
-                << ",\"isPrimary\":" << (d.isPrimary ? "true" : "false")
-                << ",\"name\":\"" << EscapeJson(d.name) << "\""
-                << ",\"deviceName\":\"" << EscapeJson(d.deviceName) << "\"}";
+            std::ostringstream item;
+            if (i > 0) item << ",";
+            item << "{\"index\":" << d.index
+                 << ",\"width\":" << d.width
+                 << ",\"height\":" << d.height
+                 << ",\"refreshRate\":" << d.refreshRate
+                 << ",\"isPrimary\":" << (d.isPrimary ? "true" : "false")
+                 << ",\"name\":\"" << EscapeJson(d.name) << "\""
+                 << ",\"deviceName\":\"" << EscapeJson(d.deviceName) << "\"}";
+            std::string itemStr = item.str();
+            if (oss.str().size() + itemStr.size() + 4 > proto::kMaxVideoChunkPayload)
+            {
+                break;
+            }
+            oss << itemStr;
         }
         oss << "]}";
 
@@ -791,11 +798,20 @@ namespace
                 proto::ControlSwitchDisplayPayload))
             {
                 const auto* p = reinterpret_cast<const proto::ControlSwitchDisplayPayload*>(plain.data());
+                bool changed = false;
                 {
                     std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                    ctx->activeDisplayIndex = p->displayIndex;
+                    if (ctx->activeDisplayIndex != p->displayIndex)
+                    {
+                        ctx->activeDisplayIndex = p->displayIndex;
+                        changed = true;
+                    }
                 }
-                ctx->reconfigNeeded.store(true);
+                if (changed)
+                {
+                    ctx->reconfigNeeded.store(true);
+                }
+                ctx->statusDirty.store(true);
             }
             else if (type == proto::AppPacketType::ControlVideoParams && plain.size() >= sizeof(
                 proto::ControlVideoParamsPayload))
@@ -1727,6 +1743,37 @@ OSMIUM_API int32_t Osmium_ConnectPeerP2P(
     return 1;
 }
 
+OSMIUM_API int32_t Osmium_EnableTransportRelay(
+    void* transport,
+    const uint8_t* sessionToken16,
+    int32_t localRole,
+    OsmiumRelaySendCallback onSendRelay,
+    const char* relayEndpointLabel)
+{
+    if (!transport || !sessionToken16 || !onSendRelay) return 0;
+    auto* t = static_cast<OsmiumTransport*>(transport);
+    auto role = (localRole == 2) ? proto::PeerRole::Host : proto::PeerRole::Client;
+    return t->EnableRelay(
+               sessionToken16,
+               role,
+               [onSendRelay](const uint8_t* data, size_t len, bool isDroppable) -> bool
+               {
+                   return onSendRelay(data, static_cast<int32_t>(len), isDroppable ? 1 : 0) != 0;
+               },
+               relayEndpointLabel)
+               ? 1
+               : 0;
+}
+
+OSMIUM_API int32_t Osmium_PushTransportRelayPacket(
+    void* transport,
+    const uint8_t* data,
+    int32_t length)
+{
+    if (!transport || !data || length <= 0) return 0;
+    return static_cast<OsmiumTransport*>(transport)->PushRelayPacket(data, static_cast<size_t>(length)) ? 1 : 0;
+}
+
 OSMIUM_API int32_t Osmium_SetTransportKey(void* transport, const uint8_t* aesKey32)
 {
     if (!transport || !aesKey32) return 0;
@@ -2083,6 +2130,7 @@ OSMIUM_API void Osmium_ClientSwitchDisplay(void* clientHandle, int32_t displayIn
     if (!ctx->transport) return;
     proto::ControlSwitchDisplayPayload pkt{};
     pkt.displayIndex = displayIndex;
+    ctx->transport->SendEncrypted(proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
     ctx->transport->SendEncrypted(proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
 }
 

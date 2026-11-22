@@ -267,7 +267,7 @@ public sealed partial class RemoteSessionWindow : Window
                 var s = App.Engine.SettingsService.Settings;
                 s.ShowPerformanceOverlay = !s.ShowPerformanceOverlay;
                 _isUpdatingUi = true;
-                OsdToggleSwitch.IsOn = s.ShowPerformanceOverlay;
+                OsdToggleMenuItem.IsChecked = s.ShowPerformanceOverlay;
                 _isUpdatingUi = false;
                 App.Engine.SettingsService.SaveSettings();
                 ApplyOsdVisibilityAndDetailLayout();
@@ -413,10 +413,9 @@ public sealed partial class RemoteSessionWindow : Window
             {
                 AppTitleBar.Padding = new Thickness(12, 0, 12, 0);
                 TitleBarBottomDivider.Margin = new Thickness(-12, 0, -12, 0);
-                RightMenuToolbar.VerticalAlignment = VerticalAlignment.Top;
-                SessionMenuButton.VerticalAlignment = VerticalAlignment.Top;
-                SessionMenuButton.Width = 36;
-                SessionMenuButton.Height = 32;
+                RightMenuToolbar.VerticalAlignment = VerticalAlignment.Center;
+                SessionMenuButton.VerticalAlignment = VerticalAlignment.Center;
+                SessionMenuButton.Height = 28;
                 SessionMenuButton.CornerRadius = new CornerRadius(6);
                 return;
             }
@@ -425,19 +424,13 @@ public sealed partial class RemoteSessionWindow : Window
             double rightInsetDip = _appWindow.TitleBar.RightInset > 0
                 ? _appWindow.TitleBar.RightInset / scale
                 : 138.0;
-            double captionH = _appWindow.TitleBar.Height > 0
-                ? _appWindow.TitleBar.Height / scale
-                : 32.0;
-            captionH = Math.Clamp(captionH, 28.0, AppTitleBar.Height > 0 ? AppTitleBar.Height : 46.0);
-            double captionW = Math.Clamp(Math.Round(rightInsetDip / 3.0), 42.0, 48.0);
 
             AppTitleBar.Padding = new Thickness(12, 0, rightInsetDip, 0);
             TitleBarBottomDivider.Margin = new Thickness(-12, 0, -(rightInsetDip + 16), 0);
-            RightMenuToolbar.VerticalAlignment = VerticalAlignment.Top;
-            SessionMenuButton.VerticalAlignment = VerticalAlignment.Top;
-            SessionMenuButton.Width = captionW;
-            SessionMenuButton.Height = captionH;
-            SessionMenuButton.CornerRadius = new CornerRadius(0);
+            RightMenuToolbar.VerticalAlignment = VerticalAlignment.Center;
+            SessionMenuButton.VerticalAlignment = VerticalAlignment.Center;
+            SessionMenuButton.Height = 28;
+            SessionMenuButton.CornerRadius = new CornerRadius(6);
         }
         catch
         {
@@ -497,8 +490,7 @@ public sealed partial class RemoteSessionWindow : Window
                     (int)Math.Ceiling(el.ActualHeight * scale)));
             }
 
-            AddElementRect(DisplayTabsPanel,
-                DisplayTabsScrollViewer.ActualWidth > 1 ? DisplayTabsScrollViewer.ActualWidth : null);
+            AddElementRect(BrowserTabsArea);
             AddElementRect(SessionMenuButton);
 
             nonClient.SetRegionRects(NonClientRegionKind.Passthrough, rects.ToArray());

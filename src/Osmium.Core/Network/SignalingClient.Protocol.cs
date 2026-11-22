@@ -260,9 +260,35 @@ public sealed partial class SignalingClient : IDisposable
                             : AdvertisedStunHost,
                         StunPort = root.TryGetProperty("stunPort", out var up) && up.ValueKind == JsonValueKind.Number
                             ? (ushort)up.GetInt32()
-                            : AdvertisedStunPort
+                            : AdvertisedStunPort,
+                        RelayToken = root.TryGetProperty("relayToken", out var rt) && rt.ValueKind == JsonValueKind.String
+                            ? rt.GetString() ?? string.Empty
+                            : string.Empty,
+                        RelayPath = root.TryGetProperty("relayPath", out var rp) && rp.ValueKind == JsonValueKind.String
+                            ? rp.GetString() ?? "/relay"
+                            : "/relay"
                     };
                     BridgeReady?.Invoke(args);
+                    break;
+                }
+                case "relay_fallback":
+                {
+                    var args = new RelayFallbackEventArgs
+                    {
+                        SessionId = root.TryGetProperty("sessionId", out var rsid) && rsid.ValueKind == JsonValueKind.String
+                            ? rsid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RelayToken = root.TryGetProperty("relayToken", out var rtok) && rtok.ValueKind == JsonValueKind.String
+                            ? rtok.GetString() ?? string.Empty
+                            : string.Empty,
+                        RelayPath = root.TryGetProperty("relayPath", out var rpath) && rpath.ValueKind == JsonValueKind.String
+                            ? rpath.GetString() ?? "/relay"
+                            : "/relay",
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var rfid) && rfid.ValueKind == JsonValueKind.String
+                            ? rfid.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    RelayFallbackReceived?.Invoke(args);
                     break;
                 }
                 case "connect_accept":

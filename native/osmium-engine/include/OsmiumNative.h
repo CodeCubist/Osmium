@@ -174,6 +174,7 @@ typedef void (*OsmiumHostStatsCallback)(const OsmiumHostStats* stats);
 typedef void (*OsmiumHostEndedCallback)(int32_t reasonCode, const char* reasonMessage);
 typedef int32_t (*OsmiumHostDriverConfirmCallback)(int32_t actionType);
 typedef void (*OsmiumAuxDataCallback)(const uint8_t* data, int32_t length);
+typedef int32_t (*OsmiumRelaySendCallback)(const uint8_t* data, int32_t length, int32_t isDroppable);
 
 typedef struct OsmiumClientCallbacks
 {
@@ -230,6 +231,18 @@ OSMIUM_API int32_t Osmium_ConnectPeerP2P(
     int32_t* outTransportRoute,
     char* outActiveEndpoint,
     int32_t endpointBufLen);
+
+OSMIUM_API int32_t Osmium_EnableTransportRelay(
+    void* transport,
+    const uint8_t* sessionToken16,
+    int32_t localRole,
+    OsmiumRelaySendCallback onSendRelay,
+    const char* relayEndpointLabel);
+
+OSMIUM_API int32_t Osmium_PushTransportRelayPacket(
+    void* transport,
+    const uint8_t* data,
+    int32_t length);
 
 OSMIUM_API int32_t Osmium_SetTransportKey(void* transport, const uint8_t* aesKey32);
 OSMIUM_API int32_t Osmium_SetTransportEncryption(void* transport, int32_t enableEncryption);

@@ -250,7 +250,7 @@
   <data name="Conn_VersionTimeout" xml:space="preserve"><value>Version compatibility check timed out</value></data>
   <data name="Conn_BridgeTimeout" xml:space="preserve"><value>Timed out establishing connection bridge</value></data>
   <data name="Conn_Punching" xml:space="preserve"><value>Establishing direct channel...</value></data>
-  <data name="Conn_PunchFailed" xml:space="preserve"><value>Failed to establish direct connection</value></data>
+  <data name="Conn_PunchFailed" xml:space="preserve"><value>Failed to establish connection (direct and cloud relay unavailable)</value></data>
   <data name="Conn_VerifyingDirect" xml:space="preserve"><value>Direct channel active, verifying access code...</value></data>
   <data name="Conn_InvalidCode" xml:space="preserve"><value>Incorrect access code</value></data>
   <data name="Conn_AuthTimeout" xml:space="preserve"><value>Verification timed out</value></data>
@@ -611,4 +611,23 @@
   <data name="Host_RowNotifyOnConnectDesc" xml:space="preserve"><value>Display a native Windows bottom-right toast alert when a controller connects to this computer</value></data>
   <data name="Host_RowFlashTaskbarOnConnect" xml:space="preserve"><value>Highlight taskbar button red on remote connect</value></data>
   <data name="Host_RowFlashTaskbarOnConnectDesc" xml:space="preserve"><value>Keep Osmium's taskbar button highlighted in solid red until you manually focus the window once or disconnect</value></data>
+  <data name="Conn_BlockedWhileHost" xml:space="preserve"><value>Cannot control other devices while this computer is being remotely controlled</value></data>
+  <data name="Session_RouteRelay" xml:space="preserve"><value>Cloud Relay</value></data>
+  <data name="Conn_SwitchingRelay" xml:space="preserve"><value>Direct connection unavailable, switching to Cloud Relay...</value></data>
+  <data name="Conn_VerifyingRelay" xml:space="preserve"><value>Cloud relay active, verifying access code...</value></data>
+  <data name="Session_ControlCenter" xml:space="preserve"><value>Control Center</value></data>
+  <data name="Session_MenuDisplay" xml:space="preserve"><value>Display</value></data>
+  <data name="Session_MenuQuality" xml:space="preserve"><value>Quality</value></data>
+  <data name="Session_MenuResolution" xml:space="preserve"><value>Resolution &amp; Scale</value></data>
+  <data name="Session_MenuFps" xml:space="preserve"><value>Frame Rate</value></data>
+  <data name="Session_HdrUnavailableShort" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="Session_MenuMouse" xml:space="preserve"><value>Mouse &amp; Input</value></data>
+  <data name="Session_MenuAudio" xml:space="preserve"><value>Audio</value></data>
+  <data name="Session_MenuTools" xml:space="preserve"><value>Tools &amp; Drivers</value></data>
+  <data name="Session_MenuMore" xml:space="preserve"><value>More</value></data>
+  <data name="Session_ViewDebugInfo" xml:space="preserve"><value>View Diagnostics...</value></data>
+  <data name="Session_CopyDebugInfo" xml:space="preserve"><value>Copy Diagnostics</value></data>
+  <data name="Session_SwitchedDisplayFmt" xml:space="preserve"><value>Switched to display {0}</value></data>
+  <data name="Session_PrimaryDisplayTag" xml:space="preserve"><value>Primary</value></data>
+  <data name="Session_NoDisplays" xml:space="preserve"><value>No displays detected</value></data>
 </root>

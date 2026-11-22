@@ -41,8 +41,8 @@ public sealed partial class RemoteSessionWindow : Window
         _sharedClipboardEnabled = s.EnableSharedClipboard;
         _fileTransferEnabled = s.EnableFileTransfer;
 
-        SharedClipboardToggle.IsOn = _sharedClipboardEnabled;
-        FileTransferToggle.IsOn = _fileTransferEnabled;
+        SharedClipboardMenuItem.IsChecked = _sharedClipboardEnabled;
+        FileTransferMenuItem.IsChecked = _fileTransferEnabled;
         UpdateTransferStatusHintUi();
     }
 
@@ -90,7 +90,7 @@ public sealed partial class RemoteSessionWindow : Window
 
         channel.ValidateIncomingTransfer = (type, totalBytes) =>
         {
-            // Shared clipboard is strictly Controller -> Host; Controller only accepts Host -> Controller FileBatch
+            
             if (type != AuxTransferType.FileBatch) return AuxTransferRejectReason.Disabled;
             if (!_fileTransferEnabled) return AuxTransferRejectReason.Disabled;
 
@@ -187,10 +187,10 @@ public sealed partial class RemoteSessionWindow : Window
         ch.SendFeatureConfig(cfg);
     }
 
-    private void SharedClipboardToggle_Toggled(object sender, RoutedEventArgs e)
+    private void SharedClipboardMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        _sharedClipboardEnabled = SharedClipboardToggle.IsOn;
+        _sharedClipboardEnabled = SharedClipboardMenuItem.IsChecked;
 
         var s = App.Engine.SettingsService.Settings;
         s.EnableSharedClipboard = _sharedClipboardEnabled;
@@ -211,10 +211,10 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    private void FileTransferToggle_Toggled(object sender, RoutedEventArgs e)
+    private void FileTransferMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        _fileTransferEnabled = FileTransferToggle.IsOn;
+        _fileTransferEnabled = FileTransferMenuItem.IsChecked;
 
         var s = App.Engine.SettingsService.Settings;
         s.EnableFileTransfer = _fileTransferEnabled;
@@ -263,7 +263,7 @@ public sealed partial class RemoteSessionWindow : Window
 
         SendAuxFeatureConfig(force: false);
 
-        // Flush any large file batch that was copied while window was in the background
+        
         List<string>? pendingPaths = null;
         string? pendingSig = null;
         lock (_pendingFileDropLock)
@@ -321,7 +321,7 @@ public sealed partial class RemoteSessionWindow : Window
             if (!forceClipboardSync && !isActivationTrigger && prevProcessed >= 0 && seq == (uint)prevProcessed)
                 return;
 
-            // 1. Check files first (CF_HDROP) so Explorer file copies are never mistaken for text
+            
             if (WindowsClipboardHelper.HasDropFiles())
             {
                 Volatile.Write(ref _lastProcessedClipboardSeq, seq);
@@ -353,7 +353,7 @@ public sealed partial class RemoteSessionWindow : Window
                 return;
             }
 
-            // 2. Shared Clipboard (Controller -> Host): text or image
+            
             if (!_sharedClipboardEnabled) return;
             Volatile.Write(ref _lastProcessedClipboardSeq, seq);
 
@@ -377,7 +377,7 @@ public sealed partial class RemoteSessionWindow : Window
 
             if (settings.SharedClipboardSyncImages && WindowsClipboardHelper.HasDibImage())
             {
-                // Cap uncompressed DIB read at 64 MB (typical 4K screenshot ~33 MB -> ~1-3 MB compressed)
+                
                 if (WindowsClipboardHelper.TryReadDib(64 * 1024 * 1024, out byte[] dibBytes))
                 {
                     byte[] hash = SHA256.HashData(dibBytes);
@@ -496,22 +496,22 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void UpdateTransferStatusHintUi()
     {
-        if (TransferStatusHintText == null) return;
+        if (TransferStatusMenuItem == null) return;
 
         if (!string.IsNullOrEmpty(_latestTransferStatusText))
         {
-            TransferStatusHintText.Text = _latestTransferStatusText;
-            TransferStatusHintText.Visibility = Visibility.Visible;
+            TransferStatusMenuItem.Text = _latestTransferStatusText;
+            TransferStatusMenuItem.Visibility = Visibility.Visible;
         }
         else if (_fileTransferEnabled && _hasHostFilePolicy && !_hostAllowsFileTransfer)
         {
-            TransferStatusHintText.Text = LocalizationService.GetString("Session_ToastHostFileTransferDisabled");
-            TransferStatusHintText.Visibility = Visibility.Visible;
+            TransferStatusMenuItem.Text = LocalizationService.GetString("Session_ToastHostFileTransferDisabled");
+            TransferStatusMenuItem.Visibility = Visibility.Visible;
         }
         else
         {
-            TransferStatusHintText.Text = string.Empty;
-            TransferStatusHintText.Visibility = Visibility.Collapsed;
+            TransferStatusMenuItem.Text = string.Empty;
+            TransferStatusMenuItem.Visibility = Visibility.Collapsed;
         }
     }
 }

@@ -250,7 +250,7 @@
   <data name="Conn_VersionTimeout" xml:space="preserve"><value>版本兼容性校验超时</value></data>
   <data name="Conn_BridgeTimeout" xml:space="preserve"><value>建立连接搭桥超时</value></data>
   <data name="Conn_Punching" xml:space="preserve"><value>正在建立直连通道...</value></data>
-  <data name="Conn_PunchFailed" xml:space="preserve"><value>直连通道建立失败</value></data>
+  <data name="Conn_PunchFailed" xml:space="preserve"><value>连接通道建立失败（直连与云端中继均不可达）</value></data>
   <data name="Conn_VerifyingDirect" xml:space="preserve"><value>已建立直连，正在校验远控代码...</value></data>
   <data name="Conn_InvalidCode" xml:space="preserve"><value>远控代码不正确，对方拒绝接入</value></data>
   <data name="Conn_AuthTimeout" xml:space="preserve"><value>远控代码校验超时</value></data>
@@ -611,4 +611,23 @@
   <data name="Host_RowNotifyOnConnectDesc" xml:space="preserve"><value>当有远程设备连接控制本机时，在屏幕右下角弹出 Windows 默认通知提醒</value></data>
   <data name="Host_RowFlashTaskbarOnConnect" xml:space="preserve"><value>被远控连接时任务栏标签标红提醒</value></data>
   <data name="Host_RowFlashTaskbarOnConnectDesc" xml:space="preserve"><value>被控连接后任务栏上的 Osmium 窗口标签常亮红色，手动对焦窗口一次或断开后自动恢复常规</value></data>
+  <data name="Conn_BlockedWhileHost" xml:space="preserve"><value>当前本机正在被远程控制，无法同时远控其他设备</value></data>
+  <data name="Session_RouteRelay" xml:space="preserve"><value>云端中继</value></data>
+  <data name="Conn_SwitchingRelay" xml:space="preserve"><value>直连通道不可达，正在自动切换云端中继...</value></data>
+  <data name="Conn_VerifyingRelay" xml:space="preserve"><value>云端中继通道已建立，正在校验访问凭证...</value></data>
+  <data name="Session_ControlCenter" xml:space="preserve"><value>控制中心</value></data>
+  <data name="Session_MenuDisplay" xml:space="preserve"><value>显示器</value></data>
+  <data name="Session_MenuQuality" xml:space="preserve"><value>画质</value></data>
+  <data name="Session_MenuResolution" xml:space="preserve"><value>分辨率与缩放</value></data>
+  <data name="Session_MenuFps" xml:space="preserve"><value>帧率</value></data>
+  <data name="Session_HdrUnavailableShort" xml:space="preserve"><value>被控端未开启</value></data>
+  <data name="Session_MenuMouse" xml:space="preserve"><value>鼠标与操控</value></data>
+  <data name="Session_MenuAudio" xml:space="preserve"><value>声音</value></data>
+  <data name="Session_MenuTools" xml:space="preserve"><value>工具与驱动</value></data>
+  <data name="Session_MenuMore" xml:space="preserve"><value>更多</value></data>
+  <data name="Session_ViewDebugInfo" xml:space="preserve"><value>查看诊断信息...</value></data>
+  <data name="Session_CopyDebugInfo" xml:space="preserve"><value>复制诊断信息</value></data>
+  <data name="Session_SwitchedDisplayFmt" xml:space="preserve"><value>已切换至显示器 {0}</value></data>
+  <data name="Session_PrimaryDisplayTag" xml:space="preserve"><value>主</value></data>
+  <data name="Session_NoDisplays" xml:space="preserve"><value>未检测到显示器</value></data>
 </root>

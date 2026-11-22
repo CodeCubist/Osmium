@@ -182,7 +182,7 @@ public sealed partial class RemoteSessionWindow : Window
             init;
         } = null!;
 
-        public Panel ContentPanel
+        public Button SwitchButton
         {
             get;
             init;
@@ -211,6 +211,9 @@ public sealed partial class RemoteSessionWindow : Window
     private HostSessionStatusDto _hostStatus = new();
     private List<HostStatusDisplayDto> _renderedTabs = [];
     private readonly List<DisplayTabVisual> _tabVisuals = [];
+    private int _pendingDisplaySwitchIndex = -1;
+    private long _lastDisplaySwitchTickMs;
+    private bool _isDebugDialogOpen;
     private List<OsmiumAudioDeviceInfo> _localMicDevices = [];
     private bool _firstVideoFrameSeen;
     private bool _pipelineInitFailed;
@@ -317,7 +320,8 @@ public sealed partial class RemoteSessionWindow : Window
         VideoSwapChainPanel.SizeChanged += VideoSwapChainPanel_SizeChanged;
         VideoSwapChainPanel.CompositionScaleChanged += VideoSwapChainPanel_CompositionScaleChanged;
         VideoInputSurface.SizeChanged += (_, _) => UpdateCachedVideoSurfaceBounds();
-        BrandChipHost.SizeChanged += (_, _) => UpdateBrandChipGeometry();
+        DisplayTabsPanel.SizeChanged += (_, _) => UpdateTitleBarPassthroughRegions();
+        BrowserTabsArea.SizeChanged += (_, _) => UpdateTitleBarPassthroughRegions();
         RootSessionGrid.Loaded += RootSessionGrid_Loaded;
         RootSessionGrid.PreviewKeyDown += RootSessionGrid_PreviewKeyDown;
         RootSessionGrid.PreviewKeyUp += RootSessionGrid_PreviewKeyUp;
@@ -408,6 +412,7 @@ public sealed partial class RemoteSessionWindow : Window
         ApplyTitleBarChromeTheme();
 
         PopupCornerHelper.Install(this, RootSessionGrid);
+        PopupCornerHelper.AttachMenuFlyout(SessionMenuFlyout, SessionMenuButton);
 
         var winMode = App.Engine.SettingsService.Settings.WindowMode;
         if (winMode == StreamWindowMode.Fullscreen)
@@ -425,25 +430,27 @@ public sealed partial class RemoteSessionWindow : Window
         _isUpdatingUi = true;
         try
         {
-            HdrToggle.IsEnabled = false;
-            HdrToggle.IsOn = false;
-            HdrHostHintText.Visibility = Visibility.Visible;
-            Yuv444Toggle.IsOn = _enableYuv444;
-            VsyncToggle.IsOn = _enableVsync;
+            HdrMenuItem.IsEnabled = false;
+            HdrMenuItem.IsChecked = false;
+            Yuv444MenuItem.IsChecked = _enableYuv444;
+            VsyncMenuItem.IsChecked = _enableVsync;
 
-            VirtualSpeakerToggle.IsOn = _virtualSpeakerEnabled;
-            VirtualMicToggle.IsOn = _virtualMicEnabled;
+            VirtualSpeakerMenuItem.IsChecked = _virtualSpeakerEnabled;
+            VirtualMicMenuItem.IsChecked = _virtualMicEnabled;
 
-            MouseModeControllerRadio.IsChecked = _mouseMode == 0;
-            MouseModeVirtualRadio.IsChecked = _mouseMode == 1;
-            MouseModeSmartRadio.IsChecked = _mouseMode == 2;
+            MouseModeControllerMenuItem.IsChecked = _mouseMode == 0;
+            MouseModeVirtualMenuItem.IsChecked = _mouseMode == 1;
+            MouseModeSmartMenuItem.IsChecked = _mouseMode == 2;
 
-            PopulateFpsCombo();
+            PopulateFpsMenu();
             RebuildScaleOptions(1920, 1080);
 
             var s = App.Engine.SettingsService.Settings;
-            OsdToggleSwitch.IsOn = s.ShowPerformanceOverlay;
-            OsdDetailCombo.SelectedIndex = Math.Clamp((int)s.OsdDetailLevel, 0, 2);
+            OsdToggleMenuItem.IsChecked = s.ShowPerformanceOverlay;
+            int osdIdx = Math.Clamp((int)s.OsdDetailLevel, 0, 2);
+            OsdDetailCompactMenuItem.IsChecked = osdIdx == 0;
+            OsdDetailStandardMenuItem.IsChecked = osdIdx == 1;
+            OsdDetailDetailedMenuItem.IsChecked = osdIdx == 2;
             ApplyOsdVisibilityAndDetailLayout();
             InitializeClipboardAndTransferDefaults();
 
@@ -482,82 +489,64 @@ public sealed partial class RemoteSessionWindow : Window
                 WaitingVideoText.Text = LocalizationService.GetString("Session_WaitingVideo");
             }
 
+            SessionMenuBtnText.Text = LocalizationService.GetString("Session_ControlCenter");
             ToolTipService.SetToolTip(SessionMenuButton, LocalizationService.GetString("Session_MenuTooltip"));
-            SessionMenuTitleText.Text = LocalizationService.GetString("Session_MenuTitle");
-            SessionViewResTitleText.Text = LocalizationService.GetString("Session_ViewResTitle");
-            HostNativeResInfoText.Text = _hostStatus.NativeWidth > 0 && _hostStatus.NativeHeight > 0
+
+            MenuSubDisplay.Text = LocalizationService.GetString("Session_MenuDisplay");
+            MenuSubQuality.Text = LocalizationService.GetString("Session_MenuQuality");
+            MenuSubResolution.Text = LocalizationService.GetString("Session_MenuResolution");
+            MenuSubFps.Text = LocalizationService.GetString("Session_MenuFps");
+            HostNativeResMenuItem.Text = _hostStatus.NativeWidth > 0 && _hostStatus.NativeHeight > 0
                 ? LocalizationService.Format("Session_NativeResFmt", _hostStatus.NativeWidth, _hostStatus.NativeHeight)
                 : LocalizationService.GetString("Session_NativeResUnknown");
 
-            SessionFpsColorTitleText.Text = LocalizationService.GetString("Session_FpsColorTitle");
-            string onLabel = LocalizationService.GetString("Common_On");
-            string offLabel = LocalizationService.GetString("Common_Off");
+            HdrMenuItem.Text = _hostStatus.HostHdrEnabled
+                ? LocalizationService.GetString("Session_HdrHeader")
+                : $"{LocalizationService.GetString("Session_HdrHeader")} ({LocalizationService.GetString("Session_HdrUnavailableShort")})";
+            Yuv444MenuItem.Text = LocalizationService.GetString("Session_Yuv444Header");
+            VsyncMenuItem.Text = LocalizationService.GetString("Session_VsyncHeader");
 
-            foreach (var toggle in new[]
-                     {
-                         HdrToggle, Yuv444Toggle, VsyncToggle, VirtualSpeakerToggle, VirtualMicToggle, OsdToggleSwitch,
-                         SharedClipboardToggle, FileTransferToggle
-                     })
-            {
-                toggle.OnContent = onLabel;
-                toggle.OffContent = offLabel;
-            }
+            MenuSubMouse.Text = LocalizationService.GetString("Session_MenuMouse");
+            MouseModeControllerMenuItem.Text = LocalizationService.GetString("Session_UseControllerMouse");
+            MouseModeVirtualMenuItem.Text = LocalizationService.GetString("Session_UseVirtualMouse");
+            MouseModeSmartMenuItem.Text = LocalizationService.GetString("Session_SmartMode");
+            ReleaseCursorLockMenuItem.Text = LocalizationService.GetString("Session_ReleaseCursorLock");
 
-            HdrToggle.Header = LocalizationService.GetString("Session_HdrHeader");
-            HdrHostHintText.Text = LocalizationService.GetString("Session_HdrRequiresHostHint");
-            Yuv444Toggle.Header = LocalizationService.GetString("Session_Yuv444Header");
-            VsyncToggle.Header = LocalizationService.GetString("Session_VsyncHeader");
+            MenuSubAudio.Text = LocalizationService.GetString("Session_MenuAudio");
+            VirtualSpeakerMenuItem.Text = LocalizationService.GetString("Session_VirtualSpeaker");
+            VirtualMicMenuItem.Text = LocalizationService.GetString("Session_VirtualMic");
+            MenuSubLocalMic.Text = LocalizationService.GetString("Session_LocalMicHeader");
 
-            SessionMouseModeTitleText.Text = LocalizationService.GetString("Session_MouseModeTitle");
-            MouseModeControllerRadio.Content = LocalizationService.GetString("Session_UseControllerMouse");
-            MouseModeVirtualRadio.Content = LocalizationService.GetString("Session_UseVirtualMouse");
-            MouseModeSmartRadio.Content = LocalizationService.GetString("Session_SmartMode");
-            ReleaseCursorLockBtn.Content = LocalizationService.GetString("Session_ReleaseCursorLock");
-            UpdateMouseModeStatusLabel();
-
-            SessionAudioTitleText.Text = LocalizationService.GetString("Session_AudioTitle");
-            VirtualSpeakerToggle.Header = LocalizationService.GetString("Session_VirtualSpeaker");
-            VirtualMicToggle.Header = LocalizationService.GetString("Session_VirtualMic");
-            LocalMicCombo.Header = LocalizationService.GetString("Session_LocalMicHeader");
-
-            SessionDriversTitleText.Text = LocalizationService.GetString("Session_DriversTitle");
-            UpdateHostDriverStatusUi();
-
-            SessionOsdTitleText.Text = LocalizationService.GetString("Session_OsdTitle");
-            OsdToggleSwitch.Header = LocalizationService.GetString("Session_OsdToggleHeader");
-            OsdDetailCombo.Header = LocalizationService.GetString("Session_OsdDetailHeader");
-            OsdDetailCompactItem.Content = LocalizationService.GetString("Session_OsdCompact");
-            OsdDetailStandardItem.Content = LocalizationService.GetString("Session_OsdStandard");
-            OsdDetailDetailedItem.Content = LocalizationService.GetString("Session_OsdDetailed");
-
-            SessionSysControlTitleText.Text = LocalizationService.GetString("Session_SysControlTitle");
-            HostLockedPill.Text = LocalizationService.GetString("Session_ScreenLocked");
-            TaskManagerBtn.Content = LocalizationService.GetString("Session_TaskManagerBtn");
-
-            SessionClipboardTransferTitleText.Text = LocalizationService.GetString("Session_ClipboardTransferTitle");
-            SharedClipboardToggle.Header = LocalizationService.GetString("Session_SharedClipboardHeader");
-            FileTransferToggle.Header = LocalizationService.GetString("Session_FileTransferHeader");
+            MenuSubClipboardTransfer.Text = LocalizationService.GetString("Session_ClipboardTransferTitle");
+            SharedClipboardMenuItem.Text = LocalizationService.GetString("Session_SharedClipboardHeader");
+            FileTransferMenuItem.Text = LocalizationService.GetString("Session_FileTransferHeader");
             UpdateTransferStatusHintUi();
 
-            SessionWindowControlTitleText.Text = LocalizationService.GetString("Session_WindowControlTitle");
-            ToolTipService.SetToolTip(FullscreenBtn, LocalizationService.GetString("Session_ToggleFullscreenTooltip"));
-            FullscreenBtnText.Text =
+            MenuSubTools.Text = LocalizationService.GetString("Session_MenuTools");
+            HostLockedPill.Text = LocalizationService.GetString("Session_ScreenLocked");
+            TaskManagerMenuItem.Text = LocalizationService.GetString("Session_TaskManagerBtn");
+            MenuSubDrivers.Text = LocalizationService.GetString("Session_DriversTitle");
+            UpdateHostDriverStatusUi();
+
+            MenuSubMore.Text = LocalizationService.GetString("Session_MenuMore");
+            OsdToggleMenuItem.Text = LocalizationService.GetString("Session_OsdToggleHeader");
+            MenuSubOsdDetail.Text = LocalizationService.GetString("Session_OsdDetailHeader");
+            OsdDetailCompactMenuItem.Text = LocalizationService.GetString("Session_OsdCompact");
+            OsdDetailStandardMenuItem.Text = LocalizationService.GetString("Session_OsdStandard");
+            OsdDetailDetailedMenuItem.Text = LocalizationService.GetString("Session_OsdDetailed");
+            ViewDebugInfoMenuItem.Text = LocalizationService.GetString("Session_ViewDebugInfo");
+            CopyDebugInfoMenuItem.Text = LocalizationService.GetString("Session_CopyDebugInfo");
+
+            FullscreenMenuItem.Text =
                 LocalizationService.GetString(_isFullscreen ? "Session_FullscreenExit" : "Session_FullscreenEnter");
-            DisconnectBtn.Content = LocalizationService.GetString("Session_DisconnectBtn");
-            ToolTipService.SetToolTip(DisconnectBtn, LocalizationService.GetString("Session_DisconnectTooltip"));
+            DisconnectMenuItem.Text = LocalizationService.GetString("Session_DisconnectBtn");
 
-            SessionDebugInfoTitleText.Text = LocalizationService.GetString("Session_DebugInfoTitle");
-            CopyDebugInfoBtn.Content = LocalizationService.GetString("Session_CopyBtn");
-
+            PopulateFpsMenu();
             RebuildScaleOptions(_lastScaleNativeW, _lastScaleNativeH);
             RefreshLocalMicList();
             _renderedTabs.Clear();
             RebuildDisplayTabsIfChanged();
             UpdateOsdDisplay();
-            if (SessionMenuFlyout.IsOpen && DebugInfoExpander.IsExpanded)
-            {
-                DebugInfoBodyText.Text = BuildDebugSnapshotText();
-            }
         }
         finally
         {
@@ -567,19 +556,10 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void UpdateMouseModeStatusLabel()
     {
-        string key = _mouseMode switch
-        {
-            1 => _isCursorCaptured
-                ? "Session_MouseVirtual"
-                : (_userPausedVirtualCapture ? "Session_MouseVirtualPaused" : "Session_MouseVirtual"),
-            2 => _isCursorCaptured ? "Session_MouseSmartLocked" : "Session_MouseSmart",
-            _ => "Session_MouseController"
-        };
-        string newText = LocalizationService.GetString(key);
-        if (MouseModeStatusText.Text != newText)
-        {
-            MouseModeStatusText.Text = newText;
-        }
+        if (MouseModeControllerMenuItem == null) return;
+        MouseModeControllerMenuItem.IsChecked = _mouseMode == 0;
+        MouseModeVirtualMenuItem.IsChecked = _mouseMode == 1;
+        MouseModeSmartMenuItem.IsChecked = _mouseMode == 2;
     }
 
     private void RootSessionGrid_Loaded(object sender, RoutedEventArgs e)
@@ -589,7 +569,6 @@ public sealed partial class RemoteSessionWindow : Window
         StartEmbeddedNativeSession();
         StartMousePacer();
         ApplyTitleBarChromeTheme();
-        UpdateBrandChipGeometry();
         UpdateTitleBarPassthroughRegions();
         if (_lastAutoSizedHostW > 0 && _lastAutoSizedHostH > 0)
         {
@@ -750,6 +729,19 @@ public sealed partial class RemoteSessionWindow : Window
             bool lastActionChanged = !string.IsNullOrEmpty(dto.LastAction) &&
                                      dto.LastAction != _hostStatus.LastAction;
 
+            if (_pendingDisplaySwitchIndex >= 0)
+            {
+                if (dto.ActiveDisplayIndex == _pendingDisplaySwitchIndex ||
+                    Environment.TickCount64 - _lastDisplaySwitchTickMs > 1200)
+                {
+                    _pendingDisplaySwitchIndex = -1;
+                }
+                else
+                {
+                    dto.ActiveDisplayIndex = _pendingDisplaySwitchIndex;
+                }
+            }
+
             _hostStatus = dto;
             if (dto.StreamWidth > 0 && dto.StreamHeight > 0 && _cachedStreamWidth <= 0)
             {
@@ -778,7 +770,7 @@ public sealed partial class RemoteSessionWindow : Window
                 }
             }
 
-            HostLockedPill.Visibility = dto.ScreenLocked ? Visibility.Visible : Visibility.Collapsed;
+            HostLockedPillBorder.Visibility = dto.ScreenLocked ? Visibility.Visible : Visibility.Collapsed;
             SyncHdrAvailabilityFromHostStatus(dto.HostHdrEnabled);
             UpdateHostDriverStatusUi();
 
@@ -817,15 +809,16 @@ public sealed partial class RemoteSessionWindow : Window
 
         if (!hostHdrEnabled)
         {
-            HdrToggle.IsEnabled = false;
-            HdrHostHintText.Visibility = Visibility.Visible;
+            HdrMenuItem.IsEnabled = false;
+            HdrMenuItem.Text =
+                $"{LocalizationService.GetString("Session_HdrHeader")} ({LocalizationService.GetString("Session_HdrUnavailableShort")})";
 
-            bool needNotifyReset = _enableHdr || HdrToggle.IsOn;
+            bool needNotifyReset = _enableHdr || HdrMenuItem.IsChecked;
             _enableHdr = false;
             _isUpdatingUi = true;
             try
             {
-                HdrToggle.IsOn = false;
+                HdrMenuItem.IsChecked = false;
             }
             finally
             {
@@ -844,15 +837,15 @@ public sealed partial class RemoteSessionWindow : Window
             return;
         }
 
-        HdrToggle.IsEnabled = true;
-        HdrHostHintText.Visibility = Visibility.Collapsed;
+        HdrMenuItem.IsEnabled = true;
+        HdrMenuItem.Text = LocalizationService.GetString("Session_HdrHeader");
 
         if (firstSync)
         {
             _isUpdatingUi = true;
             try
             {
-                HdrToggle.IsOn = _enableHdr;
+                HdrMenuItem.IsChecked = _enableHdr;
             }
             finally
             {
@@ -866,7 +859,7 @@ public sealed partial class RemoteSessionWindow : Window
         var dto = _hostStatus;
         if (dto.Displays.Count == 0 && !dto.HasUsbIpDriver && string.IsNullOrEmpty(dto.LastAction))
         {
-            HostDriverStatusText.Text = LocalizationService.GetString("Session_DriverChecking");
+            HostDriverStatusMenuItem.Text = LocalizationService.GetString("Session_DriverChecking");
         }
         else
         {
@@ -876,14 +869,14 @@ public sealed partial class RemoteSessionWindow : Window
             string policyNote = LocalizationService.GetString(dto.AllowRemoteDriverMgmt
                 ? "Session_DriverPolicyEnabled"
                 : "Session_DriverPolicyDisabled");
-            HostDriverStatusText.Text = $"• {usbText}\n• {policyNote}";
+            HostDriverStatusMenuItem.Text = $"{usbText} · {policyNote}";
         }
 
-        RemoteInstallDriversBtn.IsEnabled = dto.AllowRemoteDriverMgmt;
-        RemoteInstallDriversBtn.Content = LocalizationService.GetString(dto.HasUsbIpDriver
+        RemoteInstallDriversMenuItem.IsEnabled = dto.AllowRemoteDriverMgmt;
+        RemoteInstallDriversMenuItem.Text = LocalizationService.GetString(dto.HasUsbIpDriver
             ? "Session_RemoteReinstallDriver"
             : "Session_RemoteInstallDriver");
-        RemoteUninstallDriversBtn.IsEnabled = dto.AllowRemoteDriverMgmt && dto.HasUsbIpDriver;
-        RemoteUninstallDriversBtn.Content = LocalizationService.GetString("Session_RemoteUninstallDriver");
+        RemoteUninstallDriversMenuItem.IsEnabled = dto.AllowRemoteDriverMgmt && dto.HasUsbIpDriver;
+        RemoteUninstallDriversMenuItem.Text = LocalizationService.GetString("Session_RemoteUninstallDriver");
     }
 }

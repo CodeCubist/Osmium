@@ -264,15 +264,19 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             return true;
         }
 
-        m_DesktopRect.left = 0;
-        m_DesktopRect.top = 0;
-        m_Width = GetSystemMetrics(SM_CXSCREEN);
-        m_Height = GetSystemMetrics(SM_CYSCREEN);
-        if (m_Width <= 0) m_Width = 1920;
-        if (m_Height <= 0) m_Height = 1080;
-        m_DesktopRect.right = m_Width;
-        m_DesktopRect.bottom = m_Height;
-        OSM_LOG_WARN("DXGI Desktop Duplication unavailable; using GDI capture fallback (%dx%d)", m_Width, m_Height);
+        if (!RefreshMonitorBoundsForGdi())
+        {
+            m_DesktopRect.left = 0;
+            m_DesktopRect.top = 0;
+            m_Width = GetSystemMetrics(SM_CXSCREEN);
+            m_Height = GetSystemMetrics(SM_CYSCREEN);
+            if (m_Width <= 0) m_Width = 1920;
+            if (m_Height <= 0) m_Height = 1080;
+            m_DesktopRect.right = m_Width;
+            m_DesktopRect.bottom = m_Height;
+        }
+        OSM_LOG_WARN("DXGI Desktop Duplication unavailable; using GDI capture fallback on display %d (%dx%d)",
+                     m_DisplayIndex, m_Width, m_Height);
         return true;
     }
 

@@ -41,7 +41,9 @@ public sealed partial class RemoteSessionWindow : Window
                 if (displays[i].Index != _renderedTabs[i].Index ||
                     displays[i].Width != _renderedTabs[i].Width ||
                     displays[i].Height != _renderedTabs[i].Height ||
+                    displays[i].RefreshRate != _renderedTabs[i].RefreshRate ||
                     displays[i].IsPrimary != _renderedTabs[i].IsPrimary ||
+                    !string.Equals(displays[i].Name, _renderedTabs[i].Name, StringComparison.Ordinal) ||
                     !string.Equals(displays[i].DeviceName, _renderedTabs[i].DeviceName, StringComparison.Ordinal))
                 {
                     same = false;
@@ -52,6 +54,11 @@ public sealed partial class RemoteSessionWindow : Window
 
         if (same)
         {
+            if (MenuSubDisplay.Items.Count == 0)
+            {
+                RebuildDisplayMenuItems();
+            }
+
             UpdateTabSelectionStyles();
             return;
         }
@@ -60,6 +67,9 @@ public sealed partial class RemoteSessionWindow : Window
         _tabVisuals.Clear();
         DisplayTabsPanel.Children.Clear();
 
+        var transparentBrush = new SolidColorBrush(Colors.Transparent);
+        string primaryTag = LocalizationService.GetString("Session_PrimaryDisplayTag");
+
         foreach (var d in _renderedTabs)
         {
             var tabRoot = new Grid
@@ -67,7 +77,8 @@ public sealed partial class RemoteSessionWindow : Window
                 Tag = d.Index,
                 Height = 32,
                 Margin = new Thickness(0, 0, -4, 0),
-                VerticalAlignment = VerticalAlignment.Top
+                VerticalAlignment = VerticalAlignment.Top,
+                Background = transparentBrush
             };
 
             var fillPath = new ShapesPath
@@ -97,43 +108,51 @@ public sealed partial class RemoteSessionWindow : Window
             };
             row.Children.Add(icon);
 
-            string label = !string.IsNullOrWhiteSpace(d.DeviceName)
-                ? d.DeviceName
-                : (!string.IsNullOrWhiteSpace(d.Name) ? d.Name : $"DISPLAY{d.Index + 1}");
+            string baseName = !string.IsNullOrWhiteSpace(d.DeviceName)
+                ? d.DeviceName.Trim()
+                : (!string.IsNullOrWhiteSpace(d.Name) ? d.Name.Trim() : $"DISPLAY{d.Index + 1}");
+            string tabLabel = _renderedTabs.Count > 1 ? $"{d.Index + 1}. {baseName}" : baseName;
+            string primarySuffix = d.IsPrimary ? $" ({primaryTag})" : string.Empty;
 
             var titleTb = new TextBlock
             {
-                Text = label,
+                Text = tabLabel,
                 FontSize = 12,
+                MaxWidth = _renderedTabs.Count > 1 ? 150 : 185,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 TextWrapping = TextWrapping.NoWrap,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            ToolTipService.SetToolTip(tabRoot, $"{label} - {d.Width}×{d.Height} @ {d.RefreshRate}Hz");
             row.Children.Add(titleTb);
 
             var switchBtn = new Button
             {
                 Content = row,
                 Tag = d.Index,
-                Background = new SolidColorBrush(Colors.Transparent),
+                Background = transparentBrush,
                 BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
-                VerticalAlignment = VerticalAlignment.Stretch
+                CornerRadius = new CornerRadius(0),
+                Padding = new Thickness(16, 0, 16, 2),
+                MinWidth = 0,
+                MinHeight = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                IsTabStop = false,
+                UseSystemFocusVisuals = false
             };
+            switchBtn.Resources["ButtonBackgroundPointerOver"] = transparentBrush;
+            switchBtn.Resources["ButtonBackgroundPressed"] = transparentBrush;
+            switchBtn.Resources["ButtonBorderBrushPointerOver"] = transparentBrush;
+            switchBtn.Resources["ButtonBorderBrushPressed"] = transparentBrush;
             switchBtn.Click += DisplayTabSwitch_Click;
-
-            var outer = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 4,
-                Margin = new Thickness(16, 0, 16, 2),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            outer.Children.Add(switchBtn);
+            ToolTipService.SetToolTip(switchBtn,
+                $"{tabLabel}{primarySuffix} · {d.Width}×{d.Height} @ {d.RefreshRate}Hz");
 
             tabRoot.Children.Add(fillPath);
             tabRoot.Children.Add(strokePath);
-            tabRoot.Children.Add(outer);
+            tabRoot.Children.Add(switchBtn);
 
             var visual = new DisplayTabVisual
             {
@@ -141,7 +160,7 @@ public sealed partial class RemoteSessionWindow : Window
                 RootGrid = tabRoot,
                 FillPath = fillPath,
                 StrokePath = strokePath,
-                ContentPanel = outer,
+                SwitchButton = switchBtn,
                 Icon = icon,
                 TitleBlock = titleTb
             };
@@ -167,65 +186,63 @@ public sealed partial class RemoteSessionWindow : Window
                 Height = 14,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(3, 9, -1, 0),
-                Background = ResolveDividerBrush()
+                Background = ResolveDividerBrush(),
+                IsHitTestVisible = false
             };
             DisplayTabsPanel.Children.Add(sep);
         }
 
+        RebuildDisplayMenuItems();
         UpdateTabSelectionStyles();
         DispatcherQueue.TryEnqueue(UpdateTitleBarPassthroughRegions);
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            UpdateTitleBarPassthroughRegions);
     }
 
-    private void UpdateBrandChipGeometry()
+    private void RebuildDisplayMenuItems()
     {
-        double w = BrandChipHost.ActualWidth;
-        double h = BrandChipHost.ActualHeight;
-        if (w < 24 || h < 16) return;
-
-        BrandChipFill.Data = BuildTopLeftBrandGeometry(w, h, 8.0, 8.0, closed: true, inset: 0.0);
-        BrandChipStroke.Data = BuildTopLeftBrandGeometry(w, h, 8.0, 8.0, closed: false, inset: 0.5);
-    }
-
-    private static Geometry BuildTopLeftBrandGeometry(double w, double h, double skirtR, double cornerR, bool closed,
-        double inset)
-    {
-        double sR = Math.Min(skirtR, Math.Min(w * 0.25, h * 0.35));
-        double cR = Math.Min(cornerR, Math.Min(w * 0.25, h * 0.45));
-        double right = Math.Max(sR + cR + 4.0, w - inset);
-        double bottom = h - inset;
-        double top = closed ? 0.0 : inset;
-
-        var fig = new PathFigure
+        MenuSubDisplay.Items.Clear();
+        if (_renderedTabs.Count == 0)
         {
-            StartPoint = closed ? new Point(0, 0) : new Point(0, bottom),
-            IsClosed = closed,
-            IsFilled = closed
-        };
-        if (closed)
-        {
-            fig.Segments.Add(new LineSegment { Point = new Point(0, bottom) });
+            MenuSubDisplay.Items.Add(new MenuFlyoutItem
+            {
+                Text = LocalizationService.GetString("Session_NoDisplays"),
+                IsEnabled = false
+            });
+            return;
         }
 
-        fig.Segments.Add(new LineSegment { Point = new Point(right - sR - cR, bottom) });
-        fig.Segments.Add(new ArcSegment
+        string primaryTag = LocalizationService.GetString("Session_PrimaryDisplayTag");
+        int activeIdx = _hostStatus.ActiveDisplayIndex;
+        foreach (var d in _renderedTabs)
         {
-            Point = new Point(right - sR, bottom - cR),
-            Size = new Size(cR, cR),
-            SweepDirection = SweepDirection.Counterclockwise,
-            IsLargeArc = false
-        });
-        fig.Segments.Add(new LineSegment { Point = new Point(right - sR, top + sR) });
-        fig.Segments.Add(new ArcSegment
-        {
-            Point = new Point(right, top),
-            Size = new Size(sR, sR),
-            SweepDirection = SweepDirection.Clockwise,
-            IsLargeArc = false
-        });
+            string baseName = !string.IsNullOrWhiteSpace(d.DeviceName)
+                ? d.DeviceName.Trim()
+                : (!string.IsNullOrWhiteSpace(d.Name) ? d.Name.Trim() : $"DISPLAY{d.Index + 1}");
+            string prefix = _renderedTabs.Count > 1 ? $"{d.Index + 1}. " : string.Empty;
+            string primarySuffix = d.IsPrimary ? $" [{primaryTag}]" : string.Empty;
+            var item = new RadioMenuFlyoutItem
+            {
+                Text = $"{prefix}{baseName}{primarySuffix} ({d.Width}×{d.Height} @ {d.RefreshRate}Hz)",
+                GroupName = "HostDisplayGroup",
+                Tag = d.Index,
+                IsChecked = d.Index == activeIdx
+            };
+            item.Click += DisplayMenuItem_Click;
+            MenuSubDisplay.Items.Add(item);
+        }
+    }
 
-        var geo = new PathGeometry();
-        geo.Figures.Add(fig);
-        return geo;
+    private void UpdateDisplayMenuSelection()
+    {
+        int activeIdx = _hostStatus.ActiveDisplayIndex;
+        foreach (var item in MenuSubDisplay.Items)
+        {
+            if (item is RadioMenuFlyoutItem radio && radio.Tag is int idx)
+            {
+                radio.IsChecked = idx == activeIdx;
+            }
+        }
     }
 
     private static void UpdateTabPathGeometries(DisplayTabVisual visual)
@@ -320,24 +337,27 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void ApplyTitleBarChromeTheme()
     {
-        bool isDark = RootSessionGrid.ActualTheme == ElementTheme.Dark;
         if (_isFullscreen)
         {
             AppTitleBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x8C, 0x14, 0x18, 0x21));
             TitleBarBottomDivider.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF));
-            BrandChipFill.Fill = new SolidColorBrush(Colors.Transparent);
-            BrandChipStroke.Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF));
             RemoteHostTitleText.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0xF8, 0xFA, 0xFC));
+            SessionMenuButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF));
+            SessionMenuButton.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF5, 0xF8, 0xFA, 0xFC));
         }
         else
         {
             AppTitleBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x01, 0, 0, 0));
             TitleBarBottomDivider.Background = ResolveDividerBrush();
-            BrandChipFill.Fill = new SolidColorBrush(Colors.Transparent);
-            BrandChipStroke.Stroke = new SolidColorBrush(isDark
-                ? Windows.UI.Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF)
-                : Windows.UI.Color.FromArgb(0x16, 0, 0, 0));
             RemoteHostTitleText.Foreground = ResolveThemeBrush(
+                "TextFillColorPrimaryBrush",
+                Windows.UI.Color.FromArgb(0xFF, 0x18, 0x1C, 0x24),
+                Windows.UI.Color.FromArgb(0xFF, 0xF3, 0xF6, 0xFA));
+            SessionMenuButton.Background = ResolveThemeBrush(
+                "OsmiumSubtlePillBrush",
+                Windows.UI.Color.FromArgb(0x0B, 0, 0, 0),
+                Windows.UI.Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF));
+            SessionMenuButton.Foreground = ResolveThemeBrush(
                 "TextFillColorPrimaryBrush",
                 Windows.UI.Color.FromArgb(0xFF, 0x18, 0x1C, 0x24),
                 Windows.UI.Color.FromArgb(0xFF, 0xF3, 0xF6, 0xFA));
@@ -408,7 +428,7 @@ public sealed partial class RemoteSessionWindow : Window
             v.TitleBlock.Foreground = fg;
             v.TitleBlock.FontWeight =
                 active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-            v.ContentPanel.Margin = active ? new Thickness(16, 0, 16, 0) : new Thickness(16, 0, 16, 2);
+            v.SwitchButton.Padding = active ? new Thickness(16, 0, 16, 0) : new Thickness(16, 0, 16, 2);
             Canvas.SetZIndex(v.RootGrid, active ? 5 : (v.IsHovered ? 2 : 1));
             if (heightChanged)
             {
@@ -428,6 +448,8 @@ public sealed partial class RemoteSessionWindow : Window
                 sep.Visibility = (leftIdx == activeIdx || nextIsActive) ? Visibility.Collapsed : Visibility.Visible;
             }
         }
+
+        UpdateDisplayMenuSelection();
     }
 
     private void TryAdaptWindowSizeToHostAspect(int hostW, int hostH, bool recenter, bool markAdapted)
@@ -587,18 +609,23 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    private void PopulateFpsCombo()
+    private void PopulateFpsMenu()
     {
         int[] options = [30, 60, 90, 120, 144, 165, 240];
-        FpsCombo.Items.Clear();
-        int sel = 1;
-        for (int i = 0; i < options.Length; i++)
+        MenuSubFps.Items.Clear();
+        bool matched = options.Contains(_currentFps);
+        foreach (int fps in options)
         {
-            FpsCombo.Items.Add(new ComboBoxItem { Content = $"{options[i]} FPS", Tag = options[i] });
-            if (options[i] == _currentFps) sel = i;
+            var item = new RadioMenuFlyoutItem
+            {
+                Text = $"{fps} FPS",
+                GroupName = "FpsGroup",
+                Tag = fps,
+                IsChecked = matched ? fps == _currentFps : fps == 60
+            };
+            item.Click += FpsMenuItem_Click;
+            MenuSubFps.Items.Add(item);
         }
-
-        FpsCombo.SelectedIndex = sel;
     }
 
     private sealed record ScaleOption(string Label, int Percent, int TargetW, int TargetH);
@@ -613,7 +640,7 @@ public sealed partial class RemoteSessionWindow : Window
             nativeH = Math.Max(360, nativeH);
             _lastScaleNativeW = nativeW;
             _lastScaleNativeH = nativeH;
-            HostNativeResInfoText.Text = LocalizationService.Format("Session_NativeResFmt", nativeW, nativeH);
+            HostNativeResMenuItem.Text = LocalizationService.Format("Session_NativeResFmt", nativeW, nativeH);
 
             var opts = new List<ScaleOption>
             {
@@ -691,13 +718,19 @@ public sealed partial class RemoteSessionWindow : Window
                 }
             }
 
-            ViewScaleCombo.Items.Clear();
+            MenuSubResolution.Items.Clear();
             for (int i = 0; i < opts.Count; i++)
             {
-                ViewScaleCombo.Items.Add(new ComboBoxItem { Content = opts[i].Label, Tag = opts[i] });
+                var item = new RadioMenuFlyoutItem
+                {
+                    Text = opts[i].Label,
+                    GroupName = "ViewScaleGroup",
+                    Tag = opts[i],
+                    IsChecked = i == selectedIdx
+                };
+                item.Click += ViewScaleMenuItem_Click;
+                MenuSubResolution.Items.Add(item);
             }
-
-            ViewScaleCombo.SelectedIndex = selectedIdx;
         }
         finally
         {
@@ -744,18 +777,11 @@ public sealed partial class RemoteSessionWindow : Window
             int count = NativeMethods.Osmium_EnumMicDevices(buf, buf.Length);
             _localMicDevices = buf.Take(count).ToList();
 
-            LocalMicCombo.Items.Clear();
+            MenuSubLocalMic.Items.Clear();
             int sel = -1;
             for (int i = 0; i < _localMicDevices.Count; i++)
             {
                 var mic = _localMicDevices[i];
-                LocalMicCombo.Items.Add(new ComboBoxItem
-                {
-                    Content = mic.IsDefault != 0
-                        ? LocalizationService.Format("Session_MicDefaultFmt", mic.Name)
-                        : mic.Name,
-                    Tag = mic.Id
-                });
                 if (!string.IsNullOrEmpty(_selectedLocalMicId) && mic.Id == _selectedLocalMicId)
                 {
                     sel = i;
@@ -768,18 +794,33 @@ public sealed partial class RemoteSessionWindow : Window
 
             if (_localMicDevices.Count == 0)
             {
-                LocalMicCombo.Items.Add(new ComboBoxItem
-                    { Content = LocalizationService.GetString("Session_NoLocalMic"), Tag = string.Empty });
-                LocalMicCombo.SelectedIndex = 0;
-                VirtualMicToggle.IsEnabled = false;
+                MenuSubLocalMic.Items.Add(new MenuFlyoutItem
+                {
+                    Text = LocalizationService.GetString("Session_NoLocalMic"),
+                    IsEnabled = false
+                });
+                VirtualMicMenuItem.IsEnabled = false;
             }
             else
             {
-                VirtualMicToggle.IsEnabled = true;
-                LocalMicCombo.SelectedIndex = Math.Max(0, sel);
-                if (LocalMicCombo.SelectedItem is ComboBoxItem cbi && cbi.Tag is string id)
+                VirtualMicMenuItem.IsEnabled = true;
+                int chosenIdx = Math.Max(0, sel);
+                _selectedLocalMicId = _localMicDevices[chosenIdx].Id;
+
+                for (int i = 0; i < _localMicDevices.Count; i++)
                 {
-                    _selectedLocalMicId = id;
+                    var mic = _localMicDevices[i];
+                    var item = new RadioMenuFlyoutItem
+                    {
+                        Text = mic.IsDefault != 0
+                            ? LocalizationService.Format("Session_MicDefaultFmt", mic.Name)
+                            : mic.Name,
+                        GroupName = "LocalMicGroup",
+                        Tag = mic.Id,
+                        IsChecked = i == chosenIdx
+                    };
+                    item.Click += LocalMicMenuItem_Click;
+                    MenuSubLocalMic.Items.Add(item);
                 }
             }
         }

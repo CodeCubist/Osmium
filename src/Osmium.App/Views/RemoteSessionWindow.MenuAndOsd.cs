@@ -267,10 +267,6 @@ public sealed partial class RemoteSessionWindow : Window
         }
 
         UpdateOsdDisplay();
-        if (SessionMenuFlyout.IsOpen && DebugInfoExpander.IsExpanded)
-        {
-            DebugInfoBodyText.Text = BuildDebugSnapshotText();
-        }
     }
 
     private void UpdateOsdDisplay()
@@ -353,6 +349,7 @@ public sealed partial class RemoteSessionWindow : Window
         1 => LocalizationService.GetString("Session_RouteLan"),
         2 => LocalizationService.GetString("Session_RouteIpv6"),
         3 => LocalizationService.GetString("Session_RouteDirect"),
+        4 => LocalizationService.GetString("Session_RouteRelay"),
         _ => LocalizationService.GetString("Session_RouteDirect")
     };
 
@@ -403,18 +400,54 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void DisplayTabSwitch_Click(object sender, RoutedEventArgs e)
     {
-        if (_clientHandle != IntPtr.Zero && sender is Button { Tag: int idx })
+        if (sender is Button { Tag: int idx })
         {
-            NativeMethods.Osmium_ClientSwitchDisplay(_clientHandle, idx);
-            _hostStatus.ActiveDisplayIndex = idx;
-            UpdateTabSelectionStyles();
+            SwitchToHostDisplay(idx);
         }
     }
 
-    private void ViewScaleCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void DisplayMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioMenuFlyoutItem { Tag: int idx })
+        {
+            SwitchToHostDisplay(idx);
+        }
+    }
+
+    private void SwitchToHostDisplay(int idx)
+    {
+        if (_clientHandle == IntPtr.Zero || _isClosed || _remoteSessionEnded) return;
+        bool changed = _hostStatus.ActiveDisplayIndex != idx;
+        _pendingDisplaySwitchIndex = idx;
+        _lastDisplaySwitchTickMs = Environment.TickCount64;
+        NativeMethods.Osmium_ClientSwitchDisplay(_clientHandle, idx);
+        _hostStatus.ActiveDisplayIndex = idx;
+        UpdateTabSelectionStyles();
+
+        if (changed)
+        {
+            var disp = _renderedTabs.FirstOrDefault(t => t.Index == idx);
+            string dispLabel = disp != null
+                ? (!string.IsNullOrWhiteSpace(disp.DeviceName)
+                    ? $"{idx + 1}. {disp.DeviceName.Trim()}"
+                    : $"#{idx + 1}")
+                : $"#{idx + 1}";
+            ShowTopToast(LocalizationService.Format("Session_SwitchedDisplayFmt", dispLabel));
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_isClosed)
+            {
+                VideoInputSurface.Focus(FocusState.Programmatic);
+            }
+        });
+    }
+
+    private void ViewScaleMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        if (ViewScaleCombo.SelectedItem is ComboBoxItem { Tag: ScaleOption opt })
+        if (sender is RadioMenuFlyoutItem { Tag: ScaleOption opt })
         {
             if (opt.Percent == 100)
             {
@@ -435,10 +468,10 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    private void FpsCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void FpsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        if (FpsCombo.SelectedItem is ComboBoxItem { Tag: int fps })
+        if (sender is RadioMenuFlyoutItem { Tag: int fps })
         {
             _currentFps = fps;
             RefreshTargetMouseSamplingHz();
@@ -446,18 +479,18 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    private void VideoFlagToggle_Toggled(object sender, RoutedEventArgs e)
+    private void HdrMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        if (ReferenceEquals(sender, HdrToggle) && !_hostStatus.HostHdrEnabled)
+        if (!_hostStatus.HostHdrEnabled)
         {
             _enableHdr = false;
-            if (HdrToggle.IsOn)
+            if (HdrMenuItem.IsChecked)
             {
                 _isUpdatingUi = true;
                 try
                 {
-                    HdrToggle.IsOn = false;
+                    HdrMenuItem.IsChecked = false;
                 }
                 finally
                 {
@@ -469,21 +502,27 @@ public sealed partial class RemoteSessionWindow : Window
             return;
         }
 
-        _enableHdr = _hostStatus.HostHdrEnabled && HdrToggle.IsOn;
-        _enableYuv444 = Yuv444Toggle.IsOn;
+        _enableHdr = HdrMenuItem.IsChecked;
         SendUpdatedVideoParams();
     }
 
-    private void VsyncToggle_Toggled(object sender, RoutedEventArgs e)
+    private void Yuv444MenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isUpdatingUi) return;
+        _enableYuv444 = Yuv444MenuItem.IsChecked;
+        SendUpdatedVideoParams();
+    }
+
+    private void VsyncMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi || _clientHandle == IntPtr.Zero) return;
-        _enableVsync = VsyncToggle.IsOn;
+        _enableVsync = VsyncMenuItem.IsChecked;
         NativeMethods.Osmium_ClientSetVsync(_clientHandle, _enableVsync ? 1 : 0);
     }
 
-    private void MouseModeRadio_Click(object sender, RoutedEventArgs e)
+    private void MouseModeMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (_clientHandle == IntPtr.Zero || sender is not RadioButton { Tag: string tagStr } ||
+        if (_clientHandle == IntPtr.Zero || sender is not RadioMenuFlyoutItem { Tag: string tagStr } ||
             !int.TryParse(tagStr, out int mode))
         {
             return;
@@ -491,34 +530,32 @@ public sealed partial class RemoteSessionWindow : Window
 
         _mouseMode = Math.Clamp(mode, 0, 2);
         _userPausedVirtualCapture = false;
-        MouseModeControllerRadio.IsChecked = _mouseMode == 0;
-        MouseModeVirtualRadio.IsChecked = _mouseMode == 1;
-        MouseModeSmartRadio.IsChecked = _mouseMode == 2;
         UpdateMouseModeStatusLabel();
 
         App.Engine.SettingsService.Settings.PreferredMouseMode = (RemoteMouseMode)_mouseMode;
         App.Engine.SettingsService.SaveSettings();
 
         NativeMethods.Osmium_ClientSetMouseMode(_clientHandle, _mouseMode, _mouseMode == 0 ? 1 : 0);
-        SessionMenuFlyout.Hide();
         DispatcherQueue.TryEnqueue(() =>
         {
-            VideoInputSurface.Focus(FocusState.Programmatic);
-            SyncKeyboardHookAndCursorCapture();
+            if (!_isClosed)
+            {
+                VideoInputSurface.Focus(FocusState.Programmatic);
+                SyncKeyboardHookAndCursorCapture();
+            }
         });
     }
 
     private void ReleaseCursorLockItem_Click(object sender, RoutedEventArgs e)
     {
-        SessionMenuFlyout.Hide();
         ReleaseCursorCapture(manualPause: true);
     }
 
-    private void VirtualAudioToggle_Toggled(object sender, RoutedEventArgs e)
+    private void VirtualAudioMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi || _clientHandle == IntPtr.Zero) return;
-        _virtualSpeakerEnabled = VirtualSpeakerToggle.IsOn;
-        _virtualMicEnabled = VirtualMicToggle.IsOn;
+        _virtualSpeakerEnabled = VirtualSpeakerMenuItem.IsChecked;
+        _virtualMicEnabled = VirtualMicMenuItem.IsChecked;
         NativeMethods.Osmium_ClientSetVirtualAudio(
             _clientHandle,
             _virtualSpeakerEnabled ? 1 : 0,
@@ -526,10 +563,10 @@ public sealed partial class RemoteSessionWindow : Window
             string.IsNullOrWhiteSpace(_selectedLocalMicId) ? null : _selectedLocalMicId);
     }
 
-    private void LocalMicCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void LocalMicMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        if (LocalMicCombo.SelectedItem is ComboBoxItem { Tag: string id })
+        if (sender is RadioMenuFlyoutItem { Tag: string id })
         {
             _selectedLocalMicId = id;
             App.Engine.SettingsService.Settings.PreferredLocalMicDeviceId = id;
@@ -551,7 +588,6 @@ public sealed partial class RemoteSessionWindow : Window
         if (_clientHandle != IntPtr.Zero)
         {
             NativeMethods.Osmium_ClientSendSystemAction(_clientHandle, 1);
-            SessionMenuFlyout.Hide();
         }
     }
 
@@ -560,7 +596,6 @@ public sealed partial class RemoteSessionWindow : Window
         if (_clientHandle != IntPtr.Zero)
         {
             NativeMethods.Osmium_ClientSendSystemAction(_clientHandle, 2);
-            SessionMenuFlyout.Hide();
         }
     }
 
@@ -568,7 +603,6 @@ public sealed partial class RemoteSessionWindow : Window
     {
         if (_clientHandle == IntPtr.Zero) return;
         NativeMethods.Osmium_ClientSendSystemAction(_clientHandle, 4);
-        SessionMenuFlyout.Hide();
         ShowTopToast(LocalizationService.GetString("Session_ToastDriverInstallSent"));
     }
 
@@ -576,23 +610,22 @@ public sealed partial class RemoteSessionWindow : Window
     {
         if (_clientHandle == IntPtr.Zero) return;
         NativeMethods.Osmium_ClientSendSystemAction(_clientHandle, 5);
-        SessionMenuFlyout.Hide();
         ShowTopToast(LocalizationService.GetString("Session_ToastDriverUninstallSent"));
     }
 
-    private void OsdToggleSwitch_Toggled(object sender, RoutedEventArgs e)
+    private void OsdToggleMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
         var s = App.Engine.SettingsService.Settings;
-        s.ShowPerformanceOverlay = OsdToggleSwitch.IsOn;
+        s.ShowPerformanceOverlay = OsdToggleMenuItem.IsChecked;
         App.Engine.SettingsService.SaveSettings();
         ApplyOsdVisibilityAndDetailLayout();
     }
 
-    private void OsdDetailCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void OsdDetailMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi) return;
-        if (OsdDetailCombo.SelectedItem is ComboBoxItem { Tag: string tagStr } &&
+        if (sender is RadioMenuFlyoutItem { Tag: string tagStr } &&
             int.TryParse(tagStr, out int level))
         {
             var detail = (OsdDetailLevel)Math.Clamp(level, 0, 2);
@@ -602,9 +635,59 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    private void DebugInfoExpander_Expanding(Expander sender, ExpanderExpandingEventArgs args)
+    private async void ViewDebugInfo_Click(object sender, RoutedEventArgs e)
     {
-        DebugInfoBodyText.Text = BuildDebugSnapshotText();
+        if (_isClosed || _isDebugDialogOpen || RootSessionGrid.XamlRoot == null) return;
+        _isDebugDialogOpen = true;
+        _openFlyoutCount++;
+        ReleaseCursorCapture(manualPause: false);
+        SyncKeyboardHookAndCursorCapture();
+        try
+        {
+            var textBlock = new TextBlock
+            {
+                Text = BuildDebugSnapshotText(),
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                IsTextSelectionEnabled = true,
+                TextWrapping = TextWrapping.Wrap
+            };
+            var scroll = new ScrollViewer
+            {
+                MaxHeight = 380,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = textBlock
+            };
+            var dlg = new ContentDialog
+            {
+                XamlRoot = RootSessionGrid.XamlRoot,
+                RequestedTheme = RootSessionGrid.ActualTheme,
+                Title = LocalizationService.GetString("Session_DebugInfoTitle"),
+                Content = scroll,
+                PrimaryButtonText = LocalizationService.GetString("Session_CopyDebugInfo"),
+                CloseButtonText = LocalizationService.GetString("Dialog_Ok"),
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dlg.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                CopyDebugInfo_Click(sender, e);
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _isDebugDialogOpen = false;
+            if (_openFlyoutCount > 0) _openFlyoutCount--;
+            if (!_isClosed && _openFlyoutCount == 0)
+            {
+                VideoInputSurface.Focus(FocusState.Programmatic);
+                SyncKeyboardHookAndCursorCapture();
+            }
+        }
     }
 
     private void CopyDebugInfo_Click(object sender, RoutedEventArgs e)
@@ -617,7 +700,6 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void FullscreenBtn_Click(object sender, RoutedEventArgs e)
     {
-        SessionMenuFlyout.Hide();
         SetFullscreenState(!_isFullscreen);
     }
 
@@ -625,7 +707,7 @@ public sealed partial class RemoteSessionWindow : Window
     {
         if (_appWindow == null || _isFullscreen == fullscreen) return;
         _isFullscreen = fullscreen;
-        FullscreenBtnText.Text =
+        FullscreenMenuItem.Text =
             LocalizationService.GetString(fullscreen ? "Session_FullscreenExit" : "Session_FullscreenEnter");
 
         if (fullscreen)
@@ -699,10 +781,8 @@ public sealed partial class RemoteSessionWindow : Window
     {
         SettingsFlyout_Opened(sender, e);
         RefreshLocalMicList();
-        if (DebugInfoExpander.IsExpanded)
-        {
-            DebugInfoBodyText.Text = BuildDebugSnapshotText();
-        }
+        UpdateDisplayMenuSelection();
+        UpdateTransferStatusHintUi();
     }
 
     private void SettingsFlyout_Closed(object? sender, object e)

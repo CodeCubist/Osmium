@@ -294,6 +294,9 @@ public delegate int OsmiumHostDriverConfirmDelegate(int actionType);
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 public delegate void OsmiumAuxDataDelegate(IntPtr data, int length);
 
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+public delegate int OsmiumRelaySendDelegate(IntPtr data, int length, int isDroppable);
+
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct OsmiumClientCallbacks
 {
@@ -385,6 +388,20 @@ public static class NativeMethods
         out int outTransportRoute,
         System.Text.StringBuilder outActiveEndpoint,
         int endpointBufLen);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    public static extern int Osmium_EnableTransportRelay(
+        IntPtr transport,
+        byte[] sessionToken16,
+        int localRole,
+        OsmiumRelaySendDelegate onSendRelay,
+        string? relayEndpointLabel);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_PushTransportRelayPacket(
+        IntPtr transport,
+        byte[] data,
+        int length);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_SetTransportKey(IntPtr transport, byte[] aesKey32);

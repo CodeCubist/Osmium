@@ -68,17 +68,21 @@ public sealed partial class RemoteHomePage : Page
         if (Application.Current.Resources[fgKey] is Brush fg) HostStatePillText.Foreground = fg;
         HostStatePillText.Text = LocalizationService.GetString(textKey);
 
-        bool allowRemote = App.Engine.SettingsService.Settings.AllowRemoteControl;
+        bool clientControlling = App.Engine.Coordinator.IsClientSessionActive;
+        bool allowRemote = App.Engine.Coordinator.EffectiveAllowRemoteControl;
         MenuToggleAllowItem.Text = LocalizationService.GetString(
             allowRemote ? "Home_MenuDisableRemote" : "Home_MenuEnableRemote");
 
         bool securityLocked = streaming;
+        MenuGoAssistItem.IsEnabled = !securityLocked;
         MenuOpenHostItem.IsEnabled = !securityLocked;
         MenuRenameLocalDeviceItem.IsEnabled = App.Engine.AccountService.IsLoggedIn && !securityLocked;
-        MenuToggleAllowItem.IsEnabled = !securityLocked;
+        MenuToggleAllowItem.IsEnabled = !securityLocked && !clientControlling;
         DockInputBtn.IsEnabled = !securityLocked;
         DockAudioBtn.IsEnabled = !securityLocked;
         DockHostPolicyBtn.IsEnabled = !securityLocked;
+        DockRemoteAssistBtn.IsEnabled = !securityLocked;
+        QuickLaunchAssistBtn.IsEnabled = !securityLocked;
         FlyoutToggleApproval.IsEnabled = !securityLocked;
 
         UpdateHeroWallpaper();
@@ -198,7 +202,7 @@ public sealed partial class RemoteHomePage : Page
 
     private async void ToggleAllowRemoteMenu_Click(object sender, RoutedEventArgs e)
     {
-        if (App.Engine.Coordinator.IsHostStreaming) return;
+        if (App.Engine.Coordinator.IsHostStreaming || App.Engine.Coordinator.IsClientSessionActive) return;
         var s = App.Engine.SettingsService.Settings;
         s.AllowRemoteControl = !s.AllowRemoteControl;
         App.Engine.SettingsService.SaveSettings();
@@ -242,7 +246,10 @@ public sealed partial class RemoteHomePage : Page
     }
 
     private void GoToRemoteConnect_Click(object sender, RoutedEventArgs e)
-        => App.MainWindowInstance?.NavigateToRemoteConnect();
+    {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
+        App.MainWindowInstance?.NavigateToRemoteConnect();
+    }
 
     private void GoToGamepad_Click(object sender, RoutedEventArgs e)
         => App.MainWindowInstance?.NavigateToGamepadMapper();

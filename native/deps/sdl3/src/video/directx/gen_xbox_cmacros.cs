@@ -19,7 +19,7 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-// Build and run this any time you update d3d12.h/d3d12sdklayers.h!
+
 
 using System.IO;
 
@@ -31,7 +31,7 @@ class Program
         {
             if (input[i].StartsWith("#define I"))
             {
-                // Strip out the bad ABI calls, use D3D_CALL_RET instead!
+                
                 if (input[i].Contains("_GetDesc(") ||
                     input[i].Contains("_GetDesc1(") ||
                     input[i].Contains("_GetCPUDescriptorHandleForHeapStart(") ||
@@ -47,26 +47,26 @@ class Program
                     input[i].Contains("_GetNodeID(") ||
                     input[i].Contains("_GetEntrypointID("))
                 {
-                    // May as well skip the next line...
+                    
                     i += 1;
                     continue;
                 }
 
-                // The first line is fine as-is.
+                
                 output.WriteLine(input[i]);
 
-                // The second line, however...
+                
                 i += 1;
 
                 string notThis;
                 if (input[i].LastIndexOf("This,") > -1)
                 {
-                    // Function with arguments
+                    
                     notThis = "This,";
                 }
                 else
                 {
-                    // Function with no arguments
+                    
                     notThis = "This";
                 }
 

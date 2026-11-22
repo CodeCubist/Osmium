@@ -158,15 +158,15 @@ public sealed class EngineService : IDisposable
     public void ConnectSignaling()
     {
         var id = SettingsService.Identity;
-        var s = SettingsService.Settings;
-        Signaling.Start(OsmiumSettings.FixedSignalingServerUrl, id.DeviceId, id.DeviceName, s.AllowRemoteControl,
+        Signaling.Start(OsmiumSettings.FixedSignalingServerUrl, id.DeviceId, id.DeviceName,
+            Coordinator.EffectiveAllowRemoteControl,
             AccountService.CurrentLtoken);
     }
 
     public Task SyncSignalingStatusAsync()
     {
         return Signaling.UpdateStatusAsync(
-            SettingsService.Settings.AllowRemoteControl,
+            Coordinator.EffectiveAllowRemoteControl,
             SettingsService.Identity.DeviceName);
     }
 

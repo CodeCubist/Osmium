@@ -203,7 +203,7 @@
 
                             <Border Grid.Column="5" Style="{StaticResource OsmiumVerticalDividerStyle}" />
 
-                            <Button Grid.Column="6" Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                            <Button x:Name="DockRemoteAssistBtn" Grid.Column="6" Style="{StaticResource OsmiumHeroDockButtonStyle}"
                                     Click="GoToRemoteConnect_Click">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xEABB;" />
@@ -249,7 +249,7 @@
                                StrokeDashArray="5,3"
                                Fill="Transparent"
                                IsHitTestVisible="False" />
-                    <Button Click="GoToRemoteConnect_Click"
+                    <Button x:Name="QuickLaunchAssistBtn" Click="GoToRemoteConnect_Click"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             Background="Transparent"

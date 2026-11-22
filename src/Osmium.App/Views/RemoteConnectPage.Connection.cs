@@ -12,7 +12,7 @@ public sealed partial class RemoteConnectPage : Page
 {
     private void RecentSessionsGrid_ItemClick(object sender, ItemClickEventArgs e)
     {
-        if (!App.Engine.AccountService.IsLoggedIn) return;
+        if (!App.Engine.AccountService.IsLoggedIn || App.Engine.Coordinator.IsHostStreaming) return;
         if (e.ClickedItem is RecentSessionRecord rec)
         {
             TargetDeviceIdBox.Text = rec.FormattedId;
@@ -22,6 +22,7 @@ public sealed partial class RemoteConnectPage : Page
 
     private void RemoveRecentItem_Click(object sender, RoutedEventArgs e)
     {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
         if (sender is Button btn && btn.Tag is string deviceId)
         {
             App.Engine.SettingsService.RemoveRecentSession(deviceId);
@@ -31,6 +32,7 @@ public sealed partial class RemoteConnectPage : Page
 
     private void ClearHistory_Click(object sender, RoutedEventArgs e)
     {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
         App.Engine.SettingsService.ClearRecentSessions();
         RefreshRecentSessions();
     }
@@ -39,6 +41,7 @@ public sealed partial class RemoteConnectPage : Page
     {
         if (e.Key == VirtualKey.Enter &&
             App.Engine.AccountService.IsLoggedIn &&
+            !App.Engine.Coordinator.IsHostStreaming &&
             App.Engine.Coordinator.RemainingConnectCooldownMs <= 0)
         {
             _ = StartConnectAsync();
@@ -50,7 +53,7 @@ public sealed partial class RemoteConnectPage : Page
 
     private async Task StartConnectAsync()
     {
-        if (_isConnecting || App.Engine.Coordinator.RemainingConnectCooldownMs > 0)
+        if (_isConnecting || App.Engine.Coordinator.IsHostStreaming || App.Engine.Coordinator.RemainingConnectCooldownMs > 0)
         {
             UpdateConnectButtonState();
             return;

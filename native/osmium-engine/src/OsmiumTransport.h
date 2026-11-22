@@ -5,6 +5,8 @@
 
 #include <bcrypt.h>
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -17,8 +19,11 @@ namespace osmium
         Unknown = 0,
         LanIPv4 = 1,
         PublicIPv6 = 2,
-        P2pIPv4 = 3
+        P2pIPv4 = 3,
+        CloudRelay = 4
     };
+
+    using RelaySendFunc = std::function<bool(const uint8_t* data, size_t len, bool isDroppable)>;
 
     struct CandidateEndpoint
     {
@@ -49,6 +54,14 @@ namespace osmium
             int32_t punchTimeoutMs,
             int32_t& outTransportRoute,
             std::string& outActiveEndpoint);
+
+        bool EnableRelay(
+            const uint8_t sessionToken[16],
+            proto::PeerRole localRole,
+            RelaySendFunc sendFn,
+            const char* endpointLabel);
+
+        bool PushRelayPacket(const uint8_t* data, size_t len);
 
         bool SetSessionKey(const uint8_t aesKey[32]);
         void SetEncryptionEnabled(bool enabled) { m_EncryptionEnabled.store(enabled, std::memory_order_release); }
@@ -127,5 +140,13 @@ namespace osmium
         uint64_t m_RecvWindowMask = 0;
         std::atomic<uint64_t> m_RecvPacketCount{0};
         std::atomic<uint64_t> m_LostPacketCount{0};
+
+        std::atomic<bool> m_RelayMode{false};
+        std::mutex m_RelaySendMutex;
+        RelaySendFunc m_RelaySendFn;
+        std::mutex m_RelayRecvMutex;
+        std::condition_variable m_RelayRecvCv;
+        std::deque<std::vector<uint8_t>> m_RelayRecvQueue;
+        std::string m_RelayEndpointStr;
     };
 }

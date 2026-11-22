@@ -190,30 +190,22 @@
                     IsHitTestVisible="False" />
 
 
-            <Grid x:Name="BrandChipHost"
-                  Grid.Column="0"
-                  Height="32"
-                  VerticalAlignment="Top"
-                  Margin="-12,0,8,0"
-                  IsHitTestVisible="False">
-                <Path x:Name="BrandChipFill" IsHitTestVisible="False" />
-                <Path x:Name="BrandChipStroke" StrokeThickness="1" IsHitTestVisible="False" />
-                <StackPanel x:Name="BrandChipPanel"
-                            Orientation="Horizontal"
-                            Spacing="8"
-                            VerticalAlignment="Center"
-                            Margin="14,0,18,0"
-                            IsHitTestVisible="False">
-                    <controls:OsmiumLogoControl Width="17" Height="17" />
-                    <TextBlock x:Name="RemoteHostTitleText"
-                               FontSize="12.5"
-                               FontWeight="SemiBold"
-                               MaxWidth="260"
-                               TextTrimming="CharacterEllipsis"
-                               TextWrapping="NoWrap"
-                               VerticalAlignment="Center" />
-                </StackPanel>
-            </Grid>
+            <StackPanel x:Name="BrandChipHost"
+                        Grid.Column="0"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        Margin="4,0,14,0"
+                        IsHitTestVisible="False">
+                <controls:OsmiumLogoControl Width="17" Height="17" />
+                <TextBlock x:Name="RemoteHostTitleText"
+                           FontSize="12.5"
+                           FontWeight="SemiBold"
+                           MaxWidth="220"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"
+                           VerticalAlignment="Center" />
+            </StackPanel>
 
 
             <Grid x:Name="BrowserTabsArea"
@@ -237,247 +229,186 @@
             <StackPanel x:Name="RightMenuToolbar"
                         Grid.Column="2"
                         Orientation="Horizontal"
-                        VerticalAlignment="Top"
-                        HorizontalAlignment="Right">
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right"
+                        Margin="0,0,8,0">
+
+                <Border x:Name="HostLockedPillBorder"
+                        Visibility="Collapsed"
+                        CornerRadius="6"
+                        Padding="8,3"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource OsmiumBadgeDangerBg}">
+                    <TextBlock x:Name="HostLockedPill"
+                               FontSize="11.5"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource OsmiumBadgeDangerFg}"
+                               VerticalAlignment="Center" />
+                </Border>
 
                 <Button x:Name="SessionMenuButton"
-                        Width="46"
-                        Height="32"
-                        Padding="0"
-                        CornerRadius="0"
-                        VerticalAlignment="Top"
-                        Background="Transparent"
+                        Height="28"
+                        Padding="10,0"
+                        CornerRadius="6"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource OsmiumSubtlePillBrush}"
                         BorderThickness="0">
-                    <FontIcon Glyph="&#xE700;" FontSize="14" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                  Glyph="&#xEABB;"
+                                  FontSize="14"
+                                  VerticalAlignment="Center" />
+                        <TextBlock x:Name="SessionMenuBtnText"
+                                   FontSize="12"
+                                   FontWeight="Medium"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
                     <Button.Flyout>
-                        <Flyout x:Name="SessionMenuFlyout"
-                                Placement="BottomEdgeAlignedRight"
-                                Opened="SessionMenuFlyout_Opened"
-                                Closed="SettingsFlyout_Closed">
-                            <Flyout.FlyoutPresenterStyle>
-                                <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Padding" Value="20" />
+                        <MenuFlyout x:Name="SessionMenuFlyout"
+                                    Placement="BottomEdgeAlignedRight"
+                                    Opened="SessionMenuFlyout_Opened"
+                                    Closed="SettingsFlyout_Closed">
+                            <MenuFlyout.MenuFlyoutPresenterStyle>
+                                <Style TargetType="MenuFlyoutPresenter">
                                     <Setter Property="CornerRadius" Value="8" />
-                                    <Setter Property="MaxWidth" Value="900" />
-                                    <Setter Property="MaxHeight" Value="640" />
+                                    <Setter Property="MinWidth" Value="228" />
+                                    <Setter Property="Padding" Value="0,4" />
                                 </Style>
-                            </Flyout.FlyoutPresenterStyle>
-                            <ScrollViewer HorizontalScrollMode="Disabled"
-                                          HorizontalScrollBarVisibility="Disabled"
-                                          VerticalScrollBarVisibility="Auto">
-                                <StackPanel Spacing="24" Margin="0,0,10,4">
-                                    <TextBlock x:Name="SessionMenuTitleText" FontSize="18" FontWeight="SemiBold" />
+                            </MenuFlyout.MenuFlyoutPresenterStyle>
 
-                                    <Grid ColumnSpacing="24" RowSpacing="24">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="240" />
-                                            <ColumnDefinition Width="240" />
-                                            <ColumnDefinition Width="240" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
+                            <MenuFlyoutSubItem x:Name="MenuSubDisplay">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF35A;" />
+                                </MenuFlyoutSubItem.Icon>
+                            </MenuFlyoutSubItem>
 
+                            <MenuFlyoutSeparator />
 
-                                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="8">
-                                            <TextBlock x:Name="SessionViewResTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9" />
-                                            <TextBlock x:Name="HostNativeResInfoText"
-                                                       FontSize="11.5"
-                                                       Opacity="0.65"
-                                                       TextWrapping="Wrap" />
-                                            <ComboBox x:Name="ViewScaleCombo"
-                                                      HorizontalAlignment="Stretch"
-                                                      SelectionChanged="ViewScaleCombo_SelectionChanged" />
-                                        </StackPanel>
+                            <MenuFlyoutSubItem x:Name="MenuSubQuality">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF84D;" />
+                                </MenuFlyoutSubItem.Icon>
+                                <MenuFlyoutItem x:Name="HostNativeResMenuItem" IsEnabled="False" />
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutSubItem x:Name="MenuSubResolution" />
+                                <MenuFlyoutSubItem x:Name="MenuSubFps" />
+                                <MenuFlyoutSeparator />
+                                <ToggleMenuFlyoutItem x:Name="HdrMenuItem" Click="HdrMenuItem_Click" />
+                                <ToggleMenuFlyoutItem x:Name="Yuv444MenuItem" Click="Yuv444MenuItem_Click" />
+                                <ToggleMenuFlyoutItem x:Name="VsyncMenuItem" Click="VsyncMenuItem_Click" />
+                            </MenuFlyoutSubItem>
 
+                            <MenuFlyoutSubItem x:Name="MenuSubMouse">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xE48D;" />
+                                </MenuFlyoutSubItem.Icon>
+                                <RadioMenuFlyoutItem x:Name="MouseModeControllerMenuItem"
+                                                     GroupName="MouseModeGroup"
+                                                     Tag="0"
+                                                     Click="MouseModeMenuItem_Click" />
+                                <RadioMenuFlyoutItem x:Name="MouseModeVirtualMenuItem"
+                                                     GroupName="MouseModeGroup"
+                                                     Tag="1"
+                                                     Click="MouseModeMenuItem_Click" />
+                                <RadioMenuFlyoutItem x:Name="MouseModeSmartMenuItem"
+                                                     GroupName="MouseModeGroup"
+                                                     Tag="2"
+                                                     Click="MouseModeMenuItem_Click" />
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutItem x:Name="ReleaseCursorLockMenuItem"
+                                                KeyboardAcceleratorTextOverride="Ctrl+Alt+Shift+M"
+                                                Click="ReleaseCursorLockItem_Click" />
+                            </MenuFlyoutSubItem>
 
-                                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8">
-                                            <TextBlock x:Name="SessionFpsColorTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9" />
-                                            <ComboBox x:Name="FpsCombo"
-                                                      HorizontalAlignment="Stretch"
-                                                      SelectionChanged="FpsCombo_SelectionChanged" />
-                                            <ToggleSwitch x:Name="HdrToggle"
-                                                          Toggled="VideoFlagToggle_Toggled" />
-                                            <TextBlock x:Name="HdrHostHintText"
-                                                       FontSize="11"
-                                                       Opacity="0.65"
-                                                       TextWrapping="Wrap"
-                                                       Visibility="Collapsed" />
-                                            <ToggleSwitch x:Name="Yuv444Toggle"
-                                                          Toggled="VideoFlagToggle_Toggled" />
-                                            <ToggleSwitch x:Name="VsyncToggle"
-                                                          Toggled="VsyncToggle_Toggled" />
-                                        </StackPanel>
+                            <MenuFlyoutSubItem x:Name="MenuSubAudio">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xEB43;" />
+                                </MenuFlyoutSubItem.Icon>
+                                <ToggleMenuFlyoutItem x:Name="VirtualSpeakerMenuItem" Click="VirtualAudioMenuItem_Click" />
+                                <ToggleMenuFlyoutItem x:Name="VirtualMicMenuItem" Click="VirtualAudioMenuItem_Click" />
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutSubItem x:Name="MenuSubLocalMic" />
+                            </MenuFlyoutSubItem>
 
+                            <MenuFlyoutSubItem x:Name="MenuSubClipboardTransfer">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF4C8;" />
+                                </MenuFlyoutSubItem.Icon>
+                                <ToggleMenuFlyoutItem x:Name="SharedClipboardMenuItem" Click="SharedClipboardMenuItem_Click" />
+                                <ToggleMenuFlyoutItem x:Name="FileTransferMenuItem" Click="FileTransferMenuItem_Click" />
+                                <MenuFlyoutItem x:Name="TransferStatusMenuItem"
+                                                IsEnabled="False"
+                                                Visibility="Collapsed" />
+                            </MenuFlyoutSubItem>
 
-                                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="8">
-                                            <Grid>
-                                                <TextBlock x:Name="SessionMouseModeTitleText"
-                                                           FontSize="12"
-                                                           Opacity="0.9"
-                                                           VerticalAlignment="Center" />
-                                                <TextBlock x:Name="MouseModeStatusText"
-                                                           HorizontalAlignment="Right"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="11.5"
-                                                           Opacity="0.65" />
-                                            </Grid>
-                                            <RadioButton x:Name="MouseModeControllerRadio"
-                                                         GroupName="MouseModeGroup"
+                            <MenuFlyoutSubItem x:Name="MenuSubTools">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF588;" />
+                                </MenuFlyoutSubItem.Icon>
+                                <MenuFlyoutItem x:Name="CtrlAltDelMenuItem"
+                                                Text="Ctrl+Alt+Del"
+                                                Click="SendCtrlAltDel_Click" />
+                                <MenuFlyoutItem x:Name="TaskManagerMenuItem"
+                                                Click="OpenTaskManager_Click" />
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutSubItem x:Name="MenuSubDrivers">
+                                    <MenuFlyoutItem x:Name="HostDriverStatusMenuItem" IsEnabled="False" />
+                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutItem x:Name="RemoteInstallDriversMenuItem"
+                                                    Click="RemoteInstallDrivers_Click" />
+                                    <MenuFlyoutItem x:Name="RemoteUninstallDriversMenuItem"
+                                                    Click="RemoteUninstallDrivers_Click" />
+                                </MenuFlyoutSubItem>
+                            </MenuFlyoutSubItem>
+
+                            <MenuFlyoutSubItem x:Name="MenuSubMore">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xEE5E;" />
+                                </MenuFlyoutSubItem.Icon>
+                                <ToggleMenuFlyoutItem x:Name="OsdToggleMenuItem"
+                                                      KeyboardAcceleratorTextOverride="Ctrl+Alt+Shift+O"
+                                                      Click="OsdToggleMenuItem_Click" />
+                                <MenuFlyoutSubItem x:Name="MenuSubOsdDetail">
+                                    <RadioMenuFlyoutItem x:Name="OsdDetailCompactMenuItem"
+                                                         GroupName="OsdDetailGroup"
                                                          Tag="0"
-                                                         Click="MouseModeRadio_Click" />
-                                            <RadioButton x:Name="MouseModeVirtualRadio"
-                                                         GroupName="MouseModeGroup"
+                                                         Click="OsdDetailMenuItem_Click" />
+                                    <RadioMenuFlyoutItem x:Name="OsdDetailStandardMenuItem"
+                                                         GroupName="OsdDetailGroup"
                                                          Tag="1"
-                                                         Click="MouseModeRadio_Click" />
-                                            <RadioButton x:Name="MouseModeSmartRadio"
-                                                         GroupName="MouseModeGroup"
+                                                         Click="OsdDetailMenuItem_Click" />
+                                    <RadioMenuFlyoutItem x:Name="OsdDetailDetailedMenuItem"
+                                                         GroupName="OsdDetailGroup"
                                                          Tag="2"
-                                                         Click="MouseModeRadio_Click" />
-                                            <Button x:Name="ReleaseCursorLockBtn"
-                                                    HorizontalAlignment="Stretch"
-                                                    Click="ReleaseCursorLockItem_Click" />
-                                        </StackPanel>
+                                                         Click="OsdDetailMenuItem_Click" />
+                                </MenuFlyoutSubItem>
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutItem x:Name="ViewDebugInfoMenuItem" Click="ViewDebugInfo_Click" />
+                                <MenuFlyoutItem x:Name="CopyDebugInfoMenuItem" Click="CopyDebugInfo_Click" />
+                            </MenuFlyoutSubItem>
 
+                            <MenuFlyoutSeparator />
 
-                                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="8">
-                                            <TextBlock x:Name="SessionAudioTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9" />
-                                            <ToggleSwitch x:Name="VirtualSpeakerToggle"
-                                                          Toggled="VirtualAudioToggle_Toggled" />
-                                            <ToggleSwitch x:Name="VirtualMicToggle"
-                                                          Toggled="VirtualAudioToggle_Toggled" />
-                                            <ComboBox x:Name="LocalMicCombo"
-                                                      HorizontalAlignment="Stretch"
-                                                      SelectionChanged="LocalMicCombo_SelectionChanged" />
-                                        </StackPanel>
+                            <MenuFlyoutItem x:Name="FullscreenMenuItem"
+                                            KeyboardAcceleratorTextOverride="F11"
+                                            Click="FullscreenBtn_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF66F;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
 
+                            <MenuFlyoutSeparator />
 
-                                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8">
-                                            <TextBlock x:Name="SessionDriversTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9" />
-                                            <TextBlock x:Name="HostDriverStatusText"
-                                                       FontSize="11.5"
-                                                       Opacity="0.65"
-                                                       TextWrapping="Wrap" />
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button x:Name="RemoteInstallDriversBtn"
-                                                        Style="{StaticResource AccentButtonStyle}"
-                                                        Click="RemoteInstallDrivers_Click" />
-                                                <Button x:Name="RemoteUninstallDriversBtn"
-                                                        Click="RemoteUninstallDrivers_Click" />
-                                            </StackPanel>
-
-                                            <TextBlock x:Name="SessionOsdTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9"
-                                                       Margin="0,8,0,0" />
-                                            <ToggleSwitch x:Name="OsdToggleSwitch"
-                                                          Toggled="OsdToggleSwitch_Toggled" />
-                                            <ComboBox x:Name="OsdDetailCombo"
-                                                      HorizontalAlignment="Stretch"
-                                                      SelectionChanged="OsdDetailCombo_SelectionChanged">
-                                                <ComboBoxItem x:Name="OsdDetailCompactItem" Tag="0" />
-                                                <ComboBoxItem x:Name="OsdDetailStandardItem" Tag="1" />
-                                                <ComboBoxItem x:Name="OsdDetailDetailedItem" Tag="2" />
-                                            </ComboBox>
-                                        </StackPanel>
-
-
-                                        <StackPanel Grid.Row="1" Grid.Column="2" Spacing="8">
-                                            <Grid>
-                                                <TextBlock x:Name="SessionSysControlTitleText"
-                                                           FontSize="12"
-                                                           Opacity="0.9"
-                                                           VerticalAlignment="Center" />
-                                                <TextBlock x:Name="HostLockedPill"
-                                                           HorizontalAlignment="Right"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="11.5"
-                                                           Foreground="{ThemeResource OsmiumBadgeDangerFg}"
-                                                           Visibility="Collapsed" />
-                                            </Grid>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button Content="Ctrl+Alt+Del"
-                                                        Click="SendCtrlAltDel_Click" />
-                                                <Button x:Name="TaskManagerBtn"
-                                                        Click="OpenTaskManager_Click" />
-                                            </StackPanel>
-
-                                            <TextBlock x:Name="SessionClipboardTransferTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9"
-                                                       Margin="0,8,0,0" />
-                                            <ToggleSwitch x:Name="SharedClipboardToggle"
-                                                          Toggled="SharedClipboardToggle_Toggled" />
-                                            <ToggleSwitch x:Name="FileTransferToggle"
-                                                          Toggled="FileTransferToggle_Toggled" />
-                                            <TextBlock x:Name="TransferStatusHintText"
-                                                       FontSize="11"
-                                                       Opacity="0.7"
-                                                       TextWrapping="Wrap"
-                                                       Visibility="Collapsed" />
-                                        </StackPanel>
-
-
-                                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="8">
-                                            <TextBlock x:Name="SessionWindowControlTitleText"
-                                                       FontSize="12"
-                                                       Opacity="0.9" />
-                                            <Button x:Name="FullscreenBtn"
-                                                    HorizontalAlignment="Stretch"
-                                                    Click="FullscreenBtn_Click">
-                                                <TextBlock x:Name="FullscreenBtnText" />
-                                            </Button>
-                                            <Button x:Name="DisconnectBtn"
-                                                    HorizontalAlignment="Stretch"
-                                                    Click="DisconnectBtn_Click" />
-                                        </StackPanel>
-
-
-                                        <Expander x:Name="DebugInfoExpander"
-                                                  Grid.Row="2"
-                                                  Grid.Column="1"
-                                                  Grid.ColumnSpan="2"
-                                                  IsExpanded="False"
-                                                  HorizontalAlignment="Stretch"
-                                                  HorizontalContentAlignment="Stretch"
-                                                  VerticalAlignment="Top"
-                                                  Padding="12,10"
-                                                  Expanding="DebugInfoExpander_Expanding">
-                                            <Expander.Header>
-                                                <TextBlock x:Name="SessionDebugInfoTitleText"
-                                                           FontSize="12"
-                                                           Opacity="0.9"
-                                                           VerticalAlignment="Center" />
-                                            </Expander.Header>
-                                            <StackPanel Spacing="8">
-                                                <Button x:Name="CopyDebugInfoBtn"
-                                                        HorizontalAlignment="Right"
-                                                        Padding="10,4"
-                                                        FontSize="12"
-                                                        Click="CopyDebugInfo_Click" />
-                                                <TextBlock x:Name="DebugInfoBodyText"
-                                                           FontFamily="Consolas"
-                                                           FontSize="11.5"
-                                                           LineHeight="18"
-                                                           Opacity="0.82"
-                                                           TextWrapping="Wrap"
-                                                           IsTextSelectionEnabled="True" />
-                                            </StackPanel>
-                                        </Expander>
-                                    </Grid>
-                                </StackPanel>
-                            </ScrollViewer>
-                        </Flyout>
+                            <MenuFlyoutItem x:Name="DisconnectMenuItem"
+                                            Foreground="{ThemeResource OsmiumBadgeDangerFg}"
+                                            KeyboardAcceleratorTextOverride="Ctrl+Alt+Shift+Q"
+                                            Click="DisconnectBtn_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE7E8;" Foreground="{ThemeResource OsmiumBadgeDangerFg}" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
                     </Button.Flyout>
                 </Button>
             </StackPanel>

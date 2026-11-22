@@ -52,10 +52,25 @@ public sealed partial class RemoteConnectPage : Page
             });
 
         coord.HostSessionStarted += _ =>
-            DispatcherQueue.TryEnqueue(RefreshLocalDeviceCredentials);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                RefreshLocalDeviceCredentials();
+                UpdateConnectButtonState();
+            });
 
         coord.HostSessionEnded += _ =>
-            DispatcherQueue.TryEnqueue(RefreshLocalDeviceCredentials);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                RefreshLocalDeviceCredentials();
+                UpdateConnectButtonState();
+            });
+
+        coord.RemoteSessionStateChanged += () =>
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                RefreshLocalDeviceCredentials();
+                UpdateConnectButtonState();
+            });
     }
 
     private void OnConnectCooldownChanged(int _)
@@ -71,11 +86,16 @@ public sealed partial class RemoteConnectPage : Page
     private void UpdateConnectButtonState()
     {
         bool isLoggedIn = App.Engine.AccountService.IsLoggedIn;
-        TargetDeviceIdBox.IsEnabled = isLoggedIn;
-        TargetAccessCodeBox.IsEnabled = isLoggedIn;
+        bool isHostControlled = App.Engine.Coordinator.IsHostStreaming;
+        bool canInteractOutgoing = isLoggedIn && !isHostControlled;
+
+        TargetDeviceIdBox.IsEnabled = canInteractOutgoing;
+        TargetAccessCodeBox.IsEnabled = canInteractOutgoing;
+        RecentSessionsGrid.IsEnabled = canInteractOutgoing;
+        ClearHistoryBtn.IsEnabled = !isHostControlled;
         PartnerLoginHintPanel.Visibility = isLoggedIn ? Visibility.Collapsed : Visibility.Visible;
 
-        if (!isLoggedIn)
+        if (!isLoggedIn || isHostControlled)
         {
             if (_cooldownTimer.IsEnabled)
             {
@@ -192,9 +212,10 @@ public sealed partial class RemoteConnectPage : Page
             var s = App.Engine.SettingsService.Settings;
             var id = App.Engine.SettingsService.Identity;
             bool isHostControlled = App.Engine.Coordinator.IsHostStreaming;
+            bool isClientControlling = App.Engine.Coordinator.IsClientSessionActive;
 
-            AllowRemoteSwitch.IsOn = s.AllowRemoteControl;
-            AllowRemoteSwitch.IsEnabled = !isHostControlled;
+            AllowRemoteSwitch.IsOn = App.Engine.Coordinator.EffectiveAllowRemoteControl;
+            AllowRemoteSwitch.IsEnabled = !isHostControlled && !isClientControlling;
             MyDeviceIdText.Text = id.FormattedDeviceId;
 
             int methodIdx = (id.UseFixedAccessCode && !string.IsNullOrWhiteSpace(id.FixedAccessCode))
@@ -238,7 +259,8 @@ public sealed partial class RemoteConnectPage : Page
 
     private async void AllowRemoteSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_isInitializing || App.Engine.Coordinator.IsHostStreaming) return;
+        if (_isInitializing || App.Engine.Coordinator.IsHostStreaming || App.Engine.Coordinator.IsClientSessionActive)
+            return;
         App.Engine.SettingsService.Settings.AllowRemoteControl = AllowRemoteSwitch.IsOn;
         App.Engine.SettingsService.SaveSettings();
         await App.Engine.SyncSignalingStatusAsync();

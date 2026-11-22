@@ -162,7 +162,19 @@ public sealed partial class PeerDevicePage : Page
     private void UpdateDockCooldownState()
     {
         var dev = App.Engine.AccountService.FindPeerDevice(_targetDeviceId);
-        bool canConnect = dev is { IsOnline: true, AllowRemote: true } && !_isConnecting;
+        bool hostStreaming = App.Engine.Coordinator.IsHostStreaming;
+        bool canConnect = !hostStreaming && dev is { IsOnline: true, AllowRemote: true } && !_isConnecting;
+        if (hostStreaming)
+        {
+            if (_cooldownTimer.IsEnabled) _cooldownTimer.Stop();
+            DockConnectLabel.Text = LocalizationService.GetString("Peer_ConnectAction");
+            DockConnectBtn.IsEnabled = false;
+            DockViewOnlyBtn.IsEnabled = false;
+            MenuConnectItem.IsEnabled = false;
+            MenuViewOnlyItem.IsEnabled = false;
+            return;
+        }
+
         int remMs = App.Engine.Coordinator.RemainingConnectCooldownMs;
         if (remMs > 0)
         {

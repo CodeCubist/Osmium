@@ -82,16 +82,14 @@ public sealed class AuxTransferChannel : IDisposable
 
     private int _nextTransferSeq;
     private volatile bool _disposed;
-
-    // Reliable FeatureConfig sync (Controller -> Host)
+    
     private readonly object _configLock = new();
     private uint _pendingConfigSeq;
     private uint _ackedConfigSeq;
     private AuxFeatureConfig? _pendingConfig;
     private long _lastConfigSendMs;
     private uint _lastRecvConfigSeq;
-
-    // Active transfers (keyed by transferId)
+    
     private readonly ConcurrentDictionary<uint, OutgoingTransfer> _outgoing = new();
     private readonly ConcurrentDictionary<uint, IncomingTransfer> _incoming = new();
     private readonly ConcurrentDictionary<uint, (uint TotalChunks, long CompletedAtMs)> _recentlyCompletedIncoming = new();
@@ -298,7 +296,6 @@ public sealed class AuxTransferChannel : IDisposable
 
     private uint AllocateTransferId()
     {
-        // Odd IDs for controller, even IDs for host (never 0)
         int val = Interlocked.Add(ref _nextTransferSeq, 2);
         return unchecked((uint)val);
     }
@@ -367,7 +364,7 @@ public sealed class AuxTransferChannel : IDisposable
             bool didWork = false;
             long now = Environment.TickCount64;
 
-            // 1. Retransmit unacked FeatureConfig
+            
             AuxFeatureConfig? cfgToSend = null;
             uint cfgSeq = 0;
             lock (_configLock)
@@ -386,8 +383,7 @@ public sealed class AuxTransferChannel : IDisposable
                 TransmitFeatureConfigPacket(cfgSeq, cfgToSend);
                 didWork = true;
             }
-
-            // 2. Drive outgoing transfers
+            
             foreach (var kv in _outgoing)
             {
                 var tr = kv.Value;
@@ -421,13 +417,13 @@ public sealed class AuxTransferChannel : IDisposable
                         continue;
                     }
 
-                    // Send burst of retransmits + new chunks within sliding window
+                    
                     int sentInTick = 0;
                     const int maxBurst = 10;
 
                     uint windowEnd = (uint)Math.Min((long)tr.TotalChunks, (long)tr.BaseSeq + WindowSize);
 
-                    // First retransmit timed-out unacked chunks in window
+                    
                     for (uint seq = tr.BaseSeq; seq < tr.NextReadSeq && sentInTick < maxBurst; seq++)
                     {
                         if (tr.InFlight.TryGetValue(seq, out var entry) && !entry.Acked &&
@@ -440,14 +436,14 @@ public sealed class AuxTransferChannel : IDisposable
                         }
                     }
 
-                    // Then read and transmit new chunks up to windowEnd
+                    
                     while (tr.NextReadSeq < windowEnd && sentInTick < maxBurst)
                     {
                         uint seq = tr.NextReadSeq;
                         byte[]? chunk = ReadNextChunkFromStream(tr.SourceStream, ChunkPayloadSize);
                         if (chunk == null || chunk.Length == 0)
                         {
-                            // Unexpected EOF
+                            
                             FailOutgoingLocked(tr, AuxTransferRejectReason.IoError, "Unexpected end of stream");
                             break;
                         }
@@ -462,7 +458,7 @@ public sealed class AuxTransferChannel : IDisposable
                 }
             }
 
-            // 3. Flush delayed ACKs & expire stalled incoming transfers
+            
             foreach (var kv in _incoming)
             {
                 var inc = kv.Value;
@@ -500,7 +496,7 @@ public sealed class AuxTransferChannel : IDisposable
                 }
             }
 
-            // Prune old completed records every ~5s
+            
             foreach (var kv in _recentlyCompletedIncoming)
             {
                 if (now - kv.Value.CompletedAtMs > 30000)
@@ -1001,13 +997,13 @@ public sealed class AuxTransferChannel : IDisposable
 
         _recentlyCompletedIncoming[inc.TransferId] = (inc.TotalChunks, Environment.TickCount64);
 
-        // Send completion ACK multiple times so UDP loss won't stall sender
+        
         for (int i = 0; i < 3; i++)
         {
             TransmitTransferAckPacket(inc.TransferId, inc.TotalChunks, 0, complete: true);
         }
 
-        // Dispatch completion off the native recv thread
+        
         _ = Task.Run(() =>
         {
             if (_disposed) return;
@@ -1822,7 +1818,7 @@ public sealed class AuxTransferChannel : IDisposable
                 int n = _currentFileStream.Read(buffer, offset + written, toRead);
                 if (n <= 0)
                 {
-                    // File shrank on disk while reading: zero-pad remaining declared size so framing stays exact
+                    
                     Array.Clear(buffer, offset + written, toRead);
                     n = toRead;
                 }

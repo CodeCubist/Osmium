@@ -85,6 +85,9 @@ public sealed partial class RemoteHomePage : Page
                 UpdateHostControllingHeadline();
                 UpdateHostStatusPill();
             });
+
+        engine.Coordinator.RemoteSessionStateChanged += () =>
+            DispatcherQueue.TryEnqueue(UpdateHostStatusPill);
     }
 
     private void OnAccountStateChanged()

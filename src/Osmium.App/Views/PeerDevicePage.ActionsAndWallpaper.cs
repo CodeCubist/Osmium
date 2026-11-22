@@ -130,7 +130,8 @@ public sealed partial class PeerDevicePage : Page
 
     private async Task StartSameAccountConnectAsync(bool viewOnly)
     {
-        if (_isConnecting || App.Engine.Coordinator.RemainingConnectCooldownMs > 0)
+        if (_isConnecting || App.Engine.Coordinator.IsHostStreaming ||
+            App.Engine.Coordinator.RemainingConnectCooldownMs > 0)
         {
             UpdateDockCooldownState();
             return;

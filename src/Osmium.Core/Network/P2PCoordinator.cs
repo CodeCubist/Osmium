@@ -346,6 +346,7 @@ public sealed partial class P2PCoordinator : IDisposable
     private readonly object _hostLock = new();
     private IntPtr _activeHostHandle = IntPtr.Zero;
     private IntPtr _activeHostTransport = IntPtr.Zero;
+    private CloudRelayTransport? _activeHostRelay;
     private string? _activeHostSessionId;
     private string? _activeHostPeerId;
 
@@ -428,6 +429,7 @@ public sealed partial class P2PCoordinator : IDisposable
     public bool IsHostStreaming => _activeHostHandle != IntPtr.Zero;
     public bool IsClientSessionActive => Volatile.Read(ref _activeClientSessionCount) > 0;
     public bool IsAnyRemoteSessionActive => IsHostStreaming || IsClientSessionActive;
+    public bool EffectiveAllowRemoteControl => _settings.Settings.AllowRemoteControl && !IsClientSessionActive;
 
     public DateTimeOffset? HostSessionStartedAtUtc
     {
@@ -612,6 +614,13 @@ public sealed partial class P2PCoordinator : IDisposable
         bool viewOnly = false,
         bool captchaRetried = false)
     {
+        if (IsHostStreaming)
+        {
+            return (false,
+                Tr("Conn_BlockedWhileHost",
+                    "Cannot control other devices while this computer is being remotely controlled"));
+        }
+
         string normalizedTarget = DeviceIdentity.NormalizeDeviceId(targetDeviceId);
         if (normalizedTarget.Length < 6)
         {
@@ -650,8 +659,14 @@ public sealed partial class P2PCoordinator : IDisposable
         string sessionId = Convert.ToHexString(sessionToken);
         var (stunHost, stunPort) = GetStunEndpoint();
         IntPtr transport = IntPtr.Zero;
+        CloudRelayTransport? clientRelay = null;
 
-        Interlocked.Increment(ref _activeClientSessionCount);
+        int activeClientsAfterInc = Interlocked.Increment(ref _activeClientSessionCount);
+        if (activeClientsAfterInc == 1)
+        {
+            _ = _signaling.UpdateStatusAsync(false, _settings.Identity.DeviceName);
+        }
+
         RemoteSessionStateChanged?.Invoke();
 
         try
@@ -670,6 +685,8 @@ public sealed partial class P2PCoordinator : IDisposable
                     TaskCreationOptions.RunContinuationsAsynchronously);
             var bridgeReadyTcs =
                 new TaskCompletionSource<BridgeReadyEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var relayFallbackTcs =
+                new TaskCompletionSource<RelayFallbackEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
             var rejectTcs =
                 new TaskCompletionSource<ConnectRejectEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -693,6 +710,11 @@ public sealed partial class P2PCoordinator : IDisposable
                 if (br.SessionId == sessionId) bridgeReadyTcs.TrySetResult(br);
             }
 
+            void OnRelayFallback(RelayFallbackEventArgs rf)
+            {
+                if (rf.SessionId == sessionId) relayFallbackTcs.TrySetResult(rf);
+            }
+
             void OnReject(ConnectRejectEventArgs r)
             {
                 if (r.SessionId == sessionId) rejectTcs.TrySetResult(r);
@@ -702,6 +724,7 @@ public sealed partial class P2PCoordinator : IDisposable
             _signaling.ConnectAuthVerified += OnAuthVerified;
             _signaling.VersionCheckResultReceived += OnVersionResult;
             _signaling.BridgeReady += OnBridgeReady;
+            _signaling.RelayFallbackReceived += OnRelayFallback;
             _signaling.ConnectRejected += OnReject;
 
             byte[]? aesKey = null;
@@ -954,14 +977,70 @@ public sealed partial class P2PCoordinator : IDisposable
                     sessionToken,
                     1,
                     bridge.CandidatesJson,
-                    6000,
+                    3500,
                     out transportRoute,
                     epSb,
                     epSb.Capacity), ct);
 
-                if (punchOk == 0)
+                async Task<bool> SwitchToCloudRelayAsync()
                 {
-                    return (false, Tr("Conn_PunchFailed", "Failed to establish direct connection"));
+                    ClientStageUpdated?.Invoke(Tr("Conn_SwitchingRelay",
+                        "Direct connection unavailable, switching to Cloud Relay..."));
+                    try
+                    {
+                        await _signaling.SendRelayFallbackAsync(sessionId);
+                    }
+                    catch
+                    {
+                    }
+
+                    string rToken = bridge.RelayToken;
+                    string rPath = string.IsNullOrWhiteSpace(bridge.RelayPath) ? "/relay" : bridge.RelayPath;
+                    if (string.IsNullOrWhiteSpace(rToken))
+                    {
+                        using var waitTokCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        waitTokCts.CancelAfter(TimeSpan.FromSeconds(4));
+                        try
+                        {
+                            var rf = await relayFallbackTcs.Task.WaitAsync(waitTokCts.Token);
+                            rToken = rf.RelayToken;
+                            if (!string.IsNullOrWhiteSpace(rf.RelayPath)) rPath = rf.RelayPath;
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(rToken))
+                    {
+                        return false;
+                    }
+
+                    clientRelay?.Dispose();
+                    string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
+                    string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
+                    var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, sessionId, "client", rToken);
+                    clientRelay = new CloudRelayTransport(transport, relayLabel, _log);
+                    bool relayOk = await clientRelay.ConnectAndBindAsync(relayUri, sessionToken, 1, 10000, ct);
+                    if (!relayOk)
+                    {
+                        clientRelay.Dispose();
+                        clientRelay = null;
+                        return false;
+                    }
+
+                    transportRoute = 4;
+                    epSb.Clear();
+                    epSb.Append(relayLabel);
+                    return true;
+                }
+
+                if (punchOk == 0 || relayFallbackTcs.Task.IsCompleted)
+                {
+                    if (!await SwitchToCloudRelayAsync())
+                    {
+                        return (false, Tr("Conn_PunchFailed", "Failed to establish connection (direct and relay failed)"));
+                    }
                 }
 
                 NativeMethods.Osmium_SetTransportEncryption(transport, clientEncrypt ? 1 : 0);
@@ -970,9 +1049,6 @@ public sealed partial class P2PCoordinator : IDisposable
                     NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                 }
 
-                CryptographicOperations.ZeroMemory(aesKey);
-                aesKey = null;
-
                 var s = _settings.Settings;
                 var clientCfg = new OsmiumClientConfig
                 {
@@ -980,7 +1056,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     TargetWidth = s.TargetWidth,
                     TargetHeight = s.TargetHeight,
                     Fps = s.Fps,
-                    BitrateKbps = s.BitrateKbps,
+                    BitrateKbps = transportRoute == 4 ? Math.Min(s.BitrateKbps, 12000) : s.BitrateKbps,
                     WindowMode = (int)s.WindowMode,
                     CodecPreference = (int)s.VideoCodec,
                     DecoderPreference = (int)s.VideoDecoderMode,
@@ -1007,16 +1083,36 @@ public sealed partial class P2PCoordinator : IDisposable
                         : s.PreferredLocalMicDeviceId
                 };
 
-                ClientStageUpdated?.Invoke(
-                    Tr("Conn_VerifyingDirect", "Direct channel active, verifying access code..."));
+                ClientStageUpdated?.Invoke(transportRoute == 4
+                    ? Tr("Conn_VerifyingRelay", "Cloud relay active, verifying access code...")
+                    : Tr("Conn_VerifyingDirect", "Direct channel active, verifying access code..."));
                 int authRes;
                 try
                 {
+                    int authTimeoutMs = transportRoute == 4 ? 10000 : 4500;
                     authRes = await Task.Run(
-                        () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, 8000), ct);
+                        () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, authTimeoutMs), ct);
+
+                    if (authRes == 0 && transportRoute != 4)
+                    {
+                        if (await SwitchToCloudRelayAsync())
+                        {
+                            clientCfg.BitrateKbps = Math.Min(clientCfg.BitrateKbps, 12000);
+                            ClientStageUpdated?.Invoke(
+                                Tr("Conn_VerifyingRelay", "Cloud relay active, verifying access code..."));
+                            authRes = await Task.Run(
+                                () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, 10000), ct);
+                        }
+                    }
                 }
                 finally
                 {
+                    if (aesKey != null)
+                    {
+                        CryptographicOperations.ZeroMemory(aesKey);
+                        aesKey = null;
+                    }
+
                     if (authTag != null)
                     {
                         CryptographicOperations.ZeroMemory(authTag);
@@ -1165,6 +1261,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 _signaling.ConnectAuthVerified -= OnAuthVerified;
                 _signaling.VersionCheckResultReceived -= OnVersionResult;
                 _signaling.BridgeReady -= OnBridgeReady;
+                _signaling.RelayFallbackReceived -= OnRelayFallback;
                 _signaling.ConnectRejected -= OnReject;
             }
         }
@@ -1179,12 +1276,18 @@ public sealed partial class P2PCoordinator : IDisposable
         }
         finally
         {
+            clientRelay?.Dispose();
             if (transport != IntPtr.Zero)
             {
                 NativeMethods.Osmium_DestroyTransport(transport);
             }
 
-            Interlocked.Decrement(ref _activeClientSessionCount);
+            int activeClientsAfterDec = Interlocked.Decrement(ref _activeClientSessionCount);
+            if (activeClientsAfterDec == 0)
+            {
+                _ = _signaling.UpdateStatusAsync(_settings.Settings.AllowRemoteControl, _settings.Identity.DeviceName);
+            }
+
             RemoteSessionStateChanged?.Invoke();
         }
     }
