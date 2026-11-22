@@ -159,7 +159,7 @@ public sealed partial class RemoteSessionWindow : Window
             _openFlyoutCount > 0) return;
         if (!_isWindowFocused)
         {
-            if (_hwnd != IntPtr.Zero && GetForegroundWindow() == _hwnd)
+            if (IsSessionWindowForeground(out IntPtr fg) && fg == _hwnd)
                 _isWindowFocused = true;
             else if (_mouseMode != 0)
                 return;
@@ -345,7 +345,8 @@ public sealed partial class RemoteSessionWindow : Window
     private void RemoteSessionWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
         ImmersiveWindowHelper.SyncContentBridges(this);
-        _isWindowFocused = args.WindowActivationState != WindowActivationState.Deactivated;
+        _isWindowFocused = args.WindowActivationState != WindowActivationState.Deactivated &&
+                           !IsWindowMinimizedOrHidden();
         if (!_isWindowFocused)
         {
             ReleaseCursorCapture(manualPause: false);
@@ -712,6 +713,30 @@ public sealed partial class RemoteSessionWindow : Window
                     }
                 }
 
+                if (hwnd == win._hwnd)
+                {
+                    bool minimizingOrDeactivating =
+                        (msg == WmSysCommand && (((uint)wParam.ToInt64()) & 0xFFF0U) == ScMinimize) ||
+                        (msg == WmSize && (uint)wParam.ToInt64() == SizeMinimized) ||
+                        (msg == WmShowWindow && wParam == IntPtr.Zero) ||
+                        (msg == WmActivateApp && wParam == IntPtr.Zero) ||
+                        (msg == WmActivate && ((((uint)wParam.ToInt64()) & 0xFFFFU) == 0 ||
+                                               ((((uint)wParam.ToInt64()) >> 16) & 0xFFFFU) != 0));
+                    if (minimizingOrDeactivating)
+                    {
+                        win._isWindowFocused = false;
+                        win.ReleaseCursorCaptureWin32();
+                        win.SetLowLevelKeyboardHook(false);
+                        win.DispatcherQueue.TryEnqueue(() =>
+                        {
+                            if (!win._isClosed)
+                            {
+                                win.SyncKeyboardHookAndCursorCapture();
+                            }
+                        });
+                    }
+                }
+
                 if (msg == WmParentNotify && (((uint)wParam.ToInt64()) & 0xFFFF) == 1)
                 {
                     win.EnsureChildHwndsSubclassed();
@@ -723,12 +748,14 @@ public sealed partial class RemoteSessionWindow : Window
                 }
 
                 if (msg == WmInput && hwnd == win._hwnd &&
-                    win._isWindowFocused && !win._remoteSessionEnded && win._openFlyoutCount == 0)
+                    win._isWindowFocused && !win._remoteSessionEnded && win._openFlyoutCount == 0 &&
+                    !win.IsWindowMinimizedOrHidden())
                 {
                     win.ProcessRawMouseInput(lParam);
                 }
 
-                if (win._isCursorCaptured && win._isWindowFocused && !win._remoteSessionEnded)
+                if (win._isCursorCaptured && win._isWindowFocused && !win._remoteSessionEnded &&
+                    !win.IsWindowMinimizedOrHidden())
                 {
                     if (msg == WmSetCursor)
                     {
@@ -739,7 +766,8 @@ public sealed partial class RemoteSessionWindow : Window
 
                     if (msg == WmMouseMove || msg == WmPointerUpdate || msg == WmPointerEnter || msg == WmMouseActivate)
                     {
-                        if (msg == WmMouseMove && GetCursorPos(out var cur) && GetClipCursor(out var clip))
+                        if (msg == WmMouseMove && GetCursorPos(out var cur) && GetClipCursor(out var clip) &&
+                            (clip.Right - clip.Left) <= 2 && (clip.Bottom - clip.Top) <= 2)
                         {
                             int cx = clip.Left;
                             int cy = clip.Top;

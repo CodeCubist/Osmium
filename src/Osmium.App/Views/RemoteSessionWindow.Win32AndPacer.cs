@@ -262,10 +262,13 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
+    private bool IsWindowMinimizedOrHidden()
+        => _hwnd == IntPtr.Zero || !IsWindow(_hwnd) || IsIconic(_hwnd) || !IsWindowVisible(_hwnd);
+
     private bool IsSessionWindowForeground(out IntPtr fg)
     {
         fg = GetForegroundWindow();
-        if (_hwnd == IntPtr.Zero || fg == IntPtr.Zero) return false;
+        if (_hwnd == IntPtr.Zero || fg == IntPtr.Zero || IsWindowMinimizedOrHidden()) return false;
         return fg == _hwnd ||
                GetAncestor(fg, GaRootOwner) == _hwnd ||
                GetAncestor(fg, GaRoot) == _hwnd;
@@ -575,6 +578,12 @@ public sealed partial class RemoteSessionWindow : Window
 
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
 
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);

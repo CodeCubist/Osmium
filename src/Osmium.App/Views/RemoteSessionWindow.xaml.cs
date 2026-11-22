@@ -35,6 +35,10 @@ public sealed partial class RemoteSessionWindow : Window
     private const int IdcArrow = 32512;
     private const uint GaRoot = 2;
     private const uint GaRootOwner = 3;
+    private const uint WmSize = 0x0005;
+    private const uint WmActivate = 0x0006;
+    private const uint WmShowWindow = 0x0018;
+    private const uint WmActivateApp = 0x001C;
     private const uint WmInput = 0x00FF;
     private const uint WmSetCursor = 0x0020;
     private const uint WmMouseActivate = 0x0021;
@@ -42,6 +46,8 @@ public sealed partial class RemoteSessionWindow : Window
     private const uint WmNcLButtonDblClk = 0x00A3;
     private const uint WmSysCommand = 0x0112;
     private const uint ScMove = 0xF010;
+    private const uint ScMinimize = 0xF020;
+    private const uint SizeMinimized = 1;
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoZOrder = 0x0004;
     private const uint SwpNoActivate = 0x0010;
@@ -365,12 +371,27 @@ public sealed partial class RemoteSessionWindow : Window
         _appWindow = AppWindow.GetFromWindowId(winId);
         _appWindow.Changed += (_, a) =>
         {
-            if (!_isClosed && (a.DidSizeChange || a.DidPresenterChange))
+            if (_isClosed) return;
+
+            bool minimized = IsWindowMinimizedOrHidden() ||
+                             (_appWindow.Presenter is OverlappedPresenter op &&
+                              op.State == OverlappedPresenterState.Minimized);
+            if (minimized)
+            {
+                _isWindowFocused = false;
+                ReleaseCursorCapture(manualPause: false);
+                SetLowLevelKeyboardHook(false);
+            }
+
+            if (a.DidSizeChange || a.DidPresenterChange || a.DidVisibilityChange)
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {
+                    if (_isClosed) return;
                     UpdateTitleBarCaptionMetrics();
                     UpdateTitleBarPassthroughRegions();
+                    UpdateCachedVideoSurfaceBounds();
+                    SyncKeyboardHookAndCursorCapture();
                 });
             }
         };

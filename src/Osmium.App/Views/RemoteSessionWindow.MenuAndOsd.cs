@@ -55,10 +55,14 @@ public sealed partial class RemoteSessionWindow : Window
     private void EngageCursorCapture()
     {
         if (_isCursorCaptured || _hwnd == IntPtr.Zero || _remoteSessionEnded ||
-            VideoInputSurface.XamlRoot == null) return;
+            VideoInputSurface.XamlRoot == null || IsWindowMinimizedOrHidden()) return;
 
         try
         {
+            if (!GetClientRect(_hwnd, out var cr) || (cr.Right - cr.Left) < 16 || (cr.Bottom - cr.Top) < 16) return;
+            if (!GetWindowRect(_hwnd, out var wr) || (wr.Right - wr.Left) < 16 || (wr.Bottom - wr.Top) < 16) return;
+            if (VideoInputSurface.ActualWidth < 16 || VideoInputSurface.ActualHeight < 16) return;
+
             EnsureChildHwndsSubclassed();
             UpdateCachedVideoSurfaceBounds();
 
@@ -75,6 +79,7 @@ public sealed partial class RemoteSessionWindow : Window
             int heightPx = Math.Max(16, (int)Math.Round(VideoInputSurface.ActualHeight * scale));
             int cx = topLeft.X + widthPx / 2;
             int cy = topLeft.Y + heightPx / 2;
+            if (cx < wr.Left || cx >= wr.Right || cy < wr.Top || cy >= wr.Bottom) return;
 
             InputCursor? blankUi = EnsureWinUiBlankCursor();
             if (blankUi != null)
@@ -110,7 +115,11 @@ public sealed partial class RemoteSessionWindow : Window
             var clip = new NativeRect { Left = cx, Top = cy, Right = cx + 1, Bottom = cy + 1 };
             SetCursorPos(cx + 1, cy);
             SetCursorPos(cx, cy);
-            ClipCursor(ref clip);
+            if (!ClipCursor(ref clip))
+            {
+                ReleaseCursorCapture(manualPause: false);
+                return;
+            }
 
             if (_blankCursor != IntPtr.Zero)
             {
@@ -122,13 +131,14 @@ public sealed partial class RemoteSessionWindow : Window
         }
         catch
         {
+            ReleaseCursorCapture(manualPause: false);
         }
     }
 
-    private void ReleaseCursorCapture(bool manualPause)
+    // Pure Win32 release safe inside WndProc so minimizing unlocks the cursor immediately.
+    private void ReleaseCursorCaptureWin32()
     {
-        if (manualPause) _userPausedVirtualCapture = true;
-
+        bool wasCapturedOrHidden = _isCursorCaptured || _cursorHidden;
         _hasPrevRawAbs = false;
         if (_isCursorCaptured)
         {
@@ -136,8 +146,13 @@ public sealed partial class RemoteSessionWindow : Window
             _isCursorCaptured = false;
         }
 
-        VideoInputSurface.CustomCursor = null;
-        RootSessionGrid.CustomCursor = null;
+        lock (_mousePacerLock)
+        {
+            _pendingRelX = 0.0;
+            _pendingRelY = 0.0;
+            _hasPendingAbsMove = false;
+        }
+
         SetBlankClassCursors(false);
 
         if (_cursorHidden)
@@ -150,12 +165,23 @@ public sealed partial class RemoteSessionWindow : Window
             _cursorHidden = false;
         }
 
-        IntPtr arrow = LoadCursor(IntPtr.Zero, (IntPtr)IdcArrow);
-        if (arrow != IntPtr.Zero)
+        if (wasCapturedOrHidden)
         {
-            SetCursor(arrow);
+            IntPtr arrow = LoadCursor(IntPtr.Zero, (IntPtr)IdcArrow);
+            if (arrow != IntPtr.Zero)
+            {
+                SetCursor(arrow);
+            }
         }
+    }
 
+    private void ReleaseCursorCapture(bool manualPause)
+    {
+        if (manualPause) _userPausedVirtualCapture = true;
+
+        ReleaseCursorCaptureWin32();
+        VideoInputSurface.CustomCursor = null;
+        RootSessionGrid.CustomCursor = null;
         UpdateMouseModeStatusLabel();
     }
 
@@ -255,14 +281,13 @@ public sealed partial class RemoteSessionWindow : Window
     {
         if (_isClosed) return;
         bool isOurFgNow = _hwnd != IntPtr.Zero && IsSessionWindowForeground(out _);
-        if (_isWindowFocused && _hwnd != IntPtr.Zero && !isOurFgNow)
+        if (_isWindowFocused != isOurFgNow)
         {
-            _isWindowFocused = false;
+            _isWindowFocused = isOurFgNow;
             SyncKeyboardHookAndCursorCapture();
         }
-        else if (!_isWindowFocused && isOurFgNow)
+        else if (ShouldCaptureCursorNow != _isCursorCaptured)
         {
-            _isWindowFocused = true;
             SyncKeyboardHookAndCursorCapture();
         }
 
@@ -797,9 +822,13 @@ public sealed partial class RemoteSessionWindow : Window
         if (_openFlyoutCount > 0) _openFlyoutCount--;
         if (_openFlyoutCount == 0)
         {
-            if (_hwnd != IntPtr.Zero && GetForegroundWindow() == _hwnd)
+            if (IsSessionWindowForeground(out IntPtr fg) && fg == _hwnd)
             {
                 _isWindowFocused = true;
+            }
+            else if (IsWindowMinimizedOrHidden())
+            {
+                _isWindowFocused = false;
             }
 
             if (_isFullscreen && !_pointerInTopBar)
@@ -807,7 +836,11 @@ public sealed partial class RemoteSessionWindow : Window
                 _fullscreenBarHideTimer.Start();
             }
 
-            VideoInputSurface.Focus(FocusState.Programmatic);
+            if (_isWindowFocused && !IsWindowMinimizedOrHidden())
+            {
+                VideoInputSurface.Focus(FocusState.Programmatic);
+            }
+
             SyncKeyboardHookAndCursorCapture();
         }
     }

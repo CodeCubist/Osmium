@@ -844,11 +844,18 @@ public sealed partial class RemoteSessionWindow : Window
            !_remoteSessionEnded &&
            !_userPausedVirtualCapture &&
            _openFlyoutCount == 0 &&
-           IsVirtualMouseEngagedNow;
+           IsVirtualMouseEngagedNow &&
+           IsSessionWindowForeground(out IntPtr fg) &&
+           fg == _hwnd;
 
     private void SyncKeyboardHookAndCursorCapture()
     {
         if (_isClosed) return;
+
+        if (IsWindowMinimizedOrHidden())
+        {
+            _isWindowFocused = false;
+        }
 
         if (ShouldCaptureCursorNow)
         {
@@ -860,7 +867,7 @@ public sealed partial class RemoteSessionWindow : Window
         }
 
         bool isForeground = IsSessionWindowForeground(out IntPtr fg);
-        bool wantKeyHook = !_isClosed && (_isWindowFocused || _isCursorCaptured);
+        bool wantKeyHook = !_isClosed && ((_isWindowFocused && isForeground) || _isCursorCaptured);
         bool wantHostForwarding = _isWindowFocused &&
                                   isForeground &&
                                   fg == _hwnd &&
