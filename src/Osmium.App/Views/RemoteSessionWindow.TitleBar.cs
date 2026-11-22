@@ -337,12 +337,12 @@ public sealed partial class RemoteSessionWindow : Window
 
     private void ApplyTitleBarChromeTheme()
     {
-        SessionMenuButton.Background = new SolidColorBrush(Colors.Transparent);
         if (_isFullscreen)
         {
             AppTitleBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x8C, 0x14, 0x18, 0x21));
             TitleBarBottomDivider.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF));
             RemoteHostTitleText.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0xF8, 0xFA, 0xFC));
+            SessionMenuButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF));
             SessionMenuButton.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF5, 0xF8, 0xFA, 0xFC));
         }
         else
@@ -353,6 +353,10 @@ public sealed partial class RemoteSessionWindow : Window
                 "TextFillColorPrimaryBrush",
                 Windows.UI.Color.FromArgb(0xFF, 0x18, 0x1C, 0x24),
                 Windows.UI.Color.FromArgb(0xFF, 0xF3, 0xF6, 0xFA));
+            SessionMenuButton.Background = ResolveThemeBrush(
+                "OsmiumSubtlePillBrush",
+                Windows.UI.Color.FromArgb(0x0B, 0, 0, 0),
+                Windows.UI.Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF));
             SessionMenuButton.Foreground = ResolveThemeBrush(
                 "TextFillColorPrimaryBrush",
                 Windows.UI.Color.FromArgb(0xFF, 0x18, 0x1C, 0x24),

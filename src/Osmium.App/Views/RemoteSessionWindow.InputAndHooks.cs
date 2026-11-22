@@ -413,6 +413,7 @@ public sealed partial class RemoteSessionWindow : Window
             {
                 AppTitleBar.Padding = new Thickness(12, 0, 12, 0);
                 TitleBarBottomDivider.Margin = new Thickness(-12, 0, -12, 0);
+                RightMenuToolbar.Height = double.NaN;
                 RightMenuToolbar.VerticalAlignment = VerticalAlignment.Center;
                 SessionMenuButton.VerticalAlignment = VerticalAlignment.Center;
                 SessionMenuButton.Height = 28;
@@ -424,12 +425,17 @@ public sealed partial class RemoteSessionWindow : Window
             double rightInsetDip = _appWindow.TitleBar.RightInset > 0
                 ? _appWindow.TitleBar.RightInset / scale
                 : 138.0;
+            double captionH = _appWindow.TitleBar.Height > 0
+                ? _appWindow.TitleBar.Height / scale
+                : 32.0;
+            captionH = Math.Clamp(captionH, 28.0, AppTitleBar.Height > 0 ? AppTitleBar.Height : 46.0);
 
             AppTitleBar.Padding = new Thickness(12, 0, rightInsetDip, 0);
             TitleBarBottomDivider.Margin = new Thickness(-12, 0, -(rightInsetDip + 16), 0);
-            RightMenuToolbar.VerticalAlignment = VerticalAlignment.Center;
+            RightMenuToolbar.Height = captionH;
+            RightMenuToolbar.VerticalAlignment = VerticalAlignment.Top;
             SessionMenuButton.VerticalAlignment = VerticalAlignment.Center;
-            SessionMenuButton.Height = 28;
+            SessionMenuButton.Height = Math.Clamp(Math.Round(captionH - 4.0), 24.0, 30.0);
             SessionMenuButton.CornerRadius = new CornerRadius(6);
         }
         catch
