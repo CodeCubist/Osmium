@@ -10,6 +10,7 @@ import '../services/account/account_service.dart';
 import '../services/engine/osmium_engine.dart';
 import '../services/engine/platform_bridge.dart';
 import '../services/signaling/signaling_client.dart';
+import '../services/storage/device_wallpaper_store.dart';
 import '../services/storage/secure_storage_service.dart';
 import '../services/storage/settings_repository.dart';
 
@@ -18,6 +19,9 @@ final secureStorageProvider = Provider<SecureStorageService>(
 );
 final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => SettingsRepository(),
+);
+final deviceWallpaperStoreProvider = Provider<DeviceWallpaperStore>(
+  (ref) => DeviceWallpaperStore(),
 );
 final osmiumEngineProvider = Provider<OsmiumEngine>((ref) => OsmiumEngine());
 final platformBridgeProvider = Provider<PlatformBridge>(
@@ -49,13 +53,16 @@ class AppController extends ChangeNotifier {
     required this.settingsRepo,
     required this.accountService,
     required this.signaling,
-  }) : _account = accountService.session,
+    DeviceWallpaperStore? wallpaperStore,
+  }) : wallpaperStore = wallpaperStore ?? DeviceWallpaperStore(),
+       _account = accountService.session,
        // A saved sign-in shows device placeholders until the list arrives.
        _refreshingDevices = accountService.isLoggedIn;
 
   final SettingsRepository settingsRepo;
   final AccountService accountService;
   final SignalingClient signaling;
+  final DeviceWallpaperStore wallpaperStore;
 
   bool _initialized = false;
   bool get initialized => _initialized;
@@ -78,6 +85,10 @@ class AppController extends ChangeNotifier {
 
   List<AccountDeviceDto> _accountDevices = const [];
   List<AccountDeviceDto> get accountDevices => _accountDevices;
+
+  Map<String, String> _deviceWallpapers = const {};
+  String? wallpaperPathFor(String deviceId) =>
+      _deviceWallpapers[DeviceIdentity.normalizeDeviceId(deviceId)];
 
   bool _refreshingDevices;
   bool get refreshingDevices => _refreshingDevices;
@@ -112,6 +123,7 @@ class AppController extends ChangeNotifier {
     _identity = await settingsRepo.loadOrCreateIdentity();
     _settings = await settingsRepo.loadSettings();
     _history = await settingsRepo.loadHistory();
+    _deviceWallpapers = Map.unmodifiable(await wallpaperStore.loadAll());
     _account = await accountService.initialize();
 
     _sigStateSub = signaling.stateStream.listen((state) {
@@ -223,12 +235,33 @@ class AppController extends ChangeNotifier {
   Future<bool> removeRemoteDevice(String deviceId) async {
     final res = await accountService.removeDevice(deviceId);
     if (res.ok) {
+      final normalized = DeviceIdentity.normalizeDeviceId(deviceId);
       _accountDevices = _accountDevices
           .where((d) => d.deviceId != deviceId)
           .toList();
+      final stillInHistory = _history.any(
+        (h) => DeviceIdentity.normalizeDeviceId(h.deviceId) == normalized,
+      );
+      if (!stillInHistory && _deviceWallpapers.containsKey(normalized)) {
+        final next = Map<String, String>.from(_deviceWallpapers)
+          ..remove(normalized);
+        _deviceWallpapers = Map.unmodifiable(next);
+        unawaited(wallpaperStore.deleteWallpaper(normalized));
+      }
       notifyListeners();
     }
     return res.ok;
+  }
+
+  Future<void> saveDeviceWallpaper(String deviceId, Uint8List bytes) async {
+    final normalized = DeviceIdentity.normalizeDeviceId(deviceId);
+    if (normalized.length != 9) return;
+    final savedPath = await wallpaperStore.saveWallpaper(normalized, bytes);
+    if (savedPath == null) return;
+    final next = Map<String, String>.from(_deviceWallpapers)
+      ..[normalized] = savedPath;
+    _deviceWallpapers = Map.unmodifiable(next);
+    notifyListeners();
   }
 
   void forceDisconnectDevice(String deviceId) {
@@ -285,5 +318,6 @@ final appControllerProvider = ChangeNotifierProvider<AppController>((ref) {
     settingsRepo: ref.read(settingsRepositoryProvider),
     accountService: ref.read(accountServiceProvider),
     signaling: ref.read(signalingClientProvider),
+    wallpaperStore: ref.read(deviceWallpaperStoreProvider),
   );
 });

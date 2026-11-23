@@ -170,6 +170,7 @@ class RemoteSessionController extends ChangeNotifier {
     required this.signaling,
     required OsmiumSettings initialSettings,
     this.solveCaptcha,
+    this.onDesktopWallpaperReceived,
     OsmiumEngine Function()? isolateEngineFactory,
     TransportOpRunner? transportOpRunner,
     EngineOpRunner? engineOpRunner,
@@ -183,6 +184,8 @@ class RemoteSessionController extends ChangeNotifier {
   final SignalingClient signaling;
 
   final ConnectCaptchaSolver? solveCaptcha;
+  final void Function(String deviceId, Uint8List wallpaperBytes)?
+  onDesktopWallpaperReceived;
   final OsmiumEngine Function() _isolateEngineFactory;
   final TransportOpRunner _transportOpRunner;
   final EngineOpRunner _engineOpRunner;
@@ -265,6 +268,7 @@ class RemoteSessionController extends ChangeNotifier {
   StreamSubscription<String>? _sessionEstablishedSub;
   StreamSubscription<String>? _auxClipSub;
   StreamSubscription<List<String>>? _auxFilesSub;
+  StreamSubscription<Uint8List>? _auxWallpaperSub;
   StreamSubscription<AuxTransferProgressEvent>? _auxProgressSub;
 
   bool _disposed = false;
@@ -926,6 +930,13 @@ class RemoteSessionController extends ChangeNotifier {
       _emitToast('已接收 ${paths.length} 个文件');
     });
 
+    _auxWallpaperSub = _auxChannel!.desktopWallpaperStream.listen((bytes) {
+      final targetId = _request?.targetDeviceId;
+      if (targetId != null && targetId.isNotEmpty && bytes.isNotEmpty) {
+        onDesktopWallpaperReceived?.call(targetId, bytes);
+      }
+    });
+
     _auxProgressSub = _auxChannel!.progressStream.listen((p) {
       _lastTransferProgress = p;
       notifyListeners();
@@ -1354,6 +1365,8 @@ class RemoteSessionController extends ChangeNotifier {
     _auxClipSub = null;
     await _auxFilesSub?.cancel();
     _auxFilesSub = null;
+    await _auxWallpaperSub?.cancel();
+    _auxWallpaperSub = null;
     await _auxProgressSub?.cancel();
     _auxProgressSub = null;
 

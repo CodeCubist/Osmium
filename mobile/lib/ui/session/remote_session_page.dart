@@ -35,6 +35,9 @@ class _RemoteSessionPageState extends ConsumerState<RemoteSessionPage> {
       signaling: ref.read(signalingClientProvider),
       initialSettings: app.settings,
       solveCaptcha: _solveCaptcha,
+      onDesktopWallpaperReceived: (deviceId, bytes) {
+        app.saveDeviceWallpaper(deviceId, bytes);
+      },
     );
     _signals = SessionSignals(_session);
 

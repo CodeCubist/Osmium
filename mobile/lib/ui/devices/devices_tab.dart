@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_miuix/miuix.dart';
@@ -280,6 +282,9 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
                                       key: _cardKey(sortedDevices[i].deviceId),
                                       device: sortedDevices[i],
                                       isDark: isDark,
+                                      wallpaperPath: app.wallpaperPathFor(
+                                        sortedDevices[i].deviceId,
+                                      ),
                                       onConnect: () =>
                                           _connectDevice(sortedDevices[i]),
                                       onViewOnly: () => _connectDevice(
@@ -644,6 +649,7 @@ class _DeviceHeroCard extends StatelessWidget {
     super.key,
     required this.device,
     required this.isDark,
+    this.wallpaperPath,
     required this.onConnect,
     required this.onViewOnly,
     required this.onMore,
@@ -651,6 +657,7 @@ class _DeviceHeroCard extends StatelessWidget {
 
   final AccountDeviceDto device;
   final bool isDark;
+  final String? wallpaperPath;
   final VoidCallback onConnect;
   final VoidCallback onViewOnly;
   final VoidCallback onMore;
@@ -661,13 +668,16 @@ class _DeviceHeroCard extends StatelessWidget {
     final colors = theme.colors;
     final online = device.isOnline;
     final controlled = device.isBeingControlled;
+    final hasWallpaper = wallpaperPath != null && wallpaperPath!.isNotEmpty;
 
     final pillBackground = controlled
         ? Colors.white.withValues(alpha: 0.92)
+        : hasWallpaper
+        ? Colors.black.withValues(alpha: online ? 0.34 : 0.28)
         : Colors.white.withValues(alpha: online ? 0.18 : 0.13);
     final pillForeground = controlled
         ? const Color(0xFF8A4A06)
-        : Colors.white.withValues(alpha: online ? 1 : 0.82);
+        : Colors.white.withValues(alpha: online ? 1 : 0.88);
     final pillLabel = controlled ? '远控中' : (online ? '在线' : '离线');
 
     return AnimatedOpacity(
@@ -697,6 +707,9 @@ class _DeviceHeroCard extends StatelessWidget {
                 ),
                 height: 106,
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                backgroundImage: hasWallpaper
+                    ? FileImage(File(wallpaperPath!))
+                    : null,
                 child: Row(
                   children: [
                     Container(
@@ -704,8 +717,17 @@ class _DeviceHeroCard extends StatelessWidget {
                       height: 46,
                       alignment: Alignment.center,
                       decoration: ShapeDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        shape: MiuixSquircleBorder(cornerRadius: 15),
+                        color: hasWallpaper
+                            ? Colors.black.withValues(alpha: 0.28)
+                            : Colors.white.withValues(alpha: 0.16),
+                        shape: MiuixSquircleBorder(
+                          cornerRadius: 15,
+                          side: hasWallpaper
+                              ? BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                )
+                              : BorderSide.none,
+                        ),
                       ),
                       child: const Icon(
                         Icons.desktop_windows_rounded,
@@ -723,12 +745,21 @@ class _DeviceHeroCard extends StatelessWidget {
                             device.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: OsmiumTheme.fontFamily,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                               height: 1.2,
                               color: Colors.white,
+                              shadows: hasWallpaper
+                                  ? const [
+                                      Shadow(
+                                        color: Color(0x66000000),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 1),
+                                      ),
+                                    ]
+                                  : null,
                             ),
                           ),
                           const SizedBox(height: 8),

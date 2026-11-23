@@ -34,7 +34,8 @@ class OsmiumBannerGradients {
 }
 
 /// A clipped hero banner with the brand gradient and a restrained abstract
-/// artwork layer. The caller supplies the content and the outer shape clips it.
+/// artwork layer, optionally backed by a cached remote desktop wallpaper.
+/// The caller supplies the content and the outer shape clips it.
 class OsmiumBanner extends StatelessWidget {
   const OsmiumBanner({
     super.key,
@@ -43,6 +44,7 @@ class OsmiumBanner extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(20),
     this.artwork = true,
+    this.backgroundImage,
   });
 
   final List<Color> colors;
@@ -50,9 +52,11 @@ class OsmiumBanner extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final bool artwork;
+  final ImageProvider? backgroundImage;
 
   @override
   Widget build(BuildContext context) {
+    final image = backgroundImage;
     return SizedBox(
       height: height,
       width: double.infinity,
@@ -68,7 +72,54 @@ class OsmiumBanner extends StatelessWidget {
               ),
             ),
           ),
-          if (artwork)
+          if (image != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Image(
+                  image: image,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  filterQuality: FilterQuality.medium,
+                  frameBuilder:
+                      (context, imageChild, frame, wasSynchronouslyLoaded) {
+                        final photo = Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            imageChild,
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  stops: [0.0, 0.58, 1.0],
+                                  colors: [
+                                    Color(0x96000000),
+                                    Color(0x52000000),
+                                    Color(0x28000000),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                        if (wasSynchronouslyLoaded) return photo;
+                        return AnimatedOpacity(
+                          opacity: frame == null ? 0 : 1,
+                          duration: OsmiumMotion.durationOr(
+                            context,
+                            OsmiumMotion.small,
+                          ),
+                          curve: MiuixMotion.standardDecelerate,
+                          child: photo,
+                        );
+                      },
+                  errorBuilder: (_, _, _) => artwork
+                      ? const CustomPaint(painter: _OsmiumBannerArtwork())
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            )
+          else if (artwork)
             const Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(painter: _OsmiumBannerArtwork()),

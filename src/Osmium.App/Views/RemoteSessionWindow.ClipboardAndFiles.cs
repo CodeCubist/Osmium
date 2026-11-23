@@ -90,7 +90,13 @@ public sealed partial class RemoteSessionWindow : Window
 
         channel.ValidateIncomingTransfer = (type, totalBytes) =>
         {
-            
+            if (type == AuxTransferType.DesktopWallpaper)
+            {
+                return totalBytes is > 0 and <= DeviceWallpaperStore.MaxWallpaperBytes
+                    ? AuxTransferRejectReason.None
+                    : AuxTransferRejectReason.TooLarge;
+            }
+
             if (type != AuxTransferType.FileBatch) return AuxTransferRejectReason.Disabled;
             if (!_fileTransferEnabled) return AuxTransferRejectReason.Disabled;
 
@@ -103,6 +109,23 @@ public sealed partial class RemoteSessionWindow : Window
 
             long maxBytes = (long)Math.Clamp(s.FileTransferMaxSizeMb, 1, 4096) * 1024 * 1024 + 4L * 1024 * 1024;
             return totalBytes <= maxBytes ? AuxTransferRejectReason.None : AuxTransferRejectReason.TooLarge;
+        };
+
+        channel.DesktopWallpaperReceived += wallpaperBytes =>
+        {
+            if (_isClosed || _remoteSessionEnded) return;
+            string targetId = _launchArgs.TargetDeviceId;
+            if (string.IsNullOrWhiteSpace(targetId) || wallpaperBytes == null || wallpaperBytes.Length == 0) return;
+
+            _ = Task.Run(() =>
+            {
+                string? savedPath = App.Engine.DeviceWallpapers.SaveWallpaper(targetId, wallpaperBytes);
+                if (!string.IsNullOrEmpty(savedPath))
+                {
+                    App.Engine.Logging.Info(
+                        $"Client cached remote desktop wallpaper for {targetId} ({wallpaperBytes.Length} bytes)");
+                }
+            });
         };
 
         channel.HostFileTransferPolicyReceived += hostAllows =>

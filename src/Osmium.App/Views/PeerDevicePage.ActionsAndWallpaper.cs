@@ -24,23 +24,33 @@ public sealed partial class PeerDevicePage : Page
         bool isDark = ActualTheme == ElementTheme.Dark;
         bool isOffline = dev == null || !dev.IsOnline;
         bool isBlurred = dev is { IsBeingControlled: true };
+        string? cachedPath = App.Engine.DeviceWallpapers.GetWallpaperPath(_targetDeviceId);
+        string identity = WallpaperHelper.GetWallpaperIdentityKey(cachedPath);
 
         if (_appliedWallpaperDark == isDark &&
             _appliedWallpaperOffline == isOffline &&
             _appliedWallpaperBlurred == isBlurred &&
+            string.Equals(_appliedWallpaperIdentity, identity, StringComparison.Ordinal) &&
             HeroWallpaperImage.Source != null)
         {
             return;
         }
 
-        _appliedWallpaperDark = isDark;
-        _appliedWallpaperOffline = isOffline;
-        _appliedWallpaperBlurred = isBlurred;
         int version = ++_wallpaperVersion;
 
         var src = await WallpaperHelper.GetHeroWallpaperVariantAsync(
-            isDark, grayscale: isOffline, blur: isBlurred, preferSecondary: true, decodeWidth: 1280);
+            isDark,
+            grayscale: isOffline,
+            blur: isBlurred,
+            preferSecondary: true,
+            decodeWidth: 1280,
+            customImagePath: cachedPath);
         if (version != _wallpaperVersion || src == null) return;
+
+        _appliedWallpaperDark = isDark;
+        _appliedWallpaperOffline = isOffline;
+        _appliedWallpaperBlurred = isBlurred;
+        _appliedWallpaperIdentity = identity;
 
         ApplyHeroWallpaperWithTransition(src);
     }

@@ -8,7 +8,8 @@ import 'package:path_provider/path_provider.dart';
 enum AuxTransferType {
   clipboardText(1),
   clipboardImage(2),
-  fileBatch(3);
+  fileBatch(3),
+  desktopWallpaper(4);
 
   const AuxTransferType(this.wireValue);
   final int wireValue;
@@ -17,6 +18,7 @@ enum AuxTransferType {
     1 => AuxTransferType.clipboardText,
     2 => AuxTransferType.clipboardImage,
     3 => AuxTransferType.fileBatch,
+    4 => AuxTransferType.desktopWallpaper,
     _ => null,
   };
 }
@@ -136,10 +138,12 @@ class AuxTransferChannel {
 
   final _clipboardTextCtrl = StreamController<String>.broadcast();
   final _filesReceivedCtrl = StreamController<List<String>>.broadcast();
+  final _desktopWallpaperCtrl = StreamController<Uint8List>.broadcast();
   final _progressCtrl = StreamController<AuxTransferProgressEvent>.broadcast();
 
   Stream<String> get clipboardTextStream => _clipboardTextCtrl.stream;
   Stream<List<String>> get filesReceivedStream => _filesReceivedCtrl.stream;
+  Stream<Uint8List> get desktopWallpaperStream => _desktopWallpaperCtrl.stream;
   Stream<AuxTransferProgressEvent> get progressStream => _progressCtrl.stream;
 
   void sendFeatureConfig({
@@ -275,6 +279,11 @@ class AuxTransferChannel {
     final summaryLen = bd.getUint16(22, Endian.little);
     if (type == null || 24 + summaryLen > data.length) {
       _sendStartAck(id, false, 4);
+      return;
+    }
+    if (type == AuxTransferType.desktopWallpaper &&
+        (totalBytes <= 0 || totalBytes > 4 * 1024 * 1024)) {
+      _sendStartAck(id, false, 2);
       return;
     }
     final summary = summaryLen > 0
@@ -426,6 +435,10 @@ class AuxTransferChannel {
       final text = utf8.decode(bytes, allowMalformed: true);
       if (text.isNotEmpty) {
         _clipboardTextCtrl.add(text);
+      }
+    } else if (inc.type == AuxTransferType.desktopWallpaper) {
+      if (bytes.isNotEmpty && bytes.length == inc.totalBytes) {
+        _desktopWallpaperCtrl.add(bytes);
       }
     } else if (inc.type == AuxTransferType.fileBatch && bytes.length >= 4) {
       try {
@@ -626,6 +639,7 @@ class AuxTransferChannel {
     _incoming.clear();
     _clipboardTextCtrl.close();
     _filesReceivedCtrl.close();
+    _desktopWallpaperCtrl.close();
     _progressCtrl.close();
   }
 }

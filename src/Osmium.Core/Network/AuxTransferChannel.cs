@@ -12,7 +12,8 @@ public enum AuxTransferType : byte
 {
     ClipboardText = 1,
     ClipboardImage = 2,
-    FileBatch = 3
+    FileBatch = 3,
+    DesktopWallpaper = 4
 }
 
 public enum AuxTransferRejectReason : byte
@@ -96,6 +97,7 @@ public sealed class AuxTransferChannel : IDisposable
     private readonly object _laneLock = new();
     private uint _activeClipboardOutId;
     private uint _activeFileOutId;
+    private uint _activeWallpaperOutId;
 
     private readonly Thread _pumpThread;
     private readonly AutoResetEvent _pumpWake = new(false);
@@ -107,6 +109,7 @@ public sealed class AuxTransferChannel : IDisposable
     public event Action<bool>? HostFileTransferPolicyReceived;
     public event Action<string>? ClipboardTextReceived;
     public event Action<byte[]>? ClipboardImageReceived;
+    public event Action<byte[]>? DesktopWallpaperReceived;
     public event Action<IReadOnlyList<string>, int, long>? FilesReceived;
     public event Action<AuxTransferProgress>? TransferProgressChanged;
 
@@ -192,6 +195,14 @@ public sealed class AuxTransferChannel : IDisposable
         }
 
         return StartOutgoingMemoryTransfer(AuxTransferType.ClipboardImage, compressed, 1, "Image");
+    }
+
+    public bool SendDesktopWallpaper(byte[] imageBytes, long maxBytes = 512 * 1024)
+    {
+        if (_disposed || imageBytes == null || imageBytes.Length == 0 || imageBytes.Length > maxBytes)
+            return false;
+
+        return StartOutgoingMemoryTransfer(AuxTransferType.DesktopWallpaper, imageBytes, 1, "wallpaper.jpg");
     }
 
     public Task<bool> StartSendFilesAsync(IReadOnlyList<string> sourcePaths, long maxTotalBytes)
@@ -325,6 +336,11 @@ public sealed class AuxTransferChannel : IDisposable
             {
                 prevIdToCancel = _activeFileOutId;
                 _activeFileOutId = id;
+            }
+            else if (type == AuxTransferType.DesktopWallpaper)
+            {
+                prevIdToCancel = _activeWallpaperOutId;
+                _activeWallpaperOutId = id;
             }
             else
             {
@@ -684,7 +700,8 @@ public sealed class AuxTransferChannel : IDisposable
                 ClearLaneIdIfMatch(transferId);
                 tr.Dispose();
 
-                if (tr.TransferType == AuxTransferType.FileBatch || reason == AuxTransferRejectReason.TooLarge)
+                if (tr.TransferType != AuxTransferType.DesktopWallpaper &&
+                    (tr.TransferType == AuxTransferType.FileBatch || reason == AuxTransferRejectReason.TooLarge))
                 {
                     RaiseProgress(new AuxTransferProgress(
                         IsOutgoing: true,
@@ -1022,6 +1039,10 @@ public sealed class AuxTransferChannel : IDisposable
                         ClipboardImageReceived?.Invoke(dib);
                     }
                 }
+                else if (inc.TransferType == AuxTransferType.DesktopWallpaper && memBytes != null)
+                {
+                    DesktopWallpaperReceived?.Invoke(memBytes);
+                }
                 else if (inc.TransferType == AuxTransferType.FileBatch && stagedRoots != null)
                 {
                     FilesReceived?.Invoke(stagedRoots, inc.ItemCount, inc.TotalBytes);
@@ -1133,6 +1154,7 @@ public sealed class AuxTransferChannel : IDisposable
         {
             if (_activeClipboardOutId == transferId) _activeClipboardOutId = 0;
             if (_activeFileOutId == transferId) _activeFileOutId = 0;
+            if (_activeWallpaperOutId == transferId) _activeWallpaperOutId = 0;
         }
     }
 

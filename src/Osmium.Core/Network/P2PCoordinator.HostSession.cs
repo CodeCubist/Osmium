@@ -734,6 +734,7 @@ public sealed partial class P2PCoordinator : IDisposable
             if (auxCh != null)
             {
                 StartHostClipboardWatcher(auxCh);
+                SendHostDesktopWallpaper(auxCh);
             }
 
             if (shouldRefreshTempCode)
@@ -802,6 +803,24 @@ public sealed partial class P2PCoordinator : IDisposable
     }
 
     public void StopHostSession() => StopHostSession(notifyPeer: true, notifyEndedReason: "Host stopped session");
+
+    private void SendHostDesktopWallpaper(AuxTransferChannel channel)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                byte[]? jpeg = await WindowsWallpaperHelper.TryGetCompressedWallpaperJpegAsync();
+                if (jpeg == null || jpeg.Length == 0) return;
+                if (!ReferenceEquals(Volatile.Read(ref _hostAuxChannel), channel)) return;
+                channel.SendDesktopWallpaper(jpeg);
+            }
+            catch (Exception ex)
+            {
+                _log.Warn($"SendHostDesktopWallpaper failed: {ex.Message}");
+            }
+        });
+    }
 
     private void StartHostClipboardWatcher(AuxTransferChannel channel)
     {
