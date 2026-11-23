@@ -94,6 +94,7 @@ public sealed partial class AccountPage : Page
         App.Engine.Coordinator.HostSessionStarted -= OnHostSessionChanged;
         App.Engine.Coordinator.HostSessionEnded -= OnHostSessionEnded;
         _otpTimer.Stop();
+        StopQrLoginSession(cancelRemote: true);
     }
 
     private void SlideHost_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -191,10 +192,17 @@ public sealed partial class AccountPage : Page
 
         ModeLoginTitleText.Text = LocalizationService.GetString("Acc_ModeLogin");
         ModeLoginDescText.Text = LocalizationService.GetString("Acc_ModeLoginDesc");
+        ModeQrLoginTitleText.Text = LocalizationService.GetString("Acc_ModeQrLogin");
+        ModeQrLoginDescText.Text = LocalizationService.GetString("Acc_ModeQrLoginDesc");
         ModeRegisterTitleText.Text = LocalizationService.GetString("Acc_ModeRegister");
         ModeRegisterDescText.Text = LocalizationService.GetString("Acc_ModeRegisterDesc");
         ModeResetTitleText.Text = LocalizationService.GetString("Acc_ModeReset");
         ModeResetDescText.Text = LocalizationService.GetString("Acc_ModeResetDesc");
+
+        BtnQrBackText.Text = LocalizationService.GetString("Acc_WizardBackBtn");
+        BtnQrRefresh.Content = LocalizationService.GetString("Acc_QrRefreshBtn");
+        BtnQrOverlayRefresh.Content = LocalizationService.GetString("Acc_QrRefreshBtn");
+        RefreshQrLocalization();
 
         RowAuthEmail.Title = LocalizationService.GetString("Acc_RowEmail");
         AuthEmailBox.PlaceholderText = LocalizationService.GetString("Acc_EmailPlaceholder");
@@ -268,10 +276,27 @@ public sealed partial class AccountPage : Page
                 AuthEmailBox.Text = acc.CurrentEmail;
             }
 
+            if (_inQrLoginFlow)
+            {
+                ModeSelectCard.Visibility = Visibility.Collapsed;
+                WizardFlowPanel.Visibility = Visibility.Collapsed;
+                QrLoginFlowPanel.Visibility = Visibility.Visible;
+                QrLoginFlowPanel.Opacity = 1;
+                QrLoginFlowTransform.X = 0;
+                return;
+            }
+
             if (_wizardStep >= TotalWizardSteps) _wizardStep = -1;
             UpdateWizardUiState(snapPanels: true);
             UpdateOtpCooldownVisuals();
             return;
+        }
+
+        if (_inQrLoginFlow)
+        {
+            _inQrLoginFlow = false;
+            StopQrLoginSession(cancelRemote: false);
+            QrLoginFlowPanel.Visibility = Visibility.Collapsed;
         }
 
         ProfileEmailText.Text = string.IsNullOrWhiteSpace(acc.CurrentEmail) ? "-" : acc.CurrentEmail;
@@ -382,6 +407,13 @@ public sealed partial class AccountPage : Page
     {
         if (_isBusy) return;
         if (sender is not Button btn || !int.TryParse(btn.Tag?.ToString(), out int mode)) return;
+
+        if (mode == 3)
+        {
+            StatusInfoBar.IsOpen = false;
+            EnterQrLoginFlow();
+            return;
+        }
 
         _selectedAuthMode = mode;
         AuthPasswordBox.Password = string.Empty;

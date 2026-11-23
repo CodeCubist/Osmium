@@ -641,4 +641,18 @@
   <data name="Session_SwitchedDisplayFmt" xml:space="preserve"><value>Switched to display {0}</value></data>
   <data name="Session_PrimaryDisplayTag" xml:space="preserve"><value>Primary</value></data>
   <data name="Session_NoDisplays" xml:space="preserve"><value>No displays detected</value></data>
+  <data name="Acc_ModeQrLogin" xml:space="preserve"><value>QR Code Sign-In</value></data>
+  <data name="Acc_ModeQrLoginDesc" xml:space="preserve"><value>Scan with Osmium mobile app to sign in securely</value></data>
+  <data name="Acc_QrWaitingScan" xml:space="preserve"><value>Scan with Osmium mobile app</value></data>
+  <data name="Acc_QrScanned" xml:space="preserve"><value>Scanned — complete verification on phone</value></data>
+  <data name="Acc_QrAwaitingConfirm" xml:space="preserve"><value>Confirm sign-in on your phone</value></data>
+  <data name="Acc_QrExpired" xml:space="preserve"><value>QR code expired</value></data>
+  <data name="Acc_QrCancelled" xml:space="preserve"><value>Sign-in cancelled</value></data>
+  <data name="Acc_QrRefreshBtn" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Acc_ErrQrExpired" xml:space="preserve"><value>QR code expired; please refresh</value></data>
+  <data name="Acc_ErrQrInvalid" xml:space="preserve"><value>QR sign-in session is invalid; please refresh</value></data>
+  <data name="Acc_ErrQrCooldown" xml:space="preserve"><value>Please wait before confirming sign-in</value></data>
+  <data name="Acc_ErrQrCancelled" xml:space="preserve"><value>QR sign-in was cancelled</value></data>
+  <data name="Acc_HistoryQrTag" xml:space="preserve"><value>QR</value></data>
+  <data name="Acc_HistoryQrExtTag" xml:space="preserve"><value>External QR</value></data>
 </root>

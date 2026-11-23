@@ -73,6 +73,12 @@ public static class OsmiumErrorCode
     public const int OtpInvalid = 3008;
     public const int OtpTooManyAttempts = 3009;
     public const int OtpCooldown = 3010;
+    public const int QrExpired = 3011;
+    public const int QrNotFound = 3012;
+    public const int QrInvalidSignature = 3013;
+    public const int QrStateInvalid = 3014;
+    public const int QrConfirmCooldown = 3015;
+    public const int QrCancelled = 3016;
 
     public const int RateLimited = 4001;
     public const int UserDailyOpsExceeded = 4002;
@@ -747,6 +753,110 @@ public sealed class AccountPersistedSession
     } = string.Empty;
 
     public long StokenExpiresAtUnix
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class QrLoginCreateData
+{
+    [JsonPropertyName("qr_id")]
+    public string QrId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("poll_secret")]
+    public string PollSecret
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("qr_url")]
+    public string QrUrl
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("poll_url")]
+    public string PollUrl
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("poll_interval_ms")]
+    public int PollIntervalMs
+    {
+        get;
+        set;
+    } = 1500;
+}
+
+public sealed class QrLoginStatusData
+{
+    [JsonPropertyName("qr_id")]
+    public string QrId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("state")]
+    public string State
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("channel")]
+    public string? Channel
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("username")]
+    public string? Username
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("avatar_data")]
+    public string? AvatarData
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("session")]
+    public AccountLoginSessionData? Session
     {
         get;
         set;

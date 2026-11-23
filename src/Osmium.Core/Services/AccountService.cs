@@ -304,6 +304,43 @@ public sealed partial class AccountService : IDisposable
             : ParseEnvelope<T>(raw.StatusCode, raw.Body, raw.RetryAfter);
     }
 
+    public Task<AccountApiResult<QrLoginCreateData>> CreateQrLoginAsync()
+        => SendAnonymousJsonAsync<QrLoginCreateData>(HttpMethod.Post, "/api/auth/qr/create", new
+        {
+            device_id = _settings.Identity.DeviceId,
+            device_name = _settings.Identity.DeviceName,
+            os_version = Environment.OSVersion.VersionString
+        }, retryOnTransient: true);
+
+    public async Task<AccountApiResult<QrLoginStatusData>> PollQrLoginStatusAsync(string pollUrl, string pollSecret)
+    {
+        var raw = await SendWithTransientRetryAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, ResolveServiceUri(pollUrl));
+            req.Headers.Add("X-QR-Poll-Secret", pollSecret);
+            return req;
+        }, retryOnTransientFailure: false);
+
+        return raw.IsNetworkError
+            ? NetworkErrorResult<QrLoginStatusData>()
+            : ParseEnvelope<QrLoginStatusData>(raw.StatusCode, raw.Body, raw.RetryAfter);
+    }
+
+    public async Task<AccountApiResult<object>> CancelQrLoginAsync(string qrId, string pollSecret)
+    {
+        string jsonPayload = JsonSerializer.Serialize(new { qid = qrId });
+        var raw = await SendWithTransientRetryAsync(() =>
+        {
+            var req = CreateJsonRequest(HttpMethod.Post, "/api/auth/qr/cancel", jsonPayload);
+            req.Headers.Add("X-QR-Poll-Secret", pollSecret);
+            return req;
+        }, retryOnTransientFailure: false);
+
+        return raw.IsNetworkError
+            ? NetworkErrorResult<object>()
+            : ParseEnvelope<object>(raw.StatusCode, raw.Body, raw.RetryAfter);
+    }
+
     public void ApplyLoginSession(string email, AccountLoginSessionData loginData)
     {
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();

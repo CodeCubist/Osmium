@@ -641,4 +641,18 @@
   <data name="Session_SwitchedDisplayFmt" xml:space="preserve"><value>已切换至显示器 {0}</value></data>
   <data name="Session_PrimaryDisplayTag" xml:space="preserve"><value>主</value></data>
   <data name="Session_NoDisplays" xml:space="preserve"><value>未检测到显示器</value></data>
+  <data name="Acc_ModeQrLogin" xml:space="preserve"><value>扫码登录</value></data>
+  <data name="Acc_ModeQrLoginDesc" xml:space="preserve"><value>使用手机端 Osmium 扫描二维码安全登录</value></data>
+  <data name="Acc_QrWaitingScan" xml:space="preserve"><value>请使用手机端 Osmium 扫码</value></data>
+  <data name="Acc_QrScanned" xml:space="preserve"><value>已扫码，请在手机端完成安全验证</value></data>
+  <data name="Acc_QrAwaitingConfirm" xml:space="preserve"><value>请在手机端确认登录</value></data>
+  <data name="Acc_QrExpired" xml:space="preserve"><value>二维码已失效</value></data>
+  <data name="Acc_QrCancelled" xml:space="preserve"><value>已取消本次扫码登录</value></data>
+  <data name="Acc_QrRefreshBtn" xml:space="preserve"><value>刷新二维码</value></data>
+  <data name="Acc_ErrQrExpired" xml:space="preserve"><value>二维码已过期，请刷新重试</value></data>
+  <data name="Acc_ErrQrInvalid" xml:space="preserve"><value>扫码会话无效，请刷新二维码</value></data>
+  <data name="Acc_ErrQrCooldown" xml:space="preserve"><value>请稍候再确认登录</value></data>
+  <data name="Acc_ErrQrCancelled" xml:space="preserve"><value>扫码登录已取消</value></data>
+  <data name="Acc_HistoryQrTag" xml:space="preserve"><value>扫码</value></data>
+  <data name="Acc_HistoryQrExtTag" xml:space="preserve"><value>外部扫码</value></data>
 </root>

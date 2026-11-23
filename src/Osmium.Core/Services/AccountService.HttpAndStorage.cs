@@ -48,6 +48,14 @@ public sealed partial class AccountService : IDisposable
                 => Tr("Acc_ErrOtpAttempts", "Too many verification code attempts"),
             OsmiumErrorCode.OtpCooldown
                 => Tr("Acc_ErrOtpCooldown", "Verification code requested too frequently"),
+            OsmiumErrorCode.QrExpired
+                => Tr("Acc_ErrQrExpired", "QR code has expired; please refresh"),
+            OsmiumErrorCode.QrNotFound or OsmiumErrorCode.QrInvalidSignature or OsmiumErrorCode.QrStateInvalid
+                => Tr("Acc_ErrQrInvalid", "QR login session is invalid; please refresh"),
+            OsmiumErrorCode.QrConfirmCooldown
+                => Tr("Acc_ErrQrCooldown", "Please wait a moment before confirming"),
+            OsmiumErrorCode.QrCancelled
+                => Tr("Acc_ErrQrCancelled", "QR login was cancelled"),
             OsmiumErrorCode.ChallengeExpired
                 or OsmiumErrorCode.ChallengeNotFound
                 or OsmiumErrorCode.CsrfInvalid

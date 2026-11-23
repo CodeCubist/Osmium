@@ -819,9 +819,15 @@ public sealed partial class AccountPage : Page
                 Title = $"{resolvedName} - {rec.FormattedDeviceId}",
                 ShowIcon = false
             };
+            string eventTag = rec.EventType switch
+            {
+                "qr_login" => $" · {LocalizationService.GetString("Acc_HistoryQrTag")}",
+                "qr_login_external" => $" · {LocalizationService.GetString("Acc_HistoryQrExtTag")}",
+                _ => string.Empty
+            };
             card.ActionContent = new TextBlock
             {
-                Text = $"{rec.LocalTimeText} - {rec.Ip} - {rec.OsVersion}",
+                Text = $"{rec.LocalTimeText} - {rec.Ip} - {rec.OsVersion}{eventTag}",
                 FontSize = 12,
                 Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
                 VerticalAlignment = VerticalAlignment.Center
@@ -834,6 +840,7 @@ public sealed partial class AccountPage : Page
     {
         _isBusy = busy;
         BtnChooseLogin.IsEnabled = !busy;
+        BtnChooseQrLogin.IsEnabled = !busy;
         BtnChooseRegister.IsEnabled = !busy;
         BtnChooseReset.IsEnabled = !busy;
         BtnWizardBack.IsEnabled = !busy;

@@ -73,6 +73,46 @@
 
                         <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
 
+                        <Button x:Name="BtnChooseQrLogin"
+                                Tag="3"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="0"
+                                Padding="18,14"
+                                Click="ModeChoiceButton_Click">
+                            <Grid ColumnSpacing="14" MinHeight="38">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Viewbox Grid.Column="0" Width="22" Height="22" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Path Width="24" Height="24"
+                                          Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                          Data="M3,3 H11 V11 H3 Z M5,5 V9 H9 V5 Z M6.5,6.5 H7.5 V7.5 H6.5 Z M13,3 H21 V11 H13 Z M15,5 V9 H19 V5 Z M16.5,6.5 H17.5 V7.5 H16.5 Z M3,13 H11 V21 H3 Z M5,15 V19 H9 V15 Z M6.5,16.5 H7.5 V17.5 H6.5 Z M13,13 H15 V15 H13 Z M17,13 H19 V15 H17 Z M15,15 H17 V17 H15 Z M19,15 H21 V17 H19 Z M13,17 H15 V19 H13 Z M17,17 H21 V21 H17 Z M15,19 H17 V21 H15 Z" />
+                                </Viewbox>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock x:Name="ModeQrLoginTitleText"
+                                               FontSize="14"
+                                               FontWeight="Medium" />
+                                    <TextBlock x:Name="ModeQrLoginDescText"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <FontIcon Grid.Column="2"
+                                          FontFamily="{StaticResource FluentIconsFont}"
+                                          Glyph="&#xF2AF;"
+                                          FontSize="13"
+                                          VerticalAlignment="Center"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                        </Button>
+
+                        <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
                         <Button x:Name="BtnChooseRegister"
                                 Tag="1"
                                 HorizontalAlignment="Stretch"
@@ -469,6 +509,144 @@
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel x:Name="QrLoginFlowPanel"
+                            Spacing="10"
+                            Visibility="Collapsed"
+                            VerticalAlignment="Top">
+                    <StackPanel.RenderTransform>
+                        <TranslateTransform x:Name="QrLoginFlowTransform" />
+                    </StackPanel.RenderTransform>
+
+                    <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                        <StackPanel>
+                            <StackPanel Padding="24,28,24,22" Spacing="16" HorizontalAlignment="Center">
+                                <Border Width="228"
+                                        Height="228"
+                                        CornerRadius="12"
+                                        Background="White"
+                                        BorderThickness="1"
+                                        BorderBrush="{ThemeResource OsmiumDividerBrush}"
+                                        HorizontalAlignment="Center">
+                                    <Grid>
+                                        <Image x:Name="QrCodeImage"
+                                               Width="208"
+                                               Height="208"
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+
+                                        <ProgressRing x:Name="QrLoadingRing"
+                                                      Width="34"
+                                                      Height="34"
+                                                      IsActive="False"
+                                                      Visibility="Collapsed"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+
+                                        <Border x:Name="QrOverlayBorder"
+                                                Background="#EEFFFFFF"
+                                                CornerRadius="11"
+                                                Visibility="Collapsed">
+                                            <StackPanel VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center"
+                                                        Spacing="10"
+                                                        Padding="16">
+                                                <Grid x:Name="QrScannedAvatarHost"
+                                                      Width="48"
+                                                      Height="48"
+                                                      HorizontalAlignment="Center"
+                                                      Visibility="Collapsed">
+                                                    <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                                                    <FontIcon x:Name="QrOverlayIcon"
+                                                              FontFamily="{StaticResource FluentIconsFont}"
+                                                              Glyph="&#xE305;"
+                                                              FontSize="20"
+                                                              Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                                    <Ellipse x:Name="QrScannedAvatarEllipse"
+                                                             Width="48"
+                                                             Height="48"
+                                                             Visibility="Collapsed">
+                                                        <Ellipse.Fill>
+                                                            <ImageBrush x:Name="QrScannedAvatarBrush" Stretch="UniformToFill" />
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                </Grid>
+                                                <TextBlock x:Name="QrScannedUserText"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#FF1A1A1A"
+                                                           HorizontalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="188"
+                                                           Visibility="Collapsed" />
+                                                <TextBlock x:Name="QrOverlayStatusText"
+                                                           FontSize="13"
+                                                           FontWeight="Medium"
+                                                           Foreground="#FF333333"
+                                                           TextAlignment="Center"
+                                                           TextWrapping="Wrap"
+                                                           MaxWidth="188" />
+                                                <Button x:Name="BtnQrOverlayRefresh"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        CornerRadius="6"
+                                                        HorizontalAlignment="Center"
+                                                        Visibility="Collapsed"
+                                                        Click="BtnQrRefresh_Click" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="8"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                    <TextBlock x:Name="QrStatusText"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock x:Name="QrCountdownText"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Visibility="Collapsed" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                            <Grid Padding="16,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="BtnQrBack"
+                                        Grid.Column="0"
+                                        CornerRadius="6"
+                                        Click="BtnQrBack_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                                  Glyph="&#xF2A9;"
+                                                  FontSize="11"
+                                                  VerticalAlignment="Center" />
+                                        <TextBlock x:Name="BtnQrBackText" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="BtnQrRefresh"
+                                        Grid.Column="2"
+                                        CornerRadius="6"
+                                        Click="BtnQrRefresh_Click" />
                             </Grid>
                         </StackPanel>
                     </Border>
