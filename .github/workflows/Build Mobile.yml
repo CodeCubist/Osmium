@@ -1,0 +1,350 @@
+name: Build Mobile
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_aab:
+        description: "Also build Android App Bundle (.aab)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osmium-mobile-build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.47.9"
+  JAVA_VERSION: "17"
+  ANDROID_COMPILE_SDK: "36"
+  ANDROID_BUILD_TOOLS: "36.0.0"
+  ANDROID_NDK_VERSION: "28.2.13676358"
+  ANDROID_CMAKE_VERSION: "3.22.1"
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      version: ${{ steps.meta.outputs.version }}
+      full_version: ${{ steps.meta.outputs.full_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve mobile build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "mobile/pubspec.yaml" ]; then
+            echo "::error::mobile/pubspec.yaml not found on this ref"
+            exit 1
+          fi
+
+          sha="${GITHUB_SHA}"
+          short_sha="${sha:0:7}"
+
+          full_version=$(tr -d '\r' < mobile/pubspec.yaml | grep -E '^version:[[:space:]]*' | head -n 1 | sed -E 's/^version:[[:space:]]*//' | awk '{print $1}' || true)
+          if [ -z "$full_version" ]; then
+            full_version="1.0.0+1"
+          fi
+          version="${full_version%%+*}"
+          version="${version#v}"
+
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "full_version=${full_version}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Osmium Mobile commit: ${sha} (${short_sha}), version: v${full_version}"
+
+  verify:
+    name: Analyze & Test
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Fetch Dart dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Run Flutter analyzer
+        working-directory: mobile
+        run: flutter analyze --no-pub
+
+      - name: Run Flutter tests
+        working-directory: mobile
+        run: flutter test --no-pub
+
+      - name: Run native crypto vector tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          build_dir="${RUNNER_TEMP}/mbedtls-build"
+          cmake -S mobile/third_party/mbedtls -B "${build_dir}" \
+            -DENABLE_TESTING=OFF \
+            -DENABLE_PROGRAMS=OFF \
+            -DUSE_SHARED_MBEDTLS_LIBRARY=OFF \
+            -DUSE_STATIC_MBEDTLS_LIBRARY=ON \
+            -DMBEDTLS_FATAL_WARNINGS=OFF
+          cmake --build "${build_dir}" --target mbedcrypto --parallel
+
+          g++ -std=c++17 -O2 -Wall -Wextra \
+            -Imobile/android/app/src/main/cpp \
+            -Imobile/test/native \
+            -Imobile/test/native/android_stub \
+            -Inative/osmium-engine/include \
+            -Imobile/third_party/mbedtls/include \
+            mobile/test/native/crypto_vector_test.cpp \
+            mobile/android/app/src/main/cpp/MobileCrypto.cpp \
+            "${build_dir}/library/libmbedcrypto.a" \
+            -o "${RUNNER_TEMP}/crypto_vector_test"
+
+          "${RUNNER_TEMP}/crypto_vector_test"
+
+  build-android:
+    name: Build Android
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.stage.outputs.artifact_name }}
+      apk_name: ${{ steps.stage.outputs.apk_name }}
+      aab_name: ${{ steps.stage.outputs.aab_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+          cache-dependency-path: |
+            mobile/android/**/*.gradle*
+            mobile/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install Android SDK, NDK, and CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER=""
+          for candidate in \
+            "${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
+            "${SDK_ROOT}/cmdline-tools/bin/sdkmanager" \
+            "$(command -v sdkmanager 2>/dev/null || true)"; do
+            if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+              SDKMANAGER="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under ${SDK_ROOT}"
+            exit 1
+          fi
+
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="${SDK_ROOT}" --licenses >/dev/null 2>&1 || true
+          set -o pipefail
+
+          "$SDKMANAGER" --sdk_root="${SDK_ROOT}" --install \
+            "platforms;android-${ANDROID_COMPILE_SDK}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" \
+            "ndk;${ANDROID_NDK_VERSION}" \
+            "cmake;${ANDROID_CMAKE_VERSION}"
+
+      - name: Configure Gradle JVM options for CI
+        shell: bash
+        run: |
+          mkdir -p "${HOME}/.gradle"
+          cat <<'EOF' >> "${HOME}/.gradle/gradle.properties"
+          org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
+          org.gradle.daemon=false
+          EOF
+
+      - name: Fetch Dart dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Configure release signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          # A debug-signed build can't update an installed release, so never ship one.
+          if [ -z "${KEYSTORE_BASE64}" ] || [ -z "${KEYSTORE_PASSWORD}" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD secrets are not set"
+            exit 1
+          fi
+
+          keystore="${RUNNER_TEMP}/osmium-release.jks"
+          echo "${KEYSTORE_BASE64}" | base64 -d > "${keystore}"
+          {
+            echo "storeFile=${keystore}"
+            echo "storePassword=${KEYSTORE_PASSWORD}"
+            echo "keyAlias=osmium"
+            echo "keyPassword=${KEYSTORE_PASSWORD}"
+          } > mobile/android/key.properties
+
+      - name: Build Android APK (Release, arm64-v8a + x86_64)
+        working-directory: mobile
+        run: flutter build apk --release --target-platform=android-arm64,android-x64
+
+      - name: Build Android App Bundle (Release)
+        if: ${{ inputs.build_aab == true }}
+        working-directory: mobile
+        run: flutter build appbundle --release --target-platform=android-arm64,android-x64
+
+      - name: Verify and stage Android artifacts
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${{ needs.prepare.outputs.version }}"
+          short_sha="${{ needs.prepare.outputs.short_sha }}"
+          apk_src="mobile/build/app/outputs/flutter-apk/app-release.apk"
+          aab_src="mobile/build/app/outputs/bundle/release/app-release.aab"
+          stage_dir="mobile-artifacts"
+          mkdir -p "${stage_dir}"
+
+          if [ ! -f "${apk_src}" ]; then
+            echo "::error::Expected APK not found: ${apk_src}"
+            exit 1
+          fi
+
+          for abi in arm64-v8a x86_64; do
+            if ! unzip -l "${apk_src}" | grep -q "lib/${abi}/libosmium_mobile_engine.so"; then
+              echo "::error::lib/${abi}/libosmium_mobile_engine.so missing from ${apk_src}"
+              exit 1
+            fi
+          done
+
+          apk_name="Osmium-Mobile-v${version}-${short_sha}.apk"
+          artifact_name="Osmium-Mobile-Android-v${version}-${short_sha}"
+
+          cp "${apk_src}" "${stage_dir}/${apk_name}"
+
+          aab_name=""
+          if [ "${{ inputs.build_aab }}" = "true" ]; then
+            if [ ! -f "${aab_src}" ]; then
+              echo "::error::Expected AAB not found: ${aab_src}"
+              exit 1
+            fi
+            aab_name="Osmium-Mobile-v${version}-${short_sha}.aab"
+            cp "${aab_src}" "${stage_dir}/${aab_name}"
+          fi
+
+          (cd "${stage_dir}" && sha256sum * > SHA256SUMS.txt)
+          ls -lh "${stage_dir}"
+
+          echo "artifact_name=${artifact_name}" >> "$GITHUB_OUTPUT"
+          echo "apk_name=${apk_name}" >> "$GITHUB_OUTPUT"
+          echo "aab_name=${aab_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.stage.outputs.artifact_name }}
+          path: mobile-artifacts/*
+          if-no-files-found: error
+
+  summary:
+    name: Pipeline Summary
+    if: always()
+    needs:
+      - prepare
+      - verify
+      - build-android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write pipeline summary
+        shell: bash
+        env:
+          R_PREPARE: ${{ needs.prepare.result }}
+          R_VERIFY: ${{ needs.verify.result }}
+          R_BUILD: ${{ needs.build-android.result }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+          FULL_VERSION: ${{ needs.prepare.outputs.full_version }}
+          ARTIFACT_NAME: ${{ needs.build-android.outputs.artifact_name }}
+          APK_NAME: ${{ needs.build-android.outputs.apk_name }}
+          AAB_NAME: ${{ needs.build-android.outputs.aab_name }}
+        run: |
+          cls() {
+            case "$1" in
+              success)   echo "ok" ;;
+              failure)   echo "failed" ;;
+              cancelled) echo "cancelled" ;;
+              *)         echo "skipped" ;;
+            esac
+          }
+
+          {
+            echo "## Mobile Pipeline Summary"
+            echo ""
+            echo "- **Version**: \`v${FULL_VERSION:-unknown}\`"
+            echo "- **Commit**: \`${SHA:-unknown}\`"
+            if [ -n "$ARTIFACT_NAME" ]; then
+              echo "- **Artifact**: \`${ARTIFACT_NAME}\`"
+            fi
+            if [ -n "$APK_NAME" ]; then
+              echo "- **APK**: \`${APK_NAME}\`"
+            fi
+            if [ -n "$AAB_NAME" ]; then
+              echo "- **App Bundle (AAB)**: \`${AAB_NAME}\`"
+            fi
+            echo ""
+            echo '```mermaid'
+            echo 'flowchart LR'
+            echo '  P[Prepare] --> V[Analyze & Test]'
+            echo '  V --> B[Build Android]'
+            echo '  classDef ok fill:#2da44e,stroke:#1a7f37,color:#ffffff'
+            echo '  classDef failed fill:#cf222e,stroke:#a40e26,color:#ffffff'
+            echo '  classDef cancelled fill:#9a6700,stroke:#7d4e00,color:#ffffff'
+            echo '  classDef skipped fill:#8c959f,stroke:#6e7781,color:#ffffff'
+            echo "  class P $(cls "$R_PREPARE")"
+            echo "  class V $(cls "$R_VERIFY")"
+            echo "  class B $(cls "$R_BUILD")"
+            echo '```'
+            echo ""
+            echo "| Job | Result |"
+            echo "| --- | --- |"
+            echo "| Prepare | ${R_PREPARE} |"
+            echo "| Analyze & Test | ${R_VERIFY} |"
+            echo "| Build Android | ${R_BUILD} |"
+          } >> "$GITHUB_STEP_SUMMARY"

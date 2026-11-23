@@ -526,3 +526,6 @@ cmake_install.cmake
 server/.wrangler/
 server/tmp/
 tmp/
+
+# Flutter debug-only manifest (the VS template's [Dd]ebug/ rule hides it)
+!mobile/android/app/src/debug/

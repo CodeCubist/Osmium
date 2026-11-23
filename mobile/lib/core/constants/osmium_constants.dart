@@ -1,0 +1,145 @@
+class OsmiumConstants {
+  OsmiumConstants._();
+
+  static const String defaultSignalingUrl = 'wss://osmium.fufu.skin';
+  static const String defaultApiBaseUrl = 'https://osmium.fufu.skin';
+  static const String protocolVersion = '1.0.0';
+  static const String userAgent = 'Osmium-Mobile/1.0';
+
+  /// Frame-rate choices; the Windows client's list
+  /// (`SettingsPage.PopulateFpsCombo`).
+  static const List<int> fpsPresets = [30, 60, 90, 120, 144, 165, 240, 360];
+}
+
+/// Mirrors Windows `Osmium.Core.Models.OsmiumErrorCode`.
+class OsmiumErrorCode {
+  OsmiumErrorCode._();
+
+  static const int ok = 0;
+  static const int captchaRequired = 100;
+  static const int accountCaptchaRequired = captchaRequired;
+  static const int challengePending = 101;
+  static const int accountLocked = 2005;
+  static const int accountAuthRequired = 2010;
+  static const int blacklistedByHost = 2011;
+  static const int qrExpired = 3011;
+  static const int qrNotFound = 3012;
+  static const int qrInvalidSignature = 3013;
+  static const int qrStateInvalid = 3014;
+  static const int qrConfirmCooldown = 3015;
+  static const int qrCancelled = 3016;
+  static const int rateLimited = 4001;
+  static const int connectCooldown = 4005;
+  static const int deviceOffline = 4006;
+  static const int remoteDisabled = 4007;
+  static const int selfConnect = 4008;
+}
+
+class WinKeySpec {
+  const WinKeySpec({
+    required this.vk,
+    required this.scan,
+    this.isExtended = false,
+  });
+
+  final int vk;
+  final int scan;
+  final bool isExtended;
+}
+
+/// Standard Windows Virtual-Key + Hardware ScanCode table matching Osmium Host injector.
+class WinKeys {
+  WinKeys._();
+
+  static const esc = WinKeySpec(vk: 0x1B, scan: 0x01);
+  static const tab = WinKeySpec(vk: 0x09, scan: 0x0F);
+  static const capsLock = WinKeySpec(vk: 0x14, scan: 0x3A);
+  static const shift = WinKeySpec(vk: 0x10, scan: 0x2A);
+  static const lShift = WinKeySpec(vk: 0xA0, scan: 0x2A);
+  static const rShift = WinKeySpec(vk: 0xA1, scan: 0x36);
+  static const ctrl = WinKeySpec(vk: 0x11, scan: 0x1D);
+  static const lCtrl = WinKeySpec(vk: 0xA2, scan: 0x1D);
+  static const rCtrl = WinKeySpec(vk: 0xA3, scan: 0x1D, isExtended: true);
+  static const alt = WinKeySpec(vk: 0x12, scan: 0x38);
+  static const lAlt = WinKeySpec(vk: 0xA4, scan: 0x38);
+  static const rAlt = WinKeySpec(vk: 0xA5, scan: 0x38, isExtended: true);
+  static const lWin = WinKeySpec(vk: 0x5B, scan: 0x5B, isExtended: true);
+  static const space = WinKeySpec(vk: 0x20, scan: 0x39);
+  static const enter = WinKeySpec(vk: 0x0D, scan: 0x1C);
+  static const backspace = WinKeySpec(vk: 0x08, scan: 0x0E);
+  static const delete = WinKeySpec(vk: 0x2E, scan: 0x53, isExtended: true);
+  static const insert = WinKeySpec(vk: 0x2D, scan: 0x52, isExtended: true);
+  static const home = WinKeySpec(vk: 0x24, scan: 0x47, isExtended: true);
+  static const end = WinKeySpec(vk: 0x23, scan: 0x4F, isExtended: true);
+  static const pageUp = WinKeySpec(vk: 0x21, scan: 0x49, isExtended: true);
+  static const pageDown = WinKeySpec(vk: 0x22, scan: 0x51, isExtended: true);
+  static const printScreen = WinKeySpec(vk: 0x2C, scan: 0x37, isExtended: true);
+
+  static const arrowUp = WinKeySpec(vk: 0x26, scan: 0x48, isExtended: true);
+  static const arrowDown = WinKeySpec(vk: 0x28, scan: 0x50, isExtended: true);
+  static const arrowLeft = WinKeySpec(vk: 0x25, scan: 0x4B, isExtended: true);
+  static const arrowRight = WinKeySpec(vk: 0x27, scan: 0x4D, isExtended: true);
+
+  static const f1 = WinKeySpec(vk: 0x70, scan: 0x3B);
+  static const f2 = WinKeySpec(vk: 0x71, scan: 0x3C);
+  static const f3 = WinKeySpec(vk: 0x72, scan: 0x3D);
+  static const f4 = WinKeySpec(vk: 0x73, scan: 0x3E);
+  static const f5 = WinKeySpec(vk: 0x74, scan: 0x3F);
+  static const f6 = WinKeySpec(vk: 0x75, scan: 0x40);
+  static const f7 = WinKeySpec(vk: 0x76, scan: 0x41);
+  static const f8 = WinKeySpec(vk: 0x77, scan: 0x42);
+  static const f9 = WinKeySpec(vk: 0x78, scan: 0x43);
+  static const f10 = WinKeySpec(vk: 0x79, scan: 0x44);
+  static const f11 = WinKeySpec(vk: 0x7A, scan: 0x57);
+  static const f12 = WinKeySpec(vk: 0x7B, scan: 0x58);
+
+  static const Map<String, WinKeySpec> byLabel = {
+    '1': WinKeySpec(vk: 0x31, scan: 0x02),
+    '2': WinKeySpec(vk: 0x32, scan: 0x03),
+    '3': WinKeySpec(vk: 0x33, scan: 0x04),
+    '4': WinKeySpec(vk: 0x34, scan: 0x05),
+    '5': WinKeySpec(vk: 0x35, scan: 0x06),
+    '6': WinKeySpec(vk: 0x36, scan: 0x07),
+    '7': WinKeySpec(vk: 0x37, scan: 0x08),
+    '8': WinKeySpec(vk: 0x38, scan: 0x09),
+    '9': WinKeySpec(vk: 0x39, scan: 0x0A),
+    '0': WinKeySpec(vk: 0x30, scan: 0x0B),
+    '-': WinKeySpec(vk: 0xBD, scan: 0x0C),
+    '=': WinKeySpec(vk: 0xBB, scan: 0x0D),
+    '`': WinKeySpec(vk: 0xC0, scan: 0x29),
+    'Q': WinKeySpec(vk: 0x51, scan: 0x10),
+    'W': WinKeySpec(vk: 0x57, scan: 0x11),
+    'E': WinKeySpec(vk: 0x45, scan: 0x12),
+    'R': WinKeySpec(vk: 0x52, scan: 0x13),
+    'T': WinKeySpec(vk: 0x54, scan: 0x14),
+    'Y': WinKeySpec(vk: 0x59, scan: 0x15),
+    'U': WinKeySpec(vk: 0x55, scan: 0x16),
+    'I': WinKeySpec(vk: 0x49, scan: 0x17),
+    'O': WinKeySpec(vk: 0x4F, scan: 0x18),
+    'P': WinKeySpec(vk: 0x50, scan: 0x19),
+    '[': WinKeySpec(vk: 0xDB, scan: 0x1A),
+    ']': WinKeySpec(vk: 0xDD, scan: 0x1B),
+    '\\': WinKeySpec(vk: 0xDC, scan: 0x2B),
+    'A': WinKeySpec(vk: 0x41, scan: 0x1E),
+    'S': WinKeySpec(vk: 0x53, scan: 0x1F),
+    'D': WinKeySpec(vk: 0x44, scan: 0x20),
+    'F': WinKeySpec(vk: 0x46, scan: 0x21),
+    'G': WinKeySpec(vk: 0x47, scan: 0x22),
+    'H': WinKeySpec(vk: 0x48, scan: 0x23),
+    'J': WinKeySpec(vk: 0x4A, scan: 0x24),
+    'K': WinKeySpec(vk: 0x4B, scan: 0x25),
+    'L': WinKeySpec(vk: 0x4C, scan: 0x26),
+    ';': WinKeySpec(vk: 0xBA, scan: 0x27),
+    '\'': WinKeySpec(vk: 0xDE, scan: 0x28),
+    'Z': WinKeySpec(vk: 0x5A, scan: 0x2C),
+    'X': WinKeySpec(vk: 0x58, scan: 0x2D),
+    'C': WinKeySpec(vk: 0x43, scan: 0x2E),
+    'V': WinKeySpec(vk: 0x56, scan: 0x2F),
+    'B': WinKeySpec(vk: 0x42, scan: 0x30),
+    'N': WinKeySpec(vk: 0x4E, scan: 0x31),
+    'M': WinKeySpec(vk: 0x4D, scan: 0x32),
+    ',': WinKeySpec(vk: 0xBC, scan: 0x33),
+    '.': WinKeySpec(vk: 0xBE, scan: 0x34),
+    '/': WinKeySpec(vk: 0xBF, scan: 0x35),
+  };
+}
