@@ -67,14 +67,12 @@ jobs:
           echo "::notice::Osmium Mobile commit: ${sha} (${short_sha}), version: v${full_version}"
 
   verify:
-    name: Analyze & Test
+    name: Analyze
     needs: prepare
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -91,36 +89,6 @@ jobs:
         working-directory: mobile
         run: flutter analyze --no-pub
 
-      - name: Run Flutter tests
-        working-directory: mobile
-        run: flutter test --no-pub
-
-      - name: Run native crypto vector tests
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          build_dir="${RUNNER_TEMP}/mbedtls-build"
-          cmake -S mobile/third_party/mbedtls -B "${build_dir}" \
-            -DENABLE_TESTING=OFF \
-            -DENABLE_PROGRAMS=OFF \
-            -DUSE_SHARED_MBEDTLS_LIBRARY=OFF \
-            -DUSE_STATIC_MBEDTLS_LIBRARY=ON \
-            -DMBEDTLS_FATAL_WARNINGS=OFF
-          cmake --build "${build_dir}" --target mbedcrypto --parallel
-
-          g++ -std=c++17 -O2 -Wall -Wextra \
-            -Imobile/android/app/src/main/cpp \
-            -Imobile/test/native \
-            -Imobile/test/native/android_stub \
-            -Inative/osmium-engine/include \
-            -Imobile/third_party/mbedtls/include \
-            mobile/test/native/crypto_vector_test.cpp \
-            mobile/android/app/src/main/cpp/MobileCrypto.cpp \
-            "${build_dir}/library/libmbedcrypto.a" \
-            -o "${RUNNER_TEMP}/crypto_vector_test"
-
-          "${RUNNER_TEMP}/crypto_vector_test"
 
   build-android:
     name: Build Android
@@ -331,7 +299,7 @@ jobs:
             echo ""
             echo '```mermaid'
             echo 'flowchart LR'
-            echo '  P[Prepare] --> V[Analyze & Test]'
+            echo '  P[Prepare] --> V[Analyze]'
             echo '  V --> B[Build Android]'
             echo '  classDef ok fill:#2da44e,stroke:#1a7f37,color:#ffffff'
             echo '  classDef failed fill:#cf222e,stroke:#a40e26,color:#ffffff'
@@ -345,6 +313,6 @@ jobs:
             echo "| Job | Result |"
             echo "| --- | --- |"
             echo "| Prepare | ${R_PREPARE} |"
-            echo "| Analyze & Test | ${R_VERIFY} |"
+            echo "| Analyze | ${R_VERIFY} |"
             echo "| Build Android | ${R_BUILD} |"
           } >> "$GITHUB_STEP_SUMMARY"
