@@ -131,6 +131,7 @@
         <ClInclude Include="src\HostAudioCapture.h"/>
         <ClInclude Include="src\HostCapture.h"/>
         <ClInclude Include="src\HostInputInjector.h"/>
+        <ClInclude Include="src\HostTextFocus.h"/>
         <ClInclude Include="src\HostSystemAgent.h"/>
         <ClInclude Include="src\HostVideoEncoder.h"/>
         <ClInclude Include="src\OsmiumCommon.h"/>
@@ -147,6 +148,7 @@
         <ClCompile Include="src\HostAudioCapture.cpp"/>
         <ClCompile Include="src\HostCapture.cpp"/>
         <ClCompile Include="src\HostInputInjector.cpp"/>
+        <ClCompile Include="src\HostTextFocus.cpp"/>
         <ClCompile Include="src\HostSystemAgent.cpp"/>
         <ClCompile Include="src\HostVideoEncoder.cpp"/>
         <ClCompile Include="src\OsmiumEngine.cpp"/>

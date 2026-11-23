@@ -9,6 +9,7 @@
 #include "HostVideoEncoder.h"
 #include "HostAudioCapture.h"
 #include "HostInputInjector.h"
+#include "HostTextFocus.h"
 #include "ClientVideoDecoder.h"
 #include "ClientAudioPlayer.h"
 #include "ClientMicCapture.h"
@@ -230,6 +231,7 @@ namespace
         HostVideoEncoder encoder;
         HostAudioCapture audio;
         HostInputInjector injector;
+        HostTextFocus textFocus;
         UsbIpVirtualDevices virtualUsb;
         HostSystemAgent systemAgent;
         ActionSeqDeduplicator actionDedup;
@@ -535,6 +537,7 @@ namespace
                     }
                 }
                 ctx->injector.SetTargetDisplayRect(ctx->capture.GetDesktopRect());
+                ctx->textFocus.SetDisplayRect(ctx->capture.GetDesktopRect());
             }
 
             ctx->injector.SetEnabled(ctx->config.allowInputControl != 0);
@@ -719,6 +722,7 @@ namespace
                 }
 
                 ctx->injector.SetTargetDisplayRect(ctx->capture.GetDesktopRect());
+                ctx->textFocus.SetDisplayRect(ctx->capture.GetDesktopRect());
                 if (capFrame.width <= 0 || capFrame.height <= 0 || capFrame.stride <= 0 ||
                     capFrame.bgra.size() < static_cast<size_t>(capFrame.stride) * static_cast<size_t>(capFrame.height))
                 {
@@ -1050,6 +1054,31 @@ namespace
                     ctx->sysActionQueue.push_back(p->action);
                 }
                 ctx->sysActionCv.notify_one();
+            }
+            else if (type == proto::AppPacketType::ControlTextFocus && plain.size() >= sizeof(
+                proto::ControlTextFocusPayload))
+            {
+                const auto* p = reinterpret_cast<const proto::ControlTextFocusPayload*>(plain.data());
+                if (p->enabled != 0)
+                {
+                    ctx->textFocus.Start([ctx](const HostTextFocus::State& s)
+                    {
+                        if (ctx->stopFlag.load() || !ctx->transport) return;
+                        proto::HostTextFocusPayload pkt{};
+                        pkt.active = s.active ? 1 : 0;
+                        pkt.hasRect = s.hasRect ? 1 : 0;
+                        pkt.serial = s.serial;
+                        pkt.x = s.x;
+                        pkt.y = s.y;
+                        pkt.w = s.w;
+                        pkt.h = s.h;
+                        ctx->transport->SendEncrypted(proto::AppPacketType::HostTextFocus, &pkt, sizeof(pkt));
+                    });
+                }
+                else
+                {
+                    ctx->textFocus.Stop();
+                }
             }
             else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
             {
@@ -2410,6 +2439,7 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
     auto* ctx = static_cast<HostSessionContext*>(hostHandle);
     ctx->stopFlag.store(true);
     ctx->sysActionCv.notify_all();
+    ctx->textFocus.Stop();
 
     if (ctx->transport)
     {

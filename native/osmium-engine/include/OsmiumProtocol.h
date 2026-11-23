@@ -47,8 +47,10 @@ namespace osmium::proto
         ControlSwitchDisplay = 0x38,
         ControlVideoParams = 0x39,
         ControlMouseMode = 0x3A,
+        ControlTextFocus = 0x3B,
         ControlVirtualAudio = 0x3C,
         ControlSystemAction = 0x3D,
+        HostTextFocus = 0x3E,
         HostStatusJson = 0x3F,
         AuxData = 0x40
     };
@@ -235,6 +237,29 @@ namespace osmium::proto
     {
         AppPacketHeader hdr;
         int32_t action;
+    };
+
+    // Client -> host: start (1) or stop (0) reporting keyboard focus. Touch
+    // clients opt in; older hosts ignore the packet.
+    struct ControlTextFocusPayload
+    {
+        AppPacketHeader hdr;
+        int32_t enabled;
+    };
+
+    // Host -> client: whether an editable control has keyboard focus, and the
+    // caret (or the control) normalized to the streamed display. `serial`
+    // moves whenever focus lands on another control.
+    struct HostTextFocusPayload
+    {
+        AppPacketHeader hdr;
+        uint8_t active;
+        uint8_t hasRect;
+        uint16_t serial;
+        float x;
+        float y;
+        float w;
+        float h;
     };
 
 #pragma pack(pop)
