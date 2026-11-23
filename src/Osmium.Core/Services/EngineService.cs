@@ -35,6 +35,11 @@ public sealed class EngineService : IDisposable
         get;
     }
 
+    public DeviceWallpaperStore DeviceWallpapers
+    {
+        get;
+    }
+
     public OsmiumCapabilities Capabilities
     {
         get;
@@ -54,6 +59,9 @@ public sealed class EngineService : IDisposable
         Signaling = new SignalingClient(Logging);
         AccountService = new AccountService(SettingsService, Logging);
         Coordinator = new P2PCoordinator(SettingsService, Signaling, AccountService, Logging);
+        DeviceWallpapers = new DeviceWallpaperStore(SettingsService.DataDirectory, Logging);
+
+        AccountService.DeviceRemoved += deviceId => DeviceWallpapers.RemoveWallpaper(deviceId);
 
         Signaling.AccountDevicesSyncReceived += devices =>
             AccountService.UpdateSameAccountDevicesFromPush(devices);

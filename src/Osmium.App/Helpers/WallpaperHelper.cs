@@ -1,18 +1,35 @@
 using System.Collections.Concurrent;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics.Imaging;
-using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace Osmium.App.Helpers;
 
 public static class WallpaperHelper
 {
+    private const long MaxSourceFileBytes = 64L * 1024 * 1024;
+    private const int MaxCacheEntries = 48;
+
     private static readonly Dictionary<string, BitmapImage> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, BitmapImage> VariantCache = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly ConcurrentDictionary<string, byte[]>
         VariantPngCache = new(StringComparer.OrdinalIgnoreCase);
+
+    public static string GetWallpaperIdentityKey(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        try
+        {
+            var info = new FileInfo(path);
+            if (!info.Exists || info.Length <= 0) return string.Empty;
+            return $"{path}|{info.LastWriteTimeUtc.Ticks}|{info.Length}";
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
 
     public static string? ResolveDefaultWindowsWallpaperPath(bool isDarkTheme, bool preferSecondary = false)
     {
@@ -113,14 +130,46 @@ public static class WallpaperHelper
         bool grayscale,
         bool blur,
         bool preferSecondary = false,
-        int decodeWidth = 1280)
+        int decodeWidth = 1280,
+        string? customImagePath = null)
     {
-        string? path = ResolveDefaultWindowsWallpaperPath(isDarkTheme, preferSecondary);
-        if (string.IsNullOrEmpty(path)) return null;
+        if (!string.IsNullOrWhiteSpace(customImagePath) && File.Exists(customImagePath))
+        {
+            var customBitmap = await LoadHeroWallpaperVariantFromPathAsync(
+                customImagePath, grayscale, blur, decodeWidth);
+            if (customBitmap != null)
+            {
+                return customBitmap;
+            }
+        }
+
+        string? fallbackPath = ResolveDefaultWindowsWallpaperPath(isDarkTheme, preferSecondary);
+        if (string.IsNullOrEmpty(fallbackPath)) return null;
+
+        var fallbackBitmap = await LoadHeroWallpaperVariantFromPathAsync(
+            fallbackPath, grayscale, blur, decodeWidth);
+        if (fallbackBitmap != null)
+        {
+            return fallbackBitmap;
+        }
+
+        return !grayscale && !blur
+            ? GetWallpaperImage(isDarkTheme, preferSecondary, decodeWidth)
+            : null;
+    }
+
+    private static async Task<BitmapImage?> LoadHeroWallpaperVariantFromPathAsync(
+        string path,
+        bool grayscale,
+        bool blur,
+        int decodeWidth)
+    {
+        string fileIdentity = GetWallpaperIdentityKey(path);
+        if (string.IsNullOrEmpty(fileIdentity)) return null;
 
         int effectiveWidth = blur ? Math.Min(decodeWidth, 640) : decodeWidth;
         int blurRadius = blur ? 14 : 0;
-        string key = $"{path}|{effectiveWidth}|{(grayscale ? "bw" : "c")}|{(blur ? $"b{blurRadius}" : "s")}";
+        string key = $"{fileIdentity}|{effectiveWidth}|{(grayscale ? "bw" : "c")}|{(blur ? $"b{blurRadius}" : "s")}";
 
         if (VariantCache.TryGetValue(key, out var cachedImage))
         {
@@ -131,8 +180,8 @@ public static class WallpaperHelper
         {
             try
             {
-                byte[] rawBytes = await File.ReadAllBytesAsync(path);
-                if (rawBytes.Length > 0)
+                byte[]? rawBytes = await ReadFileBytesSafeAsync(path);
+                if (rawBytes != null && rawBytes.Length > 0)
                 {
                     using var stream = new InMemoryRandomAccessStream();
                     using (var writer = new DataWriter(stream))
@@ -150,7 +199,7 @@ public static class WallpaperHelper
                         DecodePixelWidth = effectiveWidth
                     };
                     await bmp.SetSourceAsync(stream);
-                    VariantCache[key] = bmp;
+                    PutVariantCache(key, bmp);
                     return bmp;
                 }
             }
@@ -158,7 +207,7 @@ public static class WallpaperHelper
             {
             }
 
-            return GetWallpaperImage(isDarkTheme, preferSecondary, decodeWidth);
+            return null;
         }
 
         try
@@ -169,6 +218,11 @@ public static class WallpaperHelper
                 if (pngBytes == null || pngBytes.Length == 0)
                 {
                     return null;
+                }
+
+                if (VariantPngCache.Count >= MaxCacheEntries)
+                {
+                    VariantPngCache.Clear();
                 }
 
                 VariantPngCache[key] = pngBytes;
@@ -187,8 +241,55 @@ public static class WallpaperHelper
 
             var bmp = new BitmapImage();
             await bmp.SetSourceAsync(stream);
-            VariantCache[key] = bmp;
+            PutVariantCache(key, bmp);
             return bmp;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void PutVariantCache(string key, BitmapImage bmp)
+    {
+        if (VariantCache.Count >= MaxCacheEntries)
+        {
+            VariantCache.Clear();
+        }
+
+        VariantCache[key] = bmp;
+    }
+
+    private static async Task<byte[]?> ReadFileBytesSafeAsync(string path)
+    {
+        try
+        {
+            await using var fs = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            if (fs.Length <= 0 || fs.Length > MaxSourceFileBytes)
+            {
+                return null;
+            }
+
+            byte[] buffer = new byte[fs.Length];
+            int offset = 0;
+            while (offset < buffer.Length)
+            {
+                int read = await fs.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset));
+                if (read <= 0) break;
+                offset += read;
+            }
+
+            if (offset <= 0) return null;
+            if (offset != buffer.Length)
+            {
+                Array.Resize(ref buffer, offset);
+            }
+
+            return buffer;
         }
         catch
         {
@@ -199,8 +300,19 @@ public static class WallpaperHelper
     private static async Task<byte[]?> BuildVariantPngAsync(string path, int decodeWidth, bool grayscale,
         int blurRadius)
     {
-        var file = await StorageFile.GetFileFromPathAsync(path);
-        using var inputStream = await file.OpenReadAsync();
+        byte[]? rawBytes = await ReadFileBytesSafeAsync(path);
+        if (rawBytes == null || rawBytes.Length == 0) return null;
+
+        using var inputStream = new InMemoryRandomAccessStream();
+        using (var writer = new DataWriter(inputStream))
+        {
+            writer.WriteBytes(rawBytes);
+            await writer.StoreAsync();
+            await writer.FlushAsync();
+            writer.DetachStream();
+        }
+
+        inputStream.Seek(0);
         var decoder = await BitmapDecoder.CreateAsync(inputStream);
 
         uint srcW = decoder.OrientedPixelWidth;

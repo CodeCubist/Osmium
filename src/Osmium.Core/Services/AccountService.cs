@@ -52,6 +52,7 @@ public sealed partial class AccountService : IDisposable
 
     public event Action? SessionChanged;
     public event Action<IReadOnlyList<AccountDeviceDto>>? SameAccountDevicesChanged;
+    public event Action<string>? DeviceRemoved;
 
     public AccountService(SettingsService settings, LoggingService log)
     {
@@ -618,10 +619,22 @@ public sealed partial class AccountService : IDisposable
             });
         if (result.Ok && result.Data != null)
         {
+            string normalizedId = DeviceIdentity.NormalizeDeviceId(deviceId);
             UpdateSameAccountDevicesFromPush(result.Data.Devices);
-            if (DeviceIdentity.NormalizeDeviceId(deviceId) == _settings.Identity.DeviceId)
+            if (normalizedId == _settings.Identity.DeviceId)
             {
                 ClearSessionState(clearEmail: false);
+            }
+
+            if (!string.IsNullOrEmpty(normalizedId))
+            {
+                try
+                {
+                    DeviceRemoved?.Invoke(normalizedId);
+                }
+                catch
+                {
+                }
             }
         }
 

@@ -22,6 +22,7 @@ public sealed partial class PeerDevicePage : Page
     private bool? _appliedWallpaperDark;
     private bool? _appliedWallpaperOffline;
     private bool? _appliedWallpaperBlurred;
+    private string? _appliedWallpaperIdentity;
     private bool _isControllingOverlayVisible;
     private Storyboard? _wallpaperFadeStoryboard;
     private Storyboard? _overlayFadeStoryboard;
@@ -62,7 +63,12 @@ public sealed partial class PeerDevicePage : Page
         base.OnNavigatedTo(e);
         if (e.Parameter is string devId && !string.IsNullOrWhiteSpace(devId))
         {
-            _targetDeviceId = DeviceIdentity.NormalizeDeviceId(devId);
+            string normalized = DeviceIdentity.NormalizeDeviceId(devId);
+            if (!string.Equals(_targetDeviceId, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                _targetDeviceId = normalized;
+                _appliedWallpaperIdentity = null;
+            }
         }
     }
 
@@ -70,6 +76,8 @@ public sealed partial class PeerDevicePage : Page
     {
         App.Engine.AccountService.SameAccountDevicesChanged -= OnDevicesChanged;
         App.Engine.AccountService.SameAccountDevicesChanged += OnDevicesChanged;
+        App.Engine.DeviceWallpapers.WallpaperChanged -= OnDeviceWallpaperChanged;
+        App.Engine.DeviceWallpapers.WallpaperChanged += OnDeviceWallpaperChanged;
         App.Engine.Coordinator.ConnectCooldownChanged -= OnCooldownChanged;
         App.Engine.Coordinator.ConnectCooldownChanged += OnCooldownChanged;
         App.Engine.Coordinator.ClientStageUpdated += OnClientStageUpdated;
@@ -87,6 +95,7 @@ public sealed partial class PeerDevicePage : Page
     private void PeerDevicePage_Unloaded(object sender, RoutedEventArgs e)
     {
         App.Engine.AccountService.SameAccountDevicesChanged -= OnDevicesChanged;
+        App.Engine.DeviceWallpapers.WallpaperChanged -= OnDeviceWallpaperChanged;
         App.Engine.Coordinator.ConnectCooldownChanged -= OnCooldownChanged;
         App.Engine.Coordinator.ClientStageUpdated -= OnClientStageUpdated;
         App.Engine.Coordinator.ClientStreamStarted -= OnClientStreamStarted;
@@ -98,6 +107,12 @@ public sealed partial class PeerDevicePage : Page
 
     private void OnDevicesChanged(IReadOnlyList<AccountDeviceDto> _)
         => DispatcherQueue.TryEnqueue(RefreshPeerDeviceState);
+
+    private void OnDeviceWallpaperChanged(string deviceId)
+    {
+        if (!string.Equals(deviceId, _targetDeviceId, StringComparison.OrdinalIgnoreCase)) return;
+        DispatcherQueue.TryEnqueue(() => _ = UpdateWallpaperAsync());
+    }
 
     private void OnHostSessionStarted(HostSessionActiveInfo _)
         => DispatcherQueue.TryEnqueue(RefreshPeerDeviceState);

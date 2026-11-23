@@ -9,6 +9,7 @@ using Osmium.App.Helpers;
 using Osmium.App.Services;
 using Osmium.Core.Models;
 using Osmium.Core.Network;
+using Osmium.Core.Services;
 
 namespace Osmium.App.Views;
 
@@ -18,6 +19,7 @@ public sealed partial class RemoteHomePage : Page
     private bool? _appliedWallpaperDark;
     private bool? _appliedWallpaperOffline;
     private bool? _appliedWallpaperBlurred;
+    private string? _appliedWallpaperIdentity;
     private bool _isControllingOverlayVisible;
     private bool _systemServiceBarDismissed;
     private Storyboard? _wallpaperFadeStoryboard;
@@ -109,6 +111,14 @@ public sealed partial class RemoteHomePage : Page
     private void OnSystemServiceStatusChanged()
         => DispatcherQueue.TryEnqueue(UpdateSystemServiceBar);
 
+    private void OnMainWindowActivated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState != WindowActivationState.Deactivated)
+        {
+            UpdateHeroWallpaper();
+        }
+    }
+
     private void RemoteHomePage_Loaded(object sender, RoutedEventArgs e)
     {
         App.Engine.AccountService.SessionChanged -= OnAccountStateChanged;
@@ -117,6 +127,11 @@ public sealed partial class RemoteHomePage : Page
         App.Engine.AccountService.SameAccountDevicesChanged += OnAccountDevicesChanged;
         SystemServiceHelper.StatusChanged -= OnSystemServiceStatusChanged;
         SystemServiceHelper.StatusChanged += OnSystemServiceStatusChanged;
+        if (App.MainWindowInstance != null)
+        {
+            App.MainWindowInstance.Activated -= OnMainWindowActivated;
+            App.MainWindowInstance.Activated += OnMainWindowActivated;
+        }
 
         UpdateHeroRoundedClip();
         ApplyLocalization();
@@ -131,6 +146,11 @@ public sealed partial class RemoteHomePage : Page
         App.Engine.AccountService.SessionChanged -= OnAccountStateChanged;
         App.Engine.AccountService.SameAccountDevicesChanged -= OnAccountDevicesChanged;
         SystemServiceHelper.StatusChanged -= OnSystemServiceStatusChanged;
+        if (App.MainWindowInstance != null)
+        {
+            App.MainWindowInstance.Activated -= OnMainWindowActivated;
+        }
+
         _hostDurationTimer.Stop();
     }
 
@@ -173,23 +193,38 @@ public sealed partial class RemoteHomePage : Page
         bool isDark = ActualTheme == ElementTheme.Dark;
         bool isOffline = App.Engine.Signaling.State != SignalingConnectionState.Connected;
         bool isBlurred = App.Engine.Coordinator.IsHostStreaming;
+        int version = ++_wallpaperVersion;
+
+        var (localPath, identity) = await Task.Run(() =>
+        {
+            string? path = WindowsWallpaperHelper.ResolveCurrentDesktopWallpaperPath();
+            string id = WallpaperHelper.GetWallpaperIdentityKey(path);
+            return (path, id);
+        });
+        if (version != _wallpaperVersion) return;
 
         if (_appliedWallpaperDark == isDark &&
             _appliedWallpaperOffline == isOffline &&
             _appliedWallpaperBlurred == isBlurred &&
+            string.Equals(_appliedWallpaperIdentity, identity, StringComparison.Ordinal) &&
             HeroWallpaperImage.Source != null)
         {
             return;
         }
 
+        var targetSource = await WallpaperHelper.GetHeroWallpaperVariantAsync(
+            isDark,
+            grayscale: isOffline,
+            blur: isBlurred,
+            preferSecondary: false,
+            decodeWidth: 1280,
+            customImagePath: localPath);
+        if (version != _wallpaperVersion || targetSource == null) return;
+
         _appliedWallpaperDark = isDark;
         _appliedWallpaperOffline = isOffline;
         _appliedWallpaperBlurred = isBlurred;
-        int version = ++_wallpaperVersion;
-
-        var targetSource = await WallpaperHelper.GetHeroWallpaperVariantAsync(
-            isDark, grayscale: isOffline, blur: isBlurred, preferSecondary: false, decodeWidth: 1280);
-        if (version != _wallpaperVersion || targetSource == null) return;
+        _appliedWallpaperIdentity = identity;
 
         ApplyHeroWallpaperWithTransition(targetSource);
     }
