@@ -255,7 +255,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
     {
         Shutdown();
         m_DisplayIndex = displayIndex;
-        m_CaptureCursor = captureCursor;
+        SetCaptureCursor(captureCursor);
 
         if (InitDuplication())
         {
@@ -314,7 +314,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_LastFrameBgra.clear();
         m_LastFrameIsHdr10Pq = false;
         m_HasLastFrame = false;
-        m_ConsecutiveTimeouts = 0;
+        m_LastDxgiFrameOrGdiProbeMs = 0;
+        m_InitialHdrTimeouts = 0;
         m_ConsecutiveDuplFailures = 0;
         m_GdiFallbackUntilMs = 0;
     }
@@ -753,14 +754,16 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_LastFrameBgra.resize(static_cast<size_t>(m_Width) * static_cast<size_t>(m_Height) * 4);
         m_LastFrameIsHdr10Pq = false;
         m_HasLastFrame = false;
-        m_ConsecutiveTimeouts = 0;
+        m_LastDxgiFrameOrGdiProbeMs = 0;
+        m_InitialHdrTimeouts = 0;
         OSM_LOG_INFO("HostCapture DXGI duplication ready (%dx%d, cs=%d, hdr=%d, sdrWhite=%.2fx)",
                      m_Width, m_Height, static_cast<int>(m_OutputColorSpace), m_OutputIsHdr ? 1 : 0, m_SdrWhiteScale);
         return true;
     }
 
-    bool HostCapture::CaptureNextFrame(CapturedFrame& outFrame, int timeoutMs, bool preferPqHdr)
+    bool HostCapture::CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr)
     {
+        const bool captureCursor = m_CaptureCursor.load(std::memory_order_relaxed);
         outFrame.captureTimeUs = NowMicros();
         outFrame.isHdr10Pq = false;
         RefreshOutputHdrState();
@@ -769,7 +772,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         if (m_GdiFallbackUntilMs != 0 && nowMs < m_GdiFallbackUntilMs)
         {
             RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame);
+            return CaptureViaGdi(outFrame, captureCursor);
         }
 
         if (!m_Duplication)
@@ -782,13 +785,32 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             if (!m_Duplication)
             {
                 RefreshMonitorBoundsForGdi();
-                return CaptureViaGdi(outFrame);
+                return CaptureViaGdi(outFrame, captureCursor);
             }
         }
 
-        UINT effectiveTimeout = (!m_HasLastFrame && m_OutputIsHdr)
-                                    ? static_cast<UINT>(std::max(timeoutMs, 100))
-                                    : static_cast<UINT>(std::max(timeoutMs, 0));
+        const bool wantPq = preferPqHdr && m_OutputIsHdr;
+        const bool hasUsableCache = m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPq;
+        auto copyCachedFrame = [&](bool updated)
+        {
+            const uint64_t revision = captureCursor ? 0 : m_LastFrameRevision;
+            if (revision == 0 || revision != outFrame.pixelRevision)
+            {
+                outFrame.bgra = m_LastFrameBgra;
+            }
+            outFrame.width = m_Width;
+            outFrame.height = m_Height;
+            outFrame.stride = m_Width * 4;
+            outFrame.pixelRevision = revision;
+            outFrame.updated = updated;
+            outFrame.isHdr10Pq = m_LastFrameIsHdr10Pq;
+            if (captureCursor) OverlayCursor(outFrame);
+            return true;
+        };
+
+        // The host loop already paces frame sampling. Reuse the cached desktop if no update is ready.
+        const int minWaitMs = !m_HasLastFrame && m_OutputIsHdr ? 100 : 0;
+        const UINT effectiveTimeout = hasUsableCache ? 0 : static_cast<UINT>(std::max(initialWaitMs, minWaitMs));
 
         DXGI_OUTDUPL_FRAME_INFO frameInfo{};
         ComPtr<IDXGIResource> desktopRes;
@@ -796,42 +818,35 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         if (hr == DXGI_ERROR_WAIT_TIMEOUT)
         {
-            m_ConsecutiveTimeouts++;
-            bool wantPqNow = preferPqHdr && m_OutputIsHdr;
-            if (m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPqNow)
+            if (hasUsableCache)
             {
-                if (!m_LastFrameIsHdr10Pq && m_ConsecutiveTimeouts >= 30)
+                // Keep the SDR fallback check independent of the requested frame rate.
+                if (!wantPq && nowMs - m_LastDxgiFrameOrGdiProbeMs >= 500)
                 {
-                    m_ConsecutiveTimeouts = 0;
-                    if (CaptureViaGdi(outFrame))
+                    m_LastDxgiFrameOrGdiProbeMs = nowMs;
+                    if (CaptureViaGdi(outFrame, captureCursor))
                     {
-                        if (!m_CaptureCursor && outFrame.width == m_Width && outFrame.height == m_Height &&
+                        if (!captureCursor && outFrame.width == m_Width && outFrame.height == m_Height &&
                             outFrame.bgra.size() == static_cast<size_t>(m_Width) * static_cast<size_t>(m_Height) * 4)
                         {
                             m_LastFrameBgra = outFrame.bgra;
+                            outFrame.pixelRevision = ++m_LastFrameRevision;
                         }
                         return true;
                     }
                 }
-                outFrame.width = m_Width;
-                outFrame.height = m_Height;
-                outFrame.stride = m_Width * 4;
-                outFrame.bgra = m_LastFrameBgra;
-                outFrame.updated = false;
-                outFrame.isHdr10Pq = m_LastFrameIsHdr10Pq;
-                if (m_CaptureCursor) OverlayCursor(outFrame);
-                return true;
+                return copyCachedFrame(false);
             }
-            if (m_HasLastFrame && m_LastFrameIsHdr10Pq != wantPqNow)
+            if (m_HasLastFrame)
             {
                 return false;
             }
-            if (m_OutputIsHdr && m_ConsecutiveTimeouts < 8)
+            if (m_OutputIsHdr && ++m_InitialHdrTimeouts < 8)
             {
                 return false;
             }
             RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame);
+            return CaptureViaGdi(outFrame, captureCursor);
         }
 
         if (FAILED(hr))
@@ -847,24 +862,31 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 m_GdiFallbackUntilMs = m_LastDuplRetryMs + 5000;
                 m_ConsecutiveDuplFailures = 0;
                 RefreshMonitorBoundsForGdi();
-                return CaptureViaGdi(outFrame);
+                return CaptureViaGdi(outFrame, captureCursor);
             }
             InitDuplication();
             if (!m_Duplication || !m_HasLastFrame)
             {
                 RefreshMonitorBoundsForGdi();
-                return CaptureViaGdi(outFrame);
+                return CaptureViaGdi(outFrame, captureCursor);
             }
             return false;
         }
 
-        m_ConsecutiveTimeouts = 0;
+        m_LastDxgiFrameOrGdiProbeMs = NowMillis();
+        m_InitialHdrTimeouts = 0;
 
+        // A pointer-only update can reuse the desktop unless a previous readback failed.
+        if (frameInfo.LastPresentTime.QuadPart == 0 && hasUsableCache && m_ConsecutiveDuplFailures == 0)
+        {
+            m_Duplication->ReleaseFrame();
+            return copyCachedFrame(false);
+        }
         if (frameInfo.LastPresentTime.QuadPart == 0 && !m_HasLastFrame)
         {
             m_Duplication->ReleaseFrame();
             RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame);
+            return CaptureViaGdi(outFrame, captureCursor);
         }
 
         bool mapSucceeded = false;
@@ -943,6 +965,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                         rowBytes);
                 }
                 m_Context->Unmap(m_StagingTex.Get(), 0);
+                ++m_LastFrameRevision;
                 m_LastFrameIsHdr10Pq = outputPq;
                 m_HasLastFrame = true;
                 mapSucceeded = true;
@@ -963,28 +986,18 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 m_ConsecutiveDuplFailures = 0;
             }
             RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame);
+            return CaptureViaGdi(outFrame, captureCursor);
         }
 
         m_ConsecutiveDuplFailures = 0;
         m_GdiFallbackUntilMs = 0;
 
-        if (!m_HasLastFrame) return false;
-        outFrame.width = m_Width;
-        outFrame.height = m_Height;
-        outFrame.stride = m_Width * 4;
-        outFrame.bgra = m_LastFrameBgra;
-        outFrame.updated = true;
-        outFrame.isHdr10Pq = m_LastFrameIsHdr10Pq;
-        if (m_CaptureCursor)
-        {
-            OverlayCursor(outFrame);
-        }
-        return true;
+        return copyCachedFrame(true);
     }
 
-    bool HostCapture::CaptureViaGdi(CapturedFrame& outFrame)
+    bool HostCapture::CaptureViaGdi(CapturedFrame& outFrame, bool captureCursor)
     {
+        outFrame.pixelRevision = 0;
         outFrame.width = m_Width;
         outFrame.height = m_Height;
         outFrame.stride = m_Width * 4;
@@ -1020,7 +1033,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         HGDIOBJ oldObj = SelectObject(hMem, hBmp);
         BitBlt(hMem, 0, 0, m_Width, m_Height, hScreen, m_DesktopRect.left, m_DesktopRect.top, SRCCOPY | CAPTUREBLT);
 
-        if (m_CaptureCursor)
+        if (captureCursor)
         {
             CURSORINFO ci{};
             ci.cbSize = sizeof(ci);

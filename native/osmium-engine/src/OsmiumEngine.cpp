@@ -220,6 +220,38 @@ namespace
         uint64_t m_Window[4]{};
     };
 
+    struct HostVideoSettings
+    {
+        int32_t width = 0;
+        int32_t height = 0;
+        int32_t fps = 60;
+        int32_t bitrateKbps = 20000;
+        bool hdr = false;
+        bool yuv444 = false;
+
+        bool operator==(const HostVideoSettings&) const = default;
+    };
+
+    HostVideoSettings ApplyHostVideoLimits(const OsmiumHostConfig& config, HostVideoSettings settings)
+    {
+        const auto limitDimension = [](int32_t value, int32_t limit)
+        {
+            if (limit <= 0) return std::max(0, value);
+            return value > 0 ? std::min(value, limit) : limit;
+        };
+        const int32_t maxFps = std::clamp(config.maxFps > 0 ? config.maxFps : 60, 10, 240);
+        const int32_t maxBitrateKbps = std::clamp(
+            config.maxBitrateKbps > 0 ? config.maxBitrateKbps : 20000, 500, 500000);
+
+        settings.width = limitDimension(settings.width, config.maxWidth);
+        settings.height = limitDimension(settings.height, config.maxHeight);
+        settings.fps = settings.fps > 0 ? std::clamp(settings.fps, 10, maxFps) : maxFps;
+        settings.bitrateKbps = settings.bitrateKbps > 0
+                                  ? std::clamp(settings.bitrateKbps, 500, maxBitrateKbps)
+                                  : maxBitrateKbps;
+        return settings;
+    }
+
     struct HostSessionContext
     {
         OsmiumTransport* transport = nullptr;
@@ -238,12 +270,7 @@ namespace
 
         std::mutex cfgMutex;
         int32_t activeDisplayIndex = 0;
-        int32_t reqWidth = 0;
-        int32_t reqHeight = 0;
-        int32_t reqFps = 60;
-        int32_t reqBitrateKbps = 20000;
-        bool reqHdr = false;
-        bool reqYuv444 = false;
+        HostVideoSettings videoSettings;
         bool lastHostHdr = false;
         int32_t mouseMode = 0;
         bool hideHostCursorInHostMode = true;
@@ -301,7 +328,7 @@ namespace
         {
             std::lock_guard<std::mutex> lock(ctx->cfgMutex);
             activeIdx = ctx->activeDisplayIndex;
-            fps = ctx->reqFps;
+            fps = ctx->videoSettings.fps;
             mMode = ctx->mouseMode;
             smartEng = ctx->smartEngaged;
             lastAct = ctx->lastActionMsg;
@@ -479,52 +506,22 @@ namespace
         ctx->injector.SetVirtualDevices(&ctx->virtualUsb);
         ctx->audio.SetVirtualDevices(&ctx->virtualUsb);
 
-        {
-            std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-            ctx->activeDisplayIndex = ctx->config.displayIndex;
-            int32_t hostMaxW = ctx->config.maxWidth;
-            int32_t hostMaxH = ctx->config.maxHeight;
-            int32_t cliW = ctx->clientProfile.targetWidth;
-            int32_t cliH = ctx->clientProfile.targetHeight;
-            ctx->reqWidth = (hostMaxW > 0 && cliW > 0) ? std::min(hostMaxW, cliW) : (hostMaxW > 0 ? hostMaxW : cliW);
-            ctx->reqHeight = (hostMaxH > 0 && cliH > 0) ? std::min(hostMaxH, cliH) : (hostMaxH > 0 ? hostMaxH : cliH);
-            ctx->reqFps = ctx->config.maxFps > 0 ? ctx->config.maxFps : 60;
-            if (ctx->clientProfile.fps > 0 && ctx->clientProfile.fps < ctx->reqFps)
-            {
-                ctx->reqFps = ctx->clientProfile.fps;
-            }
-            ctx->reqFps = std::clamp(ctx->reqFps, 10, 240);
-            ctx->reqBitrateKbps = ctx->config.maxBitrateKbps > 0 ? ctx->config.maxBitrateKbps : 20000;
-            if (ctx->clientProfile.bitrateKbps > 0 && ctx->clientProfile.bitrateKbps < ctx->reqBitrateKbps)
-            {
-                ctx->reqBitrateKbps = ctx->clientProfile.bitrateKbps;
-            }
-            ctx->reqBitrateKbps = std::clamp(ctx->reqBitrateKbps, 500, 500000);
-            ctx->reqHdr = ctx->clientProfile.enableHdr != 0;
-            ctx->reqYuv444 = ctx->clientProfile.enableYuv444 != 0;
-            ctx->mouseMode = ctx->clientProfile.mouseMode;
-            ctx->hideHostCursorInHostMode = (ctx->mouseMode == 0);
-        }
-
+        int32_t activeFps = 60;
         auto reconfigurePipeline = [&](bool forceInitCapture) -> bool
         {
-            int dispIdx = 0, reqW = 0, reqH = 0, fps = 60, bitrate = 20000;
-            bool hdr = false, yuv444 = false;
+            int dispIdx = 0;
+            bool capCursor = false;
+            HostVideoSettings settings;
             {
                 std::lock_guard<std::mutex> lock(ctx->cfgMutex);
                 dispIdx = ctx->activeDisplayIndex;
-                reqW = ctx->reqWidth;
-                reqH = ctx->reqHeight;
-                fps = ctx->reqFps;
-                bitrate = ctx->reqBitrateKbps;
-                hdr = ctx->reqHdr;
-                yuv444 = ctx->reqYuv444;
+                settings = ctx->videoSettings;
                 ApplyHostMouseModeLocked(ctx);
+                capCursor = ctx->virtualMouseRequested || !ctx->hideHostCursorInHostMode;
             }
 
             if (forceInitCapture || dispIdx != ctx->capture.GetDisplayIndex())
             {
-                bool capCursor = ctx->virtualMouseRequested || !ctx->hideHostCursorInHostMode;
                 if (!ctx->capture.Initialize(dispIdx, capCursor))
                 {
                     if (dispIdx != 0 && ctx->capture.Initialize(0, capCursor))
@@ -544,29 +541,18 @@ namespace
             ctx->injector.SetEnabled(ctx->config.allowInputControl != 0);
             ctx->capture.RefreshOutputHdrState();
             bool hostHdr = ctx->capture.IsOutputHdr();
-            bool effectiveHdr = hdr && hostHdr;
+            bool effectiveHdr = settings.hdr && hostHdr;
             ctx->lastHostHdr = hostHdr;
 
             int capW = ctx->capture.GetWidth();
             int capH = ctx->capture.GetHeight();
-            int effReqW = reqW;
-            int effReqH = reqH;
-            if (ctx->config.maxWidth > 0 && (effReqW <= 0 || ctx->config.maxWidth < effReqW))
-            {
-                effReqW = ctx->config.maxWidth;
-            }
-            if (ctx->config.maxHeight > 0 && (effReqH <= 0 || ctx->config.maxHeight < effReqH))
-            {
-                effReqH = ctx->config.maxHeight;
-            }
 
             int outW = capW;
             int outH = capH;
-
-            if (effReqW > 0 && effReqH > 0 && (capW > effReqW || capH > effReqH))
+            if (settings.width > 0 && settings.height > 0 && (capW > settings.width || capH > settings.height))
             {
-                double scale = std::min(1.0, std::min(static_cast<double>(effReqW) / capW,
-                                                      static_cast<double>(effReqH) / capH));
+                double scale = std::min(1.0, std::min(static_cast<double>(settings.width) / capW,
+                                                      static_cast<double>(settings.height) / capH));
                 outW = std::max(256, static_cast<int>(capW * scale) & ~1);
                 outH = std::max(144, static_cast<int>(capH * scale) & ~1);
             }
@@ -574,11 +560,12 @@ namespace
             int codecPref = ctx->clientProfile.codecPreference != 0
                                 ? ctx->clientProfile.codecPreference
                                 : ctx->config.codecPreference;
-            if (!ctx->encoder.Initialize(capW, capH, outW, outH, fps, bitrate, codecPref, ctx->config.encoderPreference,
-                                         effectiveHdr, yuv444))
+            if (!ctx->encoder.Initialize(capW, capH, outW, outH, settings.fps, settings.bitrateKbps, codecPref,
+                                         ctx->config.encoderPreference, effectiveHdr, settings.yuv444))
             {
                 return false;
             }
+            activeFps = settings.fps;
             ctx->statusDirty.store(true);
             return true;
         };
@@ -699,16 +686,11 @@ namespace
                 PushHostStatusJson(ctx);
             }
 
-            int curFps = 60;
-            {
-                std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                curFps = std::clamp(ctx->reqFps, 10, 240);
-            }
-            const uint64_t frameIntervalUs = 1000000ULL / static_cast<uint64_t>(curFps);
+            const uint64_t frameIntervalUs = 1000000ULL / static_cast<uint64_t>(activeFps);
             const bool wantPqCapture = ctx->encoder.IsPqHdrActive();
-            const int capWaitMs = std::clamp<int>(static_cast<int>(frameIntervalUs / 1000ULL), 4, 16);
+            const int initialCaptureWaitMs = std::clamp<int>(static_cast<int>(frameIntervalUs / 1000ULL), 4, 16);
 
-            if (ctx->capture.CaptureNextFrame(capFrame, capWaitMs, wantPqCapture))
+            if (ctx->capture.CaptureNextFrame(capFrame, initialCaptureWaitMs, wantPqCapture))
             {
                 bool curHostHdr = ctx->capture.IsOutputHdr();
                 if (curHostHdr != ctx->lastHostHdr)
@@ -747,7 +729,8 @@ namespace
                 }
 
                 uint64_t encStartUs = NowMicros();
-                if (ctx->encoder.EncodeFrame(capFrame.bgra.data(), capFrame.stride, capFrame.isHdr10Pq, encodedPackets))
+                if (ctx->encoder.EncodeFrame(capFrame.bgra.data(), capFrame.stride, capFrame.isHdr10Pq,
+                                             encodedPackets, capFrame.pixelRevision))
                 {
                     consecutiveEncodeErrors = 0;
                     double encMs = static_cast<double>(NowMicros() - encStartUs) / 1000.0;
@@ -1004,16 +987,21 @@ namespace
                 proto::ControlVideoParamsPayload))
             {
                 const auto* p = reinterpret_cast<const proto::ControlVideoParamsPayload*>(plain.data());
+                std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                HostVideoSettings settings = ctx->videoSettings;
+                if (p->targetWidth >= 0) settings.width = p->targetWidth;
+                if (p->targetHeight >= 0) settings.height = p->targetHeight;
+                if (p->fps > 0) settings.fps = p->fps;
+                if (p->bitrateKbps > 0) settings.bitrateKbps = p->bitrateKbps;
+                settings.hdr = (p->enableHdr != 0);
+                settings.yuv444 = (p->enableYuv444 != 0);
+                settings = ApplyHostVideoLimits(ctx->config, settings);
+
+                if (settings != ctx->videoSettings)
                 {
-                    std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                    if (p->targetWidth >= 0) ctx->reqWidth = p->targetWidth;
-                    if (p->targetHeight >= 0) ctx->reqHeight = p->targetHeight;
-                    if (p->fps > 0) ctx->reqFps = std::clamp(p->fps, 10, 240);
-                    if (p->bitrateKbps > 0) ctx->reqBitrateKbps = std::clamp(p->bitrateKbps, 500, 500000);
-                    ctx->reqHdr = (p->enableHdr != 0);
-                    ctx->reqYuv444 = (p->enableYuv444 != 0);
+                    ctx->videoSettings = settings;
+                    ctx->reconfigNeeded.store(true);
                 }
-                ctx->reconfigNeeded.store(true);
             }
             else if (type == proto::AppPacketType::ControlMouseMode && plain.size() >= sizeof(
                 proto::ControlMouseModePayload))
@@ -2434,6 +2422,15 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     ctx->config = *config;
     if (negotiatedClientProfile) ctx->clientProfile = *negotiatedClientProfile;
     if (callbacks) ctx->callbacks = *callbacks;
+
+    const auto& profile = ctx->clientProfile;
+    ctx->activeDisplayIndex = ctx->config.displayIndex;
+    ctx->videoSettings = ApplyHostVideoLimits(ctx->config, {
+        profile.targetWidth, profile.targetHeight, profile.fps, profile.bitrateKbps,
+        profile.enableHdr != 0, profile.enableYuv444 != 0
+    });
+    ctx->mouseMode = profile.mouseMode;
+    ctx->hideHostCursorInHostMode = (ctx->mouseMode == 0);
 
     ctx->sysActionThread = std::thread(HostSysActionLoop, ctx);
     ctx->videoThread = std::thread(HostVideoLoop, ctx);
