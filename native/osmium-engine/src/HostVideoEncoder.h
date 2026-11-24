@@ -50,7 +50,8 @@ namespace osmium
             const uint8_t* pixels,
             int srcStride,
             bool isRgb10Pq,
-            std::vector<EncodedPacket>& outPackets);
+            std::vector<EncodedPacket>& outPackets,
+            uint64_t pixelRevision = 0);
 
         bool EncodeBgra(
             const uint8_t* bgra,
@@ -96,6 +97,7 @@ namespace osmium
         int m_OutWidth = 0;
         int m_OutHeight = 0;
         int64_t m_Pts = 0;
+        uint64_t m_ConvertedPixelRevision = 0;
 
         std::string m_EncoderName;
         std::string m_CodecName;

@@ -63,6 +63,7 @@ namespace osmium
 
     void HostVideoEncoder::Shutdown()
     {
+        m_ConvertedPixelRevision = 0;
         if (m_SwsCtx)
         {
             sws_freeContext(m_SwsCtx);
@@ -520,24 +521,33 @@ namespace osmium
         const uint8_t* pixels,
         int srcStride,
         bool isRgb10Pq,
-        std::vector<EncodedPacket>& outPackets)
+        std::vector<EncodedPacket>& outPackets,
+        uint64_t pixelRevision)
     {
         outPackets.clear();
         if (!m_CodecCtx || !m_YuvFrame || !pixels) return false;
 
-        if (av_frame_make_writable(m_YuvFrame) < 0) return false;
+        if (pixelRevision == 0 || pixelRevision != m_ConvertedPixelRevision)
+        {
+            m_ConvertedPixelRevision = 0;
+            if (av_frame_make_writable(m_YuvFrame) < 0) return false;
 
-        if (isRgb10Pq)
-        {
-            if (!FillYuvFromRgb10Pq(pixels, srcStride)) return false;
-        }
-        else
-        {
-            if (!EnsureSwsContext(AV_PIX_FMT_BGRA)) return false;
-            const uint8_t* srcSlices[4] = {pixels, nullptr, nullptr, nullptr};
-            int srcLinesizes[4] = {srcStride, 0, 0, 0};
-            sws_scale(m_SwsCtx, srcSlices, srcLinesizes, 0, m_SrcHeight,
-                      m_YuvFrame->data, m_YuvFrame->linesize);
+            if (isRgb10Pq)
+            {
+                if (!FillYuvFromRgb10Pq(pixels, srcStride)) return false;
+            }
+            else
+            {
+                if (!EnsureSwsContext(AV_PIX_FMT_BGRA)) return false;
+                const uint8_t* srcSlices[4] = {pixels, nullptr, nullptr, nullptr};
+                int srcLinesizes[4] = {srcStride, 0, 0, 0};
+                if (sws_scale(m_SwsCtx, srcSlices, srcLinesizes, 0, m_SrcHeight,
+                              m_YuvFrame->data, m_YuvFrame->linesize) != m_OutHeight)
+                {
+                    return false;
+                }
+            }
+            m_ConvertedPixelRevision = pixelRevision;
         }
 
         const bool forcedIdr = m_ForceIdr.exchange(false);

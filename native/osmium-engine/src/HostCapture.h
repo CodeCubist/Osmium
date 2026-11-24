@@ -4,6 +4,7 @@
 #include <d3d11.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,8 @@ namespace osmium
         int height = 0;
         int stride = 0;
         uint64_t captureTimeUs = 0;
+        // Zero denotes pixels that must be copied and converted for every capture.
+        uint64_t pixelRevision = 0;
         bool updated = false;
         bool isHdr10Pq = false;
     };
@@ -31,8 +34,8 @@ namespace osmium
         bool Initialize(int displayIndex, bool captureCursor);
         void Shutdown();
 
-        void SetCaptureCursor(bool captureCursor) { m_CaptureCursor = captureCursor; }
-        bool CaptureNextFrame(CapturedFrame& outFrame, int timeoutMs, bool preferPqHdr = false);
+        void SetCaptureCursor(bool captureCursor) { m_CaptureCursor.store(captureCursor, std::memory_order_relaxed); }
+        bool CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr = false);
         void RefreshOutputHdrState();
 
         int GetDisplayIndex() const { return m_DisplayIndex; }
@@ -46,7 +49,7 @@ namespace osmium
         bool InitDuplication();
         void ReleaseD3DResources();
         bool RefreshMonitorBoundsForGdi();
-        bool CaptureViaGdi(CapturedFrame& outFrame);
+        bool CaptureViaGdi(CapturedFrame& outFrame, bool captureCursor);
         void OverlayCursor(CapturedFrame& frame);
         bool EnsureHdrTonemapPipeline(UINT width, UINT height, DXGI_FORMAT srcFmt, DXGI_FORMAT dstFmt);
         bool ConvertAcquiredTexture(ID3D11Texture2D* srcTex, const D3D11_TEXTURE2D_DESC& srcDesc, bool outputPqHdr);
@@ -54,7 +57,7 @@ namespace osmium
                                          bool& outIsHdr, float& outSdrScale) const;
 
         int m_DisplayIndex = 0;
-        bool m_CaptureCursor = true;
+        std::atomic<bool> m_CaptureCursor{true};
         int m_Width = 1920;
         int m_Height = 1080;
         RECT m_DesktopRect{0, 0, 1920, 1080};
@@ -65,7 +68,8 @@ namespace osmium
         uint64_t m_LastWhiteQueryMs = 0;
         uint64_t m_LastDuplRetryMs = 0;
         uint64_t m_GdiFallbackUntilMs = 0;
-        uint32_t m_ConsecutiveTimeouts = 0;
+        uint64_t m_LastDxgiFrameOrGdiProbeMs = 0;
+        uint32_t m_InitialHdrTimeouts = 0;
         uint32_t m_ConsecutiveDuplFailures = 0;
         DXGI_FORMAT m_LastLoggedAcqFmt = DXGI_FORMAT_UNKNOWN;
 
@@ -90,6 +94,7 @@ namespace osmium
         Microsoft::WRL::ComPtr<ID3D11Buffer> m_TonemapCb;
 
         std::vector<uint8_t> m_LastFrameBgra;
+        uint64_t m_LastFrameRevision = 0;
         bool m_LastFrameIsHdr10Pq = false;
         bool m_HasLastFrame = false;
     };
