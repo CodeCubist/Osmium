@@ -80,13 +80,42 @@ namespace
         std::atomic<uint64_t> bytesRecvWindow{0};
         std::atomic<uint32_t> renderedFramesWindow{0};
         std::atomic<uint32_t> micSeqCounter{1};
+        std::atomic<uint32_t> actionSeqCounter{1};
         std::atomic<uint64_t> lastIdrRequestMs{0};
+        std::atomic<bool> hasLastAbsMouse{false};
+        std::atomic<float> lastAbsMouseX{0.5f};
+        std::atomic<float> lastAbsMouseY{0.5f};
 
         std::thread recvThread;
         std::thread decodeThread;
 
-        // Every request forces a host keyframe. Windows spaces them 150 ms apart
-        // so a burst of loss does not turn into a burst of oversized frames.
+        uint16_t AllocateActionSeq()
+        {
+            uint32_t v = actionSeqCounter.fetch_add(1, std::memory_order_relaxed);
+            uint16_t s = static_cast<uint16_t>(v & 0xFFFFU);
+            if (s == 0)
+            {
+                v = actionSeqCounter.fetch_add(1, std::memory_order_relaxed);
+                s = static_cast<uint16_t>(v & 0xFFFFU);
+                if (s == 0) s = 1;
+            }
+            return s;
+        }
+
+        void SendMustExecuteAction(osmium::proto::AppPacketType type, void* payload, size_t payloadLen)
+        {
+            if (!transport || !payload || payloadLen < sizeof(osmium::proto::AppPacketHeader)) return;
+            auto* hdr = reinterpret_cast<osmium::proto::AppPacketHeader*>(payload);
+            hdr->flags |= osmium::proto::kAppFlagHasActionSeq;
+            hdr->reserved = AllocateActionSeq();
+            transport->SendEncrypted(type, payload, payloadLen);
+            if (!transport->IsKcpActive() &&
+                transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+            {
+                transport->SendEncrypted(type, payload, payloadLen);
+            }
+        }
+
         void RequestIdr(uint64_t minGapMs)
         {
             uint64_t nowMs = MobileTransport::NowMillis();
@@ -95,6 +124,11 @@ namespace
             if (!lastIdrRequestMs.compare_exchange_strong(last, nowMs, std::memory_order_relaxed)) return;
             osmium::proto::AppPacketHeader idrReq{};
             transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+            if (!transport->IsKcpActive() &&
+                transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+            {
+                transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+            }
         }
 
         void PushEvent(int32_t type, int32_t flags, const uint8_t* data, size_t len)
@@ -205,27 +239,22 @@ namespace
                         ctx->droppedFrames.fetch_add(1, std::memory_order_relaxed);
                         ctx->RequestIdr(150);
                     }
-                    bool overflowed = false;
+                    bool congested = false;
                     {
                         std::lock_guard<std::mutex> ql(ctx->frameQueueMutex);
                         if (frame.isKeyFrame)
                         {
                             ctx->frameQueue.clear();
                         }
-                        else if (ctx->frameQueue.size() > 6)
+                        else if (ctx->frameQueue.size() >= 6)
                         {
-                            // Skipping delta frames breaks every reference after
-                            // them, so resync on a keyframe instead of smearing.
-                            ctx->frameQueue.clear();
-                            ctx->decoder.ResyncAtNextKeyFrame();
-                            overflowed = true;
+                            congested = true;
                         }
                         ctx->frameQueue.push_back(std::move(frame));
                     }
-                    if (overflowed)
+                    if (congested)
                     {
-                        ctx->droppedFrames.fetch_add(1, std::memory_order_relaxed);
-                        ctx->RequestIdr(150);
+                        ctx->RequestIdr(250);
                     }
                     ctx->frameQueueCv.notify_one();
                 }
@@ -305,7 +334,33 @@ namespace
                     std::chrono::milliseconds(50),
                     [ctx] { return !ctx->frameQueue.empty() || ctx->stopFlag.load(std::memory_order_acquire); });
                 if (ctx->stopFlag.load(std::memory_order_acquire)) break;
-                if (ctx->frameQueue.empty()) continue;
+                if (ctx->frameQueue.empty())
+                {
+                    if (!ctx->firstFrameRendered.load(std::memory_order_relaxed))
+                    {
+                        ctx->RequestIdr(150);
+                    }
+                    continue;
+                }
+                if (ctx->frameQueue.size() > 1)
+                {
+                    size_t latestKeyIdx = 0;
+                    for (size_t i = ctx->frameQueue.size(); i > 0; --i)
+                    {
+                        if (ctx->frameQueue[i - 1].isKeyFrame)
+                        {
+                            latestKeyIdx = i - 1;
+                            break;
+                        }
+                    }
+                    if (latestKeyIdx > 0)
+                    {
+                        ctx->frameQueue.erase(
+                            ctx->frameQueue.begin(),
+                            ctx->frameQueue.begin() + static_cast<std::ptrdiff_t>(latestKeyIdx));
+                        ctx->droppedFrames.fetch_add(static_cast<uint32_t>(latestKeyIdx), std::memory_order_relaxed);
+                    }
+                }
                 frame = std::move(ctx->frameQueue.front());
                 ctx->frameQueue.pop_front();
             }
@@ -322,9 +377,7 @@ namespace
             }
             else if (ctx->decoder.IsWaitingForKeyFrame())
             {
-                // A fresh codec drops delta frames until an IDR arrives; the host
-                // encodes with a long GOP, so ask instead of waiting it out.
-                ctx->RequestIdr(500);
+                ctx->RequestIdr(150);
             }
         }
     }
@@ -529,6 +582,13 @@ extern "C"
         return 1;
     }
 
+    int32_t OsmiumMobile_SetTransportKcpEnabled(void* transport, int32_t enabled)
+    {
+        if (!transport) return 0;
+        static_cast<MobileTransport*>(transport)->SetKcpEnabled(enabled != 0);
+        return 1;
+    }
+
     int32_t OsmiumMobile_AuthenticateClient(
         void* transport,
         const uint8_t* authTag32,
@@ -681,6 +741,12 @@ extern "C"
     {
         if (!session) return;
         auto* ctx = static_cast<MobileSessionContext*>(session);
+        if (isAbsolute)
+        {
+            ctx->lastAbsMouseX.store(xOrDx, std::memory_order_relaxed);
+            ctx->lastAbsMouseY.store(yOrDy, std::memory_order_relaxed);
+            ctx->hasLastAbsMouse.store(true, std::memory_order_relaxed);
+        }
         osmium::proto::InputMouseMovePayload pkt{};
         pkt.isAbsolute = isAbsolute ? 1 : 0;
         pkt.xOrDeltaX = xOrDx;
@@ -692,10 +758,19 @@ extern "C"
     {
         if (!session) return;
         auto* ctx = static_cast<MobileSessionContext*>(session);
+        if (ctx->hasLastAbsMouse.load(std::memory_order_relaxed) &&
+            ctx->transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        {
+            osmium::proto::InputMouseMovePayload mv{};
+            mv.isAbsolute = 1;
+            mv.xOrDeltaX = ctx->lastAbsMouseX.load(std::memory_order_relaxed);
+            mv.yOrDeltaY = ctx->lastAbsMouseY.load(std::memory_order_relaxed);
+            ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputMouseMove, &mv, sizeof(mv));
+        }
         osmium::proto::InputMouseButtonPayload pkt{};
         pkt.button = button;
         pkt.isDown = isDown ? 1 : 0;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputMouseButton, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::InputMouseButton, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SendMouseWheel(void* session, int16_t dx, int16_t dy)
@@ -705,7 +780,7 @@ extern "C"
         osmium::proto::InputMouseWheelPayload pkt{};
         pkt.deltaX = dx;
         pkt.deltaY = dy;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputMouseWheel, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::InputMouseWheel, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SendKey(void* session, uint16_t vk, uint16_t scan, int32_t isDown, int32_t isExtended)
@@ -717,7 +792,7 @@ extern "C"
         pkt.scanCode = scan;
         pkt.isDown = isDown ? 1 : 0;
         pkt.isExtended = isExtended ? 1 : 0;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputKey, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::InputKey, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SendUnicodeText(void* session, const char* utf8Text, int32_t len)
@@ -726,7 +801,7 @@ extern "C"
         auto* ctx = static_cast<MobileSessionContext*>(session);
         std::vector<uint8_t> buf(sizeof(osmium::proto::AppPacketHeader) + static_cast<size_t>(len), 0);
         std::memcpy(buf.data() + sizeof(osmium::proto::AppPacketHeader), utf8Text, static_cast<size_t>(len));
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputUnicodeText, buf.data(), buf.size());
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::InputUnicodeText, buf.data(), buf.size());
     }
 
     void OsmiumMobile_SendGamepad(void* session, const OsmiumMobileGamepadState* state)
@@ -760,14 +835,13 @@ extern "C"
         const size_t len = osmium::proto::kInputTouchHeaderSize + pkt.count * sizeof(osmium::proto::InputTouchContact);
         ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputTouch, &pkt, len);
 
-        // A lost press or lift is a wrong click; send those frames twice on UDP.
-        // The host drops the repeat by its sequence number.
         bool edge = pkt.count == 0;
         for (uint8_t i = 0; i < pkt.count && !edge; ++i)
         {
             edge = pkt.contacts[i].phase != static_cast<uint8_t>(osmium::proto::TouchPhase::Move);
         }
-        if (edge && ctx->transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        if (edge && !ctx->transport->IsKcpActive() &&
+            ctx->transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
         {
             ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputTouch, &pkt, len);
         }
@@ -779,12 +853,7 @@ extern "C"
         auto* ctx = static_cast<MobileSessionContext*>(session);
         osmium::proto::ControlSwitchDisplayPayload pkt{};
         pkt.displayIndex = displayIndex;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
-        // Redundant send on UDP to protect against single-packet loss
-        if (ctx->transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
-        {
-            ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
-        }
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::ControlSwitchDisplay, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_UpdateVideoParams(
@@ -805,7 +874,7 @@ extern "C"
         pkt.bitrateKbps = bitrateKbps;
         pkt.enableHdr = hdr;
         pkt.enableYuv444 = yuv444;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlVideoParams, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::ControlVideoParams, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SetMouseMode(void* session, int32_t mouseMode, int32_t hideHostCursor)
@@ -815,7 +884,7 @@ extern "C"
         osmium::proto::ControlMouseModePayload pkt{};
         pkt.mouseMode = mouseMode;
         pkt.hideHostCursor = hideHostCursor;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlMouseMode, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::ControlMouseMode, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SetTextFocusTracking(void* session, int32_t enabled)
@@ -824,7 +893,7 @@ extern "C"
         auto* ctx = static_cast<MobileSessionContext*>(session);
         osmium::proto::ControlTextFocusPayload pkt{};
         pkt.enabled = enabled;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlTextFocus, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::ControlTextFocus, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SetAudioMute(void* session, int32_t muted)
@@ -840,7 +909,7 @@ extern "C"
         osmium::proto::ControlVirtualAudioPayload pkt{};
         pkt.virtualSpeakerEnabled = virtualSpeaker;
         pkt.virtualMicEnabled = virtualMic;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlVirtualAudio, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::ControlVirtualAudio, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_SetMicCaptureEnabled(void* session, int32_t enabled)
@@ -879,15 +948,14 @@ extern "C"
         auto* ctx = static_cast<MobileSessionContext*>(session);
         osmium::proto::ControlSystemActionPayload pkt{};
         pkt.action = action;
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::ControlSystemAction, &pkt, sizeof(pkt));
+        ctx->SendMustExecuteAction(osmium::proto::AppPacketType::ControlSystemAction, &pkt, sizeof(pkt));
     }
 
     void OsmiumMobile_RequestIdr(void* session)
     {
         if (!session) return;
         auto* ctx = static_cast<MobileSessionContext*>(session);
-        osmium::proto::AppPacketHeader idrReq{};
-        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+        ctx->RequestIdr(0);
     }
 
     int32_t OsmiumMobile_SendAuxData(void* session, const uint8_t* data, int32_t len)

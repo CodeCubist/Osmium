@@ -59,6 +59,7 @@ class BridgeReadyEvent {
     required this.stunPort,
     required this.relayToken,
     required this.relayPath,
+    this.kcpEnabled = false,
   });
 
   final String sessionId;
@@ -68,6 +69,7 @@ class BridgeReadyEvent {
   final int stunPort;
   final String relayToken;
   final String relayPath;
+  final bool kcpEnabled;
 }
 
 class RelayFallbackEvent {
@@ -412,6 +414,7 @@ class SignalingClient {
             relayPath: (root['relayPath'] as String?)?.isNotEmpty == true
                 ? root['relayPath'] as String
                 : '/relay',
+            kcpEnabled: root['kcpEnabled'] == true,
           ),
         );
         break;
@@ -541,6 +544,7 @@ class SignalingClient {
       'type': 'bridge_candidates',
       'sessionId': sessionId,
       'candidates': parsed,
+      'transportCaps': const ['kcp-v1'],
     });
   }
 

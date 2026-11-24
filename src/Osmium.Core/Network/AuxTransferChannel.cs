@@ -79,6 +79,9 @@ public sealed class AuxTransferChannel : IDisposable
     private readonly string _stagingSubDir;
     private readonly Func<byte[], int, bool> _sendRaw;
     private readonly LoggingService? _log;
+    private readonly int _startRetransmitMs;
+    private readonly int _chunkRetransmitMs;
+    private readonly int _maxBurst;
     private readonly CancellationTokenSource _disposeCts = new();
 
     private int _nextTransferSeq;
@@ -113,12 +116,19 @@ public sealed class AuxTransferChannel : IDisposable
     public event Action<IReadOnlyList<string>, int, long>? FilesReceived;
     public event Action<AuxTransferProgress>? TransferProgressChanged;
 
-    public AuxTransferChannel(bool isController, Func<byte[], int, bool> sendRaw, LoggingService? log = null)
+    public AuxTransferChannel(
+        bool isController,
+        Func<byte[], int, bool> sendRaw,
+        LoggingService? log = null,
+        bool reliableUnderlyingTransport = false)
     {
         _isController = isController;
         _stagingSubDir = isController ? "ClientIn" : "HostIn";
         _sendRaw = sendRaw;
         _log = log;
+        _startRetransmitMs = reliableUnderlyingTransport ? 600 : StartRetransmitMs;
+        _chunkRetransmitMs = reliableUnderlyingTransport ? 600 : ChunkRetransmitMs;
+        _maxBurst = reliableUnderlyingTransport ? 20 : 10;
         _nextTransferSeq = isController ? 1 : 2;
 
         _pumpThread = new Thread(PumpLoop)
@@ -417,7 +427,7 @@ public sealed class AuxTransferChannel : IDisposable
                             continue;
                         }
 
-                        if (now - tr.LastStartSendMs >= StartRetransmitMs)
+                        if (now - tr.LastStartSendMs >= _startRetransmitMs)
                         {
                             tr.LastStartSendMs = now;
                             TransmitTransferStartPacket(tr);
@@ -435,7 +445,7 @@ public sealed class AuxTransferChannel : IDisposable
 
                     
                     int sentInTick = 0;
-                    const int maxBurst = 10;
+                    int maxBurst = _maxBurst;
 
                     uint windowEnd = (uint)Math.Min((long)tr.TotalChunks, (long)tr.BaseSeq + WindowSize);
 
@@ -443,7 +453,7 @@ public sealed class AuxTransferChannel : IDisposable
                     for (uint seq = tr.BaseSeq; seq < tr.NextReadSeq && sentInTick < maxBurst; seq++)
                     {
                         if (tr.InFlight.TryGetValue(seq, out var entry) && !entry.Acked &&
-                            now - entry.LastSentMs >= ChunkRetransmitMs)
+                            now - entry.LastSentMs >= _chunkRetransmitMs)
                         {
                             entry.LastSentMs = now;
                             TransmitTransferChunkPacket(tr.TransferId, seq, entry.Crc32, entry.Payload);

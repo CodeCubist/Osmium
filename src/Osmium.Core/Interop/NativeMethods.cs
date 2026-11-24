@@ -428,6 +428,9 @@ public static class NativeMethods
     public static extern int Osmium_SetTransportEncryption(IntPtr transport, int enableEncryption);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_SetTransportKcpEnabled(IntPtr transport, int enableKcp);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_AuthenticateClient(
         IntPtr transport,
         byte[] authTag32,

@@ -88,12 +88,13 @@ Future<T> _defaultEngineOpRunner<T>(FutureOr<T> Function() op) =>
   int transportAddr,
   Uint8List sessionToken,
   String peerCandidatesJson,
+  int timeoutMs,
 ) => () {
   final res = engineFactory().connectPeerP2P(
     transport: Pointer<Void>.fromAddress(transportAddr),
     sessionToken16: sessionToken,
     peerCandidatesJson: peerCandidatesJson,
-    timeoutMs: 3500,
+    timeoutMs: timeoutMs,
   );
   return (res.success, res.route, res.endpoint);
 };
@@ -286,6 +287,7 @@ class RemoteSessionController extends ChangeNotifier {
   bool _signalingEndSent = false;
   bool _sessionConfirmed = false;
   bool _sessionEstablished = false;
+  bool _reliableAuxTransport = false;
   int _relayAttempts = 0;
 
   // Every connect() run gets a generation. Stale runs may finish their awaits
@@ -359,6 +361,7 @@ class RemoteSessionController extends ChangeNotifier {
     _signalingEndSent = false;
     _sessionConfirmed = false;
     _sessionEstablished = false;
+    _reliableAuxTransport = false;
     _relayAttempts = 0;
 
     bool aborted() => _isStale(epoch);
@@ -636,23 +639,42 @@ class RemoteSessionController extends ChangeNotifier {
       if (bridge == null || aborted()) return;
       _bridgeReached = true;
 
-      // Step 9: Attempt 3-tier P2P punch off UI thread
       final peerCandidates = bridge.candidatesJson;
-      final p2p = await _runTransportOp(
-        transportAddr,
-        _connectPeerOp(
-          engineFactory,
+      const maxDirectAttempts = 3;
+      var p2p = (false, 0, '');
+      for (var attempt = 1; attempt <= maxDirectAttempts; attempt++) {
+        if (aborted()) return;
+        _setPhase(
+          SessionPhase.negotiatingTransport,
+          attempt == 1
+              ? '正在建立网络直连'
+              : '直连通道重试中（第 $attempt/$maxDirectAttempts 次）...',
+        );
+        if (attempt > 1) {
+          signaling.sendBridgeCandidates(
+            sessionId: sid,
+            candidatesJson: localCandidatesJson,
+          );
+        }
+        final attemptStartMs = DateTime.now().millisecondsSinceEpoch;
+        p2p = await _runTransportOp(
           transportAddr,
-          sessionToken,
-          peerCandidates,
-        ),
-      );
+          _connectPeerOp(
+            engineFactory,
+            transportAddr,
+            sessionToken,
+            peerCandidates,
+            2500,
+          ),
+        );
+        if (aborted()) return;
+        if (p2p.$1) break;
+        final elapsedMs = DateTime.now().millisecondsSinceEpoch - attemptStartMs;
+        if (elapsedMs < 200 || relayFallbackComp.isCompleted) break;
+      }
 
       if (aborted()) return;
 
-      // Step 10/11: Cloud relay fallback + stream authentication. Windows
-      // switches to relay when the punch fails, when the peer already sent
-      // relay_fallback, *or* when the direct AuthRequest times out.
       Future<bool> switchToRelay() async {
         _setPhase(SessionPhase.connectingRelay, '正在切换云端高速中继');
         signaling.sendRelayFallback(sessionId: sid);
@@ -660,7 +682,6 @@ class RemoteSessionController extends ChangeNotifier {
         var relayToken = bridge.relayToken;
         var relayPath = bridge.relayPath;
         if (relayToken.trim().isEmpty) {
-          // Windows waits up to 4s for the server-issued relay token.
           try {
             final rf = await relayFallbackComp.future.timeout(
               const Duration(seconds: 4),
@@ -684,7 +705,7 @@ class RemoteSessionController extends ChangeNotifier {
       }
 
       var usedRelay = false;
-      if (!p2p.$1 || relayFallbackComp.isCompleted) {
+      if (!p2p.$1) {
         if (!await switchToRelay()) {
           if (!aborted()) _fail('直连与云端中继均失败');
           return;
@@ -698,9 +719,11 @@ class RemoteSessionController extends ChangeNotifier {
         aesKey32: material.aesKey32,
         enabled: challenge.enableEncryption && _settings.enableEncryption,
       );
+      engine.setTransportKcpEnabled(
+        transport: _transportHandle!,
+        enabled: bridge.kcpEnabled && !usedRelay,
+      );
 
-      // Windows caps relay bitrate at 16 Mbps and allows more time for the
-      // first AuthRequest to traverse the relay.
       OsmiumSettings authSettingsFor(bool relay) =>
           relay && _settings.desiredBitrateKbps > 16000
           ? _settings.copyWith(desiredBitrateKbps: 16000)
@@ -713,15 +736,13 @@ class RemoteSessionController extends ChangeNotifier {
               transportAddr,
               material.authTag32,
               authSettingsFor(relay),
-              relay ? 10000 : 4500,
+              relay ? 10000 : (relayFallbackComp.isCompleted ? 2500 : 5000),
             ),
           );
 
       var authOutcome = await authenticate(relay: usedRelay);
       if (aborted()) return;
 
-      // Direct path timed out (status 0, not a rejection): retry over the
-      // cloud relay exactly like the Windows client does.
       if (authOutcome.$1 == 0 && !usedRelay && _relayAttempts == 0) {
         if (await switchToRelay()) {
           usedRelay = true;
@@ -729,6 +750,7 @@ class RemoteSessionController extends ChangeNotifier {
         }
       }
       if (aborted()) return;
+      _reliableAuxTransport = usedRelay || bridge.kcpEnabled;
 
       if (authOutcome.$1 <= 0) {
         _fail(authOutcome.$2.isNotEmpty ? authOutcome.$2 : '流媒体鉴权失败');
@@ -873,7 +895,7 @@ class RemoteSessionController extends ChangeNotifier {
       });
 
       final ready = await peerReady.future.timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 12),
         onTimeout: () => false,
       );
       if (!ready || aborted() || !identical(_relayWs, ws)) {
@@ -916,6 +938,7 @@ class RemoteSessionController extends ChangeNotifier {
     _auxChannel?.dispose();
     _auxChannel = AuxTransferChannel(
       sendRaw: (bytes) => engine.sendAuxData(_sessionHandle, bytes),
+      reliableUnderlyingTransport: _reliableAuxTransport,
     );
     _auxChannel!.sendFeatureConfig(
       sharedClipboard: _settings.sharedClipboardEnabled,

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 namespace osmium::proto
@@ -53,7 +54,8 @@ namespace osmium::proto
         ControlSystemAction = 0x3D,
         HostTextFocus = 0x3E,
         HostStatusJson = 0x3F,
-        AuxData = 0x40
+        AuxData = 0x40,
+        KcpSegment = 0x50
     };
 
     enum class VideoCodecId : uint8_t
@@ -221,12 +223,6 @@ namespace osmium::proto
         float y;
     };
 
-    // Client -> host: every contact currently on the client's screen, plus
-    // the ones lifted since the previous frame (phase Up/Cancel). Contacts
-    // missing from a frame are lifted, so a frame with count 0 releases all.
-    // Coordinates are normalized to the streamed display. `seq` grows by one
-    // per frame; repeats and late arrivals are dropped. Sent with only
-    // `count` contacts, and only to hosts that report `touchInput`.
     struct InputTouchPayload
     {
         AppPacketHeader hdr;
@@ -276,17 +272,12 @@ namespace osmium::proto
         int32_t action;
     };
 
-    // Client -> host: start (1) or stop (0) reporting keyboard focus. Touch
-    // clients opt in; older hosts ignore the packet.
     struct ControlTextFocusPayload
     {
         AppPacketHeader hdr;
         int32_t enabled;
     };
 
-    // Host -> client: whether an editable control has keyboard focus, and the
-    // caret (or the control) normalized to the streamed display. `serial`
-    // moves whenever focus lands on another control.
     struct HostTextFocusPayload
     {
         AppPacketHeader hdr;
@@ -305,4 +296,74 @@ namespace osmium::proto
     constexpr size_t kMaxLanVideoChunkPayload = 1380;
     constexpr size_t kMaxRelayVideoChunkPayload = 16384;
     constexpr size_t kMaxAuxDataPayload = 1240;
+
+    constexpr uint32_t kKcpConvControl = 1;
+    constexpr uint32_t kKcpConvAux = 2;
+    constexpr uint32_t kKcpMtu = 1180;
+
+    inline uint32_t SelectKcpChannel(AppPacketType type, const void* payload, size_t len)
+    {
+        switch (type)
+        {
+            case AppPacketType::InputKey:
+            case AppPacketType::InputMouseButton:
+            case AppPacketType::InputMouseWheel:
+            case AppPacketType::InputUnicodeText:
+            case AppPacketType::ControlSwitchDisplay:
+            case AppPacketType::ControlVideoParams:
+            case AppPacketType::ControlMouseMode:
+            case AppPacketType::ControlTextFocus:
+            case AppPacketType::ControlVirtualAudio:
+            case AppPacketType::ControlSystemAction:
+            case AppPacketType::HostTextFocus:
+            case AppPacketType::HostStatusJson:
+            case AppPacketType::VideoIdrRequest:
+                return kKcpConvControl;
+
+            case AppPacketType::InputTouch:
+                if (payload && len >= kInputTouchHeaderSize)
+                {
+                    const auto* tp = reinterpret_cast<const InputTouchPayload*>(payload);
+                    if (tp->count == 0)
+                    {
+                        return kKcpConvControl;
+                    }
+                    const size_t maxContacts =
+                        (len - kInputTouchHeaderSize) / sizeof(InputTouchContact);
+                    const size_t n = tp->count < maxContacts ? tp->count : maxContacts;
+                    for (size_t i = 0; i < n; ++i)
+                    {
+                        if (tp->contacts[i].phase != static_cast<uint8_t>(TouchPhase::Move))
+                        {
+                            return kKcpConvControl;
+                        }
+                    }
+                }
+                return 0;
+
+            case AppPacketType::AuxData:
+                return kKcpConvAux;
+
+            default:
+                return 0;
+        }
+    }
+
+    inline bool IsDroppableStalePress(AppPacketType type, const void* payload, size_t len)
+    {
+        if (!payload) return false;
+        if (type == AppPacketType::InputKey && len >= sizeof(InputKeyPayload))
+        {
+            return reinterpret_cast<const InputKeyPayload*>(payload)->isDown != 0;
+        }
+        if (type == AppPacketType::InputMouseButton && len >= sizeof(InputMouseButtonPayload))
+        {
+            return reinterpret_cast<const InputMouseButtonPayload*>(payload)->isDown != 0;
+        }
+        if (type == AppPacketType::InputMouseWheel)
+        {
+            return true;
+        }
+        return false;
+    }
 }

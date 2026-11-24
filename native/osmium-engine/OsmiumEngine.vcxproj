@@ -121,6 +121,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ClInclude Include="include\OsmiumKcp.h"/>
         <ClInclude Include="include\OsmiumNative.h"/>
         <ClInclude Include="include\OsmiumProtocol.h"/>
         <ClInclude Include="src\ClientAudioPlayer.h"/>

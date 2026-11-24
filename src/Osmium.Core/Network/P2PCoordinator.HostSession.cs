@@ -351,6 +351,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                 }
+                NativeMethods.Osmium_SetTransportKcpEnabled(transport, (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
 
                 int hostAuthTimeoutMs = transportRoute == 4
                     ? 12000
@@ -428,7 +429,8 @@ public sealed partial class P2PCoordinator : IDisposable
                         if (h == IntPtr.Zero) return false;
                         return NativeMethods.Osmium_HostSendAuxData(h, data, len) != 0;
                     },
-                    log: _log);
+                    log: _log,
+                    reliableUnderlyingTransport: transportRoute == 4 || bridge.KcpEnabled);
 
                 auxChannel.GetHostAllowsFileTransfer = () =>
                     !_hostViewOnlySession && _settings.Settings.HostAllowFileTransfer;

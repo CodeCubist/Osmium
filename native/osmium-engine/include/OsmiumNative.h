@@ -255,6 +255,7 @@ OSMIUM_API int32_t Osmium_PushTransportRelayBatch(
 
 OSMIUM_API int32_t Osmium_SetTransportKey(void* transport, const uint8_t* aesKey32);
 OSMIUM_API int32_t Osmium_SetTransportEncryption(void* transport, int32_t enableEncryption);
+OSMIUM_API int32_t Osmium_SetTransportKcpEnabled(void* transport, int32_t enableKcp);
 
 OSMIUM_API int32_t Osmium_AuthenticateClient(
     void* transport,

@@ -271,6 +271,12 @@ public sealed class RemoteSessionLaunchArgs
         get;
         init;
     }
+
+    public bool KcpEnabled
+    {
+        get;
+        init;
+    }
 }
 
 public sealed class HostSessionActiveInfo
@@ -1104,6 +1110,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                 }
+                NativeMethods.Osmium_SetTransportKcpEnabled(transport, (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
 
                 var s = _settings.Settings;
                 var clientCfg = new OsmiumClientConfig
@@ -1242,7 +1249,8 @@ public sealed partial class P2PCoordinator : IDisposable
                         SignalingServerUrl = sigUrl,
                         SignalingServerHost = sigHost,
                         SignalingServerIp = sigIp,
-                        InitialConfig = clientCfg
+                        InitialConfig = clientCfg,
+                        KcpEnabled = bridge.KcpEnabled && transportRoute != 4
                     };
 
                     lock (_clientLock)

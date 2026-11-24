@@ -86,7 +86,8 @@ public sealed partial class RemoteSessionWindow : Window
                 if (h == IntPtr.Zero || _isClosed || _remoteSessionEnded) return false;
                 return NativeMethods.Osmium_ClientSendAuxData(h, data, len) != 0;
             },
-            log: App.Engine.Logging);
+            log: App.Engine.Logging,
+            reliableUnderlyingTransport: _launchArgs.TransportRoute == 4 || _launchArgs.KcpEnabled);
 
         channel.ValidateIncomingTransfer = (type, totalBytes) =>
         {

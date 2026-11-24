@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OsmiumCommon.h"
+#include "OsmiumKcp.h"
 #include "OsmiumProtocol.h"
 
 #include <bcrypt.h>
@@ -8,8 +9,10 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace osmium
@@ -67,6 +70,8 @@ namespace osmium
         bool SetSessionKey(const uint8_t aesKey[32]);
         void SetEncryptionEnabled(bool enabled) { m_EncryptionEnabled.store(enabled, std::memory_order_release); }
         bool IsEncryptionEnabled() const { return m_EncryptionEnabled.load(std::memory_order_acquire); }
+        void SetKcpEnabled(bool enabled);
+        bool IsKcpActive() const { return m_KcpActive.load(std::memory_order_acquire); }
 
         bool SendEncrypted(
             proto::AppPacketType pktType,
@@ -99,6 +104,12 @@ namespace osmium
         bool DecryptFrame(const uint8_t* wire, size_t wireLen, std::vector<uint8_t>& outPlain);
         bool UnframePlaintext(const uint8_t* wire, size_t wireLen, std::vector<uint8_t>& outPlain);
         bool RecordReceivedSequence(uint64_t seq);
+        bool SendRawEncrypted(proto::AppPacketType pktType, const void* payload, size_t payloadLen);
+        void SendKcpSegments(const std::vector<std::vector<uint8_t>>& segments);
+        bool HandleIncomingKcpSegment(const uint8_t* segData, size_t segLen, std::vector<uint8_t>& outPlaintext);
+        void StartKcp();
+        void StopKcp();
+        void KcpPumpLoop();
 
         SOCKET m_Sock4 = INVALID_SOCKET;
         SOCKET m_Sock6 = INVALID_SOCKET;
@@ -154,5 +165,15 @@ namespace osmium
         std::deque<std::vector<uint8_t>> m_RelayRecvQueue;
         std::vector<std::vector<uint8_t>> m_RelayFreePool;
         std::string m_RelayEndpointStr;
+
+        std::atomic<bool> m_KcpEnabled{false};
+        std::atomic<bool> m_KcpActive{false};
+        std::mutex m_KcpMutex;
+        std::condition_variable m_KcpPumpCv;
+        bool m_KcpStop = false;
+        std::unique_ptr<kcp::KcpSession> m_KcpCtrl;
+        std::unique_ptr<kcp::KcpSession> m_KcpAux;
+        std::deque<std::vector<uint8_t>> m_KcpDeliveredQueue;
+        std::thread m_KcpPumpThread;
     };
 }

@@ -103,10 +103,13 @@ class _IncomingTransfer {
   final BytesBuilder assembled = BytesBuilder(copy: false);
 }
 
-/// Wire-compatible Dart implementation of Osmium's `AuxTransferChannel`
-/// for shared clipboard text and file transfer over reliable UDP/Relay chunking.
 class AuxTransferChannel {
-  AuxTransferChannel({required bool Function(Uint8List data) sendRaw}) {
+  AuxTransferChannel({
+    required bool Function(Uint8List data) sendRaw,
+    bool reliableUnderlyingTransport = false,
+  }) : _startRetransmitMs = reliableUnderlyingTransport ? 600 : 200,
+       _chunkRetransmitMs = reliableUnderlyingTransport ? 600 : 140,
+       _maxBurst = reliableUnderlyingTransport ? 20 : 10 {
     _sendRaw = sendRaw;
     _pumpTimer = Timer.periodic(
       const Duration(milliseconds: 20),
@@ -128,6 +131,9 @@ class AuxTransferChannel {
   static final List<int> _crc32Table = _buildCrc32Table();
 
   late final bool Function(Uint8List data) _sendRaw;
+  final int _startRetransmitMs;
+  final int _chunkRetransmitMs;
+  final int _maxBurst;
   Timer? _pumpTimer;
   int _nextId = 1;
   int _configSeq = 0;
@@ -495,7 +501,7 @@ class AuxTransferChannel {
       if (!tr.startAccepted) {
         if (now - tr.createdMs >= 8000) {
           expiredOut.add(tr.id);
-        } else if (now - tr.lastStartSendMs >= 200) {
+        } else if (now - tr.lastStartSendMs >= _startRetransmitMs) {
           tr.lastStartSendMs = now;
           _sendTransferStart(tr);
         }
@@ -510,17 +516,17 @@ class AuxTransferChannel {
       var burst = 0;
       final winEnd = (tr.baseSeq + _windowSize).clamp(0, tr.totalChunks);
 
-      for (var seq = tr.baseSeq; seq < tr.nextSendSeq && burst < 10; seq++) {
+      for (var seq = tr.baseSeq; seq < tr.nextSendSeq && burst < _maxBurst; seq++) {
         if (tr.acked.contains(seq)) continue;
         final last = tr.inFlightLastSentMs[seq] ?? 0;
-        if (now - last >= 140) {
+        if (now - last >= _chunkRetransmitMs) {
           tr.inFlightLastSentMs[seq] = now;
           _sendTransferChunk(tr, seq);
           burst++;
         }
       }
 
-      while (tr.nextSendSeq < winEnd && burst < 10) {
+      while (tr.nextSendSeq < winEnd && burst < _maxBurst) {
         final seq = tr.nextSendSeq++;
         tr.inFlightLastSentMs[seq] = now;
         _sendTransferChunk(tr, seq);

@@ -162,6 +162,7 @@ namespace osmium
     {
         m_Closed.store(true);
         m_Connected.store(false);
+        StopKcp();
         {
             std::lock_guard<std::mutex> rl(m_RelaySendMutex);
             m_RelaySendFn = nullptr;
@@ -952,6 +953,10 @@ namespace osmium
 
         outTransportRoute = m_Route.load();
         outActiveEndpoint = SockAddrToString(m_PeerDirectAddr);
+        if (m_KcpEnabled.load(std::memory_order_acquire))
+        {
+            StartKcp();
+        }
         const char* routeLabel = outTransportRoute == 1
                                      ? "LAN-IPv4 Direct"
                                      : (outTransportRoute == 2 ? "IPv6 Direct" : "IPv4 P2P Direct");
@@ -1357,6 +1362,7 @@ namespace osmium
     {
         if (!sessionToken || !sendFn || m_Closed.load()) return false;
 
+        StopKcp();
         memcpy(m_SessionToken, sessionToken, 16);
         m_LocalRole = localRole;
 
@@ -1493,7 +1499,283 @@ namespace osmium
         return false;
     }
 
+    void OsmiumTransport::SetKcpEnabled(bool enabled)
+    {
+        m_KcpEnabled.store(enabled, std::memory_order_release);
+        if (enabled)
+        {
+            if (m_Connected.load(std::memory_order_acquire) &&
+                !m_RelayMode.load(std::memory_order_acquire) &&
+                !m_Closed.load(std::memory_order_acquire))
+            {
+                StartKcp();
+            }
+        }
+        else
+        {
+            StopKcp();
+        }
+    }
+
+    void OsmiumTransport::StartKcp()
+    {
+        if (m_Closed.load(std::memory_order_acquire) ||
+            !m_Connected.load(std::memory_order_acquire) ||
+            m_RelayMode.load(std::memory_order_acquire))
+        {
+            return;
+        }
+
+        bool needLaunch = false;
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            if (!m_KcpCtrl)
+            {
+                m_KcpCtrl = std::make_unique<kcp::KcpSession>(proto::kKcpConvControl);
+                m_KcpCtrl->SetMtu(proto::kKcpMtu);
+                m_KcpCtrl->SetNoDelay(1, 10, 2, 1);
+                m_KcpCtrl->SetMinRto(20);
+                m_KcpCtrl->SetWndSize(128, 128);
+            }
+            if (!m_KcpAux)
+            {
+                m_KcpAux = std::make_unique<kcp::KcpSession>(proto::kKcpConvAux);
+                m_KcpAux->SetMtu(proto::kKcpMtu);
+                m_KcpAux->SetNoDelay(1, 10, 2, 0);
+                m_KcpAux->SetMinRto(30);
+                m_KcpAux->SetWndSize(128, 256);
+            }
+            m_KcpStop = false;
+            m_KcpActive.store(true, std::memory_order_release);
+            if (!m_KcpPumpThread.joinable())
+            {
+                needLaunch = true;
+            }
+        }
+        if (needLaunch)
+        {
+            m_KcpPumpThread = std::thread(&OsmiumTransport::KcpPumpLoop, this);
+        }
+        m_KcpPumpCv.notify_one();
+    }
+
+    void OsmiumTransport::StopKcp()
+    {
+        m_KcpActive.store(false, std::memory_order_release);
+        std::thread pumpToJoin;
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            m_KcpStop = true;
+            if (m_KcpPumpThread.joinable())
+            {
+                pumpToJoin = std::move(m_KcpPumpThread);
+            }
+        }
+        m_KcpPumpCv.notify_all();
+        if (pumpToJoin.joinable())
+        {
+            if (pumpToJoin.get_id() == std::this_thread::get_id())
+            {
+                pumpToJoin.detach();
+            }
+            else
+            {
+                pumpToJoin.join();
+            }
+        }
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            m_KcpCtrl.reset();
+            m_KcpAux.reset();
+            m_KcpDeliveredQueue.clear();
+        }
+    }
+
+    void OsmiumTransport::SendKcpSegments(const std::vector<std::vector<uint8_t>>& segments)
+    {
+        if (segments.empty() || m_Closed.load(std::memory_order_acquire) || m_RelayMode.load(std::memory_order_acquire))
+        {
+            return;
+        }
+        alignas(8) uint8_t pktBuf[sizeof(proto::AppPacketHeader) + 2048];
+        for (const auto& seg : segments)
+        {
+            if (seg.empty()) continue;
+            if (seg.size() <= 2048)
+            {
+                memset(pktBuf, 0, sizeof(proto::AppPacketHeader));
+                memcpy(pktBuf + sizeof(proto::AppPacketHeader), seg.data(), seg.size());
+                SendRawEncrypted(proto::AppPacketType::KcpSegment, pktBuf,
+                                 sizeof(proto::AppPacketHeader) + seg.size());
+            }
+            else
+            {
+                std::vector<uint8_t> dynBuf(sizeof(proto::AppPacketHeader) + seg.size(), 0);
+                memcpy(dynBuf.data() + sizeof(proto::AppPacketHeader), seg.data(), seg.size());
+                SendRawEncrypted(proto::AppPacketType::KcpSegment, dynBuf.data(), dynBuf.size());
+            }
+        }
+    }
+
+    void OsmiumTransport::KcpPumpLoop()
+    {
+        while (!m_Closed.load(std::memory_order_acquire))
+        {
+            std::vector<std::vector<uint8_t>> ctrlSegs;
+            std::vector<std::vector<uint8_t>> auxSegs;
+            {
+                std::unique_lock<std::mutex> kl(m_KcpMutex);
+                if (m_KcpStop || !m_KcpActive.load(std::memory_order_acquire))
+                {
+                    break;
+                }
+                const uint32_t nowMs = static_cast<uint32_t>(NowMillis());
+                if (m_KcpCtrl)
+                {
+                    m_KcpCtrl->Update(nowMs, ctrlSegs, 0U);
+                }
+                if (m_KcpAux)
+                {
+                    m_KcpAux->Update(nowMs, auxSegs, 24U);
+                }
+                if (ctrlSegs.empty() && auxSegs.empty())
+                {
+                    uint32_t nextMs = nowMs + 15U;
+                    if (m_KcpCtrl)
+                    {
+                        const uint32_t cNext = m_KcpCtrl->Check(nowMs);
+                        if (static_cast<int32_t>(cNext - nextMs) < 0) nextMs = cNext;
+                    }
+                    if (m_KcpAux)
+                    {
+                        const uint32_t aNext = m_KcpAux->Check(nowMs);
+                        if (static_cast<int32_t>(aNext - nextMs) < 0) nextMs = aNext;
+                    }
+                    const int32_t diff = static_cast<int32_t>(nextMs - nowMs);
+                    const uint32_t sleepMs = static_cast<uint32_t>(std::clamp<int32_t>(diff, 2, 20));
+                    m_KcpPumpCv.wait_for(kl, std::chrono::milliseconds(sleepMs));
+                }
+            }
+            if (!ctrlSegs.empty())
+            {
+                SendKcpSegments(ctrlSegs);
+            }
+            if (!auxSegs.empty())
+            {
+                SendKcpSegments(auxSegs);
+            }
+        }
+    }
+
+    bool OsmiumTransport::HandleIncomingKcpSegment(
+        const uint8_t* segData,
+        size_t segLen,
+        std::vector<uint8_t>& outPlaintext)
+    {
+        if (!segData || segLen < kcp::kOverhead || m_RelayMode.load(std::memory_order_acquire))
+        {
+            return false;
+        }
+        const uint32_t conv = kcp::ReadConvLE(segData, segLen);
+        if (conv != proto::kKcpConvControl && conv != proto::kKcpConvAux)
+        {
+            return false;
+        }
+        if (!m_KcpActive.load(std::memory_order_acquire))
+        {
+            SetKcpEnabled(true);
+        }
+
+        std::vector<std::vector<uint8_t>> ackSegs;
+        bool delivered = false;
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            kcp::KcpSession* sess = (conv == proto::kKcpConvControl) ? m_KcpCtrl.get() : m_KcpAux.get();
+            if (!sess) return false;
+            const uint32_t nowMs = static_cast<uint32_t>(NowMillis());
+            if (sess->Input(segData, segLen, nowMs) == 0)
+            {
+                std::vector<uint8_t> msg;
+                while (sess->Recv(msg))
+                {
+                    if (!msg.empty())
+                    {
+                        m_KcpDeliveredQueue.push_back(std::move(msg));
+                        msg.clear();
+                    }
+                }
+                sess->Flush(nowMs, ackSegs, (conv == proto::kKcpConvAux) ? 24U : 0U);
+            }
+            if (!m_KcpDeliveredQueue.empty())
+            {
+                outPlaintext = std::move(m_KcpDeliveredQueue.front());
+                m_KcpDeliveredQueue.pop_front();
+                delivered = true;
+            }
+        }
+        if (!ackSegs.empty())
+        {
+            SendKcpSegments(ackSegs);
+        }
+        m_KcpPumpCv.notify_one();
+        return delivered;
+    }
+
     bool OsmiumTransport::SendEncrypted(
+        proto::AppPacketType pktType,
+        const void* payload,
+        size_t payloadLen)
+    {
+        if (!payload || payloadLen < sizeof(proto::AppPacketHeader)) return false;
+        const bool isRelay = m_RelayMode.load(std::memory_order_acquire);
+        if (!m_Connected.load() || m_Closed.load() || (!isRelay && m_ActiveSock == INVALID_SOCKET)) return false;
+
+        if (!isRelay && m_KcpActive.load(std::memory_order_acquire))
+        {
+            const uint32_t conv = proto::SelectKcpChannel(pktType, payload, payloadLen);
+            if (conv != 0)
+            {
+                std::vector<uint8_t> appMsg(payloadLen);
+                memcpy(appMsg.data(), payload, payloadLen);
+                appMsg[0] = static_cast<uint8_t>(pktType);
+
+                std::vector<std::vector<uint8_t>> outSegs;
+                bool sent = false;
+                {
+                    std::lock_guard<std::mutex> kl(m_KcpMutex);
+                    kcp::KcpSession* sess = (conv == proto::kKcpConvControl) ? m_KcpCtrl.get() : m_KcpAux.get();
+                    if (sess)
+                    {
+                        const uint32_t nowMs = static_cast<uint32_t>(NowMillis());
+                        if (conv == proto::kKcpConvControl &&
+                            proto::IsDroppableStalePress(pktType, appMsg.data(), appMsg.size()) &&
+                            sess->IsCongestedStale(nowMs, 48U, 1200U))
+                        {
+                            return true;
+                        }
+                        if (sess->Send(appMsg.data(), appMsg.size(), nowMs))
+                        {
+                            sess->Flush(nowMs, outSegs, (conv == proto::kKcpConvAux) ? 24U : 0U);
+                            sent = true;
+                        }
+                    }
+                }
+                if (sent)
+                {
+                    if (!outSegs.empty())
+                    {
+                        SendKcpSegments(outSegs);
+                    }
+                    m_KcpPumpCv.notify_one();
+                    return true;
+                }
+            }
+        }
+
+        return SendRawEncrypted(pktType, payload, payloadLen);
+    }
+
+    bool OsmiumTransport::SendRawEncrypted(
         proto::AppPacketType pktType,
         const void* payload,
         size_t payloadLen)
@@ -1582,6 +1864,17 @@ namespace osmium
     int OsmiumTransport::ReceiveEncrypted(std::vector<uint8_t>& outPlaintext, int timeoutMs)
     {
         if (m_Closed.load()) return -1;
+
+        if (!m_RelayMode.load(std::memory_order_acquire) && m_KcpActive.load(std::memory_order_acquire))
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            if (!m_KcpDeliveredQueue.empty())
+            {
+                outPlaintext = std::move(m_KcpDeliveredQueue.front());
+                m_KcpDeliveredQueue.pop_front();
+                return static_cast<int>(outPlaintext.size());
+            }
+        }
 
         if (m_RelayMode.load(std::memory_order_acquire))
         {
@@ -1723,19 +2016,31 @@ namespace osmium
                 continue;
             }
 
+            bool decoded = false;
             if (m_EncryptionEnabled.load(std::memory_order_acquire))
             {
-                if (DecryptFrame(buf, static_cast<size_t>(n), outPlaintext))
-                {
-                    return static_cast<int>(outPlaintext.size());
-                }
+                decoded = DecryptFrame(buf, static_cast<size_t>(n), outPlaintext);
             }
             else
             {
-                if (UnframePlaintext(buf, static_cast<size_t>(n), outPlaintext))
+                decoded = UnframePlaintext(buf, static_cast<size_t>(n), outPlaintext);
+            }
+            if (decoded)
+            {
+                if (outPlaintext.size() > sizeof(proto::AppPacketHeader) &&
+                    static_cast<proto::AppPacketType>(outPlaintext[0]) == proto::AppPacketType::KcpSegment)
                 {
-                    return static_cast<int>(outPlaintext.size());
+                    std::vector<uint8_t> kcpRaw = std::move(outPlaintext);
+                    if (HandleIncomingKcpSegment(
+                            kcpRaw.data() + sizeof(proto::AppPacketHeader),
+                            kcpRaw.size() - sizeof(proto::AppPacketHeader),
+                            outPlaintext))
+                    {
+                        return static_cast<int>(outPlaintext.size());
+                    }
+                    continue;
                 }
+                return static_cast<int>(outPlaintext.size());
             }
         }
 

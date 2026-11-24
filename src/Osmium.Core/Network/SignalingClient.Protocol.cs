@@ -266,7 +266,8 @@ public sealed partial class SignalingClient : IDisposable
                             : string.Empty,
                         RelayPath = root.TryGetProperty("relayPath", out var rp) && rp.ValueKind == JsonValueKind.String
                             ? rp.GetString() ?? "/relay"
-                            : "/relay"
+                            : "/relay",
+                        KcpEnabled = root.TryGetProperty("kcpEnabled", out var ke) && ke.ValueKind == JsonValueKind.True
                     };
                     BridgeReady?.Invoke(args);
                     break;

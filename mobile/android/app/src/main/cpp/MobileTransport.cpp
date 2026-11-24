@@ -142,6 +142,7 @@ namespace osmium::mobile
     {
         m_Closed.store(true, std::memory_order_release);
         m_Connected.store(false, std::memory_order_release);
+        StopKcp();
         m_RelayRecvCv.notify_all();
 
         int s4 = m_Sock4;
@@ -149,6 +150,7 @@ namespace osmium::mobile
         m_Sock4 = -1;
         m_Sock6 = -1;
         m_ActiveSock = -1;
+        m_PunchAttemptCount = 0;
         if (s4 >= 0) ::close(s4);
         if (s6 >= 0 && s6 != s4) ::close(s6);
     }
@@ -397,6 +399,8 @@ namespace osmium::mobile
                             }
                             if (!dup) candidates.push_back(srflx);
                         }
+                        m_StunKeepaliveAddr = stunAddr;
+                        m_HasStunKeepaliveAddr = true;
                         stunResolved = true;
                     }
                 }
@@ -532,15 +536,69 @@ namespace osmium::mobile
         std::string& outActiveEndpoint)
     {
         if (m_Sock4 < 0 || !sessionToken) return false;
+        const int32_t attempt = ++m_PunchAttemptCount;
         std::memcpy(m_SessionToken, sessionToken, 16);
         m_LocalRole = proto::PeerRole::Client;
         outTransportRoute = 0;
+
+        auto setNonBlock = [](int s)
+        {
+            if (s < 0) return;
+            int f = fcntl(s, F_GETFL, 0);
+            if (f >= 0) fcntl(s, F_SETFL, f | O_NONBLOCK);
+        };
+        setNonBlock(m_Sock4);
+        setNonBlock(m_Sock6);
 
         auto peerCandidates = ParseCandidatesJson(peerCandidatesJson);
         if (peerCandidates.empty())
         {
             LOGW("No valid peer candidates for direct P2P");
             return false;
+        }
+
+        if (attempt >= 3)
+        {
+            std::vector<CandidateEndpoint> expanded;
+            for (const auto& c : peerCandidates)
+            {
+                if (c.tier != 3 || c.addr.ss_family != AF_INET) continue;
+                const auto* baseSa = reinterpret_cast<const sockaddr_in*>(&c.addr);
+                const int basePort = ntohs(baseSa->sin_port);
+                static constexpr int kOffsets[] = {-1, 1, 2};
+                for (int off : kOffsets)
+                {
+                    int p = basePort + off;
+                    if (p <= 0 || p > 65535) continue;
+                    CandidateEndpoint extra = c;
+                    reinterpret_cast<sockaddr_in*>(&extra.addr)->sin_port = htons(static_cast<uint16_t>(p));
+                    bool exists = false;
+                    for (const auto& cur : peerCandidates)
+                    {
+                        if (IsSameAddr(cur.addr, extra.addr))
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists)
+                    {
+                        for (const auto& cur : expanded)
+                        {
+                            if (IsSameAddr(cur.addr, extra.addr))
+                            {
+                                exists = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!exists) expanded.push_back(extra);
+                }
+            }
+            for (auto& ex : expanded)
+            {
+                peerCandidates.push_back(std::move(ex));
+            }
         }
 
         bool hasTier1 = false, hasTier2 = false;
@@ -565,11 +623,12 @@ namespace osmium::mobile
         std::memcpy(punchAckPkt + 8, m_SessionToken, 16);
 
         const uint64_t tStart = NowMillis();
-        const uint64_t tStartTier2 = hasTier1 ? 100ULL : 0ULL;
-        const uint64_t tStartTier3 = tStartTier2 + (hasTier2 ? 250ULL : 0ULL);
+        const uint64_t tStartTier2 = (attempt == 1 && hasTier1) ? 100ULL : 0ULL;
+        const uint64_t tStartTier3 = (attempt == 1) ? (tStartTier2 + (hasTier2 ? 250ULL : 0ULL)) : 0ULL;
         const uint64_t deadline = tStart + static_cast<uint64_t>(std::max(600, punchTimeoutMs));
 
         uint64_t lastBlastMs = 0;
+        uint64_t lastStunKeepaliveMs = 0;
         uint64_t ackGraceDeadline = 0;
         bool receivedPunch = false;
         bool receivedAck = false;
@@ -596,6 +655,20 @@ namespace osmium::mobile
                     int txSock = (cand.addr.ss_family == AF_INET6) ? m_Sock6 : m_Sock4;
                     if (txSock >= 0) RawSendTo(txSock, cand.addr, cand.addrLen, punchPkt, sizeof(punchPkt));
                 }
+                if (attempt >= 2 && m_HasStunKeepaliveAddr && (lastStunKeepaliveMs == 0 || now - lastStunKeepaliveMs >= 350ULL))
+                {
+                    lastStunKeepaliveMs = now;
+                    uint8_t rfcKa[20]{};
+                    rfcKa[0] = 0x00;
+                    rfcKa[1] = 0x01;
+                    rfcKa[4] = 0x21;
+                    rfcKa[5] = 0x12;
+                    rfcKa[6] = 0xA4;
+                    rfcKa[7] = 0x42;
+                    sockaddr_storage stunSs{};
+                    std::memcpy(&stunSs, &m_StunKeepaliveAddr, sizeof(sockaddr_in));
+                    RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), rfcKa, sizeof(rfcKa));
+                }
                 if (receivedPunch && bestSock >= 0)
                 {
                     RawSendTo(bestSock, bestPeer, bestPeerLen, punchAckPkt, sizeof(punchAckPkt));
@@ -614,51 +687,55 @@ namespace osmium::mobile
                 {
                     if ((pfds[i].revents & POLLIN) == 0) continue;
                     int rs = pfds[i].fd;
-                    uint8_t buf[2048];
-                    sockaddr_storage from{};
-                    socklen_t fromLen = sizeof(from);
-                    ssize_t n = ::recvfrom(rs, buf, sizeof(buf), 0,
-                                           reinterpret_cast<sockaddr*>(&from), &fromLen);
-                    if (n >= 24 && std::memcmp(buf, proto::kMagic, 4) == 0 && buf[4] == proto::kVersion)
+                    for (int drain = 0; drain < 32; ++drain)
                     {
-                        auto type = static_cast<proto::WireMsgType>(buf[5]);
-                        if ((type == proto::WireMsgType::Punch || type == proto::WireMsgType::PunchAck) &&
-                            std::memcmp(buf + 8, m_SessionToken, 16) == 0 &&
-                            buf[6] != static_cast<uint8_t>(m_LocalRole))
+                        uint8_t buf[2048];
+                        sockaddr_storage from{};
+                        socklen_t fromLen = sizeof(from);
+                        ssize_t n = ::recvfrom(rs, buf, sizeof(buf), 0,
+                                               reinterpret_cast<sockaddr*>(&from), &fromLen);
+                        if (n <= 0) break;
+                        if (n >= 24 && std::memcmp(buf, proto::kMagic, 4) == 0 && buf[4] == proto::kVersion)
                         {
-                            int tier = ClassifySockAddrTier(from);
-                            for (const auto& c : peerCandidates)
+                            auto type = static_cast<proto::WireMsgType>(buf[5]);
+                            if ((type == proto::WireMsgType::Punch || type == proto::WireMsgType::PunchAck) &&
+                                std::memcmp(buf + 8, m_SessionToken, 16) == 0 &&
+                                buf[6] != static_cast<uint8_t>(m_LocalRole))
                             {
-                                if (IsSameAddr(c.addr, from)) { tier = c.tier; break; }
-                            }
-                            RawSendTo(rs, from, fromLen, punchAckPkt, sizeof(punchAckPkt));
-
-                            if (!receivedPunch || tier < bestTier)
-                            {
-                                bestTier = tier;
-                                bestPeer = from;
-                                bestPeerLen = fromLen;
-                                bestSock = rs;
-                                receivedPunch = true;
-                            }
-                            if (type == proto::WireMsgType::PunchAck)
-                            {
-                                if (!receivedAck || tier < bestTier)
+                                int tier = ClassifySockAddrTier(from);
+                                for (const auto& c : peerCandidates)
                                 {
-                                    receivedAck = true;
+                                    if (IsSameAddr(c.addr, from)) { tier = c.tier; break; }
+                                }
+                                RawSendTo(rs, from, fromLen, punchAckPkt, sizeof(punchAckPkt));
+
+                                if (!receivedPunch || tier < bestTier)
+                                {
                                     bestTier = tier;
                                     bestPeer = from;
                                     bestPeerLen = fromLen;
                                     bestSock = rs;
+                                    receivedPunch = true;
                                 }
-                                if (bestTier == 1 || (!hasTier1 && bestTier == 2))
+                                if (type == proto::WireMsgType::PunchAck)
                                 {
-                                    ackGraceDeadline = NowMillis();
-                                    break;
-                                }
-                                else if (ackGraceDeadline == 0)
-                                {
-                                    ackGraceDeadline = NowMillis() + 50;
+                                    if (!receivedAck || tier < bestTier)
+                                    {
+                                        receivedAck = true;
+                                        bestTier = tier;
+                                        bestPeer = from;
+                                        bestPeerLen = fromLen;
+                                        bestSock = rs;
+                                    }
+                                    if (bestTier == 1 || (!hasTier1 && bestTier == 2))
+                                    {
+                                        ackGraceDeadline = NowMillis();
+                                        break;
+                                    }
+                                    else if (ackGraceDeadline == 0)
+                                    {
+                                        ackGraceDeadline = NowMillis() + 50;
+                                    }
                                 }
                             }
                         }
@@ -669,7 +746,7 @@ namespace osmium::mobile
 
         if (!receivedPunch || bestSock < 0)
         {
-            LOGW("P2P punch did not complete within %dms", punchTimeoutMs);
+            LOGW("P2P punch attempt %d did not complete within %dms", attempt, punchTimeoutMs);
             return false;
         }
 
@@ -688,14 +765,18 @@ namespace osmium::mobile
         if (bestSock == m_Sock4 && m_Sock6 >= 0) { ::close(m_Sock6); m_Sock6 = -1; }
         else if (bestSock == m_Sock6 && m_Sock4 >= 0) { ::close(m_Sock4); m_Sock4 = -1; }
 
-        int flags = fcntl(m_ActiveSock, F_GETFL, 0);
-        if (flags >= 0) fcntl(m_ActiveSock, F_SETFL, flags | O_NONBLOCK);
+        setNonBlock(m_ActiveSock);
 
         int tos = 0xB8;
         if (m_PeerAddr.ss_family == AF_INET6)
             setsockopt(m_ActiveSock, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
         else
             setsockopt(m_ActiveSock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+
+        if (m_KcpEnabled.load(std::memory_order_acquire))
+        {
+            StartKcp();
+        }
 
         outTransportRoute = m_Route.load(std::memory_order_relaxed);
         outActiveEndpoint = SockAddrToString(m_PeerAddr);
@@ -706,25 +787,21 @@ namespace osmium::mobile
     bool MobileTransport::EnableRelay(const uint8_t sessionToken[16], const char* label)
     {
         if (!sessionToken || m_Closed.load(std::memory_order_acquire)) return false;
+        StopKcp();
         std::memcpy(m_SessionToken, sessionToken, 16);
         m_LocalRole = proto::PeerRole::Client;
 
-        // Mirror the Windows transport: releasing the UDP sockets and resetting
-        // the crypto sequence/replay state keeps relay traffic coherent if a
-        // direct punch partially succeeded before switching routes.
         int s4 = m_Sock4;
         int s6 = m_Sock6;
         m_Sock4 = -1;
         m_Sock6 = -1;
         m_ActiveSock = -1;
+        m_PunchAttemptCount = 0;
         if (s4 >= 0) ::close(s4);
         if (s6 >= 0 && s6 != s4) ::close(s6);
 
         {
             std::lock_guard<std::mutex> sl(m_SendMutex);
-            // Only initialise the sequence. Resetting a live sequence replays
-            // nonce/sequence pairs the host already accepted over UDP and its
-            // replay window then drops every relayed packet.
             if (m_SendSequence.load(std::memory_order_relaxed) == 0)
             {
                 m_SendSequence.store(1, std::memory_order_relaxed);
@@ -744,7 +821,8 @@ namespace osmium::mobile
         }
         {
             std::lock_guard<std::mutex> ql(m_RelaySendMutex);
-            m_RelaySendQueue.clear();
+            m_RelayHighSendQueue.clear();
+            m_RelayDropSendQueue.clear();
         }
 
         m_RelayMode.store(true, std::memory_order_release);
@@ -780,8 +858,11 @@ namespace osmium::mobile
     int32_t MobileTransport::PollRelayOutgoing(uint8_t* outBuf, int32_t bufCap, int32_t* outIsDroppable)
     {
         std::lock_guard<std::mutex> lock(m_RelaySendMutex);
-        if (m_RelaySendQueue.empty()) return 0;
-        const auto& front = m_RelaySendQueue.front();
+        auto* q = !m_RelayHighSendQueue.empty()
+                      ? &m_RelayHighSendQueue
+                      : (!m_RelayDropSendQueue.empty() ? &m_RelayDropSendQueue : nullptr);
+        if (!q) return 0;
+        const auto& front = q->front();
         int32_t len = static_cast<int32_t>(front.data.size());
         if (len > bufCap)
         {
@@ -789,7 +870,7 @@ namespace osmium::mobile
         }
         std::memcpy(outBuf, front.data.data(), front.data.size());
         if (outIsDroppable) *outIsDroppable = front.isDroppable ? 1 : 0;
-        m_RelaySendQueue.pop_front();
+        q->pop_front();
         return len;
     }
 
@@ -1007,7 +1088,280 @@ namespace osmium::mobile
         return true;
     }
 
+    void MobileTransport::SetKcpEnabled(bool enabled)
+    {
+        m_KcpEnabled.store(enabled, std::memory_order_release);
+        if (enabled)
+        {
+            if (m_Connected.load(std::memory_order_acquire) &&
+                !m_RelayMode.load(std::memory_order_acquire) &&
+                !m_Closed.load(std::memory_order_acquire))
+            {
+                StartKcp();
+            }
+        }
+        else
+        {
+            StopKcp();
+        }
+    }
+
+    void MobileTransport::StartKcp()
+    {
+        if (m_Closed.load(std::memory_order_acquire) ||
+            !m_Connected.load(std::memory_order_acquire) ||
+            m_RelayMode.load(std::memory_order_acquire))
+        {
+            return;
+        }
+
+        bool needLaunch = false;
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            if (!m_KcpCtrl)
+            {
+                m_KcpCtrl = std::make_unique<kcp::KcpSession>(proto::kKcpConvControl);
+                m_KcpCtrl->SetMtu(proto::kKcpMtu);
+                m_KcpCtrl->SetNoDelay(1, 10, 2, 1);
+                m_KcpCtrl->SetMinRto(20);
+                m_KcpCtrl->SetWndSize(128, 128);
+            }
+            if (!m_KcpAux)
+            {
+                m_KcpAux = std::make_unique<kcp::KcpSession>(proto::kKcpConvAux);
+                m_KcpAux->SetMtu(proto::kKcpMtu);
+                m_KcpAux->SetNoDelay(1, 10, 2, 0);
+                m_KcpAux->SetMinRto(30);
+                m_KcpAux->SetWndSize(128, 256);
+            }
+            m_KcpStop = false;
+            m_KcpActive.store(true, std::memory_order_release);
+            if (!m_KcpPumpThread.joinable())
+            {
+                needLaunch = true;
+            }
+        }
+        if (needLaunch)
+        {
+            m_KcpPumpThread = std::thread(&MobileTransport::KcpPumpLoop, this);
+        }
+        m_KcpPumpCv.notify_one();
+    }
+
+    void MobileTransport::StopKcp()
+    {
+        m_KcpActive.store(false, std::memory_order_release);
+        std::thread pumpToJoin;
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            m_KcpStop = true;
+            if (m_KcpPumpThread.joinable())
+            {
+                pumpToJoin = std::move(m_KcpPumpThread);
+            }
+        }
+        m_KcpPumpCv.notify_all();
+        if (pumpToJoin.joinable())
+        {
+            if (pumpToJoin.get_id() == std::this_thread::get_id())
+            {
+                pumpToJoin.detach();
+            }
+            else
+            {
+                pumpToJoin.join();
+            }
+        }
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            m_KcpCtrl.reset();
+            m_KcpAux.reset();
+            m_KcpDeliveredQueue.clear();
+        }
+    }
+
+    void MobileTransport::SendKcpSegments(const std::vector<std::vector<uint8_t>>& segments)
+    {
+        if (segments.empty() || m_Closed.load(std::memory_order_acquire) || m_RelayMode.load(std::memory_order_acquire))
+        {
+            return;
+        }
+        alignas(8) uint8_t pktBuf[sizeof(proto::AppPacketHeader) + 2048];
+        for (const auto& seg : segments)
+        {
+            if (seg.empty()) continue;
+            if (seg.size() <= 2048)
+            {
+                std::memset(pktBuf, 0, sizeof(proto::AppPacketHeader));
+                std::memcpy(pktBuf + sizeof(proto::AppPacketHeader), seg.data(), seg.size());
+                SendRawEncrypted(proto::AppPacketType::KcpSegment, pktBuf,
+                                 sizeof(proto::AppPacketHeader) + seg.size());
+            }
+            else
+            {
+                std::vector<uint8_t> dynBuf(sizeof(proto::AppPacketHeader) + seg.size(), 0);
+                std::memcpy(dynBuf.data() + sizeof(proto::AppPacketHeader), seg.data(), seg.size());
+                SendRawEncrypted(proto::AppPacketType::KcpSegment, dynBuf.data(), dynBuf.size());
+            }
+        }
+    }
+
+    void MobileTransport::KcpPumpLoop()
+    {
+        while (!m_Closed.load(std::memory_order_acquire))
+        {
+            std::vector<std::vector<uint8_t>> ctrlSegs;
+            std::vector<std::vector<uint8_t>> auxSegs;
+            {
+                std::unique_lock<std::mutex> kl(m_KcpMutex);
+                if (m_KcpStop || !m_KcpActive.load(std::memory_order_acquire))
+                {
+                    break;
+                }
+                const uint32_t nowMs = static_cast<uint32_t>(NowMillis());
+                if (m_KcpCtrl)
+                {
+                    m_KcpCtrl->Update(nowMs, ctrlSegs, 0U);
+                }
+                if (m_KcpAux)
+                {
+                    m_KcpAux->Update(nowMs, auxSegs, 24U);
+                }
+                if (ctrlSegs.empty() && auxSegs.empty())
+                {
+                    uint32_t nextMs = nowMs + 15U;
+                    if (m_KcpCtrl)
+                    {
+                        const uint32_t cNext = m_KcpCtrl->Check(nowMs);
+                        if (static_cast<int32_t>(cNext - nextMs) < 0) nextMs = cNext;
+                    }
+                    if (m_KcpAux)
+                    {
+                        const uint32_t aNext = m_KcpAux->Check(nowMs);
+                        if (static_cast<int32_t>(aNext - nextMs) < 0) nextMs = aNext;
+                    }
+                    const int32_t diff = static_cast<int32_t>(nextMs - nowMs);
+                    const uint32_t sleepMs = static_cast<uint32_t>(std::clamp<int32_t>(diff, 2, 20));
+                    m_KcpPumpCv.wait_for(kl, std::chrono::milliseconds(sleepMs));
+                }
+            }
+            if (!ctrlSegs.empty())
+            {
+                SendKcpSegments(ctrlSegs);
+            }
+            if (!auxSegs.empty())
+            {
+                SendKcpSegments(auxSegs);
+            }
+        }
+    }
+
+    bool MobileTransport::HandleIncomingKcpSegment(
+        const uint8_t* segData,
+        size_t segLen,
+        std::vector<uint8_t>& outPlain)
+    {
+        if (!segData || segLen < kcp::kOverhead || m_RelayMode.load(std::memory_order_acquire))
+        {
+            return false;
+        }
+        const uint32_t conv = kcp::ReadConvLE(segData, segLen);
+        if (conv != proto::kKcpConvControl && conv != proto::kKcpConvAux)
+        {
+            return false;
+        }
+        if (!m_KcpActive.load(std::memory_order_acquire))
+        {
+            SetKcpEnabled(true);
+        }
+
+        std::vector<std::vector<uint8_t>> ackSegs;
+        bool delivered = false;
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            kcp::KcpSession* sess = (conv == proto::kKcpConvControl) ? m_KcpCtrl.get() : m_KcpAux.get();
+            if (!sess) return false;
+            const uint32_t nowMs = static_cast<uint32_t>(NowMillis());
+            if (sess->Input(segData, segLen, nowMs) == 0)
+            {
+                std::vector<uint8_t> msg;
+                while (sess->Recv(msg))
+                {
+                    if (!msg.empty())
+                    {
+                        m_KcpDeliveredQueue.push_back(std::move(msg));
+                        msg.clear();
+                    }
+                }
+                sess->Flush(nowMs, ackSegs, (conv == proto::kKcpConvAux) ? 24U : 0U);
+            }
+            if (!m_KcpDeliveredQueue.empty())
+            {
+                outPlain = std::move(m_KcpDeliveredQueue.front());
+                m_KcpDeliveredQueue.pop_front();
+                delivered = true;
+            }
+        }
+        if (!ackSegs.empty())
+        {
+            SendKcpSegments(ackSegs);
+        }
+        m_KcpPumpCv.notify_one();
+        return delivered;
+    }
+
     bool MobileTransport::SendEncrypted(proto::AppPacketType type, const void* appPayload, size_t len)
+    {
+        if (!m_Connected.load(std::memory_order_acquire) || m_Closed.load(std::memory_order_acquire))
+            return false;
+        if (!appPayload || len < sizeof(proto::AppPacketHeader)) return false;
+
+        if (!m_RelayMode.load(std::memory_order_acquire) && m_KcpActive.load(std::memory_order_acquire))
+        {
+            const uint32_t conv = proto::SelectKcpChannel(type, appPayload, len);
+            if (conv != 0)
+            {
+                std::vector<uint8_t> appMsg(len);
+                std::memcpy(appMsg.data(), appPayload, len);
+                appMsg[0] = static_cast<uint8_t>(type);
+
+                std::vector<std::vector<uint8_t>> outSegs;
+                bool sent = false;
+                {
+                    std::lock_guard<std::mutex> kl(m_KcpMutex);
+                    kcp::KcpSession* sess = (conv == proto::kKcpConvControl) ? m_KcpCtrl.get() : m_KcpAux.get();
+                    if (sess)
+                    {
+                        const uint32_t nowMs = static_cast<uint32_t>(NowMillis());
+                        if (conv == proto::kKcpConvControl &&
+                            proto::IsDroppableStalePress(type, appMsg.data(), appMsg.size()) &&
+                            sess->IsCongestedStale(nowMs, 48U, 1200U))
+                        {
+                            return true;
+                        }
+                        if (sess->Send(appMsg.data(), appMsg.size(), nowMs))
+                        {
+                            sess->Flush(nowMs, outSegs, (conv == proto::kKcpConvAux) ? 24U : 0U);
+                            sent = true;
+                        }
+                    }
+                }
+                if (sent)
+                {
+                    if (!outSegs.empty())
+                    {
+                        SendKcpSegments(outSegs);
+                    }
+                    m_KcpPumpCv.notify_one();
+                    return true;
+                }
+            }
+        }
+
+        return SendRawEncrypted(type, appPayload, len);
+    }
+
+    bool MobileTransport::SendRawEncrypted(proto::AppPacketType type, const void* appPayload, size_t len)
     {
         if (!m_Connected.load(std::memory_order_acquire) || m_Closed.load(std::memory_order_acquire))
             return false;
@@ -1031,11 +1385,18 @@ namespace osmium::mobile
             bool droppable = (type == proto::AppPacketType::VideoChunk ||
                               type == proto::AppPacketType::InputMouseMove);
             std::lock_guard<std::mutex> ql(m_RelaySendMutex);
-            if (m_RelaySendQueue.size() > 512)
+            if (droppable)
             {
-                m_RelaySendQueue.pop_front();
+                if (m_RelayDropSendQueue.size() > 128)
+                {
+                    m_RelayDropSendQueue.pop_front();
+                }
+                m_RelayDropSendQueue.push_back({std::move(wire), true});
             }
-            m_RelaySendQueue.push_back({std::move(wire), droppable});
+            else
+            {
+                m_RelayHighSendQueue.push_back({std::move(wire), false});
+            }
             return true;
         }
 
@@ -1045,6 +1406,17 @@ namespace osmium::mobile
     int MobileTransport::ReceiveEncrypted(std::vector<uint8_t>& outPlain, int timeoutMs)
     {
         if (m_Closed.load(std::memory_order_acquire)) return -1;
+
+        if (!m_RelayMode.load(std::memory_order_acquire) && m_KcpActive.load(std::memory_order_acquire))
+        {
+            std::lock_guard<std::mutex> kl(m_KcpMutex);
+            if (!m_KcpDeliveredQueue.empty())
+            {
+                outPlain = std::move(m_KcpDeliveredQueue.front());
+                m_KcpDeliveredQueue.pop_front();
+                return 1;
+            }
+        }
 
         if (m_RelayMode.load(std::memory_order_acquire))
         {
@@ -1070,21 +1442,73 @@ namespace osmium::mobile
         }
 
         if (m_ActiveSock < 0) return -1;
-        pollfd pfd{m_ActiveSock, POLLIN, 0};
-        int sel = ::poll(&pfd, 1, std::max(1, timeoutMs));
-        if (sel <= 0) return sel == 0 ? 0 : -1;
+        const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1, timeoutMs));
+        while (!m_Closed.load(std::memory_order_acquire))
+        {
+            uint8_t wireBuf[32768];
+            sockaddr_storage from{};
+            socklen_t fromLen = sizeof(from);
+            ssize_t n = ::recvfrom(m_ActiveSock, wireBuf, sizeof(wireBuf), 0,
+                                   reinterpret_cast<sockaddr*>(&from), &fromLen);
+            if (n < 0)
+            {
+                if (errno != EAGAIN && errno != EWOULDBLOCK)
+                {
+                    return m_Closed.load(std::memory_order_acquire) ? -1 : 0;
+                }
+                uint64_t now = NowMillis();
+                if (now >= deadline) return 0;
+                int rem = static_cast<int>(deadline - now);
+                pollfd pfd{m_ActiveSock, POLLIN, 0};
+                int sel = ::poll(&pfd, 1, std::max(1, rem));
+                if (sel == 0) return 0;
+                if (sel < 0) return m_Closed.load(std::memory_order_acquire) ? -1 : 0;
+                continue;
+            }
+            if (n == 0) continue;
+            if (n >= 24 && std::memcmp(wireBuf, proto::kMagic, 4) == 0 && wireBuf[4] == proto::kVersion)
+            {
+                auto wireType = static_cast<proto::WireMsgType>(wireBuf[5]);
+                if (wireType == proto::WireMsgType::Punch &&
+                    std::memcmp(wireBuf + 8, m_SessionToken, 16) == 0 &&
+                    wireBuf[6] != static_cast<uint8_t>(m_LocalRole))
+                {
+                    uint8_t ack[24]{};
+                    std::memcpy(ack, proto::kMagic, 4);
+                    ack[4] = proto::kVersion;
+                    ack[5] = static_cast<uint8_t>(proto::WireMsgType::PunchAck);
+                    ack[6] = static_cast<uint8_t>(m_LocalRole);
+                    std::memcpy(ack + 8, m_SessionToken, 16);
+                    RawSendTo(m_ActiveSock, from, fromLen, ack, sizeof(ack));
+                    continue;
+                }
+                if (wireType == proto::WireMsgType::PunchAck)
+                {
+                    continue;
+                }
+            }
 
-        uint8_t wireBuf[32768];
-        sockaddr_storage from{};
-        socklen_t fromLen = sizeof(from);
-        ssize_t n = ::recvfrom(m_ActiveSock, wireBuf, sizeof(wireBuf), 0,
-                               reinterpret_cast<sockaddr*>(&from), &fromLen);
-        if (n <= 0) return 0;
+            bool ok = m_EncryptionEnabled.load(std::memory_order_acquire)
+                          ? DecryptFrame(wireBuf, static_cast<size_t>(n), outPlain)
+                          : UnframePlaintext(wireBuf, static_cast<size_t>(n), outPlain);
+            if (!ok) continue;
 
-        bool ok = m_EncryptionEnabled.load(std::memory_order_acquire)
-                      ? DecryptFrame(wireBuf, static_cast<size_t>(n), outPlain)
-                      : UnframePlaintext(wireBuf, static_cast<size_t>(n), outPlain);
-        return ok ? 1 : 0;
+            if (outPlain.size() > sizeof(proto::AppPacketHeader) &&
+                static_cast<proto::AppPacketType>(outPlain[0]) == proto::AppPacketType::KcpSegment)
+            {
+                std::vector<uint8_t> kcpRaw = std::move(outPlain);
+                if (HandleIncomingKcpSegment(
+                        kcpRaw.data() + sizeof(proto::AppPacketHeader),
+                        kcpRaw.size() - sizeof(proto::AppPacketHeader),
+                        outPlain))
+                {
+                    return 1;
+                }
+                continue;
+            }
+            return 1;
+        }
+        return -1;
     }
 
     int32_t MobileTransport::AuthenticateClient(
@@ -1115,7 +1539,7 @@ namespace osmium::mobile
         while (!m_Closed.load(std::memory_order_acquire) && NowMillis() < deadline)
         {
             uint64_t now = NowMillis();
-            if (lastSend == 0 || now - lastSend >= 250ULL)
+            if (lastSend == 0 || now - lastSend >= 150ULL)
             {
                 SendEncrypted(proto::AppPacketType::AuthRequest, &req, sizeof(req));
                 lastSend = now;

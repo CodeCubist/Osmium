@@ -1393,7 +1393,8 @@ namespace
         if (!transport) return;
         proto::AppPacketHeader idrReq{};
         transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
-        if (transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        if (!transport->IsKcpActive() &&
+            transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
         {
             transport->SendEncrypted(proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
         }
@@ -1569,7 +1570,8 @@ namespace
 
         ctx->transport->SendEncrypted(type, payload, payloadLen);
 
-        if (ctx->transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        if (!ctx->transport->IsKcpActive() &&
+            ctx->transport->GetTransportRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
         {
             PendingUdpAction item;
             item.type = type;
@@ -2287,6 +2289,13 @@ OSMIUM_API int32_t Osmium_SetTransportEncryption(void* transport, int32_t enable
 {
     if (!transport) return 0;
     static_cast<OsmiumTransport*>(transport)->SetEncryptionEnabled(enableEncryption != 0);
+    return 1;
+}
+
+OSMIUM_API int32_t Osmium_SetTransportKcpEnabled(void* transport, int32_t enableKcp)
+{
+    if (!transport) return 0;
+    static_cast<OsmiumTransport*>(transport)->SetKcpEnabled(enableKcp != 0);
     return 1;
 }
 

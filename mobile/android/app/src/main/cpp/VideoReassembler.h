@@ -57,5 +57,6 @@ namespace osmium::mobile
 
         std::map<uint32_t, PendingFrame> m_Pending;
         uint32_t m_LastCompletedFrameId = 0;
+        uint32_t m_LastCompletedKeyFrameId = 0;
     };
 }

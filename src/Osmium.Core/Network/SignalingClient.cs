@@ -342,6 +342,12 @@ public sealed class BridgeReadyEventArgs : EventArgs
         get;
         init;
     } = "/relay";
+
+    public bool KcpEnabled
+    {
+        get;
+        init;
+    }
 }
 
 public sealed class RelayFallbackEventArgs : EventArgs
@@ -711,7 +717,8 @@ public sealed partial class SignalingClient : IDisposable
         {
             type = "bridge_candidates",
             sessionId,
-            candidates = candDoc.RootElement
+            candidates = candDoc.RootElement,
+            transportCaps = new[] { "kcp-v1" }
         });
     }
 

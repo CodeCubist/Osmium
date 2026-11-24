@@ -134,6 +134,10 @@ OSMIUM_MOBILE_API int32_t OsmiumMobile_SetTransportEncryption(
     void* transport,
     int32_t enabled);
 
+OSMIUM_MOBILE_API int32_t OsmiumMobile_SetTransportKcpEnabled(
+    void* transport,
+    int32_t enabled);
+
 OSMIUM_MOBILE_API int32_t OsmiumMobile_AuthenticateClient(
     void* transport,
     const uint8_t* authTag32,

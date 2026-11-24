@@ -199,6 +199,12 @@ class NativeBindings {
           int Function(Pointer<Void>, int)
         >('OsmiumMobile_SetTransportEncryption');
 
+    setTransportKcpEnabled = _lib
+        .lookupFunction<
+          Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)
+        >('OsmiumMobile_SetTransportKcpEnabled');
+
     authenticateClient = _lib
         .lookupFunction<
           Int32 Function(
@@ -447,6 +453,7 @@ class NativeBindings {
   pollRelayOutgoing;
   late final int Function(Pointer<Void>, Pointer<Uint8>) setTransportKey;
   late final int Function(Pointer<Void>, int) setTransportEncryption;
+  late final int Function(Pointer<Void>, int) setTransportKcpEnabled;
   late final int Function(
     Pointer<Void>,
     Pointer<Uint8>,

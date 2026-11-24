@@ -288,6 +288,15 @@ class OsmiumEngine {
     }
   }
 
+  void setTransportKcpEnabled({
+    required Pointer<Void> transport,
+    required bool enabled,
+  }) {
+    final b = _bindings;
+    if (b == null || transport == nullptr) return;
+    b.setTransportKcpEnabled(transport, enabled ? 1 : 0);
+  }
+
   /// Returns the native status (1 = accepted, 0 = timed out, -1 = rejected by
   /// host) plus the host-supplied error text. Matches Windows
   /// `Osmium_AuthenticateClient`, which retries over the relay on timeout but
