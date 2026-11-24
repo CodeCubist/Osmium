@@ -46,9 +46,10 @@ class _RippleRepaint extends ChangeNotifier {
 /// - Haptics only confirm what the eye cannot: the hold arming, the drag lock.
 /// - On hosts that take Windows touch input, one finger in
 ///   [ControlMode.directTouch] is forwarded as a touchscreen contact and
-///   Windows recognises taps, holds and swipes itself. Two fingers stay the
-///   phone's: pinch zooms the picture, sliding scrolls the host, or moves the
-///   picture once it is zoomed.
+///   Windows recognises taps, holds and swipes itself. When the picture is
+///   zoomed, a quick single-finger slide pans the zoomed view instead (hold
+///   first to drag on the host). Two fingers stay the phone's: pinch zooms the
+///   picture, sliding scrolls the host, and a tap right-clicks.
 class TouchControlLayer extends StatefulWidget {
   const TouchControlLayer({
     super.key,
@@ -139,14 +140,17 @@ class TouchControlLayerState extends State<TouchControlLayer>
   Timer? _longPressTimer;
 
   // Native touch: the lone finger forwarded as a touchscreen contact and its
-  // position on the host display. Whether the host takes touch is decided
-  // when a gesture starts, so a status push cannot split one gesture in two.
-  bool _nativeGesture = false;
+  // position on the host display. Whether the host takes touch (and whether
+  // the picture is zoomed) is decided when a gesture starts, so a status push
+  // or settling zoom cannot split one gesture in two.
   int? _touchPointer;
   Offset _touchDownAt = Offset.zero;
+  Offset _touchLastPos = Offset.zero;
   Offset _touchNorm = Offset.zero;
   bool _touchDownSent = false;
   bool _touchTravelled = false;
+  bool _touchZoomed = false;
+  bool _touchPanning = false;
   bool _touchMovePending = false;
   Timer? _touchDownTimer;
   Timer? _touchHeartbeat;
@@ -524,10 +528,10 @@ class TouchControlLayerState extends State<TouchControlLayer>
   void _onPointerDown(PointerDownEvent e, Size viewport) {
     widget.onUserInteraction();
     if (_activePointers.isEmpty) {
-      _nativeGesture =
+      final nativeTouch =
           widget.controlMode == ControlMode.directTouch &&
           widget.controller.hostStatus.touchInput;
-      if (_nativeGesture) {
+      if (nativeTouch) {
         _activePointers[e.pointer] = e.localPosition;
         _touchDown(e, viewport);
         return;
@@ -646,9 +650,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
     if (_twoMode == _TwoFingerMode.undecided) {
       final slid = (focal - _multiStartFocal).distance > _scrollSlop;
-      // One finger belongs to a touch host, so two move the zoomed picture.
-      if ((dist - _initialPinchDist).abs() > _pinchSlop ||
-          slid && _nativeGesture && _zoomed) {
+      if ((dist - _initialPinchDist).abs() > _pinchSlop) {
         // Rebase so the zoom grows from here instead of jumping by the
         // threshold.
         _twoMode = _TwoFingerMode.pinch;
@@ -741,10 +743,24 @@ class TouchControlLayerState extends State<TouchControlLayer>
   void _touchDown(PointerDownEvent e, Size viewport) {
     _touchPointer = e.pointer;
     _touchDownAt = e.localPosition;
+    _touchLastPos = e.localPosition;
     _touchNorm = _viewportToNorm(e.localPosition, _computeVideoRect(viewport));
     _touchDownSent = false;
     _touchTravelled = false;
-    _touchDownTimer = Timer(_touchDownDelay, _sendTouchDown);
+    _touchZoomed = _zoomed;
+    _touchPanning = false;
+    _touchDownTimer = Timer(
+      _touchZoomed ? _holdDelay : _touchDownDelay,
+      _onTouchHoldTimer,
+    );
+  }
+
+  void _onTouchHoldTimer() {
+    if (!mounted || _touchPointer == null || _touchDownSent || _touchPanning) {
+      return;
+    }
+    if (_touchZoomed) _hapticMedium();
+    _sendTouchDown();
   }
 
   /// The finger stayed alone long enough, travelled, or lifted: it is the
@@ -763,11 +779,28 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _touchMove(PointerMoveEvent e, Size viewport) {
+    if (_touchPanning) {
+      final step = e.localPosition - _touchLastPos;
+      _touchLastPos = e.localPosition;
+      setState(() => _pan = _clampPan(_pan + step, _zoom, viewport));
+      return;
+    }
     if (!_touchTravelled) {
       // One phone pixel spans several host pixels; jitter would read as a
       // drag and break press-and-hold.
       if ((e.localPosition - _touchDownAt).distance <= _touchSlop) return;
       _touchTravelled = true;
+      if (_touchZoomed && !_touchDownSent) {
+        // When zoomed in, a quick single-finger slide pans the local view
+        // instead of dragging on the host.
+        _touchDownTimer?.cancel();
+        _touchDownTimer = null;
+        _touchPanning = true;
+        final step = e.localPosition - _touchLastPos;
+        _touchLastPos = e.localPosition;
+        setState(() => _pan = _clampPan(_pan + step, _zoom, viewport));
+        return;
+      }
       _sendTouchDown();
     }
     _touchNorm = _viewportToNorm(e.localPosition, _computeVideoRect(viewport));
@@ -782,7 +815,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _touchLift(TouchPhase phase, {Offset? at, Size? viewport}) {
-    if (phase == TouchPhase.up) {
+    if (phase == TouchPhase.up && !_touchPanning) {
       _sendTouchDown();
       if (_touchTravelled && at != null && viewport != null) {
         _touchNorm = _viewportToNorm(at, _computeVideoRect(viewport));
@@ -796,6 +829,8 @@ class TouchControlLayerState extends State<TouchControlLayer>
     _touchPointer = null;
     _touchDownSent = false;
     _touchMovePending = false;
+    _touchZoomed = false;
+    _touchPanning = false;
   }
 
   void _sendTouch(TouchPhase phase) {
