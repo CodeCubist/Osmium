@@ -727,7 +727,7 @@ public sealed partial class AccountPage : Page
     private void RenderDevicesList(IReadOnlyList<AccountDeviceDto> devices)
     {
         if (DevicesListPanel == null) return;
-        DevicesCountText.Text = $"{devices.Count} / 10";
+        DevicesCountText.Text = $"{devices.Count} / 1000";
         DevicesListPanel.Children.Clear();
 
         bool hostControlled = App.Engine.Coordinator.IsHostStreaming;

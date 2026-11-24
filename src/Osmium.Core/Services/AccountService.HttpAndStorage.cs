@@ -71,7 +71,7 @@ public sealed partial class AccountService : IDisposable
                 => Tr("Acc_ErrSmtpSendFailed", "Failed to send verification email; please try again later"),
             OsmiumErrorCode.DeviceLimitExceeded
                 => Tr("Acc_ErrDeviceLimit",
-                    "Maximum of 10 logged-in devices reached; please remove an unused device first"),
+                    "Maximum of 1000 logged-in devices reached; please remove an unused device first"),
             OsmiumErrorCode.InvalidAvatar or OsmiumErrorCode.PayloadTooLarge
                 => Tr("Acc_ErrInvalidAvatar", "Invalid avatar image or file size too large"),
             OsmiumErrorCode.InvalidUsername

@@ -523,7 +523,7 @@
   <data name="Acc_ErrCaptchaFailed" xml:space="preserve"><value>Security human verification failed or expired; please try again</value></data>
   <data name="Acc_ErrGeetestNotConfigured" xml:space="preserve"><value>Server GeeTest credentials are not configured yet</value></data>
   <data name="Acc_ErrSmtpNotConfigured" xml:space="preserve"><value>Server SMTP email credentials are not configured yet</value></data>
-  <data name="Acc_ErrDeviceLimit" xml:space="preserve"><value>A single account can sign in on up to 10 devices; please remove an unused device first</value></data>
+  <data name="Acc_ErrDeviceLimit" xml:space="preserve"><value>A single account can sign in on up to 1000 devices; please remove an unused device first</value></data>
   <data name="Acc_ErrInvalidAvatar" xml:space="preserve"><value>Avatar image is invalid or exceeds the size limit</value></data>
   <data name="Acc_ErrInvalidUsername" xml:space="preserve"><value>Please enter a valid username</value></data>
   <data name="Acc_ErrAuthRequired" xml:space="preserve"><value>Session expired; please sign in again</value></data>

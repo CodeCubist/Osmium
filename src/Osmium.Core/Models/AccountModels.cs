@@ -421,7 +421,7 @@ public sealed class AccountStatusData
     {
         get;
         set;
-    } = 10;
+    } = 1000;
 }
 
 public sealed class AccountProfileUpdateData
@@ -609,7 +609,7 @@ public sealed class AccountDevicesListData
     {
         get;
         set;
-    } = 10;
+    } = 1000;
 }
 
 public sealed class AccountLoginHistoryRecordDto

@@ -617,7 +617,7 @@ public sealed partial class SettingsPage : Page
         }
 
         var devices = acc.SameAccountDevices;
-        SettingsDevicesCountText.Text = $"{devices.Count} / 10";
+        SettingsDevicesCountText.Text = $"{devices.Count} / 1000";
         BtnRefreshSettingsDevices.IsEnabled = true;
 
         if (devices.Count == 0)
