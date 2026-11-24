@@ -13,13 +13,7 @@ import '../../state/app_controller.dart';
 import '../shared/home_widgets.dart';
 import 'captcha_webview_page.dart';
 
-enum _QrFlowStage {
-  verifying,
-  awaitingConfirm,
-  submitting,
-  confirmed,
-  error,
-}
+enum _QrFlowStage { verifying, awaitingConfirm, submitting, confirmed, error }
 
 class QrLoginConfirmPage extends ConsumerStatefulWidget {
   const QrLoginConfirmPage({super.key, required this.request});
@@ -171,7 +165,9 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
 
   Future<void> _confirm() async {
     final ticket = _ticket;
-    if (ticket == null || _cooldownSec > 0 || _stage != _QrFlowStage.awaitingConfirm) {
+    if (ticket == null ||
+        _cooldownSec > 0 ||
+        _stage != _QrFlowStage.awaitingConfirm) {
       return;
     }
     OsmiumHaptics.confirm();
@@ -259,10 +255,13 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
               constraints: const BoxConstraints(maxWidth: 420),
               child: switch (_stage) {
                 _QrFlowStage.verifying => _buildVerifying(theme, colors),
-                _QrFlowStage.awaitingConfirm ||
-                _QrFlowStage.submitting =>
+                _QrFlowStage.awaitingConfirm || _QrFlowStage.submitting =>
                   _buildConfirmation(theme, colors, isDark),
-                _QrFlowStage.confirmed => _buildConfirmed(theme, colors, isDark),
+                _QrFlowStage.confirmed => _buildConfirmed(
+                  theme,
+                  colors,
+                  isDark,
+                ),
                 _QrFlowStage.error => _buildError(theme, colors, isDark),
               },
             ),
@@ -358,7 +357,6 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
         ),
         const SizedBox(height: 28),
         MiuixCard(
-          cornerRadius: 20,
           insideMargin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
           child: Column(
             children: [
@@ -395,7 +393,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
           child: MiuixButton(
             enabled: canConfirm,
             onPressed: canConfirm ? _confirm : null,
-            minHeight: 50,
+            minHeight: 44,
             colors: MiuixButtonColors(
               color: colors.primary,
               disabledColor: colors.disabledSecondaryVariant,
@@ -426,7 +424,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
             '取消登录',
             enabled: !submitting,
             onPressed: submitting ? null : _cancel,
-            minHeight: 48,
+            minHeight: 44,
           ),
         ),
       ],
@@ -464,11 +462,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
     );
   }
 
-  Widget _buildError(
-    MiuixThemeData theme,
-    MiuixColors colors,
-    bool isDark,
-  ) {
+  Widget _buildError(MiuixThemeData theme, MiuixColors colors, bool isDark) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -498,7 +492,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
           child: MiuixTextButton(
             '返回',
             onPressed: () => Navigator.of(context).pop(false),
-            minHeight: 46,
+            minHeight: 44,
             colors: MiuixButtonDefaults.buttonColorsPrimary(context),
           ),
         ),
@@ -508,11 +502,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.mono = false,
-  });
+  const _InfoRow({required this.label, required this.value, this.mono = false});
 
   final String label;
   final String value;

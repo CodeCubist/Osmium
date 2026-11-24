@@ -171,7 +171,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     _invalidNotice ?? '',
@@ -238,7 +238,7 @@ class _ScannerOverlayPainter extends CustomPainter {
       width: boxSize,
       height: boxSize,
     );
-    const radius = Radius.circular(22);
+    const radius = Radius.circular(18);
     final rrect = RRect.fromRectAndRadius(rect, radius);
 
     final maskPath = Path()

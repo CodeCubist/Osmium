@@ -205,6 +205,15 @@ OSMIUM_MOBILE_API void OsmiumMobile_SendGamepad(
     void* session,
     const OsmiumMobileGamepadState* state);
 
+// `contacts` holds `count` (0..10) records laid out as protocol
+// InputTouchContact: u8 id, u8 phase (1 down, 2 move, 3 up, 4 cancel),
+// u16 reserved, f32 x, f32 y normalized to the streamed display.
+OSMIUM_MOBILE_API void OsmiumMobile_SendTouch(
+    void* session,
+    uint16_t seq,
+    const uint8_t* contacts,
+    int32_t count);
+
 OSMIUM_MOBILE_API void OsmiumMobile_SwitchDisplay(
     void* session,
     int32_t displayIndex);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -9,6 +10,7 @@ import '../../core/models/account_models.dart';
 import '../../core/theme/osmium_motion.dart';
 import '../../core/theme/osmium_theme.dart';
 import '../../state/app_controller.dart';
+import '../shared/home_widgets.dart';
 import '../widgets/osmium_motion_widgets.dart';
 import 'captcha_webview_page.dart';
 
@@ -192,179 +194,271 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final theme = MiuixTheme.of(context);
     final colors = theme.colors;
     final isDark = theme.brightness == Brightness.dark;
+    final pad = MediaQuery.paddingOf(context);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+
+    final fieldColors = MiuixTextFieldColors(
+      backgroundColor: isDark
+          ? Colors.white.withValues(alpha: 0.07)
+          : Colors.white.withValues(alpha: 0.62),
+      labelColor: colors.onSurfaceVariantSummary,
+      borderColor: colors.primary,
+    );
 
     return MiuixScaffold(
-      topBar: MiuixSmallTopAppBar(
-        title: _isRegister ? '注册账号' : '登录 Osmium',
-        navigationIcon: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: colors.onSurface,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      content: (contentPadding) {
-        return ListView(
-          padding: contentPadding.add(
-            const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          ),
+      content: (_) {
+        return Stack(
+          fit: StackFit.expand,
           children: [
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  'assets/images/osmium_logo.png',
-                  width: 68,
-                  height: 68,
-                  fit: BoxFit.cover,
+            _LoginBackdrop(isDark: isDark, background: colors.background),
+            LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                // Anchored from the top, not centred: revealing the register
+                // fields grows the card downwards and the toggle stays put.
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  pad.top + (constraints.maxHeight * 0.13).clamp(56.0, 132.0),
+                  20,
+                  pad.bottom + keyboard + 24,
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _ModeToggle(
-              isRegister: _isRegister,
-              onChanged: (v) => setState(() {
-                _isRegister = v;
-                _error = null;
-              }),
-            ),
-            const SizedBox(height: 18),
-            MiuixCard(
-              cornerRadius: 20,
-              insideMargin: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  MiuixTextField(
-                    controller: _emailCtrl,
-                    label: '邮箱',
-                    singleLine: true,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  OsmiumAnimatedReveal(
-                    visible: _isRegister,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 12),
-                        MiuixTextField(
-                          controller: _usernameCtrl,
-                          label: '昵称',
-                          singleLine: true,
-                          textInputAction: TextInputAction.next,
-                        ),
-                        const SizedBox(height: 12),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: MiuixTextField(
-                                controller: _codeCtrl,
-                                label: '验证码',
-                                singleLine: true,
-                                keyboardType: TextInputType.number,
-                                textInputAction: TextInputAction.next,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(9),
+                              child: Image.asset(
+                                'assets/images/osmium_logo.png',
+                                width: 36,
+                                height: 36,
+                                fit: BoxFit.cover,
                               ),
                             ),
                             const SizedBox(width: 10),
-                            MiuixTextButton(
-                              _codeCooldown > 0 ? '${_codeCooldown}s' : '获取',
-                              enabled: !_sendingCode && _codeCooldown == 0,
-                              onPressed: _sendRegisterCode,
-                              minHeight: 54,
+                            Text(
+                              'Osmium',
+                              style: TextStyle(
+                                fontFamily: OsmiumTheme.fontFamily,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                                color: colors.onSurface,
+                              ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 22),
+                        OsmiumGlassSurface(
+                          cornerRadius: 24,
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _ModeToggle(
+                                isRegister: _isRegister,
+                                onChanged: (v) => setState(() {
+                                  _isRegister = v;
+                                  _error = null;
+                                }),
+                              ),
+                              const SizedBox(height: 16),
+                              MiuixTextField(
+                                controller: _emailCtrl,
+                                label: '邮箱',
+                                singleLine: true,
+                                colors: fieldColors,
+                                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                                insideMargin:
+                                    OsmiumFieldDefaults.floatingMargin,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                              ),
+                              OsmiumAnimatedReveal(
+                                visible: _isRegister,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const SizedBox(height: 10),
+                                    MiuixTextField(
+                                      controller: _usernameCtrl,
+                                      label: '昵称',
+                                      singleLine: true,
+                                      colors: fieldColors,
+                                      cornerRadius:
+                                          OsmiumFieldDefaults.cornerRadius,
+                                      insideMargin:
+                                          OsmiumFieldDefaults.floatingMargin,
+                                      textInputAction: TextInputAction.next,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: MiuixTextField(
+                                            controller: _codeCtrl,
+                                            label: '验证码',
+                                            singleLine: true,
+                                            colors: fieldColors,
+                                            cornerRadius: OsmiumFieldDefaults
+                                                .cornerRadius,
+                                            insideMargin: OsmiumFieldDefaults
+                                                .floatingMargin,
+                                            keyboardType: TextInputType.number,
+                                            textInputAction:
+                                                TextInputAction.next,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        MiuixTextButton(
+                                          _codeCooldown > 0
+                                              ? '${_codeCooldown}s'
+                                              : '获取',
+                                          enabled:
+                                              !_sendingCode &&
+                                              _codeCooldown == 0,
+                                          onPressed: _sendRegisterCode,
+                                          minHeight: 44,
+                                          colors: MiuixButtonColors(
+                                            color: fieldColors.backgroundColor,
+                                            disabledColor:
+                                                fieldColors.backgroundColor,
+                                            contentColor: colors.primary,
+                                            disabledContentColor:
+                                                colors.onSurfaceVariantSummary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              MiuixTextField(
+                                controller: _passwordCtrl,
+                                label: '密码',
+                                singleLine: true,
+                                colors: fieldColors,
+                                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                                insideMargin:
+                                    OsmiumFieldDefaults.floatingMargin,
+                                obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _submit(),
+                                trailingIcon: MiuixIconButton(
+                                  onPressed: () {
+                                    OsmiumHaptics.selection();
+                                    setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    );
+                                  },
+                                  minWidth: 40,
+                                  minHeight: 36,
+                                  child: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    size: 18,
+                                    color: colors.onSurfaceVariantSummary,
+                                  ),
+                                ),
+                              ),
+                              OsmiumAnimatedReveal(
+                                visible: _error != null,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: OsmiumColors.dangerBg(isDark)
+                                          .withValues(alpha: 0.85),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: MiuixText(
+                                      _error ?? '',
+                                      style: theme.textStyles.body2,
+                                      color: OsmiumColors.dangerFg(isDark),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              MiuixButton(
+                                onPressed: _submit,
+                                colors: MiuixButtonDefaults.buttonColorsPrimary(
+                                  context,
+                                ),
+                                minHeight: 44,
+                                child: AnimatedSwitcher(
+                                  duration: OsmiumMotion.durationOr(
+                                    context,
+                                    OsmiumMotion.small,
+                                  ),
+                                  switchInCurve: MiuixMotion.standardDecelerate,
+                                  switchOutCurve:
+                                      MiuixMotion.standardAccelerate,
+                                  transitionBuilder: (child, animation) =>
+                                      FadeTransition(
+                                        opacity: animation,
+                                        child: ScaleTransition(
+                                          scale: Tween<double>(
+                                            begin: 0.9,
+                                            end: 1,
+                                          ).animate(animation),
+                                          child: child,
+                                        ),
+                                      ),
+                                  child: _submitting
+                                      ? SizedBox(
+                                          key: const ValueKey('submitting'),
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: colors.onPrimary,
+                                          ),
+                                        )
+                                      : Text(
+                                          _isRegister ? '注册并登录' : '登录',
+                                          key: const ValueKey('idle'),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  MiuixTextField(
-                    controller: _passwordCtrl,
-                    label: '密码',
-                    singleLine: true,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _submit(),
-                    trailingIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
-                        size: 20,
-                        color: colors.onSurfaceVariantSummary,
-                      ),
-                      onPressed: () {
-                        OsmiumHaptics.selection();
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                  ),
-                  OsmiumAnimatedReveal(
-                    visible: _error != null,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: OsmiumColors.dangerBg(isDark),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: MiuixText(
-                          _error ?? '',
-                          style: theme.textStyles.body2,
-                          color: OsmiumColors.dangerFg(isDark),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: MiuixButton(
-                      onPressed: _submit,
-                      colors: MiuixButtonDefaults.buttonColorsPrimary(context),
-                      minHeight: 50,
-                      child: AnimatedSwitcher(
-                        duration: OsmiumMotion.durationOr(
-                          context,
-                          OsmiumMotion.small,
-                        ),
-                        switchInCurve: MiuixMotion.standardDecelerate,
-                        switchOutCurve: MiuixMotion.standardAccelerate,
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: ScaleTransition(
-                            scale: Tween<double>(
-                              begin: 0.9,
-                              end: 1,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        ),
-                        child: _submitting
-                            ? SizedBox(
-                                key: const ValueKey('submitting'),
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: colors.onPrimary,
-                                ),
-                              )
-                            : Text(
-                                _isRegister ? '注册并登录' : '登录',
-                                key: const ValueKey('idle'),
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: pad.top + 6,
+              left: 8,
+              child: MiuixIconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                minWidth: 40,
+                minHeight: 40,
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 19,
+                  color: colors.onSurface,
+                  semanticLabel: '返回',
+                ),
               ),
             ),
           ],
@@ -372,6 +466,109 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       },
     );
   }
+}
+
+/// Soft drifting colour fields behind the login glass, so the frost has
+/// something to refract.
+class _LoginBackdrop extends StatefulWidget {
+  const _LoginBackdrop({required this.isDark, required this.background});
+
+  final bool isDark;
+  final Color background;
+
+  @override
+  State<_LoginBackdrop> createState() => _LoginBackdropState();
+}
+
+class _LoginBackdropState extends State<_LoginBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _drift = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+    value: 0.5,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (OsmiumMotion.reduced(context)) {
+      _drift
+        ..stop()
+        ..value = 0.5;
+    } else if (!_drift.isAnimating) {
+      _drift.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _drift.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _BlobPainter(
+          drift: _drift,
+          isDark: widget.isDark,
+          background: widget.background,
+        ),
+      ),
+    );
+  }
+}
+
+class _BlobPainter extends CustomPainter {
+  _BlobPainter({
+    required this.drift,
+    required this.isDark,
+    required this.background,
+  }) : super(repaint: drift);
+
+  final Animation<double> drift;
+  final bool isDark;
+  final Color background;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = background);
+    final t = Curves.easeInOutSine.transform(drift.value) * 2 * math.pi;
+    final w = size.width, h = size.height;
+    final k = isDark ? 0.62 : 1.0;
+
+    void blob(Offset c, double r, Color color) {
+      final rect = Rect.fromCircle(center: c, radius: r);
+      canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..shader = RadialGradient(colors: [color, color.withValues(alpha: 0)])
+              .createShader(rect),
+      );
+    }
+
+    blob(
+      Offset(w * (0.12 + 0.05 * math.sin(t)), h * (0.2 + 0.03 * math.cos(t))),
+      w * 0.78,
+      const Color(0xFF3482FF).withValues(alpha: 0.5 * k),
+    );
+    blob(
+      Offset(w * (0.96 - 0.04 * math.cos(t)), h * (0.44 + 0.04 * math.sin(t))),
+      w * 0.62,
+      const Color(0xFF2FC6E0).withValues(alpha: 0.42 * k),
+    );
+    blob(
+      Offset(w * (0.3 + 0.04 * math.cos(t)), h * (0.86 - 0.03 * math.sin(t))),
+      w * 0.7,
+      const Color(0xFF8A7DFF).withValues(alpha: 0.34 * k),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BlobPainter oldDelegate) =>
+      oldDelegate.isDark != isDark || oldDelegate.background != background;
 }
 
 class _ModeToggle extends StatefulWidget {
@@ -429,13 +626,14 @@ class _ModeToggleState extends State<_ModeToggle>
   Widget build(BuildContext context) {
     final theme = MiuixTheme.of(context);
     final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      height: 46,
-      padding: const EdgeInsets.all(4),
+      height: 36,
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(14),
+        color: colors.onSurface.withValues(alpha: isDark ? 0.07 : 0.05),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Stack(
         children: [
@@ -457,8 +655,19 @@ class _ModeToggleState extends State<_ModeToggle>
               ),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colors.primary,
-                  borderRadius: BorderRadius.circular(11),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.14)
+                      : Colors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: isDark
+                      ? null
+                      : const [
+                          BoxShadow(
+                            color: Color(0x14000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                 ),
               ),
             ),
@@ -506,8 +715,7 @@ class _TabPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = MiuixTheme.of(context);
-    final colors = theme.colors;
+    final colors = MiuixTheme.of(context).colors;
     final reduced = OsmiumMotion.reduced(context);
 
     return GestureDetector(
@@ -519,13 +727,17 @@ class _TabPill extends StatelessWidget {
           final value = animation.value.clamp(0.0, 1.0);
           final double active = register ? value : 1 - value;
           return Center(
-            child: MiuixText(
+            child: Text(
               label,
-              style: theme.textStyles.headline2,
-              color: Color.lerp(
-                colors.onSurfaceVariantSummary,
-                colors.onPrimary,
-                reduced ? (active > 0.5 ? 1 : 0) : active,
+              style: TextStyle(
+                fontFamily: OsmiumTheme.fontFamily,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color.lerp(
+                  colors.onSurfaceVariantSummary,
+                  colors.onSurface,
+                  reduced ? (active > 0.5 ? 1 : 0) : active,
+                ),
               ),
             ),
           );

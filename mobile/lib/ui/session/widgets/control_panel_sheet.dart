@@ -15,8 +15,11 @@ import '../../../services/session/remote_session_controller.dart';
 import 'session_signals.dart';
 import 'virtual_keyboard_overlay.dart';
 
-/// 4-section HyperOS liquid-glass remote control sheet (操控 / 画质 / 音传 / 系统).
+/// Frosted session panel: a strip of quick actions over grouped settings.
+/// Slides in from the right in landscape and up from the bottom in portrait.
 class ControlPanelSheet extends StatefulWidget {
+  static const Key surfaceKey = ValueKey('control-panel-surface');
+
   const ControlPanelSheet({
     super.key,
     required this.controller,
@@ -46,11 +49,12 @@ class ControlPanelSheet extends StatefulWidget {
 
 class _ControlPanelSheetState extends State<ControlPanelSheet>
     with TickerProviderStateMixin {
-  int _tabIndex = 0;
-
   late final AnimationController _slide;
   late final AnimationController _dragSpring;
   double _dragExtent = 0;
+
+  /// A restart or shutdown waiting to be confirmed.
+  _PendingPower? _confirm;
 
   @override
   void initState() {
@@ -78,6 +82,7 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
   void didUpdateWidget(covariant ControlPanelSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.visible == oldWidget.visible) return;
+    _confirm = null;
     if (widget.visible) {
       // Reopening: drop any leftover drag offset and come back up.
       _dragSpring.stop();
@@ -167,7 +172,7 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
                 behavior: HitTestBehavior.opaque,
                 onTap: widget.onClose,
                 child: ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.42 * eased),
+                  color: Colors.black.withValues(alpha: 0.36 * eased),
                 ),
               ),
               Align(
@@ -186,6 +191,34 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
                   ),
                 ),
               ),
+              AnimatedSwitcher(
+                duration: OsmiumMotion.durationOr(context, OsmiumMotion.small),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.94, end: 1).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: switch (_confirm) {
+                  null => const SizedBox.shrink(),
+                  final pending => _PowerConfirm(
+                    key: ValueKey(pending),
+                    pending: pending,
+                    hostName: widget.signals.hostName.value,
+                    onCancel: () => setState(() => _confirm = null),
+                    onConfirm: () {
+                      if (_confirm != pending) return;
+                      OsmiumHaptics.confirm();
+                      widget.controller.sendSystemAction(pending.code);
+                      setState(() => _confirm = null);
+                      widget.onClose();
+                    },
+                  ),
+                },
+              ),
             ],
           ),
         );
@@ -193,142 +226,56 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
       child: ListenableBuilder(
         listenable: widget.signals.revision,
         builder: (context, _) => Container(
-          width: isLandscape ? 380 : double.infinity,
+          width: isLandscape ? 348 : double.infinity,
           constraints: BoxConstraints(
-            maxHeight: isLandscape
-                ? MediaQuery.sizeOf(context).height - 24
-                : MediaQuery.sizeOf(context).height * 0.72,
+            maxHeight: isLandscape ? size.height - 20 : size.height * 0.74,
           ),
           margin: isLandscape
-              ? EdgeInsets.only(right: pad.right + 12, top: 12, bottom: 12)
-              : EdgeInsets.only(left: 12, right: 12, bottom: pad.bottom + 12),
-          child: MiuixGlassPanel(
-            shape: const MiuixGlassShape(cornerRadius: 26, smoothing: 1.0),
-            fill: const Color(0xEB151A24),
+              ? EdgeInsets.only(right: pad.right + 10, top: 10, bottom: 10)
+              : EdgeInsets.only(left: 8, right: 8, bottom: pad.bottom + 8),
+          child: _PanelShell(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              padding: EdgeInsets.fromLTRB(14, isLandscape ? 14 : 8, 14, 0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header row: host name + route + disconnect
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: ValueListenableBuilder<String>(
-                                valueListenable: widget.signals.hostName,
-                                builder: (context, name, _) => Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: OsmiumTheme.fontFamily,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: OsmiumColors.accentOnGlass.withValues(
-                                  alpha: 0.18,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child:
-                                  ValueListenableBuilder<SessionStatsSnapshot>(
-                                    valueListenable: widget.signals.stats,
-                                    builder: (context, stats, _) => Text(
-                                      '${stats.routeLabel} ${stats.rttMs}ms',
-                                      style: OsmiumTheme.monoStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: OsmiumColors.accentOnGlass,
-                                      ),
-                                    ),
-                                  ),
-                            ),
-                          ],
+                  if (!isLandscape) ...[
+                    Center(
+                      child: Container(
+                        width: 32,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.24),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: widget.onDisconnect,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: OsmiumColors.dangerBgDark,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Text(
-                            '断开',
-                            style: TextStyle(
-                              fontFamily: OsmiumTheme.fontFamily,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: OsmiumColors.dangerFgDark,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 4-section segmented bar
-                  MiuixGlassSegmentedTabRow(
-                    tabs: const ['操控', '画质', '音传', '系统'],
-                    selectedIndex: _tabIndex,
-                    onSelect: (idx) => setState(() => _tabIndex = idx),
-                    height: 36,
-                    trackColor: Colors.white.withValues(alpha: 0.08),
-                    indicatorColor: Colors.white.withValues(alpha: 0.18),
-                    selectedContentColor: Colors.white,
-                    contentColor: Colors.white60,
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _buildHeader(),
                   const SizedBox(height: 14),
-
+                  _buildQuickTiles(),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 0.75,
+                    color: OsmiumColors.sessionGlassHairline,
+                  ),
                   Flexible(
-                    child: AnimatedSize(
-                      duration: OsmiumMotion.durationOr(
-                        context,
-                        OsmiumMotion.small,
-                      ),
-                      curve: MiuixMotion.standardDecelerate,
-                      alignment: Alignment.topCenter,
-                      child: SingleChildScrollView(
-                        child: AnimatedSwitcher(
-                          duration: OsmiumMotion.durationOr(
-                            context,
-                            OsmiumMotion.quick,
-                          ),
-                          switchInCurve: MiuixMotion.standardDecelerate,
-                          switchOutCurve: MiuixMotion.standardAccelerate,
-                          layoutBuilder: (current, previous) => Stack(
-                            alignment: Alignment.topCenter,
-                            children: [...previous, ?current],
-                          ),
-                          child: KeyedSubtree(
-                            key: ValueKey(_tabIndex),
-                            child: switch (_tabIndex) {
-                              0 => _buildControlSection(),
-                              1 => _buildDisplaySection(),
-                              2 => _buildAudioTransferSection(),
-                              _ => _buildSystemSection(),
-                            },
-                          ),
-                        ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(top: 10, bottom: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _SectionTitle('操作', first: true),
+                          _buildControlGroup(),
+                          const _SectionTitle('显示'),
+                          _buildDisplayGroup(),
+                          const _SectionTitle('声音与传输'),
+                          _buildAudioTransferGroup(),
+                          const _SectionTitle('系统'),
+                          _buildSystemGroup(),
+                        ],
                       ),
                     ),
                   ),
@@ -341,94 +288,133 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
     );
   }
 
-  Widget _buildControlSection() {
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Expanded(
+          child: ValueListenableBuilder<String>(
+            valueListenable: widget.signals.hostName,
+            builder: (context, name, _) => Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: OsmiumTheme.fontFamily,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: OsmiumColors.accentOnGlass.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+              color: OsmiumColors.accentOnGlass.withValues(alpha: 0.28),
+              width: 0.75,
+            ),
+          ),
+          child: ValueListenableBuilder<SessionStatsSnapshot>(
+            valueListenable: widget.signals.stats,
+            builder: (context, stats, _) => Text(
+              '${stats.routeLabel} ${stats.rttMs}ms',
+              style: OsmiumTheme.monoStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: OsmiumColors.accentOnGlass,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickTiles() {
+    final ctrl = widget.controller;
+    final tiles = [
+      _QuickTile(
+        icon: Icons.logout_rounded,
+        label: '退出远控',
+        danger: true,
+        onTap: widget.onDisconnect,
+      ),
+      _QuickTile(
+        icon: Icons.screen_rotation_rounded,
+        label: switch (ctrl.orientationMode) {
+          1 => '竖屏',
+          2 => '横屏',
+          _ => '自动旋转',
+        },
+        active: ctrl.orientationMode != 0,
+        onTap: ctrl.cycleOrientation,
+      ),
+      _QuickTile(
+        icon: ctrl.audioMuted
+            ? Icons.volume_off_rounded
+            : Icons.volume_up_rounded,
+        label: '声音',
+        active: !ctrl.audioMuted,
+        onTap: ctrl.toggleMute,
+      ),
+      _QuickTile(
+        icon: ctrl.viewOnly
+            ? Icons.visibility_rounded
+            : Icons.visibility_outlined,
+        label: '仅观看',
+        active: ctrl.viewOnly,
+        onTap: ctrl.viewOnlyLocked ? null : ctrl.toggleViewOnly,
+      ),
+      _QuickTile(
+        icon: Icons.refresh_rounded,
+        label: '刷新画面',
+        onTap: () {
+          ctrl.requestIdr();
+          widget.onClose();
+        },
+      ),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < tiles.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(child: tiles[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildControlGroup() {
     final s = widget.settings;
     final ctrl = widget.controller;
     final isDirect = s.controlMode == ControlMode.directTouch;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _Group(
       children: [
-        // Primary mode switch: Direct Touch (default) vs Precision Mouse
-        Row(
-          children: [
-            Expanded(
-              child: _ModeTile(
-                icon: Icons.touch_app_rounded,
-                label: '屏幕点控',
-                selected: isDirect,
-                onTap: () => widget.onSettingsChanged(
-                  s.copyWith(controlMode: ControlMode.directTouch),
-                ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: _Segmented(
+            height: 38,
+            labels: const ['屏幕触控', '鼠标指针'],
+            icons: const [Icons.touch_app_rounded, Icons.near_me_rounded],
+            selected: isDirect ? 0 : 1,
+            onSelect: (i) => widget.onSettingsChanged(
+              s.copyWith(
+                controlMode: i == 0
+                    ? ControlMode.directTouch
+                    : ControlMode.precisionMouse,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ModeTile(
-                icon: Icons.near_me_rounded,
-                label: '精细鼠标',
-                selected: !isDirect,
-                onTap: () => widget.onSettingsChanged(
-                  s.copyWith(controlMode: ControlMode.precisionMouse),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
-
-        // Quick input tiles
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.keyboard_alt_outlined,
-                label: '输入法',
-                onTap: () {
-                  widget.onClose();
-                  widget.onOpenKeyboard(KeyboardOverlayMode.systemIme);
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.keyboard_rounded,
-                label: 'PC 键盘',
-                onTap: () {
-                  widget.onClose();
-                  widget.onOpenKeyboard(KeyboardOverlayMode.pcFull);
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.mouse_rounded,
-                label: '外接捕获',
-                active: ctrl.pointerCaptureActive,
-                onTap: () => ctrl.togglePointerCapture(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.screen_rotation_rounded,
-                label: switch (ctrl.orientationMode) {
-                  1 => '竖屏',
-                  2 => '横屏',
-                  _ => '自动转屏',
-                },
-                onTap: () => ctrl.cycleOrientation(),
-              ),
-            ),
-          ],
-        ),
-
         if (!isDirect) ...[
-          const SizedBox(height: 14),
           _SliderRow(
-            label: '光标灵敏度',
+            label: '指针速度',
             valueText: '${s.cursorSensitivity.toStringAsFixed(2)}x',
             value: s.cursorSensitivity,
             min: 0.4,
@@ -436,209 +422,178 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
             onChanged: (v) =>
                 widget.onSettingsChanged(s.copyWith(cursorSensitivity: v)),
           ),
-          const SizedBox(height: 8),
           _ToggleRow(
-            label: '精细准星辅助',
+            label: '放大镜',
             value: s.precisionMagnifierEnabled,
             onChanged: (v) => widget.onSettingsChanged(
               s.copyWith(precisionMagnifierEnabled: v),
             ),
           ),
         ],
+        _ToggleRow(
+          label: '外接鼠标捕获',
+          value: ctrl.pointerCaptureActive,
+          onChanged: (_) => ctrl.togglePointerCapture(),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _GroupButton(
+                  icon: Icons.keyboard_alt_outlined,
+                  label: '输入法',
+                  onTap: () {
+                    widget.onClose();
+                    widget.onOpenKeyboard(KeyboardOverlayMode.systemIme);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _GroupButton(
+                  icon: Icons.keyboard_rounded,
+                  label: 'PC 键盘',
+                  onTap: () {
+                    widget.onClose();
+                    widget.onOpenKeyboard(KeyboardOverlayMode.pcFull);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildDisplaySection() {
+  Widget _buildDisplayGroup() {
     final s = widget.settings;
     final ctrl = widget.controller;
     final displays = ctrl.hostStatus.displays;
+    const resolutions = [
+      (1280, 720, '720P'),
+      (1920, 1080, '1080P'),
+      (2560, 1440, '2K'),
+      (3840, 2160, '4K'),
+    ];
+    const fps = OsmiumConstants.fpsPresets;
 
     void applyVideo(OsmiumSettings next) {
       widget.onSettingsChanged(next);
       ctrl.applySettings(next, updateVideo: true);
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _Group(
       children: [
-        if (displays.length > 1) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: displays.map((d) {
-              final active = d.index == ctrl.hostStatus.activeDisplayIndex;
-              return _PillChoice(
-                label: '显示器 ${d.index + 1}',
-                selected: active,
-                onTap: () => ctrl.switchDisplay(d.index),
-              );
-            }).toList(),
+        if (displays.length > 1)
+          _LabeledRow(
+            label: '显示器',
+            child: _Segmented(
+              labels: [for (final d in displays) '${d.index + 1}'],
+              selected: displays.indexWhere(
+                (d) => d.index == ctrl.hostStatus.activeDisplayIndex,
+              ),
+              onSelect: (i) => ctrl.switchDisplay(displays[i].index),
+            ),
           ),
-          const SizedBox(height: 12),
-        ],
-
-        // Resolution presets
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children:
-              [
-                (1280, 720, '720P'),
-                (1920, 1080, '1080P'),
-                (2560, 1440, '2K'),
-                (3840, 2160, '4K'),
-              ].map((preset) {
-                final selected =
-                    s.desiredWidth == preset.$1 && s.desiredHeight == preset.$2;
-                return _PillChoice(
-                  label: preset.$3,
-                  selected: selected,
-                  onTap: () => applyVideo(
-                    s.copyWith(
-                      desiredWidth: preset.$1,
-                      desiredHeight: preset.$2,
-                    ),
-                  ),
-                );
-              }).toList(),
+        _LabeledRow(
+          label: '分辨率',
+          child: _Segmented(
+            mono: true,
+            labels: [for (final r in resolutions) r.$3],
+            selected: resolutions.indexWhere(
+              (r) => s.desiredWidth == r.$1 && s.desiredHeight == r.$2,
+            ),
+            onSelect: (i) => applyVideo(
+              s.copyWith(
+                desiredWidth: resolutions[i].$1,
+                desiredHeight: resolutions[i].$2,
+              ),
+            ),
+          ),
         ),
-        const SizedBox(height: 10),
-
-        // FPS presets
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: OsmiumConstants.fpsPresets.map((fps) {
-            return _PillChoice(
-              label: '$fps FPS',
-              selected: s.desiredFps == fps,
-              onTap: () => applyVideo(s.copyWith(desiredFps: fps)),
-            );
-          }).toList(),
+        _LabeledRow(
+          label: '帧率',
+          child: _Segmented(
+            mono: true,
+            labels: [for (final f in fps) '$f'],
+            selected: fps.indexOf(s.desiredFps),
+            onSelect: (i) => applyVideo(s.copyWith(desiredFps: fps[i])),
+          ),
         ),
-        const SizedBox(height: 12),
-
         _SliderRow(
-          label: '目标码率',
+          label: '码率',
           valueText: '${(s.desiredBitrateKbps / 1000).toStringAsFixed(0)} Mbps',
           value: (s.desiredBitrateKbps / 1000.0).clamp(2.0, 50.0),
           min: 2.0,
           max: 50.0,
           onChanged: (v) =>
-              applyVideo(s.copyWith(desiredBitrateKbps: (v.round() * 1000))),
+              applyVideo(s.copyWith(desiredBitrateKbps: v.round() * 1000)),
         ),
-        const SizedBox(height: 8),
-
         _ToggleRow(
-          label: 'HDR 高动态范围',
+          label: 'HDR',
           value: s.enableHdr,
           onChanged: (v) => applyVideo(s.copyWith(enableHdr: v)),
         ),
         _ToggleRow(
-          label: 'YUV 4:4:4 锐利文字',
+          label: 'YUV 4:4:4',
           value: s.enableYuv444,
           onChanged: (v) => applyVideo(s.copyWith(enableYuv444: v)),
         ),
-        const SizedBox(height: 8),
-
-        // OSD level row
-        Row(
-          children: [
-            const Text(
-              'OSD 浮窗',
-              style: TextStyle(
-                fontFamily: OsmiumTheme.fontFamily,
-                fontSize: 13.5,
-                color: Colors.white70,
-              ),
+        _LabeledRow(
+          label: 'OSD',
+          child: _Segmented(
+            labels: const ['关', '简', '标', '详'],
+            selected: OsdLevel.values.indexOf(s.osdLevel),
+            onSelect: (i) => widget.onSettingsChanged(
+              s.copyWith(osdLevel: OsdLevel.values[i]),
             ),
-            const Spacer(),
-            ...OsdLevel.values.map((lvl) {
-              final text = switch (lvl) {
-                OsdLevel.off => '关',
-                OsdLevel.compact => '简',
-                OsdLevel.standard => '标',
-                OsdLevel.detailed => '详',
-              };
-              return Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: _PillChoice(
-                  label: text,
-                  selected: s.osdLevel == lvl,
-                  onTap: () =>
-                      widget.onSettingsChanged(s.copyWith(osdLevel: lvl)),
-                ),
-              );
-            }),
-          ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildAudioTransferSection() {
+  Widget _buildAudioTransferGroup() {
     final ctrl = widget.controller;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _Group(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: ctrl.audioMuted
-                    ? Icons.volume_off_rounded
-                    : Icons.volume_up_rounded,
-                label: ctrl.audioMuted ? '已静音' : '声音',
-                active: !ctrl.audioMuted,
-                onTap: ctrl.toggleMute,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.speaker_group_outlined,
-                label: '虚拟声卡',
-                active: ctrl.virtualSpeaker,
-                onTap: ctrl.toggleVirtualSpeaker,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: ctrl.micEnabled
-                    ? Icons.mic_rounded
-                    : Icons.mic_none_rounded,
-                label: '麦克风',
-                active: ctrl.micEnabled,
-                onTap: () => ctrl.toggleMicPassthrough(),
-              ),
-            ),
-          ],
+        _ToggleRow(
+          label: '麦克风',
+          value: ctrl.micEnabled,
+          onChanged: (_) => ctrl.toggleMicPassthrough(),
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.content_paste_go_rounded,
-                label: '发送剪贴板',
-                onTap: () {
-                  ctrl.pushLocalClipboard();
-                  widget.onClose();
-                },
+        _ToggleRow(
+          label: '虚拟声卡',
+          value: ctrl.virtualSpeaker,
+          onChanged: (_) => ctrl.toggleVirtualSpeaker(),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _GroupButton(
+                  icon: Icons.content_paste_go_rounded,
+                  label: '发送剪贴板',
+                  onTap: () {
+                    ctrl.pushLocalClipboard();
+                    widget.onClose();
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.upload_file_rounded,
-                label: '发送文件',
-                onTap: _pickAndSendFile,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _GroupButton(
+                  icon: Icons.upload_file_rounded,
+                  label: '发送文件',
+                  onTap: _pickAndSendFile,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         ValueListenableBuilder<AuxTransferProgressEvent?>(
           valueListenable: widget.signals.transfer,
@@ -648,60 +603,10 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
               curve: MiuixMotion.standardDecelerate,
               alignment: Alignment.topCenter,
               child: progress == null
-                  ? const SizedBox.shrink()
+                  ? const SizedBox(width: double.infinity)
                   : Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    progress.summaryName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontFamily: OsmiumTheme.fontFamily,
-                                      fontSize: 12.5,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  progress.failed
-                                      ? '失败'
-                                      : progress.completed
-                                      ? '已完成'
-                                      : '${(progress.progress * 100).round()}%',
-                                  style: OsmiumTheme.monoStyle(
-                                    fontSize: 11.5,
-                                    color: OsmiumColors.accentOnGlass,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: progress.progress,
-                                minHeight: 4,
-                                backgroundColor: Colors.white12,
-                                valueColor: const AlwaysStoppedAnimation(
-                                  OsmiumColors.accentOnGlass,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _TransferProgress(progress: progress),
                     ),
             );
           },
@@ -710,77 +615,60 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
     );
   }
 
-  Widget _buildSystemSection() {
+  Widget _buildSystemGroup() {
     final ctrl = widget.controller;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+
+    Widget action(
+      IconData icon,
+      String label,
+      VoidCallback onTap, {
+      bool danger = false,
+    }) => Expanded(
+      child: _QuickTile(
+        icon: icon,
+        label: label,
+        danger: danger,
+        compact: true,
+        onTap: onTap,
+      ),
+    );
+
+    void sendAndClose(int code) {
+      ctrl.sendSystemAction(code);
+      widget.onClose();
+    }
+
+    return _Group(
+      padding: const EdgeInsets.all(8),
       children: [
         Row(
           children: [
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.security_rounded,
-                label: 'Ctrl+Alt+Del',
-                onTap: () {
-                  ctrl.sendSystemAction(1);
-                  widget.onClose();
-                },
-              ),
+            action(
+              Icons.security_rounded,
+              'Ctrl+Alt+Del',
+              () => sendAndClose(1),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.analytics_outlined,
-                label: '任务管理器',
-                onTap: () {
-                  ctrl.sendSystemAction(2);
-                  widget.onClose();
-                },
-              ),
-            ),
+            action(Icons.analytics_outlined, '任务管理器', () => sendAndClose(2)),
             const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.lock_outline_rounded,
-                label: '锁屏',
-                onTap: () {
-                  ctrl.sendSystemAction(3);
-                  widget.onClose();
-                },
-              ),
-            ),
+            action(Icons.lock_outline_rounded, '锁屏', () => sendAndClose(3)),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.refresh_rounded,
-                label: '刷新画面',
-                onTap: () {
-                  ctrl.requestIdr();
-                  widget.onClose();
-                },
-              ),
+            action(
+              Icons.restart_alt_rounded,
+              '重启主机',
+              () => setState(() => _confirm = _PendingPower.restart),
+              danger: true,
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.restart_alt_rounded,
-                label: '重启主机',
-                danger: true,
-                onTap: () => ctrl.sendSystemAction(4),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.power_settings_new_rounded,
-                label: '关机',
-                danger: true,
-                onTap: () => ctrl.sendSystemAction(5),
-              ),
+            action(
+              Icons.power_settings_new_rounded,
+              '关机',
+              () => setState(() => _confirm = _PendingPower.shutdown),
+              danger: true,
             ),
           ],
         ),
@@ -789,111 +677,323 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
   }
 }
 
-class _ModeTile extends StatelessWidget {
-  const _ModeTile({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+class _PanelShell extends StatelessWidget {
+  const _PanelShell({required this.child});
 
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final Widget child;
+
+  static const double _radius = 18;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 54,
-        decoration: BoxDecoration(
-          color: selected
-              ? OsmiumColors.accentOnGlass.withValues(alpha: 0.22)
-              : Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected
-                ? OsmiumColors.accentOnGlass
-                : Colors.white.withValues(alpha: 0.08),
-            width: 1.2,
+    final shape = BorderRadius.circular(_radius);
+    return DecoratedBox(
+      key: ControlPanelSheet.surfaceKey,
+      decoration: BoxDecoration(
+        borderRadius: shape,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x5A000000),
+            blurRadius: 30,
+            offset: Offset(0, 10),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected ? OsmiumColors.accentOnGlass : Colors.white70,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: OsmiumTheme.fontFamily,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.white70,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: shape,
+        child: BackdropFilter(
+          filter: OsmiumGlass.filter(28),
+          child: ColoredBox(
+            color: OsmiumColors.sessionGlassPanelFill,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: shape,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.08),
+                    Colors.transparent,
+                  ],
+                  stops: const [0, 0.4],
+                ),
+                border: Border.all(
+                  color: OsmiumColors.sessionGlassBorder,
+                  width: 0.85,
+                ),
               ),
+              child: child,
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
+enum _PendingPower {
+  restart(4, Icons.restart_alt_rounded, '重启', '重启'),
+  shutdown(5, Icons.power_settings_new_rounded, '关闭', '关机');
+
+  const _PendingPower(this.code, this.icon, this.verb, this.action);
+
+  /// System action code sent to the host.
+  final int code;
+  final IconData icon;
+  final String verb;
+  final String action;
+}
+
+/// Second step before a restart or shutdown reaches the host.
+class _PowerConfirm extends StatelessWidget {
+  const _PowerConfirm({
+    super.key,
+    required this.pending,
+    required this.hostName,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final _PendingPower pending;
+  final String hostName;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = hostName.isEmpty ? '远程主机' : hostName;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onCancel,
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.32),
+        child: Center(
+          child: GestureDetector(
+            onTap: () {},
+            child: SizedBox(
+              width: 296,
+              child: _PanelShell(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Icon(
+                        pending.icon,
+                        size: 30,
+                        color: OsmiumColors.dangerFgDark,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${pending.verb} $target？',
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: OsmiumTheme.fontFamily,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ConfirmButton(
+                              label: '取消',
+                              onTap: onCancel,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ConfirmButton(
+                              key: const ValueKey('power-confirm'),
+                              label: pending.action,
+                              danger: true,
+                              onTap: onConfirm,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfirmButton extends StatelessWidget {
+  const _ConfirmButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: danger
+              ? OsmiumColors.dangerFgDark.withValues(alpha: 0.9)
+              : Colors.white.withValues(alpha: 0.09),
+          borderRadius: BorderRadius.circular(12),
+          border: danger
+              ? null
+              : Border.all(
+                  color: OsmiumColors.sessionGlassHairline,
+                  width: 0.75,
+                ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: OsmiumTheme.fontFamily,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: danger ? Colors.white : Colors.white.withValues(alpha: 0.9),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text, {this.first = false});
+
+  final String text;
+  final bool first;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4, first ? 2 : 18, 4, 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontFamily: OsmiumTheme.fontFamily,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: Colors.white.withValues(alpha: 0.5),
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded glass card holding one section's rows.
+class _Group extends StatelessWidget {
+  const _Group({
+    required this.children,
+    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: OsmiumColors.sessionGlassHairline,
+          width: 0.75,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+}
+
+class _QuickTile extends StatelessWidget {
+  const _QuickTile({
     required this.icon,
     required this.label,
     required this.onTap,
     this.active = false,
     this.danger = false,
+    this.compact = false,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+
+  /// Null shows the tile in its current state without taking taps.
+  final VoidCallback? onTap;
   final bool active;
   final bool danger;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final bg = danger
-        ? OsmiumColors.dangerBgDark.withValues(alpha: 0.72)
+        ? OsmiumColors.dangerBgDark.withValues(alpha: 0.6)
         : active
-        ? OsmiumColors.accentOnGlass.withValues(alpha: 0.22)
-        : Colors.white.withValues(alpha: 0.08);
+        ? OsmiumColors.accentOnGlass.withValues(alpha: 0.2)
+        : Colors.white.withValues(alpha: compact ? 0.06 : 0.075);
+    final borderColor = danger
+        ? OsmiumColors.dangerFgDark.withValues(alpha: 0.28)
+        : active
+        ? OsmiumColors.accentOnGlass.withValues(alpha: 0.5)
+        : OsmiumColors.sessionGlassHairline;
     final fg = danger
         ? OsmiumColors.dangerFgDark
         : active
         ? OsmiumColors.accentOnGlass
-        : Colors.white.withValues(alpha: 0.88);
+        : Colors.white.withValues(alpha: 0.9);
 
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 62,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap == null
+          ? null
+          : () {
+              OsmiumHaptics.selection();
+              onTap!();
+            },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        height: compact ? 54 : 62,
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(compact ? 10 : 13),
+          border: Border.all(color: borderColor, width: 0.75),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: fg),
-            const SizedBox(height: 5),
+            Icon(icon, size: compact ? 18 : 21, color: fg),
+            SizedBox(height: compact ? 4 : 6),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: OsmiumTheme.fontFamily,
-                fontSize: 11.5,
+                fontSize: compact ? 11 : 10.5,
                 fontWeight: FontWeight.w500,
                 color: fg,
               ),
@@ -905,37 +1005,188 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-class _PillChoice extends StatelessWidget {
-  const _PillChoice({
+class _GroupButton extends StatelessWidget {
+  const _GroupButton({
+    required this.icon,
     required this.label,
-    required this.selected,
     required this.onTap,
   });
 
+  final IconData icon;
   final String label;
-  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        OsmiumHaptics.selection();
+        onTap();
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        height: 40,
         decoration: BoxDecoration(
-          color: selected
-              ? OsmiumColors.accentOnGlass
-              : Colors.white.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          style: OsmiumTheme.monoStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: selected ? const Color(0xFF002438) : Colors.white70,
+          color: Colors.white.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: OsmiumColors.sessionGlassHairline,
+            width: 0.75,
           ),
         ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.82)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: OsmiumTheme.fontFamily,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Equal-width segmented choice; [selected] of -1 highlights nothing.
+class _Segmented extends StatelessWidget {
+  const _Segmented({
+    required this.labels,
+    required this.selected,
+    required this.onSelect,
+    this.icons,
+    this.height = 32,
+    this.mono = false,
+  });
+
+  final List<String> labels;
+  final List<IconData>? icons;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  final double height;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(2.5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: OsmiumColors.sessionGlassHairline,
+          width: 0.75,
+        ),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (i == selected) return;
+                  OsmiumHaptics.selection();
+                  onSelect(i);
+                },
+                child: AnimatedContainer(
+                  duration: OsmiumMotion.durationOr(
+                    context,
+                    OsmiumMotion.quick,
+                  ),
+                  curve: MiuixMotion.standardDecelerate,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: i == selected
+                        ? Colors.white.withValues(alpha: 0.16)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7.5),
+                    border: Border.all(
+                      color: i == selected
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.transparent,
+                      width: 0.75,
+                    ),
+                  ),
+                  child: _segmentLabel(i),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _segmentLabel(int i) {
+    final on = i == selected;
+    final color = on ? Colors.white : Colors.white.withValues(alpha: 0.58);
+    final text = Text(
+      labels[i],
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+      style: mono
+          ? OsmiumTheme.monoStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: color,
+            )
+          : TextStyle(
+              fontFamily: OsmiumTheme.fontFamily,
+              fontSize: 12.5,
+              fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+              color: color,
+            ),
+    );
+    final icon = icons?[i];
+    if (icon == null) return text;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 15, color: on ? OsmiumColors.accentOnGlass : color),
+        const SizedBox(width: 6),
+        Flexible(child: text),
+      ],
+    );
+  }
+}
+
+class _LabeledRow extends StatelessWidget {
+  const _LabeledRow({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 50,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: OsmiumTheme.fontFamily,
+                fontSize: 13.5,
+                color: Colors.white.withValues(alpha: 0.86),
+              ),
+            ),
+          ),
+          Expanded(child: child),
+        ],
       ),
     );
   }
@@ -960,38 +1211,43 @@ class _SliderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: OsmiumTheme.fontFamily,
-                fontSize: 13.5,
-                color: Colors.white70,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(
+        // The slider sizes to its constraints; loose ones collapse it to zero.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: OsmiumTheme.fontFamily,
+                  fontSize: 13.5,
+                  color: Colors.white.withValues(alpha: 0.86),
+                ),
               ),
-            ),
-            const Spacer(),
-            Text(
-              valueText,
-              style: OsmiumTheme.monoStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: OsmiumColors.accentOnGlass,
+              const Spacer(),
+              Text(
+                valueText,
+                style: OsmiumTheme.monoStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: OsmiumColors.accentOnGlass,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        MiuixSlider(
-          value: value.clamp(min, max),
-          min: min,
-          max: max,
-          height: 24,
-          onValueChanged: onChanged,
-        ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          MiuixSlider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            height: 24,
+            onValueChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1009,20 +1265,90 @@ class _ToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    return SizedBox(
+      height: 46,
       child: Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: OsmiumTheme.fontFamily,
-              fontSize: 13.5,
-              color: Colors.white,
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: OsmiumTheme.fontFamily,
+                fontSize: 13.5,
+                color: Colors.white.withValues(alpha: 0.92),
+              ),
             ),
           ),
-          const Spacer(),
           MiuixSwitch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransferProgress extends StatelessWidget {
+  const _TransferProgress({required this.progress});
+
+  final AuxTransferProgressEvent progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: OsmiumColors.sessionGlassHairline,
+          width: 0.75,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  progress.summaryName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: OsmiumTheme.fontFamily,
+                    fontSize: 12.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Text(
+                progress.failed
+                    ? '失败'
+                    : progress.completed
+                    ? '已完成'
+                    : '${(progress.progress * 100).round()}%',
+                style: OsmiumTheme.monoStyle(
+                  fontSize: 11.5,
+                  color: progress.failed
+                      ? OsmiumColors.dangerFgDark
+                      : OsmiumColors.accentOnGlass,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: progress.progress,
+              minHeight: 4,
+              backgroundColor: Colors.white12,
+              valueColor: const AlwaysStoppedAnimation(
+                OsmiumColors.accentOnGlass,
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -3,7 +3,9 @@
 #include "OsmiumCommon.h"
 #include "OsmiumProtocol.h"
 #include "HostSystemAgent.h"
+#include "HostTouchInjector.h"
 #include <atomic>
+#include <memory>
 #include <mutex>
 
 namespace osmium
@@ -40,8 +42,10 @@ namespace osmium
         void HandleMouseButton(const proto::InputMouseButtonPayload& pkt);
         void HandleMouseWheel(const proto::InputMouseWheelPayload& pkt);
         void HandleUnicodeText(const uint8_t* data, size_t len);
+        void HandleTouch(const uint8_t* data, size_t len);
 
         RECT m_DisplayRect{0, 0, 1920, 1080};
+        std::unique_ptr<HostTouchInjector> m_Touch;
         std::mutex m_RectMutex;
         std::atomic<bool> m_Enabled{true};
         std::atomic<bool> m_UseVirtualMouse{false};

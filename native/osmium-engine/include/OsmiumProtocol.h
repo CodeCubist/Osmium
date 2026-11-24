@@ -43,6 +43,7 @@ namespace osmium::proto
         InputUnicodeText = 0x34,
         InputGamepad = 0x35,
         ControlFeedback = 0x36,
+        InputTouch = 0x37,
 
         ControlSwitchDisplay = 0x38,
         ControlVideoParams = 0x39,
@@ -200,6 +201,42 @@ namespace osmium::proto
         int16_t rightThumbX;
         int16_t rightThumbY;
     };
+
+    enum class TouchPhase : uint8_t
+    {
+        Down = 1,
+        Move = 2,
+        Up = 3,
+        Cancel = 4
+    };
+
+    constexpr uint8_t kMaxTouchContacts = 10;
+
+    struct InputTouchContact
+    {
+        uint8_t id;
+        uint8_t phase;
+        uint16_t reserved;
+        float x;
+        float y;
+    };
+
+    // Client -> host: every contact currently on the client's screen, plus
+    // the ones lifted since the previous frame (phase Up/Cancel). Contacts
+    // missing from a frame are lifted, so a frame with count 0 releases all.
+    // Coordinates are normalized to the streamed display. `seq` grows by one
+    // per frame; repeats and late arrivals are dropped. Sent with only
+    // `count` contacts, and only to hosts that report `touchInput`.
+    struct InputTouchPayload
+    {
+        AppPacketHeader hdr;
+        uint8_t count;
+        uint8_t reserved2;
+        uint16_t seq;
+        InputTouchContact contacts[kMaxTouchContacts];
+    };
+
+    constexpr size_t kInputTouchHeaderSize = sizeof(AppPacketHeader) + 4;
 
     struct ControlSwitchDisplayPayload
     {

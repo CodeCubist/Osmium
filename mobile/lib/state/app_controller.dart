@@ -176,7 +176,7 @@ class AppController extends ChangeNotifier {
   }
 
   /// Signed in from the saved session: rotate the ltoken, then refresh the
-  /// list, keeping the placeholders up the whole time.
+  /// profile and device list, keeping the placeholders up the whole time.
   Future<void> _restoreAccount() async {
     _refreshingDevices = true;
     notifyListeners();
@@ -186,10 +186,73 @@ class AppController extends ChangeNotifier {
       _refreshingDevices = false;
     }
     if (accountService.isLoggedIn) {
-      await refreshAccountDevices();
+      await Future.wait([
+        refreshAccountProfile(),
+        refreshAccountDevices(),
+      ]);
     } else {
       notifyListeners();
     }
+  }
+
+  Future<AccountApiResult<AccountSessionData>> refreshAccountProfile() async {
+    if (!accountService.isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    final res = await accountService.fetchAccountStatus();
+    if (res.ok && res.data != null) {
+      _account = res.data;
+      notifyListeners();
+    }
+    return res;
+  }
+
+  Future<AccountApiResult<AccountSessionData>> updateAccountProfile({
+    String? username,
+    String? avatarData,
+    bool clearAvatar = false,
+  }) async {
+    final res = await accountService.updateProfile(
+      username: username,
+      avatarData: avatarData,
+      clearAvatar: clearAvatar,
+    );
+    if (res.ok && res.data != null) {
+      _account = res.data;
+      notifyListeners();
+    }
+    return res;
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startChangeEmailSendCode({
+    required String password,
+    required String newEmail,
+  }) {
+    return accountService.startChangeEmailSendCode(
+      password: password,
+      newEmail: newEmail,
+    );
+  }
+
+  Future<AccountApiResult<AccountSessionData>> confirmChangeEmail({
+    required String password,
+    required String newEmail,
+    required String code,
+  }) async {
+    final res = await accountService.confirmChangeEmail(
+      password: password,
+      newEmail: newEmail,
+      code: code,
+    );
+    if (res.ok && res.data != null) {
+      _account = res.data;
+      notifyListeners();
+    }
+    return res;
   }
 
   Future<void> updateSettings(OsmiumSettings next) async {

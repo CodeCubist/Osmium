@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_miuix/miuix.dart';
 
+import '../../../core/constants/osmium_constants.dart';
 import '../../../core/models/host_status.dart';
 import '../../../core/models/osmium_settings.dart';
 import '../../../core/theme/osmium_motion.dart';
@@ -12,8 +13,8 @@ import '../../../core/theme/osmium_theme.dart';
 import '../../../services/session/remote_session_controller.dart';
 import 'connect_transition_overlay.dart';
 import 'control_panel_sheet.dart';
-import 'floating_orb.dart';
 import 'osd_capsule.dart';
+import 'session_rail.dart';
 import 'session_signals.dart';
 import 'touch_control_layer.dart';
 import 'virtual_keyboard_overlay.dart';
@@ -137,6 +138,16 @@ class _SessionViewState extends State<SessionView>
     widget.onKeyboardModeChanged(mode);
   }
 
+  void _cycleOsdLevel() {
+    final next = switch (widget.settings.osdLevel) {
+      OsdLevel.compact => OsdLevel.standard,
+      OsdLevel.standard => OsdLevel.detailed,
+      OsdLevel.detailed || OsdLevel.off => OsdLevel.compact,
+    };
+    OsmiumHaptics.selection();
+    widget.onSettingsChanged(widget.settings.copyWith(osdLevel: next));
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = widget.settings;
@@ -171,6 +182,7 @@ class _SessionViewState extends State<SessionView>
             bottomInset: settings.controlMode == ControlMode.precisionMouse
                 ? 52
                 : 0,
+            onTap: _cycleOsdLevel,
             child: RepaintBoundary(
               child: _OsdHost(
                 signals: widget.signals,
@@ -179,14 +191,48 @@ class _SessionViewState extends State<SessionView>
             ),
           ),
 
-          // Edge-snapping floating orb
+          // Edge rail with the everyday actions
           ValueListenableBuilder<SessionPhase>(
             valueListenable: widget.signals.phase,
-            builder: (context, phase, _) => FloatingOrb(
-              controlMode: settings.controlMode,
-              visible: phase == SessionPhase.streaming && !widget.panelOpen,
-              onOpenPanel: widget.onOpenPanel,
-              onToggleControlMode: widget.onToggleControlMode,
+            builder: (context, phase, _) => SessionRail(
+              visible:
+                  phase == SessionPhase.streaming &&
+                  !widget.panelOpen &&
+                  widget.keyboardMode == KeyboardOverlayMode.none,
+              actions: [
+                SessionRailAction(
+                  icon: Icons.tune_rounded,
+                  label: '操作',
+                  onTap: widget.onOpenPanel,
+                ),
+                SessionRailAction(
+                  icon: Icons.keyboard_alt_outlined,
+                  label: '键盘',
+                  onTap: () => _setKeyboardMode(KeyboardOverlayMode.systemIme),
+                ),
+                SessionRailAction(
+                  icon: Icons.near_me_rounded,
+                  label: '鼠标',
+                  active: settings.controlMode == ControlMode.precisionMouse,
+                  onTap: widget.onToggleControlMode,
+                ),
+                SessionRailAction(
+                  icon: Icons.desktop_windows_outlined,
+                  label: '桌面',
+                  onTap: () => widget.controller.sendCombo([
+                    WinKeys.lWin,
+                    WinKeys.byLabel['D']!,
+                  ]),
+                ),
+                SessionRailAction(
+                  icon: Icons.grid_view_rounded,
+                  label: '多任务',
+                  onTap: () => widget.controller.sendCombo([
+                    WinKeys.lWin,
+                    WinKeys.tab,
+                  ]),
+                ),
+              ],
             ),
           ),
 
@@ -199,7 +245,7 @@ class _SessionViewState extends State<SessionView>
             visibleHeight: _keyboardBar,
           ),
 
-          // 4-section liquid-glass control sheet
+          // Frosted control panel
           RepaintBoundary(
             child: ControlPanelSheet(
               controller: widget.controller,
@@ -243,12 +289,14 @@ class _DraggableOsd extends StatefulWidget {
   const _DraggableOsd({
     required this.keyboardBar,
     required this.bottomInset,
+    required this.onTap,
     required this.child,
   });
 
   /// Visible height of the keyboard bar above the system IME.
   final ValueListenable<double> keyboardBar;
   final double bottomInset;
+  final VoidCallback onTap;
   final Widget child;
 
   @override
@@ -305,6 +353,7 @@ class _DraggableOsdState extends State<_DraggableOsd> {
                 delegate: _OsdLayout(_alignment, covered),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  onTap: widget.onTap,
                   onPanUpdate: (d) => _drag(d, area, covered),
                   child: capsule,
                 ),
@@ -408,26 +457,32 @@ class _ToastHost extends StatelessWidget {
               ? const SizedBox.shrink(key: ValueKey('toast-empty'))
               : Center(
                   key: ValueKey(message),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xCC12161F),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.14),
-                        width: 0.7,
-                      ),
-                    ),
-                    child: Text(
-                      message,
-                      style: const TextStyle(
-                        fontFamily: OsmiumTheme.fontFamily,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: BackdropFilter(
+                      filter: OsmiumGlass.filter(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0x800E121B),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: OsmiumColors.sessionGlassBorder,
+                            width: 0.75,
+                          ),
+                        ),
+                        child: Text(
+                          message,
+                          style: const TextStyle(
+                            fontFamily: OsmiumTheme.fontFamily,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ),

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_miuix/miuix.dart';
 
@@ -32,6 +34,48 @@ class OsmiumColors {
   static const Color dangerBgDark = Color(0xFF3A1714);
   static const Color dangerFgDark = Color(0xFFFF6E61);
 
+  static const Color cardBorderLight = Color(0x16000000);
+  static const Color cardBorderDark = Color(0x20FFFFFF);
+  static const Color cardShadowLight = Color(0x0B000000);
+  static const Color cardShadowDark = Color(0x28000000);
+
+  // Translucent crystalline frosted-glass tokens.
+  static const Color frostedOverlayLight = Color(0x5CF8FAFF);
+  static const Color frostedOverlayBottomLight = Color(0x80F3F7FD);
+  static const Color frostedOverlayDark = Color(0x5212161F);
+  static const Color frostedOverlayBottomDark = Color(0x7810141D);
+  static const Color frostedOverlayOfflineLight = Color(0x66F2F2F3);
+  static const Color frostedOverlayOfflineBottomLight = Color(0x8CE8E8EA);
+  static const Color frostedOverlayOfflineDark = Color(0x5E18181A);
+  static const Color frostedOverlayOfflineBottomDark = Color(0x82131315);
+  static const Color frostedDividerLight = Color(0x9EFFFFFF);
+  static const Color frostedDividerDark = Color(0x2EFFFFFF);
+
+  /// Luminance grayscale filter for desaturating offline device artwork and
+  /// cached wallpapers.
+  static const ColorFilter grayscaleFilter = ColorFilter.matrix(<double>[
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0, 0, 0, 1, 0,
+  ]);
+
+  static const Color glassSurfaceTopLight = Color(0x61FFFFFF);
+  static const Color glassSurfaceBottomLight = Color(0x42F4F8FF);
+  static const Color glassSurfaceTopDark = Color(0x57181E2B);
+  static const Color glassSurfaceBottomDark = Color(0x3D111621);
+  static const Color glassBorderLight = Color(0xB3FFFFFF);
+  static const Color glassBorderDark = Color(0x29FFFFFF);
+
+  // Session dark smoked-glass HUD tokens (translucent, never muddy/opaque).
+  static const Color sessionGlassFill = Color(0x5C0D111A);
+  static const Color sessionGlassPanelFill = Color(0x850D121B);
+  static const Color sessionGlassBorder = Color(0x2EFFFFFF);
+  static const Color sessionGlassHairline = Color(0x18FFFFFF);
+
+  static const Color profileCircleLight = Color(0xFF1565C0);
+  static const Color profileCircleDark = Color(0xFF277AF7);
+
   static Color onlineBg(bool isDark) => isDark ? onlineBgDark : onlineBgLight;
   static Color onlineFg(bool isDark) => isDark ? onlineFgDark : onlineFgLight;
   static Color directBg(bool isDark) => isDark ? directBgDark : directBgLight;
@@ -40,6 +84,57 @@ class OsmiumColors {
   static Color warnFg(bool isDark) => isDark ? warnFgDark : warnFgLight;
   static Color dangerBg(bool isDark) => isDark ? dangerBgDark : dangerBgLight;
   static Color dangerFg(bool isDark) => isDark ? dangerFgDark : dangerFgLight;
+  static Color cardBorder(bool isDark) =>
+      isDark ? cardBorderDark : cardBorderLight;
+  static Color cardShadow(bool isDark) =>
+      isDark ? cardShadowDark : cardShadowLight;
+  static Color frostedOverlay(bool isDark) =>
+      isDark ? frostedOverlayDark : frostedOverlayLight;
+  static Color frostedOverlayBottom(bool isDark) =>
+      isDark ? frostedOverlayBottomDark : frostedOverlayBottomLight;
+  static Color frostedOverlayOffline(bool isDark) =>
+      isDark ? frostedOverlayOfflineDark : frostedOverlayOfflineLight;
+  static Color frostedOverlayOfflineBottom(bool isDark) => isDark
+      ? frostedOverlayOfflineBottomDark
+      : frostedOverlayOfflineBottomLight;
+  static Color frostedDivider(bool isDark) =>
+      isDark ? frostedDividerDark : frostedDividerLight;
+  static Color glassSurfaceTop(bool isDark) =>
+      isDark ? glassSurfaceTopDark : glassSurfaceTopLight;
+  static Color glassSurfaceBottom(bool isDark) =>
+      isDark ? glassSurfaceBottomDark : glassSurfaceBottomLight;
+  static Color glassBorder(bool isDark) =>
+      isDark ? glassBorderDark : glassBorderLight;
+  static Color profileCircle(bool isDark) =>
+      isDark ? profileCircleDark : profileCircleLight;
+}
+
+/// Cached backdrop filter for glass surfaces: Gaussian blur plus a saturation
+/// lift so a thin tint stays crisp and translucent instead of washing grey.
+class OsmiumGlass {
+  OsmiumGlass._();
+
+  static final Map<(double, double), ImageFilter> _cache =
+      <(double, double), ImageFilter>{};
+
+  static ImageFilter filter(double sigma, {double saturation = 1.6}) =>
+      _cache.putIfAbsent((sigma, saturation), () {
+        const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+        final s = saturation, i = 1 - s;
+        return ImageFilter.compose(
+          outer: ColorFilter.matrix(<double>[
+            lr * i + s, lg * i, lb * i, 0, 0, //
+            lr * i, lg * i + s, lb * i, 0, 0, //
+            lr * i, lg * i, lb * i + s, 0, 0, //
+            0, 0, 0, 1, 0,
+          ]),
+          inner: ImageFilter.blur(
+            sigmaX: sigma,
+            sigmaY: sigma,
+            tileMode: TileMode.clamp,
+          ),
+        );
+      });
 }
 
 class OsmiumTheme {

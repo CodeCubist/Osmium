@@ -746,6 +746,33 @@ extern "C"
         ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputGamepad, &pkt, sizeof(pkt));
     }
 
+    void OsmiumMobile_SendTouch(void* session, uint16_t seq, const uint8_t* contacts, int32_t count)
+    {
+        if (!session || count < 0 || (count > 0 && !contacts)) return;
+        auto* ctx = static_cast<MobileSessionContext*>(session);
+        osmium::proto::InputTouchPayload pkt{};
+        pkt.count = static_cast<uint8_t>(std::min<int32_t>(count, osmium::proto::kMaxTouchContacts));
+        pkt.seq = seq;
+        if (pkt.count > 0)
+        {
+            std::memcpy(pkt.contacts, contacts, pkt.count * sizeof(osmium::proto::InputTouchContact));
+        }
+        const size_t len = osmium::proto::kInputTouchHeaderSize + pkt.count * sizeof(osmium::proto::InputTouchContact);
+        ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputTouch, &pkt, len);
+
+        // A lost press or lift is a wrong click; send those frames twice on UDP.
+        // The host drops the repeat by its sequence number.
+        bool edge = pkt.count == 0;
+        for (uint8_t i = 0; i < pkt.count && !edge; ++i)
+        {
+            edge = pkt.contacts[i].phase != static_cast<uint8_t>(osmium::proto::TouchPhase::Move);
+        }
+        if (edge && ctx->transport->GetRoute() != static_cast<int32_t>(TransportRoute::CloudRelay))
+        {
+            ctx->transport->SendEncrypted(osmium::proto::AppPacketType::InputTouch, &pkt, len);
+        }
+    }
+
     void OsmiumMobile_SwitchDisplay(void* session, int32_t displayIndex)
     {
         if (!session) return;

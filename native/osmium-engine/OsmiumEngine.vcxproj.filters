@@ -39,6 +39,9 @@
     <ClInclude Include="src\HostInputInjector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\HostTouchInjector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\HostTextFocus.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -70,6 +73,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\HostInputInjector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\HostTouchInjector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\HostTextFocus.cpp">

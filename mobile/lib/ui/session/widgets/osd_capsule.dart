@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../../core/models/host_status.dart';
@@ -24,17 +25,21 @@ class OsdCapsule extends StatelessWidget {
     final rttColor = _rttColor(stats.rttMs);
     final mbps = (stats.bitrateKbps / 1000.0).toStringAsFixed(1);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xA60E1117),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-          width: 0.7,
-        ),
-      ),
-      child: switch (level) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(7),
+      child: BackdropFilter(
+        filter: OsmiumGlass.filter(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+          decoration: BoxDecoration(
+            color: const Color(0x730C1018),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+              color: OsmiumColors.sessionGlassBorder,
+              width: 0.75,
+            ),
+          ),
+          child: switch (level) {
         OsdLevel.compact => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -114,6 +119,8 @@ class OsdCapsule extends StatelessWidget {
         ),
         OsdLevel.off => const SizedBox.shrink(),
       },
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,27 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../constants/osmium_constants.dart';
+
+/// Decodes a server-returned `data:image/(jpeg|png|webp);base64,...` URI into
+/// raw image bytes. Returns `null` when absent or malformed.
+Uint8List? decodeAvatarDataUri(String? dataUri) {
+  if (dataUri == null) return null;
+  final trimmed = dataUri.trim();
+  if (trimmed.isEmpty) return null;
+  final lower = trimmed.toLowerCase();
+  if (!lower.startsWith('data:image/')) return null;
+  final comma = trimmed.indexOf(',');
+  if (comma <= 0 || comma >= trimmed.length - 1) return null;
+  final header = lower.substring(0, comma);
+  if (!header.contains(';base64')) return null;
+  try {
+    final bytes = base64Decode(trimmed.substring(comma + 1).trim());
+    return bytes.isEmpty ? null : bytes;
+  } catch (_) {
+    return null;
+  }
+}
 
 class AccountChallengeInfo {
   const AccountChallengeInfo({
@@ -70,6 +93,7 @@ class AccountSessionData {
     String? email,
     String? username,
     String? avatarData,
+    bool clearAvatar = false,
     String? stoken,
     int? stokenExpiresAtUnix,
     String? ltoken,
@@ -81,7 +105,7 @@ class AccountSessionData {
       userId: userId ?? this.userId,
       email: email ?? this.email,
       username: username ?? this.username,
-      avatarData: avatarData ?? this.avatarData,
+      avatarData: clearAvatar ? null : (avatarData ?? this.avatarData),
       stoken: stoken ?? this.stoken,
       stokenExpiresAtUnix: stokenExpiresAtUnix ?? this.stokenExpiresAtUnix,
       ltoken: ltoken ?? this.ltoken,
@@ -273,13 +297,30 @@ class QrParsedRequest {
   static final RegExp _opaqueIdRe = RegExp(r'^[A-Za-z0-9_-]{8,128}$');
   static final RegExp _digitsTsRe = RegExp(r'^\d{10,13}$');
 
+  static String _sanitizeRaw(String raw) {
+    return raw
+        .replaceAll(RegExp('[\u0000-\u001F\u007F​-‍﻿]'), '')
+        .replaceAll('&amp;', '&')
+        .trim();
+  }
+
+  /// Tries in-app QR URL first, then external deep link (`osmium://` or
+  /// Android `intent://qr-login?...#Intent;...`).
+  static QrParsedRequest? tryParseAny(
+    String raw, {
+    String? expectedBaseUrl,
+  }) {
+    return tryParseInApp(raw, expectedBaseUrl: expectedBaseUrl) ??
+        tryParseExternalDeepLink(raw, expectedBaseUrl: expectedBaseUrl);
+  }
+
   /// Validates an in-app scanned QR code URL: strict HTTPS scheme, official
   /// Osmium API host/port, `/qr/login` path, and required signed parameters.
   static QrParsedRequest? tryParseInApp(
     String raw, {
     String? expectedBaseUrl,
   }) {
-    final trimmed = raw.trim();
+    final trimmed = _sanitizeRaw(raw);
     if (trimmed.isEmpty || trimmed.length > 2048) return null;
     final uri = Uri.tryParse(trimmed);
     final base = Uri.parse(
@@ -289,7 +330,8 @@ class QrParsedRequest {
     if (uri.scheme.toLowerCase() != base.scheme.toLowerCase()) return null;
     if (uri.host.toLowerCase() != base.host.toLowerCase()) return null;
     if (_effectivePort(uri) != _effectivePort(base)) return null;
-    if (uri.path != '/qr/login') return null;
+    final normalizedPath = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    if (normalizedPath != '/qr/login') return null;
 
     final baseParams = _validateBaseParams(uri.queryParameters);
     if (baseParams == null) return null;
@@ -302,14 +344,20 @@ class QrParsedRequest {
     );
   }
 
-  /// Validates an external deep link (`osmium://qr-login?...`) issued by the
+  /// Validates an external deep link (`osmium://qr-login?...` or Android
+  /// `intent://qr-login?...#Intent;scheme=osmium;...`) issued by the
   /// server landing page, requiring the independent external signature params.
   static QrParsedRequest? tryParseExternalDeepLink(
     String raw, {
     String? expectedBaseUrl,
   }) {
-    final trimmed = raw.trim();
+    var trimmed = _sanitizeRaw(raw);
     if (trimmed.isEmpty || trimmed.length > 2048) return null;
+    if (trimmed.toLowerCase().startsWith('intent://qr-login')) {
+      final hashIdx = trimmed.indexOf('#Intent;');
+      final body = hashIdx > 0 ? trimmed.substring(0, hashIdx) : trimmed;
+      trimmed = 'osmium://${body.substring('intent://'.length)}';
+    }
     final uri = Uri.tryParse(trimmed);
     if (uri == null) return null;
     if (uri.scheme.toLowerCase() != 'osmium') return null;

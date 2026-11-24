@@ -61,7 +61,7 @@ class SessionSignals {
   );
 
   /// Bumps for panel-level state that has no dedicated notifier (audio, mic,
-  /// pointer capture, orientation, displays).
+  /// pointer capture, orientation, view-only, displays).
   final ValueNotifier<int> revision = ValueNotifier(0);
 
   Timer? _toastTimer;
@@ -128,6 +128,7 @@ class SessionSignals {
       _controller.micEnabled,
       _controller.pointerCaptureActive,
       _controller.orientationMode,
+      _controller.viewOnly,
       nextHost.activeDisplayIndex,
       nextHost.displays.length,
     );
@@ -137,7 +138,7 @@ class SessionSignals {
     }
   }
 
-  (bool, bool, bool, bool, int, int, int)? _lastMisc;
+  (bool, bool, bool, bool, int, bool, int, int)? _lastMisc;
 
   bool _disposed = false;
 

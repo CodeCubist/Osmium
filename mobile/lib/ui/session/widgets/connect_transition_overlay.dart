@@ -132,19 +132,11 @@ class _ConnectTransitionOverlayState extends State<ConnectTransitionOverlay>
         : widget.signals.statusText.value;
     final reduce = OsmiumMotion.reduced(context);
 
-    final logo = Container(
-      width: 72,
-      height: 72,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: Image.asset('assets/images/osmium_logo.png', fit: BoxFit.contain),
+    final logo = Image.asset(
+      'assets/images/osmium_logo.png',
+      width: 56,
+      height: 56,
+      fit: BoxFit.contain,
     );
 
     return Container(
@@ -269,6 +261,7 @@ class _ProgressBody extends StatelessWidget {
             contentColor: Colors.white,
             disabledContentColor: Colors.white38,
           ),
+          cornerRadius: 10,
           child: const Text('取消'),
         ),
       ],
@@ -314,6 +307,7 @@ class _ErrorBody extends StatelessWidget {
                 contentColor: Colors.white,
                 disabledContentColor: Colors.white38,
               ),
+              cornerRadius: 10,
               child: const Text('返回'),
             ),
             const SizedBox(width: 12),
@@ -325,6 +319,7 @@ class _ErrorBody extends StatelessWidget {
                 contentColor: Color(0xFF002438),
                 disabledContentColor: Colors.white38,
               ),
+              cornerRadius: 10,
               child: const Text('重连'),
             ),
           ],

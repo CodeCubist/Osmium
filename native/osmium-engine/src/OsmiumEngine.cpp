@@ -336,6 +336,7 @@ namespace
             << ",\"screenLocked\":" << (locked ? "true" : "false")
             << ",\"hasUsbIpDriver\":" << (hasUsb ? "true" : "false")
             << ",\"allowRemoteDriverMgmt\":" << (ctx->config.allowRemoteDriverMgmt ? "true" : "false")
+            << ",\"touchInput\":" << (HostTouchInjector::IsSupported() ? "true" : "false")
             << ",\"lastAction\":\"" << EscapeJson(lastAct.c_str()) << "\""
             << ",\"displays\":[";
 

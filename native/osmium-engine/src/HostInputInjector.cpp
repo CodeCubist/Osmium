@@ -33,6 +33,7 @@ namespace osmium
         {
             std::lock_guard<std::mutex> lock(m_RectMutex);
             m_DisplayRect = rect;
+            if (m_Touch) m_Touch->SetTargetDisplayRect(rect);
         }
         m_AgentRectDirty.store(true);
     }
@@ -250,7 +251,8 @@ namespace osmium
             pktType == proto::AppPacketType::InputMouseMove ||
             pktType == proto::AppPacketType::InputMouseButton ||
             pktType == proto::AppPacketType::InputMouseWheel ||
-            pktType == proto::AppPacketType::InputUnicodeText;
+            pktType == proto::AppPacketType::InputUnicodeText ||
+            pktType == proto::AppPacketType::InputTouch;
 
         if (!isInputPkt) return;
 
@@ -291,6 +293,9 @@ namespace osmium
         case proto::AppPacketType::InputUnicodeText:
             HandleUnicodeText(data, len);
             break;
+        case proto::AppPacketType::InputTouch:
+            HandleTouch(data, len);
+            break;
         default:
             break;
         }
@@ -298,6 +303,11 @@ namespace osmium
 
     void HostInputInjector::ReleaseAllInputs()
     {
+        {
+            std::lock_guard<std::mutex> lock(m_RectMutex);
+            if (m_Touch) m_Touch->ReleaseAll();
+        }
+
         if (m_AllowAgentForwarding && TryForwardReleaseAllToAgent())
         {
             if (m_LastInputDesk)
@@ -591,5 +601,21 @@ namespace osmium
         {
             SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
         }
+    }
+
+    void HostInputInjector::HandleTouch(const uint8_t* data, size_t len)
+    {
+        HostTouchInjector* touch = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_RectMutex);
+            if (!m_Touch)
+            {
+                if (!HostTouchInjector::IsSupported()) return;
+                m_Touch = std::make_unique<HostTouchInjector>();
+                m_Touch->SetTargetDisplayRect(m_DisplayRect);
+            }
+            touch = m_Touch.get();
+        }
+        touch->Submit(data, len);
     }
 }

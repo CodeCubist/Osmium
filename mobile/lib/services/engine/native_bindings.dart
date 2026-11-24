@@ -311,6 +311,12 @@ class NativeBindings {
           void Function(Pointer<Void>, Pointer<OsmiumMobileGamepadStateStruct>)
         >('OsmiumMobile_SendGamepad');
 
+    sendTouch = _lib
+        .lookupFunction<
+          Void Function(Pointer<Void>, Uint16, Pointer<Uint8>, Int32),
+          void Function(Pointer<Void>, int, Pointer<Uint8>, int)
+        >('OsmiumMobile_SendTouch');
+
     switchDisplay = _lib
         .lookupFunction<
           Void Function(Pointer<Void>, Int32),
@@ -481,6 +487,7 @@ class NativeBindings {
     Pointer<OsmiumMobileGamepadStateStruct>,
   )
   sendGamepad;
+  late final void Function(Pointer<Void>, int, Pointer<Uint8>, int) sendTouch;
   late final void Function(Pointer<Void>, int) switchDisplay;
   late final void Function(Pointer<Void>, int, int, int, int, int, int)
   updateVideoParams;

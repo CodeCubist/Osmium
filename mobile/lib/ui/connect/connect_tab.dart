@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_miuix/miuix.dart';
@@ -28,12 +30,12 @@ class ConnectTab extends ConsumerStatefulWidget {
 }
 
 class _ConnectTabState extends ConsumerState<ConnectTab> {
-  final _scrollBehavior = MiuixExitUntilCollapsedScrollBehavior();
   final _deviceIdCtrl = TextEditingController();
   final _accessCodeCtrl = TextEditingController();
   final _deviceIdShake = GlobalKey<OsmiumShakeState>();
   final _connectButtonKey = GlobalKey();
   final Map<String, GlobalKey> _historyKeys = {};
+  bool _scrolled = false;
   bool _viewOnly = false;
   bool _obscureAccess = true;
   bool _formattingDeviceId = false;
@@ -154,8 +156,6 @@ class _ConnectTabState extends ConsumerState<ConnectTab> {
     );
   }
 
-  /// Crossfades the pressed control into a spinner, then hands off to the
-  /// container-transform route. The tab resets once the session covers it.
   void _launch(SessionConnectRequest request, {GlobalKey? sourceKey}) {
     setState(() => _launching = true);
     widget.onConnect(request, sourceKey: sourceKey);
@@ -170,6 +170,8 @@ class _ConnectTabState extends ConsumerState<ConnectTab> {
     final theme = MiuixTheme.of(context);
     final colors = theme.colors;
     final isDark = theme.brightness == Brightness.dark;
+    final topPad = MediaQuery.paddingOf(context).top;
+    final headerHeight = topPad + OsmiumTopHeader.barHeight;
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final scrollBottom = keyboardInset > 0 ? 20.0 : widget.bottomInset + 24;
 
@@ -184,271 +186,313 @@ class _ConnectTabState extends ConsumerState<ConnectTab> {
     final encryptionOn = app.settings.enableEncryption;
 
     return MiuixScaffold(
-      topBar: MiuixTopAppBar(
-        title: '连接',
-        blurred: true,
-        scrollBehavior: _scrollBehavior,
-      ),
-      content: (contentPadding) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: keyboardInset),
-          child: MiuixScrollBehaviorListener(
-            behavior: _scrollBehavior,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: ListView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    contentPadding.top + 8,
-                    16,
-                    scrollBottom,
-                  ),
-                  children: [
-                    MiuixCard(
-                      cornerRadius: 26,
-                      insideMargin: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          OsmiumShake(
-                            key: _deviceIdShake,
-                            child: MiuixTextField(
-                              controller: _deviceIdCtrl,
-                              label: '9 位设备码',
-                              singleLine: true,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.next,
-                              insideMargin: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 18,
+      content: (_) {
+        return Stack(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(bottom: keyboardInset),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n.metrics.axis == Axis.vertical) {
+                    final next = n.metrics.pixels > 4;
+                    if (next != _scrolled) {
+                      setState(() => _scrolled = next);
+                    }
+                  }
+                  return false;
+                },
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: ListView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        headerHeight + 8,
+                        16,
+                        scrollBottom,
+                      ),
+                      children: [
+                        OsmiumSurfaceCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              OsmiumShake(
+                                key: _deviceIdShake,
+                                child: MiuixTextField(
+                                  cornerRadius:
+                                      OsmiumFieldDefaults.cornerRadius,
+                                  controller: _deviceIdCtrl,
+                                  label: '9 位设备码',
+                                  singleLine: true,
+                                  keyboardType: TextInputType.number,
+                                  textInputAction: TextInputAction.next,
+                                  insideMargin: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 11,
+                                  ),
+                                  textStyle: OsmiumTheme.monoStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.8,
+                                    color: colors.onSurface,
+                                  ),
+                                  trailingIcon: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      MiuixIconButton(
+                                        onPressed: _pasteDeviceId,
+                                        minWidth: 34,
+                                        minHeight: 34,
+                                        child: Icon(
+                                          Icons.content_paste_rounded,
+                                          size: 18,
+                                          color: colors.onSurfaceVariantSummary,
+                                        ),
+                                      ),
+                                      if (_deviceIdCtrl.text.isNotEmpty)
+                                        MiuixIconButton(
+                                          onPressed: () {
+                                            _deviceIdCtrl.clear();
+                                            OsmiumHaptics.selection();
+                                          },
+                                          minWidth: 34,
+                                          minHeight: 34,
+                                          child: Icon(
+                                            Icons.close_rounded,
+                                            size: 18,
+                                            color:
+                                                colors.onSurfaceVariantSummary,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              textStyle: OsmiumTheme.monoStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 2.0,
-                                color: colors.onSurface,
+                              const SizedBox(height: 12),
+                              MiuixTextField(
+                                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                                insideMargin:
+                                    OsmiumFieldDefaults.floatingMargin,
+                                controller: _accessCodeCtrl,
+                                label: '访问密码',
+                                singleLine: true,
+                                obscureText: _obscureAccess,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _connectNow(),
+                                textStyle: OsmiumTheme.monoStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1.2,
+                                  color: colors.onSurface,
+                                ),
+                                trailingIcon: MiuixIconButton(
+                                  onPressed: () {
+                                    setState(
+                                      () => _obscureAccess = !_obscureAccess,
+                                    );
+                                    OsmiumHaptics.selection();
+                                  },
+                                  minWidth: 34,
+                                  minHeight: 34,
+                                  child: Icon(
+                                    _obscureAccess
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    size: 18,
+                                    color: colors.onSurfaceVariantSummary,
+                                  ),
+                                ),
                               ),
-                              trailingIcon: Row(
-                                mainAxisSize: MainAxisSize.min,
+                              const SizedBox(height: 14),
+                              Row(
                                 children: [
-                                  MiuixIconButton(
-                                    onPressed: _pasteDeviceId,
-                                    minWidth: 34,
-                                    minHeight: 34,
-                                    child: Icon(
-                                      Icons.content_paste_rounded,
-                                      size: 18,
-                                      color: colors.onSurfaceVariantSummary,
+                                  _ViewOnlyChip(
+                                    selected: _viewOnly,
+                                    onTap: () {
+                                      OsmiumHaptics.selection();
+                                      setState(() => _viewOnly = !_viewOnly);
+                                    },
+                                  ),
+                                  const Spacer(),
+                                  if (sameAccount) ...[
+                                    OsmiumStatusPill(
+                                      label: '免密',
+                                      icon: Icons.lock_open_rounded,
+                                      background: colors.tertiaryContainer,
+                                      foreground: colors.onTertiaryContainer,
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Tooltip(
+                                    message: encryptionOn
+                                        ? '端到端加密已开启'
+                                        : '端到端加密已关闭',
+                                    child: OsmiumIconTile(
+                                      icon: encryptionOn
+                                          ? Icons.lock_rounded
+                                          : Icons.lock_open_rounded,
+                                      size: 34,
+                                      radius: 11,
+                                      background: encryptionOn
+                                          ? colors.tertiaryContainer
+                                          : OsmiumColors.warnBg(isDark),
+                                      foreground: encryptionOn
+                                          ? colors.onTertiaryContainer
+                                          : OsmiumColors.warnFg(isDark),
                                     ),
                                   ),
-                                  if (_deviceIdCtrl.text.isNotEmpty)
-                                    MiuixIconButton(
-                                      onPressed: () {
-                                        _deviceIdCtrl.clear();
-                                        OsmiumHaptics.selection();
-                                      },
-                                      minWidth: 34,
-                                      minHeight: 34,
-                                      child: Icon(
-                                        Icons.close_rounded,
-                                        size: 18,
-                                        color: colors.onSurfaceVariantSummary,
-                                      ),
-                                    ),
                                 ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          MiuixTextField(
-                            controller: _accessCodeCtrl,
-                            label: '访问密码',
-                            singleLine: true,
-                            obscureText: _obscureAccess,
-                            textCapitalization: TextCapitalization.characters,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _connectNow(),
-                            textStyle: OsmiumTheme.monoStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1.2,
-                              color: colors.onSurface,
-                            ),
-                            trailingIcon: MiuixIconButton(
-                              onPressed: () {
-                                setState(
-                                  () => _obscureAccess = !_obscureAccess,
-                                );
-                                OsmiumHaptics.selection();
-                              },
-                              minWidth: 34,
-                              minHeight: 34,
-                              child: Icon(
-                                _obscureAccess
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                size: 18,
-                                color: colors.onSurfaceVariantSummary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              _ViewOnlyChip(
-                                selected: _viewOnly,
-                                onTap: () {
-                                  OsmiumHaptics.selection();
-                                  setState(() => _viewOnly = !_viewOnly);
-                                },
-                              ),
-                              const Spacer(),
-                              if (sameAccount) ...[
-                                OsmiumStatusPill(
-                                  label: '免密',
-                                  icon: Icons.lock_open_rounded,
-                                  background: colors.tertiaryContainer,
-                                  foreground: colors.onTertiaryContainer,
+                              OsmiumAnimatedReveal(
+                                visible: _error != null,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: OsmiumColors.dangerBg(isDark),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: MiuixText(
+                                      _error ?? '请输入 9 位设备码',
+                                      style: theme.textStyles.body2,
+                                      color: OsmiumColors.dangerFg(isDark),
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(width: 8),
-                              ],
-                              Tooltip(
-                                message: encryptionOn ? '端到端加密已开启' : '端到端加密已关闭',
-                                child: OsmiumIconTile(
-                                  icon: encryptionOn
-                                      ? Icons.lock_rounded
-                                      : Icons.lock_open_rounded,
-                                  size: 34,
-                                  radius: 11,
-                                  background: encryptionOn
-                                      ? colors.tertiaryContainer
-                                      : OsmiumColors.warnBg(isDark),
-                                  foreground: encryptionOn
-                                      ? colors.onTertiaryContainer
-                                      : OsmiumColors.warnFg(isDark),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                key: _connectButtonKey,
+                                width: double.infinity,
+                                child: MiuixButton(
+                                  onPressed: _connectNow,
+                                  colors:
+                                      MiuixButtonDefaults.buttonColorsPrimary(
+                                        context,
+                                      ),
+                                  minWidth: 0,
+                                  minHeight: 44,
+                                  child: AnimatedSwitcher(
+                                    duration: OsmiumMotion.durationOr(
+                                      context,
+                                      OsmiumMotion.small,
+                                    ),
+                                    switchInCurve:
+                                        MiuixMotion.standardDecelerate,
+                                    switchOutCurve:
+                                        MiuixMotion.standardAccelerate,
+                                    transitionBuilder: (child, animation) =>
+                                        FadeTransition(
+                                          opacity: animation,
+                                          child: ScaleTransition(
+                                            scale: Tween<double>(
+                                              begin: 0.9,
+                                              end: 1,
+                                            ).animate(animation),
+                                            child: child,
+                                          ),
+                                        ),
+                                    child: _launching
+                                        ? SizedBox(
+                                            key: const ValueKey('launching'),
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                              color: colors.onPrimary,
+                                            ),
+                                          )
+                                        : Row(
+                                            key: const ValueKey('idle'),
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.bolt_rounded,
+                                                size: 19,
+                                                color: colors.onPrimary,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              const Text(
+                                                '立即连接',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          OsmiumAnimatedReveal(
-                            visible: _error != null,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: ShapeDecoration(
-                                  color: OsmiumColors.dangerBg(isDark),
-                                  shape: MiuixSquircleBorder(cornerRadius: 12),
-                                ),
-                                child: MiuixText(
-                                  _error ?? '请输入 9 位设备码',
-                                  style: theme.textStyles.body2,
-                                  color: OsmiumColors.dangerFg(isDark),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            key: _connectButtonKey,
-                            width: double.infinity,
-                            child: MiuixButton(
-                              onPressed: _connectNow,
-                              colors: MiuixButtonDefaults.buttonColorsPrimary(
-                                context,
-                              ),
-                              cornerRadius: 16,
-                              minWidth: 0,
-                              minHeight: 52,
-                              child: AnimatedSwitcher(
-                                duration: OsmiumMotion.durationOr(
-                                  context,
-                                  OsmiumMotion.small,
-                                ),
-                                switchInCurve: MiuixMotion.standardDecelerate,
-                                switchOutCurve: MiuixMotion.standardAccelerate,
-                                transitionBuilder: (child, animation) =>
-                                    FadeTransition(
-                                      opacity: animation,
-                                      child: ScaleTransition(
-                                        scale: Tween<double>(
-                                          begin: 0.9,
-                                          end: 1,
-                                        ).animate(animation),
-                                        child: child,
-                                      ),
-                                    ),
-                                child: _launching
-                                    ? SizedBox(
-                                        key: const ValueKey('launching'),
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.2,
-                                          color: colors.onPrimary,
+                        ),
+                        if (app.history.isNotEmpty) ...[
+                          const OsmiumSectionHeader('最近连接'),
+                          OsmiumSurfaceCard(
+                            child: Column(
+                              children: [
+                                for (
+                                  int i = 0;
+                                  i < app.history.length;
+                                  i++
+                                ) ...[
+                                  if (i > 0) const OsmiumCardDivider(),
+                                  Builder(
+                                    builder: (_) {
+                                      final entry = app.history[i];
+                                      final matched = app.accountDevices
+                                          .where(
+                                            (d) =>
+                                                d.deviceId == entry.deviceId,
+                                          )
+                                          .firstOrNull;
+                                      return _HistoryRow(
+                                        key: _historyKey(entry.deviceId),
+                                        entry: entry,
+                                        wallpaperPath: app.wallpaperPathFor(
+                                          entry.deviceId,
                                         ),
-                                      )
-                                    : Row(
-                                        key: const ValueKey('idle'),
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.bolt_rounded,
-                                            size: 19,
-                                            color: colors.onPrimary,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          const Text(
-                                            '立即连接',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
+                                        offline:
+                                            matched != null &&
+                                            !matched.isOnline,
+                                        onTap: () => _connectHistory(entry),
+                                        onDelete: () => app.removeHistoryEntry(
+                                          entry.deviceId,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    if (app.history.isNotEmpty) ...[
-                      const OsmiumSectionHeader('最近连接'),
-                      MiuixCard(
-                        cornerRadius: 20,
-                        insideMargin: EdgeInsets.zero,
-                        child: Column(
-                          children: [
-                            for (int i = 0; i < app.history.length; i++) ...[
-                              if (i > 0) const OsmiumCardDivider(),
-                              _HistoryRow(
-                                key: _historyKey(app.history[i].deviceId),
-                                entry: app.history[i],
-                                onTap: () => _connectHistory(app.history[i]),
-                                onDelete: () => app.removeHistoryEntry(
-                                  app.history[i].deviceId,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: OsmiumTopHeader(title: '连接', scrolled: _scrolled),
+            ),
+          ],
         );
       },
     );
@@ -468,7 +512,6 @@ class _ViewOnlyChip extends StatelessWidget {
     final foreground = selected
         ? colors.onPrimary
         : colors.onSecondaryContainer;
-
     final reduced = OsmiumMotion.reduced(context);
 
     return MiuixPressable(
@@ -477,7 +520,6 @@ class _ViewOnlyChip extends StatelessWidget {
       feedbackType: MiuixPressFeedbackType.sink,
       sinkAmount: 0.96,
       child: TweenAnimationBuilder<double>(
-        // Re-keying on the state makes the playful spring replay per toggle.
         key: ValueKey(selected),
         tween: Tween<double>(begin: reduced ? 1 : 0.92, end: 1),
         duration: reduced ? Duration.zero : const Duration(milliseconds: 300),
@@ -522,11 +564,15 @@ class _HistoryRow extends StatefulWidget {
   const _HistoryRow({
     super.key,
     required this.entry,
+    this.wallpaperPath,
+    this.offline = false,
     required this.onTap,
     required this.onDelete,
   });
 
   final ConnectionHistoryEntry entry;
+  final String? wallpaperPath;
+  final bool offline;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -548,6 +594,42 @@ class _HistoryRowState extends State<_HistoryRow> {
     final theme = MiuixTheme.of(context);
     final colors = theme.colors;
     final entry = widget.entry;
+    final offline = widget.offline;
+    final hasWallpaper =
+        widget.wallpaperPath != null && widget.wallpaperPath!.isNotEmpty;
+
+    Widget buildFallbackIcon() => OsmiumIconTile(
+      icon: Icons.desktop_windows_rounded,
+      size: 40,
+      radius: 12,
+      background: offline
+          ? colors.onSurface.withValues(alpha: 0.08)
+          : colors.secondaryContainer,
+      foreground: offline
+          ? colors.onSurfaceVariantSummary.withValues(alpha: 0.72)
+          : colors.onSecondaryContainer,
+    );
+
+    Widget leading = hasWallpaper
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(
+              File(widget.wallpaperPath!),
+              width: 44,
+              height: 36,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) => buildFallbackIcon(),
+            ),
+          )
+        : buildFallbackIcon();
+
+    if (offline && hasWallpaper) {
+      leading = ColorFiltered(
+        colorFilter: OsmiumColors.grayscaleFilter,
+        child: Opacity(opacity: 0.78, child: leading),
+      );
+    }
 
     return OsmiumCollapse(
       collapsed: _removing,
@@ -558,13 +640,7 @@ class _HistoryRowState extends State<_HistoryRow> {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
           child: Row(
             children: [
-              OsmiumIconTile(
-                icon: Icons.desktop_windows_rounded,
-                size: 40,
-                radius: 12,
-                background: colors.secondaryContainer,
-                foreground: colors.onSecondaryContainer,
-              ),
+              leading,
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -572,7 +648,11 @@ class _HistoryRowState extends State<_HistoryRow> {
                   children: [
                     MiuixText(
                       entry.deviceName,
-                      style: theme.textStyles.body1,
+                      style: offline
+                          ? theme.textStyles.body1.copyWith(
+                              color: colors.onSurfaceVariantSummary,
+                            )
+                          : theme.textStyles.body1,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -586,7 +666,11 @@ class _HistoryRowState extends State<_HistoryRow> {
                             overflow: TextOverflow.ellipsis,
                             style: OsmiumTheme.monoStyle(
                               fontSize: 12,
-                              color: colors.onSurfaceVariantSummary,
+                              color: offline
+                                  ? colors.onSurfaceVariantSummary.withValues(
+                                      alpha: 0.72,
+                                    )
+                                  : colors.onSurfaceVariantSummary,
                             ),
                           ),
                         ),
@@ -595,8 +679,14 @@ class _HistoryRowState extends State<_HistoryRow> {
                           OsmiumStatusPill(
                             label: '免密',
                             icon: Icons.lock_open_rounded,
-                            background: colors.tertiaryContainer,
-                            foreground: colors.onTertiaryContainer,
+                            background: offline
+                                ? colors.onSurface.withValues(alpha: 0.08)
+                                : colors.tertiaryContainer,
+                            foreground: offline
+                                ? colors.onSurfaceVariantSummary.withValues(
+                                    alpha: 0.78,
+                                  )
+                                : colors.onTertiaryContainer,
                             fontSize: 10,
                           ),
                         ],

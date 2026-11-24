@@ -244,6 +244,9 @@ class RemoteSessionController extends ChangeNotifier {
   bool _viewOnly = false;
   bool get viewOnly => _viewOnly;
 
+  /// The host granted this session view-only, so input can't be turned back on.
+  bool get viewOnlyLocked => _request?.viewOnly ?? false;
+
   int _orientationMode = 0; // 0=auto, 1=portrait, 2=landscape
   int get orientationMode => _orientationMode;
 
@@ -1198,6 +1201,16 @@ class RemoteSessionController extends ChangeNotifier {
     engine.sendMouseWheel(_sessionHandle, dx: dx, dy: dy);
   }
 
+  int _touchSeq = 0;
+
+  /// Native Windows touch; only for hosts reporting
+  /// [HostSessionStatusDto.touchInput].
+  void sendTouch(List<TouchContact> contacts) {
+    if (_viewOnly || _sessionHandle == null) return;
+    _touchSeq = (_touchSeq + 1) & 0xFFFF;
+    engine.sendTouch(_sessionHandle, seq: _touchSeq, contacts: contacts);
+  }
+
   void sendKey(WinKeySpec key, bool isDown) {
     if (_viewOnly || _sessionHandle == null) return;
     engine.sendKey(
@@ -1296,6 +1309,13 @@ class RemoteSessionController extends ChangeNotifier {
       mouseMode: ok ? 1 : 0,
       hideHostCursor: false,
     );
+    notifyListeners();
+  }
+
+  /// Stops (or resumes) sending input while keeping the picture live.
+  void toggleViewOnly() {
+    if (viewOnlyLocked) return;
+    _viewOnly = !_viewOnly;
     notifyListeners();
   }
 

@@ -48,6 +48,7 @@ class HostSessionStatusDto {
     this.virtualSpeakerActive = false,
     this.virtualMicActive = false,
     this.screenLocked = false,
+    this.touchInput = false,
     this.displays = const [],
   });
 
@@ -64,6 +65,10 @@ class HostSessionStatusDto {
   final bool virtualSpeakerActive;
   final bool virtualMicActive;
   final bool screenLocked;
+
+  /// The host injects Windows touch input (protocol `InputTouch`); older
+  /// hosts only take mouse events.
+  final bool touchInput;
   final List<HostDisplayDto> displays;
 
   factory HostSessionStatusDto.fromJson(Map<String, dynamic> json) {
@@ -90,6 +95,7 @@ class HostSessionStatusDto {
       virtualSpeakerActive: json['virtualSpeakerActive'] == true,
       virtualMicActive: json['virtualMicActive'] == true,
       screenLocked: json['screenLocked'] == true,
+      touchInput: json['touchInput'] == true,
       displays: displays,
     );
   }
@@ -137,6 +143,29 @@ class HostTextFocus {
 
   @override
   int get hashCode => Object.hash(active, serial, caret);
+}
+
+/// Protocol `TouchPhase` order, offset by one on the wire.
+enum TouchPhase { down, move, up, cancel }
+
+/// One finger in an `InputTouch` frame; [x] and [y] are normalized to the
+/// streamed display.
+class TouchContact {
+  const TouchContact({
+    required this.id,
+    required this.phase,
+    required this.x,
+    required this.y,
+  });
+
+  static const maxContacts = 10;
+  static const byteSize = 12;
+
+  /// 0..9, stable while the finger stays down.
+  final int id;
+  final TouchPhase phase;
+  final double x;
+  final double y;
 }
 
 class SessionStatsSnapshot {

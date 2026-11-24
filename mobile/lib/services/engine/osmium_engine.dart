@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -443,6 +444,37 @@ class OsmiumEngine {
     if (session == null || session == nullptr) return;
     _bindings?.sendMouseWheel(session, dx, dy);
   }
+
+  /// Sends one touch frame: every contact on the screen, plus those lifted
+  /// since the last frame.
+  void sendTouch(
+    Pointer<Void>? session, {
+    required int seq,
+    required List<TouchContact> contacts,
+  }) {
+    final b = _bindings;
+    if (b == null || session == null || session == nullptr) return;
+    final count = math.min(contacts.length, TouchContact.maxContacts);
+    final buf = _touchBuf ??= calloc<Uint8>(
+      TouchContact.maxContacts * TouchContact.byteSize,
+    );
+    final data = ByteData.sublistView(
+      buf.asTypedList(TouchContact.maxContacts * TouchContact.byteSize),
+    );
+    for (var i = 0; i < count; i++) {
+      final c = contacts[i];
+      final o = i * TouchContact.byteSize;
+      data
+        ..setUint8(o, c.id)
+        ..setUint8(o + 1, c.phase.index + 1)
+        ..setUint16(o + 2, 0, Endian.little)
+        ..setFloat32(o + 4, c.x.clamp(0.0, 1.0), Endian.little)
+        ..setFloat32(o + 8, c.y.clamp(0.0, 1.0), Endian.little);
+    }
+    b.sendTouch(session, seq & 0xFFFF, buf, count);
+  }
+
+  Pointer<Uint8>? _touchBuf;
 
   void sendKey(
     Pointer<Void>? session, {

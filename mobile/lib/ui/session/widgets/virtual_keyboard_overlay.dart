@@ -1,5 +1,9 @@
+
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/constants/osmium_constants.dart';
 import '../../../core/theme/osmium_motion.dart';
@@ -8,7 +12,8 @@ import '../../../services/session/remote_session_controller.dart';
 
 enum KeyboardOverlayMode { none, systemIme, pcFull }
 
-/// Sticky modifier key bar + system IME Unicode bridge + liquid-glass PC keyboard.
+/// Sticky modifier key bar + direct system IME bridge (with opt-in staging box)
+/// + translucent PC keyboard.
 class VirtualKeyboardOverlay extends StatefulWidget {
   const VirtualKeyboardOverlay({
     super.key,
@@ -36,12 +41,16 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
     with SingleTickerProviderStateMixin {
   final TextEditingController _imeCtrl = TextEditingController();
   final FocusNode _imeFocus = FocusNode();
+  late final _DirectImeClient _directIme;
 
   bool _ctrlSticky = false;
   bool _altSticky = false;
   bool _shiftSticky = false;
   bool _winSticky = false;
   bool _fnRow = false;
+
+  /// Only shown when the user explicitly toggles into staging ("待发") mode.
+  bool _draftMode = false;
 
   /// The mode currently laid out. It lags [VirtualKeyboardOverlay.mode] during
   /// the exit animation so the keyboard can slide away intact.
@@ -53,6 +62,15 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
   @override
   void initState() {
     super.initState();
+    _directIme = _DirectImeClient(
+      onCommitText: _emitDirectText,
+      onBackspace: (count) {
+        for (var i = 0; i < count; i++) {
+          _tapPcKey(WinKeys.backspace);
+        }
+      },
+      onEnter: () => _tapPcKey(WinKeys.enter),
+    );
     _shownMode = widget.mode;
     _reveal =
         AnimationController(
@@ -66,7 +84,18 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
               setState(() => _shownMode = KeyboardOverlayMode.none);
             }
           });
-    if (widget.mode != KeyboardOverlayMode.none) _reveal.value = 1;
+    if (widget.mode != KeyboardOverlayMode.none) {
+      _reveal.value = 1;
+      if (widget.mode == KeyboardOverlayMode.systemIme) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              widget.mode == KeyboardOverlayMode.systemIme &&
+              !_draftMode) {
+            _directIme.open();
+          }
+        });
+      }
+    }
   }
 
   /// Slide progress: 1 fully up, 0 tucked below the bottom edge.
@@ -112,30 +141,92 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
         }
       }
     } else if (oldWidget.mode != KeyboardOverlayMode.none) {
+      if (_draftMode) {
+        _draftMode = false;
+      }
       if (OsmiumMotion.reduced(context)) {
         _reveal.value = 0;
       } else {
         _reveal.reverse();
       }
     }
+
     if (widget.mode == KeyboardOverlayMode.systemIme &&
         oldWidget.mode != KeyboardOverlayMode.systemIme) {
+      _draftMode = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _imeFocus.requestFocus();
+        if (!mounted || widget.mode != KeyboardOverlayMode.systemIme) return;
+        if (_draftMode) {
+          _imeFocus.requestFocus();
+        } else {
+          _directIme.open();
+        }
       });
     } else if (widget.mode != KeyboardOverlayMode.systemIme &&
         oldWidget.mode == KeyboardOverlayMode.systemIme) {
+      _directIme.close();
       _imeFocus.unfocus();
+      _draftMode = false;
     }
   }
 
   @override
   void dispose() {
+    _directIme.close();
     _reveal.dispose();
     _releaseAllModifiers();
     _imeCtrl.dispose();
     _imeFocus.dispose();
     super.dispose();
+  }
+
+  void _toggleDraftMode() {
+    OsmiumHaptics.selection();
+    final next = !_draftMode;
+    setState(() => _draftMode = next);
+    if (next) {
+      _directIme.close();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            widget.mode == KeyboardOverlayMode.systemIme &&
+            _draftMode) {
+          _imeFocus.requestFocus();
+        }
+      });
+    } else {
+      _imeFocus.unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            widget.mode == KeyboardOverlayMode.systemIme &&
+            !_draftMode) {
+          _directIme.open();
+        }
+      });
+    }
+  }
+
+  void _emitDirectText(String text) {
+    if (text.isEmpty) return;
+    final normalized = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final parts = normalized.split('\n');
+    for (var i = 0; i < parts.length; i++) {
+      final chunk = parts[i];
+      if (chunk.isNotEmpty) {
+        if ((_ctrlSticky || _altSticky || _winSticky) && chunk.length == 1) {
+          final spec = WinKeys.byLabel[chunk.toUpperCase()];
+          if (spec != null) {
+            _tapPcKey(spec);
+          } else {
+            widget.controller.sendUnicodeText(chunk);
+          }
+        } else {
+          widget.controller.sendUnicodeText(chunk);
+        }
+      }
+      if (i < parts.length - 1) {
+        _tapPcKey(WinKeys.enter);
+      }
+    }
   }
 
   void _toggleModifier(String name) {
@@ -234,11 +325,16 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
             right: 8,
           ),
           decoration: BoxDecoration(
-            color: Color.fromRGBO(14, 17, 24, widget.opacity.clamp(0.45, 0.96)),
+            color: Color.fromRGBO(
+              13,
+              17,
+              25,
+              (widget.opacity * 0.88).clamp(0.58, 0.90),
+            ),
             border: Border(
               top: BorderSide(
-                color: Colors.white.withValues(alpha: 0.14),
-                width: 0.7,
+                color: OsmiumColors.sessionGlassBorder,
+                width: 0.75,
               ),
             ),
           ),
@@ -320,6 +416,13 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
                         ],
                       ),
                     ),
+                    if (isIme)
+                      _KeyChip(
+                        label: '待发',
+                        active: _draftMode,
+                        margin: const EdgeInsets.only(left: 6),
+                        onTap: _toggleDraftMode,
+                      ),
                     // Pinned outside the scroll so it is always in reach.
                     _KeyChip(
                       label: '收起',
@@ -330,18 +433,22 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
                   ],
                 ),
               ),
-              const SizedBox(height: 6),
 
-              if (isIme)
+              if (isIme && _draftMode) ...[
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Expanded(
                       child: Container(
-                        height: 38,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: OsmiumColors.sessionGlassHairline,
+                            width: 0.75,
+                          ),
                         ),
                         child: TextField(
                           controller: _imeCtrl,
@@ -354,7 +461,7 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             isDense: true,
-                            hintText: '输入文字发送到远端',
+                            hintText: '待发内容',
                             hintStyle: TextStyle(
                               color: Colors.white38,
                               fontSize: 13.5,
@@ -382,9 +489,11 @@ class _VirtualKeyboardOverlayState extends State<VirtualKeyboardOverlay>
                       onTap: _submitImeText,
                     ),
                   ],
-                )
-              else
+                ),
+              ] else if (!isIme) ...[
+                const SizedBox(height: 6),
                 _buildPcKeyboard(),
+              ],
             ],
           ),
         ),
@@ -615,11 +724,17 @@ class _KeyChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: margin,
-        padding: const EdgeInsets.symmetric(horizontal: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: active
+                ? OsmiumColors.accentOnGlass
+                : OsmiumColors.sessionGlassHairline,
+            width: 0.7,
+          ),
         ),
         child: Text(
           label,
@@ -659,9 +774,13 @@ class _PcKey extends StatelessWidget {
           color: active
               ? OsmiumColors.accentOnGlass
               : accent
-              ? OsmiumColors.accentOnGlass.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.13),
-          borderRadius: BorderRadius.circular(8),
+              ? OsmiumColors.accentOnGlass.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: OsmiumColors.sessionGlassHairline,
+            width: 0.6,
+          ),
         ),
         child: Text(
           label,
@@ -694,20 +813,199 @@ class _ActionPill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 38,
-        height: 38,
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(
           color: primary
               ? OsmiumColors.accentOnGlass
-              : Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(12),
+              : Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(7),
         ),
         child: Icon(
           icon,
-          size: 18,
+          size: 17,
           color: primary ? const Color(0xFF002438) : Colors.white,
         ),
       ),
     );
   }
 }
+
+/// Bridges the platform soft keyboard directly to the remote host without a
+/// visible local input box.
+///
+/// Keeps a small buffer of zero-width-space sentinels before the caret so soft
+/// Backspace always deletes a character (even on repeated holds) without
+/// triggering double-space-to-period, while leaving active CJK/word composing
+/// untouched until committed.
+class _DirectImeClient with TextInputClient {
+  _DirectImeClient({
+    required this.onCommitText,
+    required this.onBackspace,
+    required this.onEnter,
+  });
+
+  final ValueChanged<String> onCommitText;
+  final ValueChanged<int> onBackspace;
+  final VoidCallback onEnter;
+
+  static const int _sentinelCodeUnit = 0x200B;
+  static const String _sentinelChar = '​';
+  static const int _sentinelCount = 8;
+  static final String _sentinel = _sentinelChar * _sentinelCount;
+  static final TextEditingValue _idleValue = TextEditingValue(
+    text: _sentinel,
+    selection: const TextSelection.collapsed(offset: _sentinelCount),
+  );
+
+  static const TextInputConfiguration _config = TextInputConfiguration(
+    inputType: TextInputType.multiline,
+    inputAction: TextInputAction.newline,
+    autocorrect: false,
+    enableSuggestions: true,
+    enableIMEPersonalizedLearning: false,
+  );
+
+  TextInputConnection? _connection;
+  TextEditingValue _lastValue = _idleValue;
+  int _anchorSentinels = _sentinelCount;
+  String _sentPrefix = '';
+
+  void open() {
+    if (_connection != null && _connection!.attached) {
+      _connection!.show();
+      return;
+    }
+    _connection = TextInput.attach(this, _config);
+    _resetBuffer();
+    _connection!.show();
+  }
+
+  void close() {
+    final conn = _connection;
+    _connection = null;
+    _lastValue = _idleValue;
+    _anchorSentinels = _sentinelCount;
+    _sentPrefix = '';
+    if (conn != null && conn.attached) {
+      conn.close();
+    }
+  }
+
+  void _resetBuffer() {
+    _lastValue = _idleValue;
+    _anchorSentinels = _sentinelCount;
+    _sentPrefix = '';
+    final conn = _connection;
+    if (conn != null && conn.attached) {
+      conn.setEditingState(_idleValue);
+    }
+  }
+
+  @override
+  TextEditingValue? get currentTextEditingValue => _lastValue;
+
+  @override
+  AutofillScope? get currentAutofillScope => null;
+
+  @override
+  void updateEditingValue(TextEditingValue value) {
+    _lastValue = value;
+    final text = value.text;
+    final composing = value.composing;
+    final isComposing =
+        composing.isValid &&
+        !composing.isCollapsed &&
+        composing.start >= 0 &&
+        composing.end <= text.length;
+
+    final committedEnd = isComposing ? composing.start : text.length;
+    var leadingSentinels = 0;
+    while (leadingSentinels < committedEnd &&
+        text.codeUnitAt(leadingSentinels) == _sentinelCodeUnit) {
+      leadingSentinels++;
+    }
+
+    final rawCommitted = text.substring(leadingSentinels, committedEnd);
+    final committed = rawCommitted.contains(_sentinelChar)
+        ? rawCommitted.replaceAll(_sentinelChar, '')
+        : rawCommitted;
+
+    var common = 0;
+    final minLen = math.min(_sentPrefix.length, committed.length);
+    while (common < minLen &&
+        _sentPrefix.codeUnitAt(common) == committed.codeUnitAt(common)) {
+      common++;
+    }
+    final deletedSent = _sentPrefix.length - common;
+    final added = committed.substring(common);
+
+    var deletedSentinels = 0;
+    if (committed.isEmpty && !isComposing) {
+      if (leadingSentinels > 0 && leadingSentinels < _anchorSentinels) {
+        deletedSentinels = _anchorSentinels - leadingSentinels;
+      } else if (leadingSentinels == 0 && text.isEmpty) {
+        deletedSentinels = 1;
+      }
+    }
+
+    final backspaces = deletedSent + deletedSentinels;
+    if (backspaces > 0) {
+      onBackspace(backspaces);
+    }
+    if (added.isNotEmpty) {
+      onCommitText(added);
+    }
+
+    if (isComposing) {
+      _anchorSentinels = leadingSentinels;
+      _sentPrefix = committed;
+    } else if (committed.isNotEmpty ||
+        leadingSentinels <= 2 ||
+        leadingSentinels > _sentinelCount) {
+      _resetBuffer();
+    } else {
+      _anchorSentinels = leadingSentinels;
+      _sentPrefix = '';
+    }
+  }
+
+  @override
+  void performAction(TextInputAction action) {
+    // Flush any uncommitted composing word (e.g. underlined English text)
+    // before sending Enter.
+    final text = _lastValue.text;
+    var leading = 0;
+    while (leading < text.length &&
+        text.codeUnitAt(leading) == _sentinelCodeUnit) {
+      leading++;
+    }
+    final remaining = text.substring(leading).replaceAll(_sentinelChar, '');
+    if (remaining.length > _sentPrefix.length &&
+        remaining.startsWith(_sentPrefix)) {
+      onCommitText(remaining.substring(_sentPrefix.length));
+    } else if (remaining.isNotEmpty && _sentPrefix.isEmpty) {
+      onCommitText(remaining);
+    }
+    onEnter();
+    _resetBuffer();
+  }
+
+  @override
+  void updateFloatingCursor(RawFloatingCursorPoint point) {}
+
+  @override
+  void showAutocorrectionPromptRect(int start, int end) {}
+
+  @override
+  void performPrivateCommand(String action, Map<String, dynamic> data) {}
+
+  @override
+  void connectionClosed() {
+    _connection = null;
+    _lastValue = _idleValue;
+    _anchorSentinels = _sentinelCount;
+    _sentPrefix = '';
+  }
+}
+

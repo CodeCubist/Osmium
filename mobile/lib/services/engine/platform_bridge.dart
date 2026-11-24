@@ -213,4 +213,19 @@ class PlatformBridge {
       await _methodChannel.invokeMethod('setOrientationLock', {'mode': mode});
     } catch (_) {}
   }
+
+  /// Center-crops and compresses raw image bytes into a 128x128 JPEG data URI
+  /// within the server's avatar size limit (<= 48 KiB target, <= 64 KiB max).
+  Future<String?> compressAvatar(Uint8List bytes) async {
+    if (!Platform.isAndroid || bytes.isEmpty) return null;
+    try {
+      final res = await _methodChannel.invokeMethod<String>('compressAvatar', {
+        'bytes': bytes,
+      });
+      if (res == null || res.isEmpty) return null;
+      return res;
+    } catch (_) {
+      return null;
+    }
+  }
 }

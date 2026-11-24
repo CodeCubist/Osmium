@@ -7,6 +7,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_miuix/miuix.dart';
 
+import '../../../core/models/host_status.dart';
 import '../../../core/models/osmium_settings.dart';
 import '../../../core/theme/osmium_motion.dart';
 import '../../../core/theme/osmium_theme.dart';
@@ -43,6 +44,11 @@ class _RippleRepaint extends ChangeNotifier {
 ///   acts at a relative trackpad cursor that the zoomed view follows.
 /// - Two fingers: pinch zooms (1x..4x), sliding scrolls, a tap right-clicks.
 /// - Haptics only confirm what the eye cannot: the hold arming, the drag lock.
+/// - On hosts that take Windows touch input, one finger in
+///   [ControlMode.directTouch] is forwarded as a touchscreen contact and
+///   Windows recognises taps, holds and swipes itself. Two fingers stay the
+///   phone's: pinch zooms the picture, sliding scrolls the host, or moves the
+///   picture once it is zoomed.
 class TouchControlLayer extends StatefulWidget {
   const TouchControlLayer({
     super.key,
@@ -131,6 +137,24 @@ class TouchControlLayerState extends State<TouchControlLayer>
   // Set once a second finger joins; the finger left behind does nothing.
   bool _singleConsumed = false;
   Timer? _longPressTimer;
+
+  // Native touch: the lone finger forwarded as a touchscreen contact and its
+  // position on the host display. Whether the host takes touch is decided
+  // when a gesture starts, so a status push cannot split one gesture in two.
+  bool _nativeGesture = false;
+  int? _touchPointer;
+  Offset _touchDownAt = Offset.zero;
+  Offset _touchNorm = Offset.zero;
+  bool _touchDownSent = false;
+  bool _touchTravelled = false;
+  bool _touchMovePending = false;
+  Timer? _touchDownTimer;
+  Timer? _touchHeartbeat;
+  // Long enough for the second finger of a pinch to land before the host
+  // sees the first.
+  static const Duration _touchDownDelay = Duration(milliseconds: 80);
+  // The host cancels contacts it has not heard about for 1.5 s.
+  static const Duration _touchHeartbeatInterval = Duration(milliseconds: 250);
 
   // Two-finger tracking
   _TwoFingerMode _twoMode = _TwoFingerMode.undecided;
@@ -223,6 +247,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
   @override
   void dispose() {
+    if (_touchPointer != null) _touchLift(TouchPhase.cancel);
     _longPressTimer?.cancel();
     _multiTapTimer?.cancel();
     _doubleTapTimer?.cancel();
@@ -498,6 +523,20 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
   void _onPointerDown(PointerDownEvent e, Size viewport) {
     widget.onUserInteraction();
+    if (_activePointers.isEmpty) {
+      _nativeGesture =
+          widget.controlMode == ControlMode.directTouch &&
+          widget.controller.hostStatus.touchInput;
+      if (_nativeGesture) {
+        _activePointers[e.pointer] = e.localPosition;
+        _touchDown(e, viewport);
+        return;
+      }
+    } else if (_touchPointer != null) {
+      // A second finger makes the gesture the phone's; the host forgets the
+      // first one without clicking.
+      _touchLift(TouchPhase.cancel);
+    }
     _activePointers[e.pointer] = e.localPosition;
 
     if (_activePointers.length == 2) {
@@ -553,6 +592,11 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _onPointerMove(PointerMoveEvent e, Size viewport) {
+    if (e.pointer == _touchPointer) {
+      _activePointers[e.pointer] = e.localPosition;
+      _touchMove(e, viewport);
+      return;
+    }
     if (!_activePointers.containsKey(e.pointer)) return;
     _activePointers[e.pointer] = e.localPosition;
 
@@ -601,13 +645,16 @@ class TouchControlLayerState extends State<TouchControlLayer>
     _lastMultiFocal = focal;
 
     if (_twoMode == _TwoFingerMode.undecided) {
-      if ((dist - _initialPinchDist).abs() > _pinchSlop) {
+      final slid = (focal - _multiStartFocal).distance > _scrollSlop;
+      // One finger belongs to a touch host, so two move the zoomed picture.
+      if ((dist - _initialPinchDist).abs() > _pinchSlop ||
+          slid && _nativeGesture && _zoomed) {
         // Rebase so the zoom grows from here instead of jumping by the
         // threshold.
         _twoMode = _TwoFingerMode.pinch;
         _initialPinchDist = dist;
         _initialZoom = _zoom;
-      } else if ((focal - _multiStartFocal).distance > _scrollSlop) {
+      } else if (slid) {
         _twoMode = _TwoFingerMode.scroll;
         if (widget.controlMode == ControlMode.directTouch) {
           // Windows scrolls whatever sits under the pointer.
@@ -651,6 +698,11 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _onPointerUp(PointerUpEvent e, Size viewport) {
+    if (e.pointer == _touchPointer) {
+      _activePointers.remove(e.pointer);
+      _touchLift(TouchPhase.up, at: e.localPosition, viewport: viewport);
+      return;
+    }
     if (!_activePointers.containsKey(e.pointer)) return;
     final count = _activePointers.length;
     _activePointers.remove(e.pointer);
@@ -676,9 +728,81 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _onPointerCancel(PointerCancelEvent e) {
+    if (e.pointer == _touchPointer) {
+      _activePointers.remove(e.pointer);
+      _touchLift(TouchPhase.cancel);
+      return;
+    }
     _activePointers.remove(e.pointer);
     _cancelSingleFingerPending();
     if (_activePointers.isEmpty) _resetSingle();
+  }
+
+  void _touchDown(PointerDownEvent e, Size viewport) {
+    _touchPointer = e.pointer;
+    _touchDownAt = e.localPosition;
+    _touchNorm = _viewportToNorm(e.localPosition, _computeVideoRect(viewport));
+    _touchDownSent = false;
+    _touchTravelled = false;
+    _touchDownTimer = Timer(_touchDownDelay, _sendTouchDown);
+  }
+
+  /// The finger stayed alone long enough, travelled, or lifted: it is the
+  /// host's now.
+  void _sendTouchDown() {
+    _touchDownTimer?.cancel();
+    _touchDownTimer = null;
+    if (_touchPointer == null || _touchDownSent) return;
+    _touchDownSent = true;
+    _sendTouch(TouchPhase.down);
+    _addRipple(_touchDownAt);
+    _touchHeartbeat = Timer.periodic(
+      _touchHeartbeatInterval,
+      (_) => _sendTouch(TouchPhase.move),
+    );
+  }
+
+  void _touchMove(PointerMoveEvent e, Size viewport) {
+    if (!_touchTravelled) {
+      // One phone pixel spans several host pixels; jitter would read as a
+      // drag and break press-and-hold.
+      if ((e.localPosition - _touchDownAt).distance <= _touchSlop) return;
+      _touchTravelled = true;
+      _sendTouchDown();
+    }
+    _touchNorm = _viewportToNorm(e.localPosition, _computeVideoRect(viewport));
+    // Moves delivered together go out as one frame.
+    if (_touchMovePending) return;
+    _touchMovePending = true;
+    scheduleMicrotask(() {
+      if (_touchMovePending && _touchPointer != null) {
+        _sendTouch(TouchPhase.move);
+      }
+    });
+  }
+
+  void _touchLift(TouchPhase phase, {Offset? at, Size? viewport}) {
+    if (phase == TouchPhase.up) {
+      _sendTouchDown();
+      if (_touchTravelled && at != null && viewport != null) {
+        _touchNorm = _viewportToNorm(at, _computeVideoRect(viewport));
+      }
+    }
+    if (_touchDownSent) _sendTouch(phase);
+    _touchDownTimer?.cancel();
+    _touchDownTimer = null;
+    _touchHeartbeat?.cancel();
+    _touchHeartbeat = null;
+    _touchPointer = null;
+    _touchDownSent = false;
+    _touchMovePending = false;
+  }
+
+  void _sendTouch(TouchPhase phase) {
+    _touchMovePending = false;
+    widget.controller.sendTouch([
+      TouchContact(id: 0, phase: phase, x: _touchNorm.dx, y: _touchNorm.dy),
+    ]);
   }
 
   /// Left or right click: at the finger in direct touch, at the cursor in
@@ -884,37 +1008,43 @@ class TouchControlLayerState extends State<TouchControlLayer>
                     curve: MiuixMotion.standardDecelerate,
                     child: GestureDetector(
                       onTap: _resetZoom,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xB3101318),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.zoom_out_map_rounded,
-                              size: 14,
-                              color: Colors.white,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: BackdropFilter(
+                          filter: OsmiumGlass.filter(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '${_zoom.toStringAsFixed(1)}x',
-                              style: OsmiumTheme.monoStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: OsmiumColors.sessionGlassFill,
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(
+                                color: OsmiumColors.sessionGlassBorder,
+                                width: 0.75,
                               ),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.zoom_out_map_rounded,
+                                  size: 13.5,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '${_zoom.toStringAsFixed(1)}x',
+                                  style: OsmiumTheme.monoStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -972,16 +1102,9 @@ class _PrecisionMouseDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC12161F),
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
-          width: 0.8,
-        ),
+        borderRadius: BorderRadius.circular(9),
         boxShadow: const [
           BoxShadow(
             color: Color(0x4D000000),
@@ -990,25 +1113,46 @@ class _PrecisionMouseDock extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _DockBtn(label: '左键', onTap: onLeftClick),
-          _DockDivider(),
-          _DockBtn(
-            label: dragging ? '拖拽中' : '拖拽',
-            active: dragging,
-            onTap: onToggleDrag,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: BackdropFilter(
+          filter: OsmiumGlass.filter(18),
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            decoration: BoxDecoration(
+              color: const Color(0x750E121B),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(
+                color: OsmiumColors.sessionGlassBorder,
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _DockBtn(label: '左键', onTap: onLeftClick),
+                _DockDivider(),
+                _DockBtn(
+                  label: dragging ? '拖拽中' : '拖拽',
+                  active: dragging,
+                  onTap: onToggleDrag,
+                ),
+                _DockDivider(),
+                _DockBtn(label: '右键', onTap: onRightClick),
+                _DockDivider(),
+                _DockIconBtn(
+                  icon: Icons.keyboard_arrow_up_rounded,
+                  onTap: onWheelUp,
+                ),
+                _DockIconBtn(
+                  icon: Icons.keyboard_arrow_down_rounded,
+                  onTap: onWheelDown,
+                ),
+              ],
+            ),
           ),
-          _DockDivider(),
-          _DockBtn(label: '右键', onTap: onRightClick),
-          _DockDivider(),
-          _DockIconBtn(icon: Icons.keyboard_arrow_up_rounded, onTap: onWheelUp),
-          _DockIconBtn(
-            icon: Icons.keyboard_arrow_down_rounded,
-            onTap: onWheelDown,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1031,14 +1175,14 @@ class _DockBtn extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 13),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: active
-              ? OsmiumColors.accentOnGlass.withValues(alpha: 0.25)
+              ? OsmiumColors.accentOnGlass.withValues(alpha: 0.22)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           label,

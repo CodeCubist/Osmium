@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/account_models.dart';
 import '../../core/theme/osmium_motion.dart';
+import '../../core/theme/osmium_theme.dart';
 import '../../services/session/remote_session_controller.dart';
 import '../../services/signaling/signaling_client.dart';
 import '../../state/app_controller.dart';
@@ -19,7 +20,7 @@ import '../widgets/osmium_container_route.dart';
 import '../widgets/osmium_dock_scope.dart';
 import '../widgets/osmium_tab_switcher.dart';
 
-const double _dockHeight = 56;
+const double _dockHeight = 52;
 const double _dockBottomGap = 12;
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -125,6 +126,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   void _openConnectTab() => _selectTab(1);
+  void _openMeTab() => _selectTab(2);
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +158,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 DevicesTab(
                   onConnect: _openSession,
                   onOpenConnect: _openConnectTab,
+                  onOpenMe: _openMeTab,
                   bottomInset: navBarReserve,
                 ),
                 ConnectTab(onConnect: _openSession, bottomInset: navBarReserve),
@@ -171,30 +174,57 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 380),
-                    child: MiuixGlassNavigationBar(
-                      selectedIndex: _tabIndex,
-                      height: _dockHeight,
-                      selectedColor: colors.primary,
-                      indicatorColor: colors.primary.withValues(alpha: 0.14),
-                      indicatorPressedColor: colors.primary.withValues(
-                        alpha: 0.20,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(_dockHeight / 2),
+                      child: BackdropFilter(
+                        filter: OsmiumGlass.filter(24),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(_dockHeight / 2),
+                            border: Border.all(
+                              color: OsmiumColors.glassBorder(
+                                MiuixTheme.of(context).brightness ==
+                                    Brightness.dark,
+                              ),
+                              width: 0.9,
+                            ),
+                          ),
+                          child: MiuixGlassNavigationBar(
+                            selectedIndex: _tabIndex,
+                            height: _dockHeight,
+                            alpha: 0.54,
+                            shape: const MiuixGlassShape(
+                              cornerRadius: _dockHeight / 2,
+                              smoothing: 0.25,
+                            ),
+                            selectedColor: colors.primary,
+                            indicatorColor: colors.primary.withValues(
+                              alpha: 0.14,
+                            ),
+                            indicatorPressedColor: colors.primary.withValues(
+                              alpha: 0.20,
+                            ),
+                            unselectedColor: colors.onSurface.withValues(
+                              alpha: 0.56,
+                            ),
+                            onSelect: _selectTab,
+                            items: const [
+                              MiuixGlassNavigationItem(
+                                icon: Icon(Icons.devices_rounded),
+                                label: '设备',
+                              ),
+                              MiuixGlassNavigationItem(
+                                icon: Icon(Icons.bolt_rounded),
+                                label: '连接',
+                              ),
+                              MiuixGlassNavigationItem(
+                                icon: Icon(Icons.person_rounded),
+                                label: '我的',
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      unselectedColor: colors.onSurface.withValues(alpha: 0.56),
-                      onSelect: _selectTab,
-                      items: const [
-                        MiuixGlassNavigationItem(
-                          icon: Icon(Icons.devices_rounded),
-                          label: '设备',
-                        ),
-                        MiuixGlassNavigationItem(
-                          icon: Icon(Icons.bolt_rounded),
-                          label: '连接',
-                        ),
-                        MiuixGlassNavigationItem(
-                          icon: Icon(Icons.person_rounded),
-                          label: '我的',
-                        ),
-                      ],
                     ),
                   ),
                 ),

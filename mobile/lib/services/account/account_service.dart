@@ -266,11 +266,19 @@ class AccountService {
         if (ltok.isNotEmpty) {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           final exp = (d['expires_in'] as num?)?.toInt() ?? 0;
+          final hasAvatarKey = d.containsKey('avatar_data');
+          final rawAvatar = d['avatar_data'] as String?;
+          final trimmedAvatar = rawAvatar?.trim();
           final updated = cur.copyWith(
             userId: (d['user_id'] ?? cur.userId).toString(),
             email: (d['email'] ?? cur.email).toString(),
             username: (d['username'] ?? cur.username).toString(),
-            avatarData: (d['avatar_data'] as String?) ?? cur.avatarData,
+            avatarData:
+                (hasAvatarKey && trimmedAvatar != null && trimmedAvatar.isNotEmpty)
+                    ? trimmedAvatar
+                    : null,
+            clearAvatar:
+                hasAvatarKey && (trimmedAvatar == null || trimmedAvatar.isEmpty),
             ltoken: ltok,
             ltokenExpiresAtUnix: exp > 0 ? now + exp : 0,
             accountStatus: (d['account_status'] ?? cur.accountStatus)
@@ -537,6 +545,222 @@ class AccountService {
         );
       }
       return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  /// Fetches the latest account profile (including `avatar_data`, `username`,
+  /// `email`, and lock state) from `/api/account/status`, matching desktop
+  /// `AccountService.GetAccountStatusAsync`.
+  Future<AccountApiResult<AccountSessionData>> fetchAccountStatus() async {
+    final cur = _session;
+    if (!isLoggedIn || cur == null) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed('GET', '/api/account/status');
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (parsed.ok && parsed.data != null) {
+        final d = parsed.data!;
+        final hasAvatarKey = d.containsKey('avatar_data');
+        final rawAvatar = d['avatar_data'] as String?;
+        final trimmedAvatar = rawAvatar?.trim();
+        final status = (d['account_status'] ?? cur.accountStatus).toString();
+        final locked = d['locked'] == true || status.toLowerCase() == 'locked';
+        final updated = cur.copyWith(
+          userId: (d['user_id'] ?? cur.userId).toString(),
+          email: (d['email'] ?? cur.email).toString(),
+          username: (d['username'] ?? cur.username).toString(),
+          avatarData:
+              (hasAvatarKey && trimmedAvatar != null && trimmedAvatar.isNotEmpty)
+                  ? trimmedAvatar
+                  : null,
+          clearAvatar:
+              hasAvatarKey && (trimmedAvatar == null || trimmedAvatar.isEmpty),
+          accountStatus: status,
+          locked: locked,
+        );
+        await _setSession(updated);
+        return AccountApiResult(
+          ok: true,
+          httpStatusCode: parsed.httpStatusCode,
+          data: updated,
+        );
+      }
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
+        message: parsed.message.isNotEmpty ? parsed.message : '获取账号信息失败',
+      );
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  /// Updates account nickname and/or avatar via `POST /api/account/profile`,
+  /// matching desktop `AccountService.UpdateProfileAsync`. Pass
+  /// `clearAvatar: true` to remove the current avatar (`avatar_data: ""`).
+  Future<AccountApiResult<AccountSessionData>> updateProfile({
+    String? username,
+    String? avatarData,
+    bool clearAvatar = false,
+  }) async {
+    final cur = _session;
+    if (!isLoggedIn || cur == null) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    final payload = <String, dynamic>{};
+    if (username != null) {
+      payload['username'] = username.trim();
+    }
+    if (clearAvatar) {
+      payload['avatar_data'] = '';
+    } else if (avatarData != null) {
+      payload['avatar_data'] = avatarData;
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/profile',
+        body: payload,
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (parsed.ok) {
+        final d = parsed.data ?? const <String, dynamic>{};
+        final nextUsername = (d['username'] ?? username ?? cur.username)
+            .toString()
+            .trim();
+        final hasAvatarInResp = d.containsKey('avatar_data');
+        final respAvatar = (d['avatar_data'] as String?)?.trim();
+        final bool shouldClear = clearAvatar ||
+            (hasAvatarInResp && (respAvatar == null || respAvatar.isEmpty));
+        final String? nextAvatar = shouldClear
+            ? null
+            : (hasAvatarInResp
+                ? respAvatar
+                : (avatarData ?? cur.avatarData));
+        final updated = cur.copyWith(
+          username: nextUsername.isNotEmpty ? nextUsername : cur.username,
+          avatarData: nextAvatar,
+          clearAvatar: shouldClear,
+        );
+        await _setSession(updated);
+        return AccountApiResult(
+          ok: true,
+          httpStatusCode: parsed.httpStatusCode,
+          data: updated,
+        );
+      }
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
+        message: parsed.message.isNotEmpty ? parsed.message : '更新资料失败',
+      );
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  /// Sends a verification code to [newEmail] after verifying [password],
+  /// matching desktop `AccountService.StartChangeEmailSendCodeAsync`.
+  Future<AccountApiResult<Map<String, dynamic>>> startChangeEmailSendCode({
+    required String password,
+    required String newEmail,
+  }) async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/email/send-code',
+        body: {
+          'password': password,
+          'new_email': newEmail.trim(),
+        },
+      );
+      return _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  /// Confirms the bound email change with [code], matching desktop
+  /// `AccountService.ConfirmChangeEmailAsync`.
+  Future<AccountApiResult<AccountSessionData>> confirmChangeEmail({
+    required String password,
+    required String newEmail,
+    required String code,
+  }) async {
+    final cur = _session;
+    if (!isLoggedIn || cur == null) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/email/confirm',
+        body: {
+          'password': password,
+          'new_email': newEmail.trim(),
+          'code': code.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (parsed.ok) {
+        final d = parsed.data ?? const <String, dynamic>{};
+        final updatedEmail = (d['email'] ?? newEmail).toString().trim();
+        final updated = cur.copyWith(
+          email: updatedEmail.isNotEmpty ? updatedEmail : cur.email,
+        );
+        await _setSession(updated);
+        return AccountApiResult(
+          ok: true,
+          httpStatusCode: parsed.httpStatusCode,
+          data: updated,
+        );
+      }
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
+        message: parsed.message.isNotEmpty ? parsed.message : '更换邮箱失败',
+      );
     } catch (e) {
       return AccountApiResult(
         ok: false,
