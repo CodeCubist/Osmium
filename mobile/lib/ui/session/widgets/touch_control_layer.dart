@@ -51,6 +51,8 @@ class _RippleRepaint extends ChangeNotifier {
 ///   first to drag on the host). Two fingers stay the phone's: pinch zooms the
 ///   picture, sliding scrolls the host, and a tap right-clicks.
 class TouchControlLayer extends StatefulWidget {
+  static const Key zoomBadgeKey = ValueKey('zoom-reset-badge');
+
   const TouchControlLayer({
     super.key,
     required this.controller,
@@ -62,6 +64,8 @@ class TouchControlLayer extends StatefulWidget {
     required this.enableHaptics,
     required this.onUserInteraction,
     this.keyboardBar,
+    this.rightInset = 0,
+    this.bottomInset = 0,
   });
 
   final RemoteSessionController controller;
@@ -79,6 +83,11 @@ class TouchControlLayer extends StatefulWidget {
   /// it is what the picture lifts the host caret clear of.
   final ValueListenable<double>? keyboardBar;
 
+  /// Extra insets reserved for the docked [SessionRail] (right in landscape,
+  /// bottom in portrait).
+  final double rightInset;
+  final double bottomInset;
+
   @override
   State<TouchControlLayer> createState() => TouchControlLayerState();
 }
@@ -89,6 +98,9 @@ class TouchControlLayerState extends State<TouchControlLayer>
   double _zoom = 1.0;
   Offset _pan = Offset.zero;
   Size _lastViewport = Size.zero;
+  bool _zoomBadgeVisible = false;
+  Timer? _zoomBadgeTimer;
+  static const Duration _zoomBadgeHold = Duration(seconds: 3);
 
   // How far the picture is raised to keep the host caret above a keyboard.
   double _lift = 0.0;
@@ -256,6 +268,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
     _multiTapTimer?.cancel();
     _doubleTapTimer?.cancel();
     _fineMoveFadeTimer?.cancel();
+    _zoomBadgeTimer?.cancel();
     _rippleTicker.dispose();
     _rippleRepaint.dispose();
     widget.signals.textFocus.removeListener(_updateLift);
@@ -410,6 +423,22 @@ class TouchControlLayerState extends State<TouchControlLayer>
     }
   }
 
+  void _syncZoomBadge({required bool autoHide}) {
+    _zoomBadgeTimer?.cancel();
+    if (_zoom <= 1.05) {
+      if (_zoomBadgeVisible) setState(() => _zoomBadgeVisible = false);
+      return;
+    }
+    if (!_zoomBadgeVisible) setState(() => _zoomBadgeVisible = true);
+    if (autoHide) {
+      _zoomBadgeTimer = Timer(_zoomBadgeHold, () {
+        if (mounted && _zoomBadgeVisible) {
+          setState(() => _zoomBadgeVisible = false);
+        }
+      });
+    }
+  }
+
   /// Springs zoom back to 1 after a pinch released below it, and re-clamps a
   /// pan that no longer fits the final zoom.
   void _settleZoom(Size viewport) {
@@ -417,6 +446,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
     if ((_zoom - target).abs() < 0.001) {
       final clamped = _clampPan(_pan, _zoom, viewport);
       if (clamped != _pan) setState(() => _pan = clamped);
+      _syncZoomBadge(autoHide: true);
       return;
     }
     if (OsmiumMotion.reduced(context)) {
@@ -424,10 +454,12 @@ class TouchControlLayerState extends State<TouchControlLayer>
         _zoom = target;
         _pan = _clampPan(_pan, target, viewport);
       });
+      _syncZoomBadge(autoHide: true);
     } else {
       _zoomSpring.animateWith(
         SpringSimulation(OsmiumMotion.standard, _zoom, target, 0),
       );
+      _syncZoomBadge(autoHide: true);
     }
   }
 
@@ -437,6 +469,10 @@ class TouchControlLayerState extends State<TouchControlLayer>
     setState(() {
       _zoom = next;
       _pan = _clampPan(_pan, next, _lastViewport);
+      if (_zoom <= 1.05 && _zoomBadgeVisible) {
+        _zoomBadgeTimer?.cancel();
+        _zoomBadgeVisible = false;
+      }
     });
   }
 
@@ -680,6 +716,8 @@ class TouchControlLayerState extends State<TouchControlLayer>
       setState(() {
         _pan = _clampPan(anchored, nextZoom, viewport);
         _zoom = nextZoom;
+        _zoomBadgeTimer?.cancel();
+        _zoomBadgeVisible = nextZoom > 1.05;
       });
       return;
     }
@@ -737,6 +775,10 @@ class TouchControlLayerState extends State<TouchControlLayer>
     }
     _activePointers.remove(e.pointer);
     _cancelSingleFingerPending();
+    if (_activePointers.length < 2 && _twoMode == _TwoFingerMode.pinch) {
+      _twoMode = _TwoFingerMode.undecided;
+      _syncZoomBadge(autoHide: true);
+    }
     if (_activePointers.isEmpty) _resetSingle();
   }
 
@@ -921,9 +963,11 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
   void _resetZoom() {
     _forgetTap();
+    _zoomBadgeTimer?.cancel();
     setState(() {
       _zoom = 1.0;
       _pan = Offset.zero;
+      _zoomBadgeVisible = false;
     });
   }
 
@@ -942,7 +986,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
       builder: (context, constraints) {
         final viewport = Size(constraints.maxWidth, constraints.maxHeight);
         _lastViewport = viewport;
-        final zoomVisible = _zoom > 1.05;
+        final zoomVisible = _zoom > 1.05 && _zoomBadgeVisible;
 
         return Stack(
           fit: StackFit.expand,
@@ -1021,10 +1065,11 @@ class TouchControlLayerState extends State<TouchControlLayer>
               ),
             ),
 
-            // Zoom reset badge; fades in and out instead of popping
+            // Zoom reset badge; fades in during zoom and hides 3s after
             Positioned(
+              key: TouchControlLayer.zoomBadgeKey,
               top: MediaQuery.paddingOf(context).top + 12,
-              right: 16,
+              right: MediaQuery.paddingOf(context).right + widget.rightInset + 16,
               child: IgnorePointer(
                 ignoring: !zoomVisible,
                 child: AnimatedOpacity(
@@ -1091,9 +1136,12 @@ class TouchControlLayerState extends State<TouchControlLayer>
             // Precision mouse quick action dock (Left / Drag / Right / Scroll)
             if (widget.controlMode == ControlMode.precisionMouse)
               Positioned(
-                bottom: MediaQuery.paddingOf(context).bottom + 14,
+                bottom:
+                    MediaQuery.paddingOf(context).bottom +
+                    widget.bottomInset +
+                    14,
                 left: 0,
-                right: 0,
+                right: widget.rightInset,
                 child: Center(
                   child: _PrecisionMouseDock(
                     dragging: _precisionDragging,

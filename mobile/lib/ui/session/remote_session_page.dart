@@ -113,7 +113,10 @@ class _RemoteSessionPageState extends ConsumerState<RemoteSessionPage> {
   }
 
   void _setKeyboardMode(KeyboardOverlayMode mode) {
-    setState(() => _keyboardMode = mode);
+    setState(() {
+      if (mode != KeyboardOverlayMode.none) _panelOpen = false;
+      _keyboardMode = mode;
+    });
   }
 
   @override

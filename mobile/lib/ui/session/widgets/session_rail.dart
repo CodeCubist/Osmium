@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 
 import '../../../core/theme/osmium_motion.dart';
 import '../../../core/theme/osmium_theme.dart';
@@ -21,18 +18,34 @@ class SessionRailAction {
   final bool active;
 }
 
-/// Frosted action rail docked to a screen edge during a session.
+/// Edge-docked frosted toolbar during a remote session.
 ///
-/// Dragged, it follows the finger and springs back onto the nearer edge,
-/// keeping its height across rotations. It folds down to a slim tab when the
-/// picture needs the room.
+/// Landscape docks full-height along the right edge; portrait docks full-width
+/// along the bottom edge. Collapses down to a bare edge arrow when folded.
 class SessionRail extends StatefulWidget {
-  const SessionRail({super.key, required this.actions, this.visible = true});
+  /// Content width in landscape (excluding right safe-area padding).
+  static const double landscapeWidth = 74;
+
+  /// Content height in portrait (excluding bottom safe-area padding).
+  static const double portraitHeight = 58;
+
+  static const Key railKey = ValueKey('session-rail');
+  static const Key foldButtonKey = ValueKey('session-rail-fold');
+  static const Key expandButtonKey = ValueKey('session-rail-expand');
+
+  const SessionRail({
+    super.key,
+    required this.actions,
+    required this.folded,
+    required this.onFoldChanged,
+    this.visible = true,
+  });
 
   final List<SessionRailAction> actions;
+  final bool folded;
+  final ValueChanged<bool> onFoldChanged;
 
-  /// False while the panel or a keyboard is up: the rail shrinks into its
-  /// edge instead of disappearing on a single frame.
+  /// False before streaming starts or while a keyboard overlay is up.
   final bool visible;
 
   @override
@@ -40,39 +53,8 @@ class SessionRail extends StatefulWidget {
 }
 
 class _SessionRailState extends State<SessionRail>
-    with TickerProviderStateMixin {
-  static const double _width = 54;
-  static const double _itemHeight = 48;
-  static const double _foldHeight = 26;
-  static const double _margin = 8;
-  // Leaves the bottom corner to the OSD capsule.
-  static const double _bottomClear = 56;
-
-  // Shared across sessions.
-  static bool _restRight = true;
-  static double _restFraction = 0.5;
-  static bool _folded = false;
-
-  /// Box position while a finger or the snap spring owns the rail.
-  Offset? _live;
-  Size? _lastScreen;
-  bool _dragging = false;
-  bool _idle = false;
-  Timer? _idleTimer;
-
-  late final AnimationController _snapX;
-  late final AnimationController _snapY;
+    with SingleTickerProviderStateMixin {
   late final AnimationController _reveal;
-
-  static final _spring = SpringDescription.withDampingRatio(
-    mass: 1.0,
-    stiffness: 380.0,
-    ratio: 0.85,
-  );
-
-  // Top inset plus the glass border on both edges.
-  double get _railHeight =>
-      widget.actions.length * _itemHeight + _foldHeight + 8;
 
   @override
   void initState() {
@@ -83,9 +65,6 @@ class _SessionRailState extends State<SessionRail>
       reverseDuration: const Duration(milliseconds: 180),
       value: widget.visible ? 1 : 0,
     );
-    _snapX = AnimationController.unbounded(vsync: this)..addListener(_onSnap);
-    _snapY = AnimationController.unbounded(vsync: this)..addListener(_onSnap);
-    _scheduleIdle();
   }
 
   @override
@@ -99,301 +78,243 @@ class _SessionRailState extends State<SessionRail>
     } else {
       _reveal.reverse();
     }
-    if (widget.visible) _scheduleIdle();
   }
 
   @override
   void dispose() {
-    _idleTimer?.cancel();
-    _snapX.dispose();
-    _snapY.dispose();
     _reveal.dispose();
     super.dispose();
   }
 
-  void _onSnap() {
-    if (_dragging) return;
-    setState(() {
-      _live = _snapX.isAnimating || _snapY.isAnimating
-          ? Offset(_snapX.value, _snapY.value)
-          : null;
-    });
-  }
-
-  void _scheduleIdle() {
-    _idleTimer?.cancel();
-    if (_idle) setState(() => _idle = false);
-    _idleTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && !_dragging) setState(() => _idle = true);
-    });
-  }
-
-  double _boxX(Size screen, EdgeInsets pad, bool right) =>
-      right ? screen.width - pad.right - _margin - _width : pad.left + _margin;
-
-  (double, double) _boxYRange(Size screen, EdgeInsets pad) {
-    final minY = pad.top + 16;
-    final maxY = screen.height - pad.bottom - _railHeight - _bottomClear;
-    return (minY, maxY < minY ? minY : maxY);
-  }
-
-  Offset _restBox(Size screen, EdgeInsets pad) {
-    final (minY, maxY) = _boxYRange(screen, pad);
-    return Offset(
-      _boxX(screen, pad, _restRight),
-      minY + (maxY - minY) * _restFraction,
-    );
-  }
-
-  void _snapToEdge(Size screen, EdgeInsets pad, Offset velocity) {
-    final from = _live!;
-    final (minY, maxY) = _boxYRange(screen, pad);
-    _restRight = (from.dx + _width / 2) >= screen.width / 2;
-    final targetX = _boxX(screen, pad, _restRight);
-    final targetY = (from.dy + velocity.dy * 0.08).clamp(minY, maxY);
-    _restFraction = maxY > minY ? (targetY - minY) / (maxY - minY) : 0.5;
-
-    if (OsmiumMotion.reduced(context)) {
-      setState(() => _live = null);
-      return;
-    }
-    _snapX.animateWith(
-      SpringSimulation(_spring, from.dx, targetX, velocity.dx),
-    );
-    _snapY.animateWith(
-      SpringSimulation(_spring, from.dy, targetY, velocity.dy),
-    );
-  }
-
   void _setFolded(bool folded) {
     OsmiumHaptics.selection();
-    setState(() => _folded = folded);
-    _scheduleIdle();
+    widget.onFoldChanged(folded);
   }
 
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
     final pad = MediaQuery.paddingOf(context);
+    final isLandscape = screen.width > screen.height;
+    final align = isLandscape ? Alignment.centerRight : Alignment.bottomCenter;
+    final slideBegin = isLandscape ? const Offset(1, 0) : const Offset(0, 1);
 
-    if (_lastScreen != null && _lastScreen != screen && !_dragging) {
-      // Rotated or resized mid-snap: settle on the rest spot at once.
-      _snapX.stop();
-      _snapY.stop();
-      _live = null;
-    }
-    _lastScreen = screen;
-    final box = _live ?? _restBox(screen, pad);
-    final right = _live == null
-        ? _restRight
-        : box.dx + _width / 2 >= screen.width / 2;
-    final edge = right ? Alignment.centerRight : Alignment.centerLeft;
+    final switcher = AnimatedSwitcher(
+      duration: OsmiumMotion.durationOr(context, OsmiumMotion.small),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: align,
+        children: [...previous, ?current],
+      ),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: slideBegin,
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: widget.folded
+          ? _FoldedArrow(
+              key: ValueKey('folded-$isLandscape'),
+              isLandscape: isLandscape,
+              edgeInset: isLandscape ? pad.right : pad.bottom,
+              onTap: () => _setFolded(false),
+            )
+          : _DockedRailBody(
+              key: ValueKey('rail-$isLandscape'),
+              isLandscape: isLandscape,
+              screen: screen,
+              pad: pad,
+              actions: widget.actions,
+              onAction: (action) {
+                OsmiumHaptics.selection();
+                action.onTap();
+              },
+              onFold: () => _setFolded(true),
+            ),
+    );
+
+    final animated = AnimatedBuilder(
+      animation: _reveal,
+      builder: (context, child) {
+        final t = Curves.easeOutCubic.transform(_reveal.value.clamp(0.0, 1.0));
+        if (t == 0) return const SizedBox.shrink();
+        final travel = isLandscape
+            ? SessionRail.landscapeWidth + pad.right
+            : SessionRail.portraitHeight + pad.bottom;
+        final offset = isLandscape
+            ? Offset((1 - t) * travel, 0)
+            : Offset(0, (1 - t) * travel);
+        return IgnorePointer(
+          ignoring: t < 0.05,
+          child: Opacity(
+            opacity: t,
+            child: Transform.translate(offset: offset, child: child),
+          ),
+        );
+      },
+      child: switcher,
+    );
 
     return Positioned(
-      key: const ValueKey('session-rail'),
-      left: box.dx,
-      top: box.dy,
-      width: _width,
-      height: _railHeight,
-      child: AnimatedBuilder(
-        animation: _reveal,
-        builder: (context, child) {
-          final t = Curves.easeOutCubic.transform(
-            _reveal.value.clamp(0.0, 1.0),
-          );
-          return IgnorePointer(
-            ignoring: t < 0.05,
-            child: Opacity(
-              opacity: t,
-              child: Transform.scale(
-                scale: 0.82 + 0.18 * t,
-                alignment: edge,
-                child: child,
-              ),
-            ),
-          );
-        },
-        child: GestureDetector(
-          onPanStart: (_) {
-            _snapX.stop();
-            _snapY.stop();
-            _dragging = true;
-            _live = box;
-            _scheduleIdle();
-          },
-          onPanUpdate: (d) {
-            final from = _live ?? box;
-            setState(() {
-              _live = Offset(
-                (from.dx + d.delta.dx).clamp(0.0, screen.width - _width),
-                (from.dy + d.delta.dy).clamp(
-                  pad.top + 8,
-                  screen.height - pad.bottom - _railHeight - 8,
-                ),
-              );
-            });
-          },
-          onPanEnd: (d) {
-            _dragging = false;
-            _snapToEdge(screen, pad, d.velocity.pixelsPerSecond);
-            _scheduleIdle();
-          },
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 240),
-            opacity: _dragging ? 1 : (_idle ? 0.56 : 1),
-            child: Align(
-              alignment: edge,
-              child: AnimatedSwitcher(
-                duration: OsmiumMotion.durationOr(context, OsmiumMotion.small),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                layoutBuilder: (current, previous) => Stack(
-                  alignment: edge,
-                  children: [...previous, ?current],
-                ),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(
-                      begin: 0.86,
-                      end: 1,
-                    ).animate(animation),
-                    alignment: edge,
-                    child: child,
-                  ),
-                ),
-                child: _folded
-                    ? _FoldedTab(
-                        key: const ValueKey('folded'),
-                        right: right,
-                        onTap: () => _setFolded(false),
-                      )
-                    : _RailBody(
-                        key: const ValueKey('rail'),
-                        actions: widget.actions,
-                        right: right,
-                        onAction: (action) {
-                          _scheduleIdle();
-                          OsmiumHaptics.selection();
-                          action.onTap();
-                        },
-                        onFold: () => _setFolded(true),
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      key: SessionRail.railKey,
+      top: isLandscape ? 0 : null,
+      bottom: 0,
+      left: isLandscape ? null : 0,
+      right: 0,
+      child: animated,
     );
   }
 }
 
-class _RailGlass extends StatelessWidget {
-  const _RailGlass({
-    required this.width,
-    required this.radius,
-    required this.child,
-    this.height,
-  });
-
-  final double width;
-  final double? height;
-  final double radius;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final shape = BorderRadius.circular(radius);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: shape,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x47000000),
-            blurRadius: 18,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: shape,
-        child: BackdropFilter(
-          filter: OsmiumGlass.filter(20),
-          child: Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0x80192130), OsmiumColors.sessionGlassFill],
-              ),
-              borderRadius: shape,
-              border: Border.all(
-                color: OsmiumColors.sessionGlassBorder,
-                width: 0.8,
-              ),
-            ),
-            child: child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RailBody extends StatelessWidget {
-  const _RailBody({
+class _DockedRailBody extends StatelessWidget {
+  const _DockedRailBody({
     super.key,
+    required this.isLandscape,
+    required this.screen,
+    required this.pad,
     required this.actions,
-    required this.right,
     required this.onAction,
     required this.onFold,
   });
 
+  final bool isLandscape;
+  final Size screen;
+  final EdgeInsets pad;
   final List<SessionRailAction> actions;
-  final bool right;
   final ValueChanged<SessionRailAction> onAction;
   final VoidCallback onFold;
 
   @override
   Widget build(BuildContext context) {
-    return _RailGlass(
-      width: _SessionRailState._width,
-      radius: 16,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final action in actions)
-              _RailButton(action: action, onTap: () => onAction(action)),
-            GestureDetector(
+    final border = isLandscape
+        ? const Border(
+            left: BorderSide(color: OsmiumColors.sessionGlassBorder, width: 0.75),
+          )
+        : const Border(
+            top: BorderSide(color: OsmiumColors.sessionGlassBorder, width: 0.75),
+          );
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: OsmiumGlass.filter(24),
+        child: Container(
+          width: isLandscape
+              ? SessionRail.landscapeWidth + pad.right
+              : screen.width,
+          height: isLandscape
+              ? screen.height
+              : SessionRail.portraitHeight + pad.bottom,
+          decoration: BoxDecoration(
+            color: OsmiumColors.sessionGlassRailFill,
+            border: border,
+          ),
+          child: isLandscape ? _buildLandscape() : _buildPortrait(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLandscape() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4, pad.top, pad.right, pad.bottom),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final buttons = [
+                  for (final action in actions)
+                    _RailButton(
+                      action: action,
+                      landscape: true,
+                      onTap: () => onAction(action),
+                    ),
+                ];
+                if (constraints.maxHeight < actions.length * 52) {
+                  return SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: buttons,
+                    ),
+                  );
+                }
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: buttons,
+                );
+              },
+            ),
+          ),
+          Center(
+            child: GestureDetector(
+              key: SessionRail.foldButtonKey,
               behavior: HitTestBehavior.opaque,
               onTap: onFold,
               child: SizedBox(
-                width: double.infinity,
-                height: _SessionRailState._foldHeight,
+                width: 18,
+                height: 72,
                 child: Icon(
-                  right
-                      ? Icons.keyboard_arrow_right_rounded
-                      : Icons.keyboard_arrow_left_rounded,
+                  Icons.keyboard_arrow_right_rounded,
                   size: 18,
-                  color: Colors.white.withValues(alpha: 0.42),
+                  color: Colors.white.withValues(alpha: 0.56),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPortrait() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(pad.left + 4, 0, pad.right + 2, pad.bottom),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          for (final action in actions)
+            Expanded(
+              child: _RailButton(
+                action: action,
+                landscape: false,
+                onTap: () => onAction(action),
+              ),
+            ),
+          GestureDetector(
+            key: SessionRail.foldButtonKey,
+            behavior: HitTestBehavior.opaque,
+            onTap: onFold,
+            child: SizedBox(
+              width: 28,
+              height: SessionRail.portraitHeight,
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: Colors.white.withValues(alpha: 0.56),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _RailButton extends StatefulWidget {
-  const _RailButton({required this.action, required this.onTap});
+  const _RailButton({
+    required this.action,
+    required this.landscape,
+    required this.onTap,
+  });
 
   final SessionRailAction action;
+  final bool landscape;
   final VoidCallback onTap;
 
   @override
@@ -421,32 +342,32 @@ class _RailButtonState extends State<_RailButton> {
       onTap: widget.onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        height: _SessionRailState._itemHeight,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
+        height: widget.landscape ? 52 : SessionRail.portraitHeight - 8,
+        margin: EdgeInsets.symmetric(horizontal: widget.landscape ? 2 : 3),
         decoration: BoxDecoration(
           color: _pressed
               ? Colors.white.withValues(alpha: 0.12)
-              : action.active
-              ? OsmiumColors.accentOnGlass.withValues(alpha: 0.14)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(action.icon, size: 20, color: fg),
+            Icon(action.icon, size: 21, color: fg),
             const SizedBox(height: 3),
             Text(
               action.label,
               maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
               style: TextStyle(
                 fontFamily: OsmiumTheme.fontFamily,
-                fontSize: 10,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w500,
                 height: 1.2,
                 color: action.active
                     ? OsmiumColors.accentOnGlass
-                    : Colors.white.withValues(alpha: 0.72),
+                    : Colors.white.withValues(alpha: 0.76),
               ),
             ),
           ],
@@ -456,32 +377,73 @@ class _RailButtonState extends State<_RailButton> {
   }
 }
 
-class _FoldedTab extends StatelessWidget {
-  const _FoldedTab({super.key, required this.right, required this.onTap});
+class _FoldedArrow extends StatelessWidget {
+  const _FoldedArrow({
+    super.key,
+    required this.isLandscape,
+    required this.edgeInset,
+    required this.onTap,
+  });
 
-  final bool right;
+  final bool isLandscape;
+  final double edgeInset;
   final VoidCallback onTap;
+
+  static const _shadow = [
+    Shadow(color: Color(0xA6000000), blurRadius: 8),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        // A wider hit area than the sliver that shows.
-        padding: EdgeInsets.only(left: right ? 14 : 0, right: right ? 0 : 14),
-        child: Transform.translate(
-          offset: Offset(right ? 4 : -4, 0),
-          child: _RailGlass(
-            width: 16,
-            height: 60,
-            radius: 8,
-            child: Icon(
-              right
-                  ? Icons.keyboard_arrow_left_rounded
-                  : Icons.keyboard_arrow_right_rounded,
-              size: 16,
-              color: Colors.white.withValues(alpha: 0.7),
+    final icon = Icon(
+      isLandscape
+          ? Icons.keyboard_arrow_left_rounded
+          : Icons.keyboard_arrow_up_rounded,
+      size: 24,
+      color: Colors.white.withValues(alpha: 0.85),
+      shadows: _shadow,
+    );
+
+    if (isLandscape) {
+      return Padding(
+        padding: EdgeInsets.only(right: edgeInset),
+        child: Center(
+          child: GestureDetector(
+            key: SessionRail.expandButtonKey,
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: SizedBox(
+              width: 34,
+              height: 72,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 2),
+                  child: icon,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: edgeInset),
+      child: Center(
+        child: GestureDetector(
+          key: SessionRail.expandButtonKey,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 72,
+            height: 34,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: icon,
+              ),
             ),
           ),
         ),
