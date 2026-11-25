@@ -42,6 +42,8 @@ public sealed partial class AccountService : IDisposable
     private string _accountStatus = "unknown";
     private bool _isLocked;
     private string? _lockedAt;
+    private bool _hasEmail = true;
+    private bool _hasPassword = true;
     private List<AccountDeviceDto> _sameAccountDevices = [];
 
     public Func<string, object[], string>? Localizer
@@ -58,7 +60,9 @@ public sealed partial class AccountService : IDisposable
     {
         _settings = settings;
         _log = log;
-        _sessionFilePath = Path.Combine(settings.DataDirectory, SessionFileName);
+        _sessionFilePath = Path.Combine(
+            settings.DataDirectory,
+            settings.IsServiceHostMode ? ServiceAutoStartHelper.ServiceSessionFileName : SessionFileName);
 
         var handler = new HttpClientHandler
         {
@@ -84,6 +88,9 @@ public sealed partial class AccountService : IDisposable
     public string AccountStatus => _accountStatus;
     public bool IsLocked => _isLocked;
     public string? LockedAt => _lockedAt;
+    public bool HasEmail => _hasEmail;
+    public bool HasPassword => _hasPassword;
+    public bool IsProfileComplete => _hasEmail && _hasPassword;
 
     public IReadOnlyList<AccountDeviceDto> SameAccountDevices
     {
@@ -342,11 +349,79 @@ public sealed partial class AccountService : IDisposable
             : ParseEnvelope<object>(raw.StatusCode, raw.Body, raw.RetryAfter);
     }
 
+    public Task<AccountApiResult<OAuthProvidersData>> GetOAuthProvidersAsync()
+        => SendAnonymousJsonAsync<OAuthProvidersData>(
+            HttpMethod.Get,
+            "/api/auth/oauth/providers?platform=windows",
+            retryOnTransient: true);
+
+    public Task<AccountApiResult<OAuthStartData>> StartOAuthLoginAsync(string provider)
+        => SendAnonymousJsonAsync<OAuthStartData>(HttpMethod.Post, "/api/auth/oauth/start", new
+        {
+            provider = provider.Trim().ToLowerInvariant(),
+            platform = "windows",
+            device_id = _settings.Identity.DeviceId,
+            device_name = _settings.Identity.DeviceName,
+            os_version = Environment.OSVersion.VersionString
+        }, retryOnTransient: true);
+
+    public async Task<AccountApiResult<OAuthStatusData>> PollOAuthStatusAsync(string pollUrl, string pollSecret)
+    {
+        var raw = await SendWithTransientRetryAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, ResolveServiceUri(pollUrl));
+            req.Headers.Add("X-OAuth-Secret", pollSecret);
+            return req;
+        }, retryOnTransientFailure: false);
+
+        return raw.IsNetworkError
+            ? NetworkErrorResult<OAuthStatusData>()
+            : ParseEnvelope<OAuthStatusData>(raw.StatusCode, raw.Body, raw.RetryAfter);
+    }
+
+    public async Task<AccountApiResult<object>> CancelOAuthLoginAsync(string state, string pollSecret)
+    {
+        string jsonPayload = JsonSerializer.Serialize(new { state });
+        var raw = await SendWithTransientRetryAsync(() =>
+        {
+            var req = CreateJsonRequest(HttpMethod.Post, "/api/auth/oauth/cancel", jsonPayload);
+            req.Headers.Add("X-OAuth-Secret", pollSecret);
+            return req;
+        }, retryOnTransientFailure: false);
+
+        return raw.IsNetworkError
+            ? NetworkErrorResult<object>()
+            : ParseEnvelope<object>(raw.StatusCode, raw.Body, raw.RetryAfter);
+    }
+
+    public Task<AccountApiResult<OAuthBindingsData>> GetOAuthBindingsAsync()
+        => SendAuthenticatedJsonAsync<OAuthBindingsData>(
+            HttpMethod.Get,
+            "/api/account/oauth/bindings?platform=windows",
+            retryOnTransient: true);
+
+    public Task<AccountApiResult<OAuthStartData>> StartOAuthBindAsync(string provider)
+        => SendAuthenticatedJsonAsync<OAuthStartData>(HttpMethod.Post, "/api/account/oauth/bind/start", new
+        {
+            provider = provider.Trim().ToLowerInvariant(),
+            platform = "windows"
+        }, retryOnTransient: true);
+
+    public Task<AccountApiResult<object>> UnbindOAuthProviderAsync(string provider)
+        => SendAuthenticatedJsonAsync<object>(HttpMethod.Post, "/api/account/oauth/unbind", new
+        {
+            provider = provider.Trim().ToLowerInvariant()
+        }, retryOnTransient: false);
+
     public void ApplyLoginSession(string email, AccountLoginSessionData loginData)
     {
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         _userId = loginData.UserId;
-        _email = !string.IsNullOrWhiteSpace(loginData.Email) ? loginData.Email : email.Trim();
+        _hasEmail = loginData.HasEmail;
+        _hasPassword = loginData.HasPassword;
+        _email = _hasEmail
+            ? (!string.IsNullOrWhiteSpace(loginData.Email) ? loginData.Email : email.Trim())
+            : string.Empty;
         _username = !string.IsNullOrWhiteSpace(loginData.Username) ? loginData.Username : _username;
         _avatarData = loginData.AvatarData;
         _stoken = loginData.Stoken;
@@ -391,7 +466,9 @@ public sealed partial class AccountService : IDisposable
                         Ltoken = _ltoken,
                         AccountStatus = _accountStatus,
                         Locked = _isLocked,
-                        LockedAt = _lockedAt
+                        LockedAt = _lockedAt,
+                        HasEmail = _hasEmail,
+                        HasPassword = _hasPassword
                     }
                 };
             }
@@ -420,7 +497,11 @@ public sealed partial class AccountService : IDisposable
             {
                 long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 if (!string.IsNullOrWhiteSpace(parsed.Data.UserId)) _userId = parsed.Data.UserId;
-                if (!string.IsNullOrWhiteSpace(parsed.Data.Email)) _email = parsed.Data.Email;
+                _hasEmail = parsed.Data.HasEmail;
+                _hasPassword = parsed.Data.HasPassword;
+                _email = _hasEmail
+                    ? (!string.IsNullOrWhiteSpace(parsed.Data.Email) ? parsed.Data.Email : _email)
+                    : string.Empty;
                 if (!string.IsNullOrWhiteSpace(parsed.Data.Username)) _username = parsed.Data.Username;
                 _avatarData = parsed.Data.AvatarData;
                 _ltoken = parsed.Data.Ltoken;
@@ -478,7 +559,11 @@ public sealed partial class AccountService : IDisposable
         if (result.Ok && result.Data != null)
         {
             if (!string.IsNullOrWhiteSpace(result.Data.UserId)) _userId = result.Data.UserId;
-            if (!string.IsNullOrWhiteSpace(result.Data.Email)) _email = result.Data.Email;
+            _hasEmail = result.Data.HasEmail;
+            _hasPassword = result.Data.HasPassword;
+            _email = _hasEmail
+                ? (!string.IsNullOrWhiteSpace(result.Data.Email) ? result.Data.Email : _email)
+                : string.Empty;
             if (!string.IsNullOrWhiteSpace(result.Data.Username)) _username = result.Data.Username;
             _avatarData = result.Data.AvatarData;
             _accountStatus = string.IsNullOrWhiteSpace(result.Data.AccountStatus)
@@ -514,29 +599,66 @@ public sealed partial class AccountService : IDisposable
         return result;
     }
 
-    public Task<AccountApiResult<AccountChallengeInfo>> StartChangeEmailSendCodeAsync(string currentPassword,
+    public Task<AccountApiResult<AccountChallengeInfo>> StartChangeEmailSendCodeAsync(string? currentPassword,
         string newEmail)
-        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/email/send-code", new
+    {
+        var payload = new Dictionary<string, object>
         {
-            password = currentPassword,
-            new_email = newEmail.Trim()
-        });
+            ["new_email"] = newEmail.Trim()
+        };
+        if (!string.IsNullOrEmpty(currentPassword))
+        {
+            payload["password"] = currentPassword;
+        }
 
-    public async Task<AccountApiResult<AccountEmailUpdateData>> ConfirmChangeEmailAsync(string currentPassword,
+        return SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/email/send-code", payload);
+    }
+
+    public async Task<AccountApiResult<AccountEmailUpdateData>> ConfirmChangeEmailAsync(string? currentPassword,
         string newEmail, string code)
     {
+        var payload = new Dictionary<string, object>
+        {
+            ["new_email"] = newEmail.Trim(),
+            ["code"] = code.Trim()
+        };
+        if (!string.IsNullOrEmpty(currentPassword))
+        {
+            payload["password"] = currentPassword;
+        }
+
         var result = await SendAuthenticatedJsonAsync<AccountEmailUpdateData>(HttpMethod.Post,
-            "/api/account/email/confirm", new
-            {
-                password = currentPassword,
-                new_email = newEmail.Trim(),
-                code = code.Trim()
-            });
+            "/api/account/email/confirm", payload);
         if (result.Ok && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Email))
         {
             _email = result.Data.Email;
+            _hasEmail = result.Data.HasEmail;
+            _hasPassword = result.Data.HasPassword;
             SavePersistedSession();
             SessionChanged?.Invoke();
+        }
+
+        return result;
+    }
+
+    public Task<AccountApiResult<AccountChallengeInfo>> StartSetPasswordSendCodeAsync()
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/password/send-code", new { });
+
+    public async Task<AccountApiResult<AccountPasswordSetData>> ConfirmSetPasswordAsync(string code, string newPassword)
+    {
+        var result = await SendAuthenticatedJsonAsync<AccountPasswordSetData>(HttpMethod.Post,
+            "/api/account/password/confirm", new
+            {
+                code = code.Trim(),
+                new_password = newPassword
+            });
+        if (result.Ok && result.Data != null)
+        {
+            _hasEmail = result.Data.HasEmail;
+            _hasPassword = result.Data.HasPassword;
+            SavePersistedSession();
+            SessionChanged?.Invoke();
+            _ = RefreshDevicesAsync();
         }
 
         return result;
@@ -656,6 +778,15 @@ public sealed partial class AccountService : IDisposable
 
         return result;
     }
+
+    public Task<AccountApiResult<AccountDevicePowerResultData>> SendDevicePowerCommandAsync(string deviceId,
+        string action)
+        => SendAuthenticatedJsonAsync<AccountDevicePowerResultData>(HttpMethod.Post,
+            "/api/account/devices/power", new
+            {
+                device_id = DeviceIdentity.NormalizeDeviceId(deviceId),
+                action = action.Trim().ToLowerInvariant()
+            }, retryOnTransient: false);
 
     public Task<AccountApiResult<AccountLoginHistoryData>> GetLoginHistoryAsync()
         => SendAuthenticatedJsonAsync<AccountLoginHistoryData>(HttpMethod.Get, "/api/account/login-history");

@@ -452,6 +452,12 @@ public sealed class OsmiumSettings
         set;
     } = true;
 
+    public bool HostAllowRemotePower
+    {
+        get;
+        set;
+    } = false;
+
     public bool EnableSharedClipboard
     {
         get;

@@ -11,7 +11,7 @@ namespace Osmium.Core.Services;
 
 public sealed partial class AccountService : IDisposable
 {
-    public string FormatFriendlyError(int code, int statusCode = 0)
+    public string FormatFriendlyError(int code, int statusCode = 0, TimeSpan? retryAfter = null)
     {
         string Tr(string key, string fallback)
         {
@@ -23,6 +23,33 @@ public sealed partial class AccountService : IDisposable
 
             return fallback;
         }
+
+        string TrFmt(string key, string fallbackFmt, params object[] args)
+        {
+            if (Localizer != null)
+            {
+                string s = Localizer(key, args);
+                if (!string.IsNullOrEmpty(s) && s != key) return s;
+            }
+
+            return string.Format(System.Globalization.CultureInfo.CurrentUICulture, fallbackFmt, args);
+        }
+
+        string FormatWaitDuration(TimeSpan? wait)
+        {
+            if (!wait.HasValue) return string.Empty;
+            long totalSec = (long)Math.Ceiling(wait.Value.TotalSeconds);
+            if (totalSec <= 0) return string.Empty;
+            long hours = totalSec / 3600;
+            long mins = (totalSec % 3600) / 60;
+            long secs = totalSec % 60;
+            if (hours > 0 && mins > 0) return TrFmt("Acc_WaitHoursMinsFmt", "{0}h {1}m", hours, mins);
+            if (hours > 0) return TrFmt("Acc_WaitHoursFmt", "{0}h", hours);
+            if (mins > 0) return TrFmt("Acc_WaitMinsFmt", "{0}m", mins);
+            return TrFmt("Acc_WaitSecsFmt", "{0}s", secs);
+        }
+
+        string waitText = FormatWaitDuration(retryAfter);
 
         return code switch
         {
@@ -64,9 +91,9 @@ public sealed partial class AccountService : IDisposable
                 or OsmiumErrorCode.TicketExpired
                 => Tr("Acc_ErrCaptchaFailed", "Security verification failed or expired"),
             OsmiumErrorCode.GeetestNotConfigured
-                => Tr("Acc_ErrGeetestNotConfigured", "Server GeeTest credentials are not configured yet"),
+                => Tr("Acc_ErrGeetestNotConfigured", "Security verification is temporarily unavailable; please try again later"),
             OsmiumErrorCode.SmtpNotConfigured
-                => Tr("Acc_ErrSmtpNotConfigured", "Server SMTP email credentials are not configured yet"),
+                => Tr("Acc_ErrSmtpNotConfigured", "Email verification service is temporarily unavailable; please try again later"),
             OsmiumErrorCode.SmtpSendFailed or OsmiumErrorCode.SmtpTimeout
                 => Tr("Acc_ErrSmtpSendFailed", "Failed to send verification email; please try again later"),
             OsmiumErrorCode.DeviceLimitExceeded
@@ -76,10 +103,56 @@ public sealed partial class AccountService : IDisposable
                 => Tr("Acc_ErrInvalidAvatar", "Invalid avatar image or file size too large"),
             OsmiumErrorCode.InvalidUsername
                 => Tr("Acc_ErrInvalidUsername", "Please enter a valid username"),
-            OsmiumErrorCode.Forbidden or OsmiumErrorCode.AccountAuthRequired
+            OsmiumErrorCode.AccountAuthRequired
                 => Tr("Acc_ErrAuthRequired", "Please sign in first"),
+            OsmiumErrorCode.Forbidden
+                => Tr("Acc_ErrAuthRequired", "Please sign in first"),
+            OsmiumErrorCode.AccountProfileIncomplete
+                => Tr("Acc_ErrProfileIncomplete", "Please link an email address and set a login password first"),
+            OsmiumErrorCode.AccountEmailRequired
+                => Tr("Acc_ErrEmailRequired", "Please link an email address first"),
+            OsmiumErrorCode.PasswordAlreadySet
+                => Tr("Acc_ErrPasswordAlreadySet", "A login password is already set for this account"),
+            OsmiumErrorCode.OAuthAlreadyBound
+                => Tr("Acc_ErrOAuthAlreadyBound", "This account is already linked to another Osmium account"),
+            OsmiumErrorCode.OAuthProviderAlreadyBound
+                => Tr("Acc_ErrOAuthProviderAlreadyBound", "This sign-in method is already linked to your account"),
+            OsmiumErrorCode.OAuthProviderInvalid
+                => Tr("Acc_ErrOAuthInvalidProvider", "Unsupported sign-in method"),
+            OsmiumErrorCode.OAuthExpired
+                => Tr("Acc_ErrOAuthExpired", "Authorization timed out; please try again"),
+            OsmiumErrorCode.OAuthFailed
+                => Tr("Acc_ErrOAuthFailed", "Sign-in was not completed; please try again"),
+            OsmiumErrorCode.OAuthNotConfigured
+                => Tr("Acc_ErrOAuthNotConfigured", "This sign-in method is currently unavailable; please try again later or sign in with email"),
             OsmiumErrorCode.RateLimited or OsmiumErrorCode.UserDailyOpsExceeded or OsmiumErrorCode.ConcurrentOperation
                 => Tr("Acc_ErrRateLimited", "Too many requests; please try again shortly"),
+            OsmiumErrorCode.DeviceOffline
+                => Tr("Power_ErrDeviceOffline", "Target computer is currently offline"),
+            OsmiumErrorCode.SelfConnect
+                => Tr("Power_ErrSelfTarget", "Cannot execute remote power command on the current device"),
+            OsmiumErrorCode.PowerDisabled
+                => Tr("Power_ErrDisabled", "Remote power control is not enabled in the target computer's settings"),
+            OsmiumErrorCode.PowerUnsupported
+                => Tr("Power_ErrUnsupported", "Target device does not support this power operation or has no recorded NIC MAC address"),
+            OsmiumErrorCode.PowerCooldown
+                => Tr("Power_ErrCooldown", "Power command sent too frequently; please wait a few seconds"),
+            OsmiumErrorCode.UsernameChangeCooldown
+                => string.IsNullOrEmpty(waitText)
+                    ? Tr("Acc_ErrUsernameCooldown", "Username can only be changed once per hour; please try again later")
+                    : TrFmt("Acc_ErrUsernameCooldownFmt", "Username can only be changed once per hour; please try again in {0}", waitText),
+            OsmiumErrorCode.AvatarChangeCooldown
+                => string.IsNullOrEmpty(waitText)
+                    ? Tr("Acc_ErrAvatarCooldown", "Avatar can only be changed once per hour; please try again later")
+                    : TrFmt("Acc_ErrAvatarCooldownFmt", "Avatar can only be changed once per hour; please try again in {0}", waitText),
+            OsmiumErrorCode.EmailChangeCooldown
+                => string.IsNullOrEmpty(waitText)
+                    ? Tr("Acc_ErrEmailCooldown", "Email can only be changed once every 24 hours; please try again later")
+                    : TrFmt("Acc_ErrEmailCooldownFmt", "Email can only be changed once every 24 hours; please try again in {0}", waitText),
+            OsmiumErrorCode.PasswordResetCooldown
+                => string.IsNullOrEmpty(waitText)
+                    ? Tr("Acc_ErrPasswordResetCooldown", "Password can only be reset once every 24 hours; please try again later")
+                    : TrFmt("Acc_ErrPasswordResetCooldownFmt", "Password can only be reset once every 24 hours; please try again in {0}", waitText),
             OsmiumErrorCode.D1QuotaExceeded or OsmiumErrorCode.ServerMisconfigured or OsmiumErrorCode.InternalError
                 => Tr("Acc_ErrServiceBusy", "Service is temporarily unavailable; please try again later"),
             OsmiumErrorCode.NetworkError
@@ -286,6 +359,15 @@ public sealed partial class AccountService : IDisposable
 
             if (env.Data.HasValue && env.Data.Value.ValueKind == JsonValueKind.Object)
             {
+                if (!retryAfter.HasValue &&
+                    env.Data.Value.TryGetProperty("retry_after", out var retryElem) &&
+                    retryElem.ValueKind == JsonValueKind.Number &&
+                    retryElem.TryGetInt64(out long retrySec) &&
+                    retrySec > 0)
+                {
+                    retryAfter = TimeSpan.FromSeconds(retrySec);
+                }
+
                 if (statusCode == 202 && env.Code == OsmiumErrorCode.CaptchaRequired)
                 {
                     challenge = env.Data.Value.Deserialize<AccountChallengeInfo>(JsonOptions);
@@ -294,7 +376,7 @@ public sealed partial class AccountService : IDisposable
                         data = (T?)(object?)challenge;
                     }
                 }
-                else if (env.Code != OsmiumErrorCode.ChallengePending)
+                else if (env.Ok && env.Code != OsmiumErrorCode.ChallengePending)
                 {
                     data = env.Data.Value.Deserialize<T>(JsonOptions);
                 }
@@ -345,6 +427,8 @@ public sealed partial class AccountService : IDisposable
         _accountStatus = "unknown";
         _isLocked = false;
         _lockedAt = null;
+        _hasEmail = true;
+        _hasPassword = true;
 
         lock (_devicesLock)
         {
@@ -364,7 +448,9 @@ public sealed partial class AccountService : IDisposable
             byte[] cipher = File.ReadAllBytes(_sessionFilePath);
             if (cipher.Length == 0) return;
 
-            byte[]? plain = UnprotectBytes(cipher);
+            byte[]? plain = _settings.IsServiceHostMode
+                ? UnprotectBytes(cipher, ServiceEntropyBytes)
+                : UnprotectBytes(cipher, EntropyBytes);
             if (plain == null || plain.Length == 0) return;
 
             string json;
@@ -381,7 +467,9 @@ public sealed partial class AccountService : IDisposable
             if (session == null) return;
 
             _userId = session.UserId ?? string.Empty;
-            _email = session.Email ?? string.Empty;
+            _hasEmail = session.HasEmail ?? true;
+            _hasPassword = session.HasPassword ?? true;
+            _email = _hasEmail ? (session.Email ?? string.Empty) : string.Empty;
             _username = session.Username ?? string.Empty;
             _avatarData = session.AvatarData;
             _stoken = session.Stoken ?? string.Empty;
@@ -407,6 +495,11 @@ public sealed partial class AccountService : IDisposable
             if (string.IsNullOrWhiteSpace(_email) && string.IsNullOrWhiteSpace(_stoken))
             {
                 if (File.Exists(_sessionFilePath)) File.Delete(_sessionFilePath);
+                if (!_settings.IsServiceHostMode)
+                {
+                    ServiceAutoStartHelper.RemoveServiceSessionFile();
+                }
+
                 return;
             }
 
@@ -417,16 +510,45 @@ public sealed partial class AccountService : IDisposable
                 Username = _username,
                 AvatarData = _avatarData,
                 Stoken = _stoken,
-                StokenExpiresAtUnix = _stokenExpiresAtUnix
+                StokenExpiresAtUnix = _stokenExpiresAtUnix,
+                HasEmail = _hasEmail,
+                HasPassword = _hasPassword
             };
 
             byte[] plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(session));
             try
             {
-                byte[]? cipher = ProtectBytes(plain);
-                if (cipher != null)
+                if (_settings.IsServiceHostMode)
                 {
-                    File.WriteAllBytes(_sessionFilePath, cipher);
+                    byte[]? svcCipher = ProtectBytes(plain, ServiceEntropyBytes, localMachineScope: true);
+                    if (svcCipher != null)
+                    {
+                        File.WriteAllBytes(_sessionFilePath, svcCipher);
+                    }
+                }
+                else
+                {
+                    byte[]? cipher = ProtectBytes(plain, EntropyBytes, localMachineScope: false);
+                    if (cipher != null)
+                    {
+                        File.WriteAllBytes(_sessionFilePath, cipher);
+                    }
+
+                    if (ServiceAutoStartHelper.IsServiceAutoStartEnabled())
+                    {
+                        if (!string.IsNullOrWhiteSpace(_stoken))
+                        {
+                            byte[]? svcCipher = ProtectBytes(plain, ServiceEntropyBytes, localMachineScope: true);
+                            if (svcCipher != null)
+                            {
+                                ServiceAutoStartHelper.WriteServiceSessionBytes(svcCipher);
+                            }
+                        }
+                        else
+                        {
+                            ServiceAutoStartHelper.RemoveServiceSessionFile();
+                        }
+                    }
                 }
             }
             finally
@@ -440,6 +562,51 @@ public sealed partial class AccountService : IDisposable
         }
     }
 
+    public void StageServiceSessionForElevation()
+    {
+        if (_settings.IsServiceHostMode) return;
+        string stagedPath = Path.Combine(_settings.DataDirectory, ServiceAutoStartHelper.ServiceSessionFileName);
+        if (string.IsNullOrWhiteSpace(_stoken))
+        {
+            try
+            {
+                if (File.Exists(stagedPath)) File.Delete(stagedPath);
+            }
+            catch
+            {
+            }
+
+            return;
+        }
+
+        var session = new AccountPersistedSession
+        {
+            UserId = _userId,
+            Email = _email,
+            Username = _username,
+            AvatarData = _avatarData,
+            Stoken = _stoken,
+            StokenExpiresAtUnix = _stokenExpiresAtUnix,
+            HasEmail = _hasEmail,
+            HasPassword = _hasPassword
+        };
+
+        byte[] plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(session));
+        try
+        {
+            byte[]? svcCipher = ProtectBytes(plain, ServiceEntropyBytes, localMachineScope: true);
+            if (svcCipher != null)
+            {
+                Directory.CreateDirectory(_settings.DataDirectory);
+                File.WriteAllBytes(stagedPath, svcCipher);
+            }
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plain);
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct DataBlob
     {
@@ -448,7 +615,9 @@ public sealed partial class AccountService : IDisposable
     }
 
     private const uint CryptProtectUiForbidden = 0x01;
+    private const uint CryptProtectLocalMachine = 0x04;
     private static readonly byte[] EntropyBytes = Encoding.UTF8.GetBytes("Osmium.Account.Session.v1");
+    private static readonly byte[] ServiceEntropyBytes = Encoding.UTF8.GetBytes("Osmium.Account.ServiceSession.v1");
 
     [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern bool CryptProtectData(
@@ -473,16 +642,17 @@ public sealed partial class AccountService : IDisposable
     [DllImport("kernel32.dll")]
     private static extern IntPtr LocalFree(IntPtr hMem);
 
-    private static unsafe byte[]? ProtectBytes(byte[] plain)
+    private static unsafe byte[]? ProtectBytes(byte[] plain, byte[] entropy, bool localMachineScope)
     {
         if (plain.Length == 0) return [];
+        uint flags = CryptProtectUiForbidden | (localMachineScope ? CryptProtectLocalMachine : 0u);
         fixed (byte* pPlain = plain)
-        fixed (byte* pEntropy = EntropyBytes)
+        fixed (byte* pEntropy = entropy)
         {
             var blobIn = new DataBlob { Size = plain.Length, Data = (IntPtr)pPlain };
-            var blobEnt = new DataBlob { Size = EntropyBytes.Length, Data = (IntPtr)pEntropy };
+            var blobEnt = new DataBlob { Size = entropy.Length, Data = (IntPtr)pEntropy };
             if (!CryptProtectData(in blobIn, "OsmiumAccountSession", in blobEnt, IntPtr.Zero, IntPtr.Zero,
-                    CryptProtectUiForbidden, out var blobOut))
+                    flags, out var blobOut))
             {
                 return null;
             }
@@ -500,14 +670,14 @@ public sealed partial class AccountService : IDisposable
         }
     }
 
-    private static unsafe byte[]? UnprotectBytes(byte[] cipher)
+    private static unsafe byte[]? UnprotectBytes(byte[] cipher, byte[] entropy)
     {
         if (cipher.Length == 0) return [];
         fixed (byte* pCipher = cipher)
-        fixed (byte* pEntropy = EntropyBytes)
+        fixed (byte* pEntropy = entropy)
         {
             var blobIn = new DataBlob { Size = cipher.Length, Data = (IntPtr)pCipher };
-            var blobEnt = new DataBlob { Size = EntropyBytes.Length, Data = (IntPtr)pEntropy };
+            var blobEnt = new DataBlob { Size = entropy.Length, Data = (IntPtr)pEntropy };
             if (!CryptUnprotectData(in blobIn, IntPtr.Zero, in blobEnt, IntPtr.Zero, IntPtr.Zero,
                     CryptProtectUiForbidden, out var blobOut))
             {

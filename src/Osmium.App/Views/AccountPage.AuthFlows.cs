@@ -50,7 +50,7 @@ public sealed partial class AccountPage : Page
         }
         else
         {
-            BtnSendAuthOtp.IsEnabled = !_isBusy;
+            BtnSendAuthOtp.IsEnabled = CanAttemptAuth;
             BtnSendAuthOtp.Content = LocalizationService.GetString("Acc_WizardResendBtn");
         }
 
@@ -64,14 +64,14 @@ public sealed partial class AccountPage : Page
             }
             else
             {
-                BtnWizardPrimary.IsEnabled = !_isBusy;
+                BtnWizardPrimary.IsEnabled = CanAttemptAuth;
                 BtnWizardPrimaryText.Text = LocalizationService.GetString("Acc_WizardSendAndNextBtn");
                 BtnWizardPrimaryIcon.Visibility = Visibility.Visible;
             }
         }
         else if (_wizardStep >= 0)
         {
-            BtnWizardPrimary.IsEnabled = !_isBusy;
+            BtnWizardPrimary.IsEnabled = CanAttemptAuth;
         }
     }
 
@@ -94,7 +94,8 @@ public sealed partial class AccountPage : Page
 
         if (!startRes.RequiresCaptcha || startRes.Challenge == null)
         {
-            ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode));
+            ShowStatus(InfoBarSeverity.Error,
+                acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter));
             return false;
         }
 
@@ -112,8 +113,7 @@ public sealed partial class AccountPage : Page
             return true;
         }
 
-        if (finalRes.Code == OsmiumErrorCode.OtpCooldown ||
-            (finalRes.RetryAfter.HasValue && finalRes.RetryAfter.Value.TotalSeconds > 0))
+        if (finalRes.Code == OsmiumErrorCode.OtpCooldown)
         {
             var cd = finalRes.RetryAfter.HasValue && finalRes.RetryAfter.Value.TotalSeconds > 0
                 ? finalRes.RetryAfter.Value
@@ -121,13 +121,14 @@ public sealed partial class AccountPage : Page
             SetOtpCooldown(mode, email, cd);
         }
 
-        ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(finalRes.Code, finalRes.HttpStatusCode));
+        ShowStatus(InfoBarSeverity.Error,
+            acc.FormatFriendlyError(finalRes.Code, finalRes.HttpStatusCode, finalRes.RetryAfter));
         return false;
     }
 
     private async void BtnSendAuthOtp_Click(object sender, RoutedEventArgs e)
     {
-        if (_isBusy) return;
+        if (!CanAttemptAuth) return;
         string email = AuthEmailBox.Text.Trim();
         int mode = CurrentAuthMode;
         if (mode is not (1 or 2)) return;
@@ -199,7 +200,7 @@ public sealed partial class AccountPage : Page
 
     private async void BtnWizardPrimary_Click(object sender, RoutedEventArgs e)
     {
-        if (_isBusy || _wizardStep < 0) return;
+        if (!CanAttemptAuth || _wizardStep < 0) return;
         int mode = CurrentAuthMode;
         string email = AuthEmailBox.Text.Trim();
 
@@ -364,7 +365,8 @@ public sealed partial class AccountPage : Page
                 }
                 else
                 {
-                    ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(rstRes.Code, rstRes.HttpStatusCode));
+                    ShowStatus(InfoBarSeverity.Error,
+                        acc.FormatFriendlyError(rstRes.Code, rstRes.HttpStatusCode, rstRes.RetryAfter));
                     if (rstRes.Code is OsmiumErrorCode.OtpInvalid or OsmiumErrorCode.OtpExpired
                         or OsmiumErrorCode.OtpTooManyAttempts or OsmiumErrorCode.InvalidOtpFormat)
                     {
@@ -481,6 +483,7 @@ public sealed partial class AccountPage : Page
     private async Task RefreshAllAccountDataAsync()
     {
         await App.Engine.AccountService.GetAccountStatusAsync();
+        await RefreshOAuthBindingsAsync();
         await LoadDevicesTabAsync();
         if (_currentTabIndex == 2)
         {
@@ -513,7 +516,7 @@ public sealed partial class AccountPage : Page
             }
             else
             {
-                ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(res.Code, res.HttpStatusCode));
+                ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
             }
         }
         finally
@@ -676,7 +679,7 @@ public sealed partial class AccountPage : Page
             }
             else
             {
-                ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(res.Code, res.HttpStatusCode));
+                ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
             }
         }
         finally

@@ -91,6 +91,12 @@ public sealed class IncomingConnectEventArgs : EventArgs
         init;
     }
 
+    public bool WebRtcRequested
+    {
+        get;
+        init;
+    }
+
     public required string CandidatesJson
     {
         get;
@@ -297,6 +303,78 @@ public sealed class VersionCheckResultEventArgs : EventArgs
         get;
         init;
     }
+
+    public bool WebRtc
+    {
+        get;
+        init;
+    }
+
+    public string StunHost
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public ushort StunPort
+    {
+        get;
+        init;
+    }
+}
+
+public sealed class WebRtcSdpEventArgs : EventArgs
+{
+    public required string SessionId
+    {
+        get;
+        init;
+    }
+
+    public string FromDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public required string Sdp
+    {
+        get;
+        init;
+    }
+}
+
+public sealed class WebRtcIceEventArgs : EventArgs
+{
+    public required string SessionId
+    {
+        get;
+        init;
+    }
+
+    public string FromDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public required string Candidate
+    {
+        get;
+        init;
+    }
+
+    public string? SdpMid
+    {
+        get;
+        init;
+    }
+
+    public int SdpMLineIndex
+    {
+        get;
+        init;
+    }
 }
 
 public sealed class BridgeReadyEventArgs : EventArgs
@@ -437,6 +515,114 @@ public sealed class ConnectRejectEventArgs : EventArgs
     }
 }
 
+public sealed class PowerCommandEventArgs : EventArgs
+{
+    public string CommandId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string Action
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string TargetDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterUserId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterDeviceName
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public int DelaySeconds
+    {
+        get;
+        init;
+    } = 3;
+
+    public long IssuedAtUnixMs
+    {
+        get;
+        init;
+    }
+}
+
+public sealed class PowerWolRelayEventArgs : EventArgs
+{
+    public string CommandId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string TargetDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string TargetDeviceName
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterUserId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public List<string> Macs
+    {
+        get;
+        init;
+    } = [];
+
+    public List<string> Broadcasts
+    {
+        get;
+        init;
+    } = [];
+
+    public List<int> Ports
+    {
+        get;
+        init;
+    } = [9, 7];
+
+    public long IssuedAtUnixMs
+    {
+        get;
+        init;
+    }
+}
+
 public sealed partial class SignalingClient : IDisposable
 {
     private const int OfflineFailureThreshold = 3;
@@ -477,6 +663,7 @@ public sealed partial class SignalingClient : IDisposable
     private string _deviceName = Environment.MachineName;
     private bool _allowRemote = true;
     private string _ltoken = string.Empty;
+    private LocalPowerProfile? _powerProfile;
 
     public SignalingConnectionState State
     {
@@ -525,6 +712,12 @@ public sealed partial class SignalingClient : IDisposable
     public event Action<string, string>? SignalingErrorReceived;
     public event Action<IReadOnlyList<AccountDeviceDto>>? AccountDevicesSyncReceived;
     public event Action<string>? AccountRevokedReceived;
+    public event Action<PowerCommandEventArgs>? PowerCommandReceived;
+    public event Action<PowerWolRelayEventArgs>? PowerWolRelayReceived;
+    public event Action<WebRtcSdpEventArgs>? WebRtcOfferReceived;
+    public event Action<WebRtcSdpEventArgs>? WebRtcAnswerReceived;
+    public event Action<WebRtcIceEventArgs>? WebRtcIceReceived;
+    public event Action? NetworkAddressUpdated;
 
     public SignalingClient(LoggingService log)
     {
@@ -558,7 +751,8 @@ public sealed partial class SignalingClient : IDisposable
         return trimmed.TrimEnd('/');
     }
 
-    public void Start(string serverUrl, string deviceId, string deviceName, bool allowRemote, string? ltoken = null)
+    public void Start(string serverUrl, string deviceId, string deviceName, bool allowRemote, string? ltoken = null,
+        LocalPowerProfile? powerProfile = null)
     {
         StopInternal(resetState: false);
         _serverUrl = NormalizeServerUrl(serverUrl);
@@ -566,6 +760,7 @@ public sealed partial class SignalingClient : IDisposable
         _deviceName = deviceName;
         _allowRemote = allowRemote;
         if (ltoken != null) _ltoken = ltoken;
+        if (powerProfile != null) _powerProfile = powerProfile;
 
         var cts = new CancellationTokenSource();
         _loopCts = cts;
@@ -614,17 +809,28 @@ public sealed partial class SignalingClient : IDisposable
         });
     }
 
-    public async Task UpdateStatusAsync(bool allowRemote, string deviceName)
+    public async Task UpdateStatusAsync(bool allowRemote, string deviceName, LocalPowerProfile? powerProfile = null)
     {
         _allowRemote = allowRemote;
         _deviceName = deviceName;
+        if (powerProfile != null) _powerProfile = powerProfile;
         if (!_isTransportRegistered) return;
 
+        var profile = _powerProfile;
         await SendJsonAsync(new
         {
             type = "update_status",
             allowRemote,
-            deviceName
+            deviceName,
+            powerProfile = profile == null
+                ? null
+                : new
+                {
+                    allowRemotePower = profile.AllowRemotePower,
+                    wolMacs = profile.AllowRemotePower ? profile.MacAddresses : new List<string>(),
+                    wolBroadcasts = profile.AllowRemotePower ? profile.BroadcastAddresses : new List<string>(),
+                    wolReady = profile.AllowRemotePower && profile.WolReady
+                }
         });
     }
 
@@ -659,7 +865,8 @@ public sealed partial class SignalingClient : IDisposable
         string targetClientDeviceId,
         string hostPublicKeyBase64,
         string hostChallengeNonceBase64,
-        bool enableEncryption = true)
+        bool enableEncryption = true,
+        bool webrtcSupported = true)
     {
         await SendJsonAsync(new
         {
@@ -668,7 +875,32 @@ public sealed partial class SignalingClient : IDisposable
             targetClientDeviceId,
             hostPublicKey = hostPublicKeyBase64,
             hostChallengeNonce = hostChallengeNonceBase64,
-            enableEncryption
+            enableEncryption,
+            webrtcSupported
+        });
+    }
+
+    public async Task SendWebRtcAnswerAsync(string sessionId, string sdp)
+    {
+        if (!_isTransportRegistered || string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(sdp)) return;
+        await SendJsonAsync(new
+        {
+            type = "webrtc_answer",
+            sessionId,
+            sdp
+        });
+    }
+
+    public async Task SendWebRtcIceAsync(string sessionId, string candidate, string? sdpMid, int sdpMLineIndex)
+    {
+        if (!_isTransportRegistered || string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(candidate)) return;
+        await SendJsonAsync(new
+        {
+            type = "webrtc_ice",
+            sessionId,
+            candidate,
+            sdpMid,
+            sdpMLineIndex
         });
     }
 

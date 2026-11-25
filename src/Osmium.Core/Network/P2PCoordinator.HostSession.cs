@@ -90,6 +90,7 @@ public sealed partial class P2PCoordinator : IDisposable
             byte[]? aesKey = null;
             IntPtr transport = IntPtr.Zero;
             CloudRelayTransport? hostRelay = null;
+            WebRtcPeerTransport? hostWebRtc = null;
             bool startedHost = false;
 
             var authTcs =
@@ -101,6 +102,10 @@ public sealed partial class P2PCoordinator : IDisposable
                 new TaskCompletionSource<BridgeReadyEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
             var relayFallbackTcs =
                 new TaskCompletionSource<RelayFallbackEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var webrtcOfferTcs =
+                new TaskCompletionSource<WebRtcSdpEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var earlyWebRtcIce = new List<WebRtcIceEventArgs>();
+            var earlyIceLock = new object();
 
             void OnAuth(ConnectAuthEventArgs a)
             {
@@ -122,10 +127,33 @@ public sealed partial class P2PCoordinator : IDisposable
                 if (rf.SessionId == args.SessionId) relayFallbackTcs.TrySetResult(rf);
             }
 
+            void OnWebRtcOffer(WebRtcSdpEventArgs offer)
+            {
+                if (offer.SessionId == args.SessionId) webrtcOfferTcs.TrySetResult(offer);
+            }
+
+            void OnWebRtcIce(WebRtcIceEventArgs ice)
+            {
+                if (ice.SessionId != args.SessionId) return;
+                WebRtcPeerTransport? rtc;
+                lock (earlyIceLock)
+                {
+                    rtc = hostWebRtc;
+                    if (rtc == null)
+                    {
+                        earlyWebRtcIce.Add(ice);
+                        return;
+                    }
+                }
+                rtc.AddRemoteIceCandidate(ice.Candidate, ice.SdpMid, ice.SdpMLineIndex);
+            }
+
             _signaling.ConnectAuthReceived += OnAuth;
             _signaling.VersionCheckResultReceived += OnVersionResult;
             _signaling.BridgeReady += OnBridgeReady;
             _signaling.RelayFallbackReceived += OnRelayFallback;
+            _signaling.WebRtcOfferReceived += OnWebRtcOffer;
+            _signaling.WebRtcIceReceived += OnWebRtcIce;
 
             int transportRoute = 0;
             var epSb = new StringBuilder(128);
@@ -214,180 +242,279 @@ public sealed partial class P2PCoordinator : IDisposable
                     return;
                 }
 
-                string localCandidatesJson = candSb.ToString();
-                await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
-
-                BridgeReadyEventArgs bridge;
-                using (var bridgeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18)))
-                using (bridgeTimeout.Token.Register(() => bridgeReadyTcs.TrySetCanceled()))
+                bool reliableUnderlying = false;
+                if (args.WebRtcRequested || versionRes.WebRtc)
                 {
-                    try
+                    bridgeReadyReached = true;
+                    aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
+                    string rtcStunHost = !string.IsNullOrWhiteSpace(versionRes.StunHost) ? versionRes.StunHost : stunHost;
+                    ushort rtcStunPort = versionRes.StunPort > 0 ? versionRes.StunPort : stunPort;
+
+                    var rtc = new WebRtcPeerTransport(transport, _signaling, args.SessionId, _log);
+                    if (!rtc.InitializePeerConnection(rtcStunHost, rtcStunPort, sessionToken))
                     {
-                        while (!bridgeReadyTcs.Task.IsCompleted && !bridgeTimeout.IsCancellationRequested)
+                        rtc.Dispose();
+                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "TRANSPORT_ERROR",
+                            "Host failed to initialize WebRTC transport");
+                        return;
+                    }
+
+                    List<WebRtcIceEventArgs> bufferedIce;
+                    lock (earlyIceLock)
+                    {
+                        hostWebRtc = rtc;
+                        bufferedIce = [.. earlyWebRtcIce];
+                        earlyWebRtcIce.Clear();
+                    }
+
+                    foreach (var ice in bufferedIce)
+                    {
+                        rtc.AddRemoteIceCandidate(ice.Candidate, ice.SdpMid, ice.SdpMLineIndex);
+                    }
+
+                    WebRtcSdpEventArgs offer;
+                    using (var offerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18)))
+                    using (offerTimeout.Token.Register(() => webrtcOfferTcs.TrySetCanceled()))
+                    {
+                        try
                         {
-                            using var retryDelayCts = CancellationTokenSource.CreateLinkedTokenSource(bridgeTimeout.Token);
-                            var retryDelay = Task.Delay(TimeSpan.FromSeconds(4), retryDelayCts.Token);
-                            var step = await Task.WhenAny(bridgeReadyTcs.Task, retryDelay);
-                            if (step == bridgeReadyTcs.Task)
+                            offer = await webrtcOfferTcs.Task;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            _log.Warn($"Timed out waiting for WebRTC offer for session {args.SessionId}");
+                            return;
+                        }
+                    }
+
+                    string? answerSdp = await rtc.HandleRemoteOfferAndCreateAnswerAsync(offer.Sdp);
+                    if (string.IsNullOrWhiteSpace(answerSdp))
+                    {
+                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "TRANSPORT_ERROR",
+                            "Host failed to generate WebRTC answer");
+                        return;
+                    }
+
+                    await _signaling.SendWebRtcAnswerAsync(args.SessionId, answerSdp);
+
+                    bool rtcReady = await rtc.WaitForChannelsReadyAsync(18000, CancellationToken.None);
+                    if (!rtcReady)
+                    {
+                        _log.Warn($"WebRTC P2P channels failed to open for session {args.SessionId}");
+                        return;
+                    }
+
+                    transportRoute = 3;
+                    reliableUnderlying = true;
+                    epSb.Clear();
+                    epSb.Append(rtc.EndpointLabel);
+
+                    NativeMethods.Osmium_SetTransportEncryption(transport, hostEncrypt ? 1 : 0);
+                    if (hostEncrypt)
+                    {
+                        NativeMethods.Osmium_SetTransportKey(transport, aesKey);
+                    }
+                    NativeMethods.Osmium_SetTransportKcpEnabled(transport, 0);
+
+                    int rtcAuthOk = NativeMethods.Osmium_WaitClientAuthHost(
+                        transport,
+                        tempTag,
+                        fixedTag,
+                        hasFixed ? 1 : 0,
+                        12000,
+                        out negotiatedProfile);
+
+                    CryptographicOperations.ZeroMemory(aesKey);
+                    aesKey = null;
+
+                    if (rtcAuthOk != 1)
+                    {
+                        _log.Warn(
+                            $"Rejected incoming WebRTC connection from {args.ClientDeviceId}: tunnel auth failed or timed out");
+                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "INVALID_ACCESS_CODE",
+                            "Tunnel access code verification failed");
+                        return;
+                    }
+                }
+                else
+                {
+                    string localCandidatesJson = candSb.ToString();
+                    await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+
+                    BridgeReadyEventArgs bridge;
+                    using (var bridgeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18)))
+                    using (bridgeTimeout.Token.Register(() => bridgeReadyTcs.TrySetCanceled()))
+                    {
+                        try
+                        {
+                            while (!bridgeReadyTcs.Task.IsCompleted && !bridgeTimeout.IsCancellationRequested)
                             {
-                                retryDelayCts.Cancel();
-                                break;
+                                using var retryDelayCts = CancellationTokenSource.CreateLinkedTokenSource(bridgeTimeout.Token);
+                                var retryDelay = Task.Delay(TimeSpan.FromSeconds(4), retryDelayCts.Token);
+                                var step = await Task.WhenAny(bridgeReadyTcs.Task, retryDelay);
+                                if (step == bridgeReadyTcs.Task)
+                                {
+                                    retryDelayCts.Cancel();
+                                    break;
+                                }
+
+                                if (!bridgeTimeout.IsCancellationRequested)
+                                {
+                                    await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+                                }
                             }
 
-                            if (!bridgeTimeout.IsCancellationRequested)
+                            bridge = await bridgeReadyTcs.Task;
+                            bridgeReadyReached = true;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            _log.Warn($"Timed out waiting for bridge candidates for session {args.SessionId}");
+                            return;
+                        }
+                    }
+
+                    aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
+
+                    const int maxDirectAttempts = 3;
+                    int punchOk = 0;
+                    for (int attempt = 1; attempt <= maxDirectAttempts; attempt++)
+                    {
+                        if (attempt > 1)
+                        {
+                            try
                             {
                                 await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
                             }
+                            catch
+                            {
+                            }
                         }
 
-                        bridge = await bridgeReadyTcs.Task;
-                        bridgeReadyReached = true;
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _log.Warn($"Timed out waiting for bridge candidates for session {args.SessionId}");
-                        return;
-                    }
-                }
-
-                aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
-
-                const int maxDirectAttempts = 3;
-                int punchOk = 0;
-                for (int attempt = 1; attempt <= maxDirectAttempts; attempt++)
-                {
-                    if (attempt > 1)
-                    {
-                        try
-                        {
-                            await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
-                        }
-                        catch
-                        {
-                        }
-                    }
-
-                    long attemptStartMs = Environment.TickCount64;
-                    epSb.Clear();
-                    punchOk = await Task.Run(() => NativeMethods.Osmium_ConnectPeerP2P(
-                        transport,
-                        sessionToken,
-                        2,
-                        bridge.CandidatesJson,
-                        2500,
-                        out transportRoute,
-                        epSb,
-                        epSb.Capacity));
-
-                    if (punchOk != 0)
-                    {
-                        break;
-                    }
-
-                    if (Environment.TickCount64 - attemptStartMs < 200 || relayFallbackTcs.Task.IsCompleted)
-                    {
-                        break;
-                    }
-                }
-
-                async Task<bool> SwitchHostToCloudRelayAsync()
-                {
-                    try
-                    {
-                        await _signaling.SendRelayFallbackAsync(args.SessionId);
-                    }
-                    catch
-                    {
-                    }
-
-                    string rToken = bridge.RelayToken;
-                    string rPath = string.IsNullOrWhiteSpace(bridge.RelayPath) ? "/relay" : bridge.RelayPath;
-                    if (string.IsNullOrWhiteSpace(rToken))
-                    {
-                        using var tokCts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
-                        try
-                        {
-                            var rf = await relayFallbackTcs.Task.WaitAsync(tokCts.Token);
-                            rToken = rf.RelayToken;
-                            if (!string.IsNullOrWhiteSpace(rf.RelayPath)) rPath = rf.RelayPath;
-                        }
-                        catch
-                        {
-                        }
-                    }
-
-                    if (string.IsNullOrWhiteSpace(rToken)) return false;
-
-                    hostRelay?.Dispose();
-                    string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
-                    string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
-                    var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
-                    hostRelay = new CloudRelayTransport(transport, relayLabel, _log);
-                    bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 12000, CancellationToken.None);
-                    if (!relayOk)
-                    {
-                        hostRelay.Dispose();
-                        hostRelay = null;
-                        return false;
-                    }
-
-                    transportRoute = 4;
-                    epSb.Clear();
-                    epSb.Append(relayLabel);
-                    return true;
-                }
-
-                if (punchOk == 0)
-                {
-                    if (!await SwitchHostToCloudRelayAsync())
-                    {
-                        _log.Warn($"Host failed both direct P2P and Cloud Relay for {args.ClientDeviceId}");
-                        return;
-                    }
-                }
-
-                NativeMethods.Osmium_SetTransportEncryption(transport, hostEncrypt ? 1 : 0);
-                if (hostEncrypt)
-                {
-                    NativeMethods.Osmium_SetTransportKey(transport, aesKey);
-                }
-                NativeMethods.Osmium_SetTransportKcpEnabled(transport, (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
-
-                int hostAuthTimeoutMs = transportRoute == 4
-                    ? 12000
-                    : (relayFallbackTcs.Task.IsCompleted ? 2500 : 5500);
-                int authOk = NativeMethods.Osmium_WaitClientAuthHost(
-                    transport,
-                    tempTag,
-                    fixedTag,
-                    hasFixed ? 1 : 0,
-                    hostAuthTimeoutMs,
-                    out negotiatedProfile);
-
-                if (authOk != 1 && transportRoute != 4)
-                {
-                    if (await SwitchHostToCloudRelayAsync())
-                    {
-                        authOk = NativeMethods.Osmium_WaitClientAuthHost(
+                        long attemptStartMs = Environment.TickCount64;
+                        epSb.Clear();
+                        punchOk = await Task.Run(() => NativeMethods.Osmium_ConnectPeerP2P(
                             transport,
-                            tempTag,
-                            fixedTag,
-                            hasFixed ? 1 : 0,
-                            12000,
-                            out negotiatedProfile);
+                            sessionToken,
+                            2,
+                            bridge.CandidatesJson,
+                            2500,
+                            out transportRoute,
+                            epSb,
+                            epSb.Capacity));
+
+                        if (punchOk != 0)
+                        {
+                            break;
+                        }
+
+                        if (Environment.TickCount64 - attemptStartMs < 200 || relayFallbackTcs.Task.IsCompleted)
+                        {
+                            break;
+                        }
                     }
-                }
 
-                CryptographicOperations.ZeroMemory(aesKey);
-                aesKey = null;
+                    async Task<bool> SwitchHostToCloudRelayAsync()
+                    {
+                        try
+                        {
+                            await _signaling.SendRelayFallbackAsync(args.SessionId);
+                        }
+                        catch
+                        {
+                        }
 
-                if (authOk != 1)
-                {
-                    _log.Warn(
-                        $"Rejected incoming connection from {args.ClientDeviceId}: tunnel auth failed or timed out");
-                    await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "INVALID_ACCESS_CODE",
-                        "Tunnel access code verification failed");
-                    return;
+                        string rToken = bridge.RelayToken;
+                        string rPath = string.IsNullOrWhiteSpace(bridge.RelayPath) ? "/relay" : bridge.RelayPath;
+                        if (string.IsNullOrWhiteSpace(rToken))
+                        {
+                            using var tokCts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+                            try
+                            {
+                                var rf = await relayFallbackTcs.Task.WaitAsync(tokCts.Token);
+                                rToken = rf.RelayToken;
+                                if (!string.IsNullOrWhiteSpace(rf.RelayPath)) rPath = rf.RelayPath;
+                            }
+                            catch
+                            {
+                            }
+                        }
+
+                        if (string.IsNullOrWhiteSpace(rToken)) return false;
+
+                        hostRelay?.Dispose();
+                        string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
+                        string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
+                        var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
+                        hostRelay = new CloudRelayTransport(transport, relayLabel, _log);
+                        bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 12000, CancellationToken.None);
+                        if (!relayOk)
+                        {
+                            hostRelay.Dispose();
+                            hostRelay = null;
+                            return false;
+                        }
+
+                        transportRoute = 4;
+                        epSb.Clear();
+                        epSb.Append(relayLabel);
+                        return true;
+                    }
+
+                    if (punchOk == 0)
+                    {
+                        if (!await SwitchHostToCloudRelayAsync())
+                        {
+                            _log.Warn($"Host failed both direct P2P and Cloud Relay for {args.ClientDeviceId}");
+                            return;
+                        }
+                    }
+
+                    NativeMethods.Osmium_SetTransportEncryption(transport, hostEncrypt ? 1 : 0);
+                    if (hostEncrypt)
+                    {
+                        NativeMethods.Osmium_SetTransportKey(transport, aesKey);
+                    }
+                    NativeMethods.Osmium_SetTransportKcpEnabled(transport, (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
+
+                    int hostAuthTimeoutMs = transportRoute == 4
+                        ? 12000
+                        : (relayFallbackTcs.Task.IsCompleted ? 2500 : 5500);
+                    int authOk = NativeMethods.Osmium_WaitClientAuthHost(
+                        transport,
+                        tempTag,
+                        fixedTag,
+                        hasFixed ? 1 : 0,
+                        hostAuthTimeoutMs,
+                        out negotiatedProfile);
+
+                    if (authOk != 1 && transportRoute != 4)
+                    {
+                        if (await SwitchHostToCloudRelayAsync())
+                        {
+                            authOk = NativeMethods.Osmium_WaitClientAuthHost(
+                                transport,
+                                tempTag,
+                                fixedTag,
+                                hasFixed ? 1 : 0,
+                                12000,
+                                out negotiatedProfile);
+                        }
+                    }
+
+                    CryptographicOperations.ZeroMemory(aesKey);
+                    aesKey = null;
+
+                    if (authOk != 1)
+                    {
+                        _log.Warn(
+                            $"Rejected incoming connection from {args.ClientDeviceId}: tunnel auth failed or timed out");
+                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "INVALID_ACCESS_CODE",
+                            "Tunnel access code verification failed");
+                        return;
+                    }
+
+                    reliableUnderlying = transportRoute == 4 || bridge.KcpEnabled;
                 }
 
                 var s = _settings.Settings;
@@ -430,7 +557,7 @@ public sealed partial class P2PCoordinator : IDisposable
                         return NativeMethods.Osmium_HostSendAuxData(h, data, len) != 0;
                     },
                     log: _log,
-                    reliableUnderlyingTransport: transportRoute == 4 || bridge.KcpEnabled);
+                    reliableUnderlyingTransport: reliableUnderlying);
 
                 auxChannel.GetHostAllowsFileTransfer = () =>
                     !_hostViewOnlySession && _settings.Settings.HostAllowFileTransfer;
@@ -610,6 +737,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     _activeHostHandle = hostHandle;
                     _activeHostTransport = transport;
                     _activeHostRelay = hostRelay;
+                    _activeHostWebRtc = hostWebRtc;
                     _activeHostSessionId = args.SessionId;
                     _activeHostPeerId = args.ClientDeviceId;
                     _hostSessionEstablished = false;
@@ -671,6 +799,8 @@ public sealed partial class P2PCoordinator : IDisposable
                 _signaling.VersionCheckResultReceived -= OnVersionResult;
                 _signaling.BridgeReady -= OnBridgeReady;
                 _signaling.RelayFallbackReceived -= OnRelayFallback;
+                _signaling.WebRtcOfferReceived -= OnWebRtcOffer;
+                _signaling.WebRtcIceReceived -= OnWebRtcIce;
                 if (aesKey != null) CryptographicOperations.ZeroMemory(aesKey);
                 CryptographicOperations.ZeroMemory(tempTag);
                 CryptographicOperations.ZeroMemory(fixedTag);
@@ -686,6 +816,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
                         hostRelay?.Dispose();
+                        hostWebRtc?.Dispose();
                         NativeMethods.Osmium_DestroyTransport(transport);
                     }
                 }
@@ -901,6 +1032,7 @@ public sealed partial class P2PCoordinator : IDisposable
         IntPtr handle;
         IntPtr transport;
         CloudRelayTransport? hostRelay;
+        WebRtcPeerTransport? hostWebRtc;
         CancellationTokenSource? confirmCts;
         string? sid;
         string? peerId;
@@ -911,14 +1043,16 @@ public sealed partial class P2PCoordinator : IDisposable
             handle = _activeHostHandle;
             transport = _activeHostTransport;
             hostRelay = _activeHostRelay;
+            hostWebRtc = _activeHostWebRtc;
             confirmCts = _hostConfirmTimeoutCts;
             sid = _activeHostSessionId;
             peerId = _activeHostPeerId;
             wasEstablished = _hostSessionEstablished;
-            hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero || hostRelay != null;
+            hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero || hostRelay != null || hostWebRtc != null;
             _activeHostHandle = IntPtr.Zero;
             _activeHostTransport = IntPtr.Zero;
             _activeHostRelay = null;
+            _activeHostWebRtc = null;
             _hostConfirmTimeoutCts = null;
             _activeHostSessionId = null;
             _activeHostPeerId = null;
@@ -946,6 +1080,7 @@ public sealed partial class P2PCoordinator : IDisposable
         }
 
         hostRelay?.Dispose();
+        hostWebRtc?.Dispose();
 
         if (transport != IntPtr.Zero)
         {

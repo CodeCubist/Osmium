@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using Microsoft.Win32;
+using Osmium.Core.Services;
 
 namespace Osmium.App.Helpers;
 
@@ -13,6 +15,86 @@ internal static class StartupHelper
         {
             using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunRegistryPath, writable: false);
             return key?.GetValue(ValueName) is string cmd && !string.IsNullOrWhiteSpace(cmd);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static bool IsServiceAutoStartEnabled() => ServiceAutoStartHelper.IsServiceAutoStartEnabled();
+
+    public static async Task<bool> EnableServiceAutoStartAsync(AccountService account, string dataDir)
+    {
+        try
+        {
+            account.StageServiceSessionForElevation();
+            string? ownerSid = ServiceAutoStartHelper.GetCurrentUserSidString();
+
+            bool ok;
+            if (SystemServiceHelper.IsCurrentProcessElevated())
+            {
+                ok = await Task.Run(() => ServiceAutoStartHelper.EnableServiceAutoStartElevated(dataDir, ownerSid));
+            }
+            else
+            {
+                string? exePath = Environment.ProcessPath;
+                if (string.IsNullOrWhiteSpace(exePath)) return false;
+
+                string sidArg = string.IsNullOrWhiteSpace(ownerSid) ? string.Empty : $" --owner-sid \"{ownerSid}\"";
+                var psi = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = $"--enable-boot-service --data-dir \"{dataDir}\"{sidArg}",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return false;
+                await proc.WaitForExitAsync();
+                ok = proc.ExitCode == 0;
+            }
+
+            SystemServiceHelper.NotifyStatusChanged();
+            return ok && ServiceAutoStartHelper.IsServiceAutoStartEnabled();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static async Task<bool> DisableServiceAutoStartAsync()
+    {
+        try
+        {
+            bool ok;
+            if (SystemServiceHelper.IsCurrentProcessElevated())
+            {
+                ok = await Task.Run(ServiceAutoStartHelper.DisableServiceAutoStartElevated);
+            }
+            else
+            {
+                string? exePath = Environment.ProcessPath;
+                if (string.IsNullOrWhiteSpace(exePath)) return false;
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = "--disable-boot-service",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return false;
+                await proc.WaitForExitAsync();
+                ok = proc.ExitCode == 0;
+            }
+
+            SystemServiceHelper.NotifyStatusChanged();
+            return ok && !ServiceAutoStartHelper.IsServiceAutoStartEnabled();
         }
         catch
         {

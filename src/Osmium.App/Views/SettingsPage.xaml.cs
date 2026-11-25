@@ -13,8 +13,13 @@ namespace Osmium.App.Views;
 
 public sealed partial class SettingsPage : Page
 {
-    private const int TabCount = 7;
-    private const int DevicesTabIndex = 5;
+    private const int TabCount = 8;
+    private const int CaptureSecurityTabIndex = 1;
+    private const int RemotePowerTabIndex = 2;
+    private const int DevicesTabIndex = 6;
+
+    private static bool IsHostLockedTab(int index)
+        => index is CaptureSecurityTabIndex or RemotePowerTabIndex;
 
     private bool _loading = true;
     private bool _suppressNavSelection = false;
@@ -38,6 +43,8 @@ public sealed partial class SettingsPage : Page
                 bool prev = _loading;
                 _loading = true;
                 LaunchOnStartupSwitch.IsOn = StartupHelper.IsAutoStartEnabled();
+                ServiceAutoStartSwitch.IsOn = StartupHelper.IsServiceAutoStartEnabled();
+                UpdateServiceAutoStartRowVisibility();
                 _loading = prev;
             });
         }
@@ -47,7 +54,11 @@ public sealed partial class SettingsPage : Page
     }
 
     private void OnAccountSessionChanged()
-        => DispatcherQueue.TryEnqueue(RenderDeviceManagementPanel);
+        => DispatcherQueue.TryEnqueue(() =>
+        {
+            ApplyHostSecurityLockState();
+            RenderDeviceManagementPanel();
+        });
 
     private void OnSameAccountDevicesChanged(IReadOnlyList<AccountDeviceDto> _)
         => DispatcherQueue.TryEnqueue(RenderDeviceManagementPanel);
@@ -63,7 +74,7 @@ public sealed partial class SettingsPage : Page
             int idx = GetTabIndex(initialTab);
             if (idx >= 0)
             {
-                if (idx == 1 && App.Engine.Coordinator.IsHostStreaming) idx = 0;
+                if (IsHostLockedTab(idx) && App.Engine.Coordinator.IsHostStreaming) idx = 0;
                 _currentTabIndex = idx;
             }
         }
@@ -81,7 +92,7 @@ public sealed partial class SettingsPage : Page
         _loading = true;
         ApplyLocalization();
         LoadValues();
-        if (_currentTabIndex == 1 && App.Engine.Coordinator.IsHostStreaming)
+        if (IsHostLockedTab(_currentTabIndex) && App.Engine.Coordinator.IsHostStreaming)
         {
             _currentTabIndex = 0;
         }
@@ -116,7 +127,12 @@ public sealed partial class SettingsPage : Page
         bool locked = App.Engine.Coordinator.IsHostStreaming;
 
         NavTabCaptureSecurity.IsEnabled = !locked;
-        if (locked && _currentTabIndex == 1)
+        if (NavTabRemotePower != null)
+        {
+            NavTabRemotePower.IsEnabled = !locked;
+        }
+
+        if (locked && IsHostLockedTab(_currentTabIndex))
         {
             ApplyTabSelectionImmediate(0);
         }
@@ -133,6 +149,10 @@ public sealed partial class SettingsPage : Page
         HostAllowDriverMgmtSwitch.IsEnabled = !locked;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && HostAllowDriverMgmtSwitch.IsOn;
         HostAllowFileTransferSwitch.IsEnabled = !locked;
+        bool powerProfileBlocked = App.Engine.AccountService.IsLoggedIn && !App.Engine.AccountService.IsProfileComplete;
+        HostAllowRemotePowerSwitch.IsEnabled = !locked && !powerProfileBlocked;
+        ConfigureWolBtn.IsEnabled = !locked && !powerProfileBlocked;
+        ServiceAutoStartSwitch.IsEnabled = !locked;
         HostNotifyOnConnectSwitch.IsEnabled = !locked;
         HostFlashTaskbarOnConnectSwitch.IsEnabled = !locked;
         InstallSystemServiceBtn.IsEnabled = !locked;
@@ -141,11 +161,17 @@ public sealed partial class SettingsPage : Page
         {
             UninstallSystemServiceBtn.IsEnabled = false;
             UninstallDriversBtn.IsEnabled = false;
+            RestoreWolBtn.IsEnabled = false;
+            if (BtnRefreshRemotePowerStatus != null)
+            {
+                BtnRefreshRemotePowerStatus.IsEnabled = false;
+            }
         }
         else
         {
             RefreshHostSystemServiceRowStatus();
             RefreshHostDriverRowStatus();
+            RefreshHostRemotePowerRowStatus();
         }
 
         RenderDeviceManagementPanel();
@@ -166,7 +192,7 @@ public sealed partial class SettingsPage : Page
     {
         int targetIndex = GetTabIndex(tabKey);
         if (targetIndex < 0) return;
-        if (targetIndex == 1 && App.Engine.Coordinator.IsHostStreaming) return;
+        if (IsHostLockedTab(targetIndex) && App.Engine.Coordinator.IsHostStreaming) return;
 
         var navItem = GetNavItem(targetIndex);
         if (!Equals(SettingsNavView.SelectedItem, navItem))
@@ -185,10 +211,10 @@ public sealed partial class SettingsPage : Page
         if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
         {
             int targetIndex = GetTabIndex(tag);
-            if (targetIndex == 1 && App.Engine.Coordinator.IsHostStreaming)
+            if (IsHostLockedTab(targetIndex) && App.Engine.Coordinator.IsHostStreaming)
             {
                 _suppressNavSelection = true;
-                SettingsNavView.SelectedItem = GetNavItem(_currentTabIndex == 1 ? 0 : _currentTabIndex);
+                SettingsNavView.SelectedItem = GetNavItem(IsHostLockedTab(_currentTabIndex) ? 0 : _currentTabIndex);
                 _suppressNavSelection = false;
                 return;
             }
@@ -218,7 +244,7 @@ public sealed partial class SettingsPage : Page
 
     private void SwitchSettingsTab(int targetIndex)
     {
-        if (targetIndex == 1 && App.Engine.Coordinator.IsHostStreaming) return;
+        if (IsHostLockedTab(targetIndex) && App.Engine.Coordinator.IsHostStreaming) return;
         int previousIndex = _currentTabIndex;
         if (targetIndex == previousIndex) return;
 
@@ -294,7 +320,11 @@ public sealed partial class SettingsPage : Page
         };
         storyboard.Begin();
 
-        if (targetIndex == DevicesTabIndex)
+        if (targetIndex == RemotePowerTabIndex)
+        {
+            RefreshHostRemotePowerRowStatus();
+        }
+        else if (targetIndex == DevicesTabIndex)
         {
             RenderDeviceManagementPanel();
             if (App.Engine.AccountService.IsLoggedIn)
@@ -310,11 +340,12 @@ public sealed partial class SettingsPage : Page
     {
         "General" => 0,
         "CaptureSecurity" => 1,
-        "Video" => 2,
-        "AudioInput" => 3,
-        "Network" => 4,
-        "Devices" => 5,
-        "About" => 6,
+        "RemotePower" => 2,
+        "Video" => 3,
+        "AudioInput" => 4,
+        "Network" => 5,
+        "Devices" => 6,
+        "About" => 7,
         _ => -1
     };
 
@@ -322,10 +353,11 @@ public sealed partial class SettingsPage : Page
     {
         0 => NavTabGeneral,
         1 => NavTabCaptureSecurity,
-        2 => NavTabVideo,
-        3 => NavTabAudioInput,
-        4 => NavTabNetwork,
-        5 => NavTabDevices,
+        2 => NavTabRemotePower,
+        3 => NavTabVideo,
+        4 => NavTabAudioInput,
+        5 => NavTabNetwork,
+        6 => NavTabDevices,
         _ => NavTabAbout
     };
 
@@ -333,10 +365,11 @@ public sealed partial class SettingsPage : Page
     {
         0 => (PanelGeneral, PanelGeneralTranslate),
         1 => (PanelCaptureSecurity, PanelCaptureSecurityTranslate),
-        2 => (PanelVideo, PanelVideoTranslate),
-        3 => (PanelAudioInput, PanelAudioInputTranslate),
-        4 => (PanelNetwork, PanelNetworkTranslate),
-        5 => (PanelDevices, PanelDevicesTranslate),
+        2 => (PanelRemotePower, PanelRemotePowerTranslate),
+        3 => (PanelVideo, PanelVideoTranslate),
+        4 => (PanelAudioInput, PanelAudioInputTranslate),
+        5 => (PanelNetwork, PanelNetworkTranslate),
+        6 => (PanelDevices, PanelDevicesTranslate),
         _ => (PanelAbout, PanelAboutTranslate)
     };
 
@@ -390,10 +423,12 @@ public sealed partial class SettingsPage : Page
         HostRequireDriverConfirmSwitch.IsOn = s.HostRequireDriverConfirm;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && s.HostAllowRemoteDriverMgmt;
         HostAllowFileTransferSwitch.IsOn = s.HostAllowFileTransfer;
+        HostAllowRemotePowerSwitch.IsOn = s.HostAllowRemotePower;
         HostNotifyOnConnectSwitch.IsOn = s.HostNotifyOnConnect;
         HostFlashTaskbarOnConnectSwitch.IsOn = s.HostFlashTaskbarOnConnect;
         RefreshHostSystemServiceRowStatus();
         RefreshHostDriverRowStatus();
+        RefreshHostRemotePowerRowStatus();
 
         StunPortBox.Value = s.StunPortOverride;
         PacketSizeBox.Value = Math.Clamp(s.PacketSize, 512, 1460);
@@ -446,6 +481,8 @@ public sealed partial class SettingsPage : Page
         SelectByTag(FileTransferMaxSizeCombo, Math.Clamp(s.FileTransferMaxSizeMb, 64, 2048).ToString());
         ShowSidebarDevicesSwitch.IsOn = s.ShowSameAccountDevicesInSidebar;
         LaunchOnStartupSwitch.IsOn = StartupHelper.IsAutoStartEnabled();
+        ServiceAutoStartSwitch.IsOn = StartupHelper.IsServiceAutoStartEnabled();
+        UpdateServiceAutoStartRowVisibility();
         RenderDeviceManagementPanel();
 
         _loading = prev;
@@ -459,6 +496,7 @@ public sealed partial class SettingsPage : Page
         SettingsTitleText.Text = LocalizationService.GetString("Settings_PageTitle");
         NavTabGeneral.Content = LocalizationService.GetString("Tab_General");
         NavTabCaptureSecurity.Content = LocalizationService.GetString("Tab_CaptureSecurity");
+        NavTabRemotePower.Content = LocalizationService.GetString("Tab_RemotePower");
         NavTabVideo.Content = LocalizationService.GetString("Tab_Video");
         NavTabAudioInput.Content = LocalizationService.GetString("Tab_AudioInput");
         NavTabNetwork.Content = LocalizationService.GetString("Tab_Network");
@@ -474,6 +512,8 @@ public sealed partial class SettingsPage : Page
         RowHideToTrayOnMinimize.Title = LocalizationService.GetString("Set_HideToTrayOnMinimize");
         RowLaunchOnStartup.Title = LocalizationService.GetString("Set_AutoStart");
         RowLaunchOnStartup.Description = LocalizationService.GetString("Set_AutoStartDesc");
+        RowServiceAutoStart.Title = LocalizationService.GetString("Set_ServiceAutoStart");
+        RowServiceAutoStart.Description = LocalizationService.GetString("Set_ServiceAutoStartDesc");
 
         SecClipboardTransferTitle.Text = LocalizationService.GetString("Set_SecClipboardTransfer");
         RowSharedClipboardDefault.Title = LocalizationService.GetString("Set_SharedClipboardDefault");
@@ -529,6 +569,17 @@ public sealed partial class SettingsPage : Page
         RowHostRequireDriverConfirm.Description = LocalizationService.GetString("Host_RowRequireDriverConfirmDesc");
         RowHostAllowFileTransfer.Title = LocalizationService.GetString("Host_RowAllowFileTransfer");
         RowHostAllowFileTransfer.Description = LocalizationService.GetString("Host_RowAllowFileTransferDesc");
+        SecRemotePowerLocalTitle.Text = LocalizationService.GetString("Power_SecLocalTitle");
+        SecRemotePowerEnvTitle.Text = LocalizationService.GetString("Power_SecEnvTitle");
+        RowHostAllowRemotePower.Title = LocalizationService.GetString("Host_RowAllowRemotePower");
+        RowHostAllowRemotePower.Description = LocalizationService.GetString("Host_RowAllowRemotePowerDesc");
+        RowHostWolConfig.Title = LocalizationService.GetString("Power_RowWolConfigTitle");
+        ConfigureWolBtn.Content = LocalizationService.GetString("Host_ConfigureWolBtn");
+        RestoreWolBtn.Content = LocalizationService.GetString("Host_RestoreWolBtn");
+        RowRemotePowerNicInfo.Title = LocalizationService.GetString("Power_RowNicInfoTitle");
+        RowRemotePowerBiosTip.Title = LocalizationService.GetString("Power_RowBiosTipTitle");
+        RowRemotePowerBiosTip.Description = LocalizationService.GetString("Power_RowBiosTipDesc");
+        BtnRefreshRemotePowerStatus.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
         SecHostAlertsTitle.Text = LocalizationService.GetString("Host_SecAlerts");
         RowHostNotifyOnConnect.Title = LocalizationService.GetString("Host_RowNotifyOnConnect");
         RowHostNotifyOnConnect.Description = LocalizationService.GetString("Host_RowNotifyOnConnectDesc");
@@ -536,6 +587,7 @@ public sealed partial class SettingsPage : Page
         RowHostFlashTaskbarOnConnect.Description = LocalizationService.GetString("Host_RowFlashTaskbarOnConnectDesc");
         RefreshHostSystemServiceRowStatus();
         RefreshHostDriverRowStatus();
+        RefreshHostRemotePowerRowStatus();
 
         HostMaxResCombo.Items.Clear();
         HostMaxResCombo.Items.Add(new ComboBoxItem

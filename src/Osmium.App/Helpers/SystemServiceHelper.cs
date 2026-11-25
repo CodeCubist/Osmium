@@ -7,6 +7,8 @@ public static class SystemServiceHelper
 {
     public static event Action? StatusChanged;
 
+    public static void NotifyStatusChanged() => StatusChanged?.Invoke();
+
     public static bool IsServiceReady()
     {
         try

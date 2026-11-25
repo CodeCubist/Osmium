@@ -353,6 +353,7 @@ public sealed partial class P2PCoordinator : IDisposable
     private IntPtr _activeHostHandle = IntPtr.Zero;
     private IntPtr _activeHostTransport = IntPtr.Zero;
     private CloudRelayTransport? _activeHostRelay;
+    private WebRtcPeerTransport? _activeHostWebRtc;
     private string? _activeHostSessionId;
     private string? _activeHostPeerId;
     private volatile bool _hostSessionEstablished;

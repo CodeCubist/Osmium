@@ -50,6 +50,7 @@ public static class OsmiumErrorCode
     public const int AccountDeleteNotConfirmed = 1011;
     public const int InvalidEmailHeader = 1012;
     public const int NotFound = 1013;
+    public const int OAuthProviderInvalid = 1014;
 
     public const int Forbidden = 2001;
     public const int InvalidCredentials = 2002;
@@ -62,6 +63,11 @@ public static class OsmiumErrorCode
     public const int DeviceLimitExceeded = 2009;
     public const int AccountAuthRequired = 2010;
     public const int BlacklistedByHost = 2011;
+    public const int AccountProfileIncomplete = 2012;
+    public const int AccountEmailRequired = 2013;
+    public const int PasswordAlreadySet = 2014;
+    public const int OAuthAlreadyBound = 2015;
+    public const int OAuthProviderAlreadyBound = 2016;
 
     public const int ChallengeExpired = 3001;
     public const int ChallengeNotFound = 3002;
@@ -79,6 +85,8 @@ public static class OsmiumErrorCode
     public const int QrStateInvalid = 3014;
     public const int QrConfirmCooldown = 3015;
     public const int QrCancelled = 3016;
+    public const int OAuthExpired = 3017;
+    public const int OAuthFailed = 3018;
 
     public const int RateLimited = 4001;
     public const int UserDailyOpsExceeded = 4002;
@@ -90,6 +98,13 @@ public static class OsmiumErrorCode
     public const int SelfConnect = 4008;
     public const int DuplicateSession = 4009;
     public const int SignalingProtocolError = 4010;
+    public const int PowerDisabled = 4011;
+    public const int PowerUnsupported = 4012;
+    public const int PowerCooldown = 4013;
+    public const int UsernameChangeCooldown = 4014;
+    public const int AvatarChangeCooldown = 4015;
+    public const int EmailChangeCooldown = 4016;
+    public const int PasswordResetCooldown = 4017;
 
     public const int InternalError = 5001;
     public const int ServerMisconfigured = 5002;
@@ -97,6 +112,7 @@ public static class OsmiumErrorCode
     public const int SmtpNotConfigured = 5004;
     public const int SmtpSendFailed = 5005;
     public const int SmtpTimeout = 5006;
+    public const int OAuthNotConfigured = 5007;
 }
 
 public sealed class AccountApiEnvelope
@@ -288,6 +304,20 @@ public sealed class AccountLoginSessionData
         get;
         set;
     }
+
+    [JsonPropertyName("has_email")]
+    public bool HasEmail
+    {
+        get;
+        set;
+    } = true;
+
+    [JsonPropertyName("has_password")]
+    public bool HasPassword
+    {
+        get;
+        set;
+    } = true;
 }
 
 public sealed class AccountLtokenIssueData
@@ -355,6 +385,20 @@ public sealed class AccountLtokenIssueData
         get;
         set;
     }
+
+    [JsonPropertyName("has_email")]
+    public bool HasEmail
+    {
+        get;
+        set;
+    } = true;
+
+    [JsonPropertyName("has_password")]
+    public bool HasPassword
+    {
+        get;
+        set;
+    } = true;
 }
 
 public sealed class AccountStatusData
@@ -422,6 +466,20 @@ public sealed class AccountStatusData
         get;
         set;
     } = 1000;
+
+    [JsonPropertyName("has_email")]
+    public bool HasEmail
+    {
+        get;
+        set;
+    } = true;
+
+    [JsonPropertyName("has_password")]
+    public bool HasPassword
+    {
+        get;
+        set;
+    } = true;
 }
 
 public sealed class AccountProfileUpdateData
@@ -449,6 +507,44 @@ public sealed class AccountEmailUpdateData
         get;
         set;
     } = string.Empty;
+
+    [JsonPropertyName("has_email")]
+    public bool HasEmail
+    {
+        get;
+        set;
+    } = true;
+
+    [JsonPropertyName("has_password")]
+    public bool HasPassword
+    {
+        get;
+        set;
+    } = true;
+}
+
+public sealed class AccountPasswordSetData
+{
+    [JsonPropertyName("has_email")]
+    public bool HasEmail
+    {
+        get;
+        set;
+    } = true;
+
+    [JsonPropertyName("has_password")]
+    public bool HasPassword
+    {
+        get;
+        set;
+    } = true;
+
+    [JsonPropertyName("profile_complete")]
+    public bool ProfileComplete
+    {
+        get;
+        set;
+    } = true;
 }
 
 public sealed class AccountOtpSentData
@@ -514,6 +610,34 @@ public sealed class AccountDeviceDto
 
     [JsonPropertyName("allow_remote")]
     public bool AllowRemote
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_remote_power")]
+    public bool AllowRemotePower
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("wol_macs")]
+    public List<string> WolMacs
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("wol_broadcasts")]
+    public List<string> WolBroadcasts
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("wol_ready")]
+    public bool WolReady
     {
         get;
         set;
@@ -585,6 +709,15 @@ public sealed class AccountDeviceDto
     [JsonIgnore] public bool HasCustomName => !string.IsNullOrWhiteSpace(CustomName);
 
     [JsonIgnore]
+    public bool IsComputerDevice =>
+        string.IsNullOrWhiteSpace(OsVersion) ||
+        (!OsVersion.Contains("android", StringComparison.OrdinalIgnoreCase) &&
+         !OsVersion.Contains("ios", StringComparison.OrdinalIgnoreCase) &&
+         !OsVersion.Contains("iphone", StringComparison.OrdinalIgnoreCase) &&
+         !OsVersion.Contains("ipad", StringComparison.OrdinalIgnoreCase) &&
+         !OsVersion.Contains("harmonyos", StringComparison.OrdinalIgnoreCase));
+
+    [JsonIgnore]
     public string OriginalDeviceName => !string.IsNullOrWhiteSpace(RawDeviceName) ? RawDeviceName : DeviceName;
 
     [JsonIgnore] public string FormattedDeviceId => DeviceIdentity.FormatDeviceId(DeviceId);
@@ -610,6 +743,79 @@ public sealed class AccountDevicesListData
         get;
         set;
     } = 1000;
+}
+
+public sealed class AccountDevicePowerResultData
+{
+    [JsonPropertyName("action")]
+    public string Action
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("target_device_id")]
+    public string TargetDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("delivered")]
+    public bool Delivered
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("already_online")]
+    public bool AlreadyOnline
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("target_online")]
+    public bool TargetOnline
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("delay_seconds")]
+    public int DelaySeconds
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("relayed_count")]
+    public int RelayedCount
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("same_subnet_relayed_count")]
+    public int SameSubnetRelayedCount
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("wol_macs")]
+    public List<string> WolMacs
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("wol_broadcasts")]
+    public List<string> WolBroadcasts
+    {
+        get;
+        set;
+    } = [];
 }
 
 public sealed class AccountLoginHistoryRecordDto
@@ -757,6 +963,18 @@ public sealed class AccountPersistedSession
         get;
         set;
     }
+
+    public bool? HasEmail
+    {
+        get;
+        set;
+    }
+
+    public bool? HasPassword
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class QrLoginCreateData
@@ -861,4 +1079,149 @@ public sealed class QrLoginStatusData
         get;
         set;
     }
+}
+
+public sealed class OAuthProvidersData
+{
+    [JsonPropertyName("google")]
+    public bool Google
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("qq")]
+    public bool Qq
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("wechat")]
+    public bool Wechat
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("providers")]
+    public List<string> Providers
+    {
+        get;
+        set;
+    } = [];
+}
+
+public sealed class OAuthStartData
+{
+    [JsonPropertyName("provider")]
+    public string Provider
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("state")]
+    public string State
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("poll_secret")]
+    public string PollSecret
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("authorize_url")]
+    public string AuthorizeUrl
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("poll_url")]
+    public string PollUrl
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("poll_interval_ms")]
+    public int PollIntervalMs
+    {
+        get;
+        set;
+    } = 1200;
+}
+
+public sealed class OAuthStatusData
+{
+    [JsonPropertyName("state")]
+    public string State
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("intent")]
+    public string Intent
+    {
+        get;
+        set;
+    } = "login";
+
+    [JsonPropertyName("provider")]
+    public string? Provider
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("bound")]
+    public bool Bound
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("session")]
+    public AccountLoginSessionData? Session
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class OAuthBindingsData
+{
+    [JsonPropertyName("available")]
+    public OAuthProvidersData Available
+    {
+        get;
+        set;
+    } = new();
+
+    [JsonPropertyName("bound")]
+    public OAuthProvidersData Bound
+    {
+        get;
+        set;
+    } = new();
 }

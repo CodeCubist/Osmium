@@ -66,6 +66,15 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
   bool _renameVisible = false;
   late final TextEditingController _renameCtrl = TextEditingController();
 
+  AccountDeviceDto? _powerConfirmDevice;
+  String? _powerConfirmAction;
+  bool _powerConfirmVisible = false;
+
+  String _powerResultTitle = '';
+  String _powerResultMessage = '';
+  bool _powerResultVisible = false;
+  bool _powerBusy = false;
+
   String? _removingDeviceId;
   ValueNotifier<bool>? _dockHidden;
 
@@ -84,9 +93,12 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
     super.dispose();
   }
 
-  /// Keeps the floating dock out of the modal's way while either overlay is up.
   void _syncDock() {
-    _dockHidden?.value = _sheetVisible || _renameVisible;
+    _dockHidden?.value =
+        _sheetVisible ||
+        _renameVisible ||
+        _powerConfirmVisible ||
+        _powerResultVisible;
   }
 
   GlobalKey _cardKey(String deviceId) =>
@@ -176,11 +188,95 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
     _dismissSheet();
     OsmiumHaptics.confirm();
     setState(() => _removingDeviceId = device.deviceId);
-    // Let the row collapse before the list loses the item.
     await Future<void>.delayed(const Duration(milliseconds: 240));
     if (!mounted) return;
     setState(() => _removingDeviceId = null);
     await ref.read(appControllerProvider).removeRemoteDevice(device.deviceId);
+  }
+
+  void _openPowerConfirm(AccountDeviceDto device, String action) {
+    setState(() {
+      _powerConfirmDevice = device;
+      _powerConfirmAction = action;
+      _powerConfirmVisible = true;
+    });
+    _syncDock();
+  }
+
+  void _dismissPowerConfirm() {
+    if (!_powerConfirmVisible) return;
+    setState(() => _powerConfirmVisible = false);
+    _syncDock();
+  }
+
+  void _showPowerResult(String title, String message) {
+    if (!mounted) return;
+    setState(() {
+      _powerResultTitle = title;
+      _powerResultMessage = message;
+      _powerResultVisible = true;
+    });
+    _syncDock();
+  }
+
+  void _dismissPowerResult() {
+    if (!_powerResultVisible) return;
+    setState(() => _powerResultVisible = false);
+    _syncDock();
+  }
+
+  Future<void> _executePowerAction(
+    AccountDeviceDto device,
+    String action,
+  ) async {
+    if (_powerBusy) return;
+    setState(() => _powerBusy = true);
+    try {
+      final result = await ref
+          .read(appControllerProvider)
+          .executeRemotePowerAction(device, action);
+      final title = action == 'wake'
+          ? '远程开机'
+          : (action == 'restart' ? '远程重启' : '远程关机');
+      _showPowerResult(result.ok ? title : '$title失败', result.message);
+    } finally {
+      if (mounted) {
+        setState(() => _powerBusy = false);
+      }
+    }
+  }
+
+  void _handlePowerMenuTap(AccountDeviceDto device, String action) {
+    _dismissSheet();
+    final app = ref.read(appControllerProvider);
+    if (!app.isProfileComplete) {
+      _showPowerResult(
+        '请完善账号安全信息',
+        '为了保障设备安全，请先在「我的」中绑定邮箱并设置登录密码，完成后即可使用远程开关机功能。',
+      );
+      return;
+    }
+    if (!device.allowRemotePower) {
+      _showPowerResult(
+        '远程电源未开启',
+        '目标电脑「${device.displayName}」尚未开启远程开关机功能。请先在该电脑的设置->远程开关机中开启，并确认主板BIOS已开启Wake-on-LAN。',
+      );
+      return;
+    }
+    if (action == 'wake' && device.wolMacs.isEmpty) {
+      _showPowerResult(
+        '无法远程开机',
+        '尚未获取到「${device.displayName}」的网卡MAC地址，请先在目标电脑在线时开启远程开关机功能。',
+      );
+      return;
+    }
+    if (action == 'wake') {
+      OsmiumHaptics.confirm();
+      _executePowerAction(device, 'wake');
+      return;
+    }
+    OsmiumHaptics.selection();
+    _openPowerConfirm(device, action);
   }
 
   List<AccountDeviceDto> _filteredAndSorted(List<AccountDeviceDto> source) {
@@ -451,6 +547,8 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
             ),
             _buildDeviceSheet(context, app, colors, isDark),
             _buildRenameDialog(context),
+            _buildPowerConfirmDialog(context, colors, isDark),
+            _buildPowerResultDialog(context),
           ],
         );
       },
@@ -471,8 +569,10 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
                 device: device,
                 wallpaperPath: app.wallpaperPathFor(device.deviceId),
                 compact: false,
+                powerBusy: _powerBusy,
                 onConnect: () => _connectDevice(device),
                 onMore: () => _showDeviceActions(device),
+                onPowerAction: (action) => _handlePowerMenuTap(device, action),
               ),
             ),
           ),
@@ -496,8 +596,10 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
                   device: left,
                   wallpaperPath: app.wallpaperPathFor(left.deviceId),
                   compact: true,
+                  powerBusy: _powerBusy,
                   onConnect: () => _connectDevice(left),
                   onMore: () => _showDeviceActions(left),
+                  onPowerAction: (action) => _handlePowerMenuTap(left, action),
                 ),
               ),
               const SizedBox(width: 12),
@@ -508,8 +610,11 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
                         device: right,
                         wallpaperPath: app.wallpaperPathFor(right.deviceId),
                         compact: true,
+                        powerBusy: _powerBusy,
                         onConnect: () => _connectDevice(right),
                         onMore: () => _showDeviceActions(right),
+                        onPowerAction: (action) =>
+                            _handlePowerMenuTap(right, action),
                       )
                     : const SizedBox.shrink(),
               ),
@@ -527,8 +632,21 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
     MiuixColors colors,
     bool isDark,
   ) {
-    final device = _sheetDevice;
-    if (device == null) return const SizedBox.shrink();
+    final seed = _sheetDevice;
+    if (seed == null) return const SizedBox.shrink();
+    final device = app.accountDevices.firstWhere(
+      (d) => d.deviceId == seed.deviceId,
+      orElse: () => seed,
+    );
+    final theme = MiuixTheme.of(context);
+    final profileIncomplete = !app.isProfileComplete;
+    final powerDisabled = profileIncomplete || !device.allowRemotePower;
+    final powerDisabledLabel = profileIncomplete ? '需完善账号' : '未开启';
+    final powerDisabledTag = profileIncomplete
+        ? '需完善账号'
+        : (!device.allowRemotePower
+            ? '未开启'
+            : (!device.isOnline && device.wolMacs.isEmpty ? '无MAC' : null));
 
     return MiuixOverlayBottomSheet(
       show: _sheetVisible,
@@ -560,6 +678,73 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
                   _dismissSheet();
                   _connectDevice(device, viewOnly: true);
                 },
+              ),
+            ],
+            if (device.isComputerDevice && !device.isOnline)
+              MiuixArrowPreference(
+                title: '远程开机（网卡唤醒）',
+                startAction: const OsmiumPrefIcon(
+                  Icons.power_settings_new_rounded,
+                ),
+                titleColor: powerDisabledTag != null
+                    ? MiuixBasicComponentColors(
+                        color: colors.disabledOnSecondaryVariant,
+                        disabledColor: colors.disabledOnSecondaryVariant,
+                      )
+                    : null,
+                endActions: powerDisabledTag != null
+                    ? [
+                        MiuixText(
+                          powerDisabledTag,
+                          style: theme.textStyles.body2,
+                          color: colors.onSurfaceVariantSummary,
+                        ),
+                      ]
+                    : const [],
+                onClick: () => _handlePowerMenuTap(device, 'wake'),
+              ),
+            if (device.isComputerDevice && device.isOnline) ...[
+              MiuixArrowPreference(
+                title: '远程重启',
+                startAction: const OsmiumPrefIcon(Icons.restart_alt_rounded),
+                titleColor: powerDisabled
+                    ? MiuixBasicComponentColors(
+                        color: colors.disabledOnSecondaryVariant,
+                        disabledColor: colors.disabledOnSecondaryVariant,
+                      )
+                    : null,
+                endActions: powerDisabled
+                    ? [
+                        MiuixText(
+                          powerDisabledLabel,
+                          style: theme.textStyles.body2,
+                          color: colors.onSurfaceVariantSummary,
+                        ),
+                      ]
+                    : const [],
+                onClick: () => _handlePowerMenuTap(device, 'restart'),
+              ),
+              MiuixArrowPreference(
+                title: '远程关机',
+                startAction: const OsmiumPrefIcon(
+                  Icons.power_settings_new_rounded,
+                ),
+                titleColor: MiuixBasicComponentColors(
+                  color: !powerDisabled
+                      ? OsmiumColors.dangerFg(isDark)
+                      : colors.disabledOnSecondaryVariant,
+                  disabledColor: colors.disabledOnSecondaryVariant,
+                ),
+                endActions: powerDisabled
+                    ? [
+                        MiuixText(
+                          powerDisabledLabel,
+                          style: theme.textStyles.body2,
+                          color: colors.onSurfaceVariantSummary,
+                        ),
+                      ]
+                    : const [],
+                onClick: () => _handlePowerMenuTap(device, 'shutdown'),
               ),
             ],
             MiuixArrowPreference(
@@ -652,6 +837,98 @@ class _DevicesTabState extends ConsumerState<DevicesTab> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPowerConfirmDialog(
+    BuildContext context,
+    MiuixColors colors,
+    bool isDark,
+  ) {
+    final device = _powerConfirmDevice;
+    final action = _powerConfirmAction;
+    if (device == null || action == null) return const SizedBox.shrink();
+    final isRestart = action == 'restart';
+    final title = isRestart ? '确认远程重启' : '确认远程关机';
+    final body = isRestart
+        ? '确定要远程重启「${device.displayName}」吗？目标电脑将在约3秒后强制重启，未保存的工作可能会丢失。'
+        : '确定要远程关闭「${device.displayName}」吗？目标电脑将在约3秒后强制关机，未保存的工作可能会丢失。';
+    final theme = MiuixTheme.of(context);
+
+    return MiuixOverlayDialog(
+      show: _powerConfirmVisible,
+      title: title,
+      onDismissRequest: _dismissPowerConfirm,
+      onDismissFinished: () {
+        if (mounted) {
+          setState(() {
+            _powerConfirmDevice = null;
+            _powerConfirmAction = null;
+          });
+        }
+        _syncDock();
+      },
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MiuixText(
+            body,
+            style: theme.textStyles.body2,
+            color: colors.onSurfaceVariantSummary,
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: MiuixTextButton('取消', onPressed: _dismissPowerConfirm),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: MiuixTextButton(
+                  isRestart ? '立即重启' : '立即关机',
+                  onPressed: () {
+                    final target = device;
+                    final act = action;
+                    _dismissPowerConfirm();
+                    OsmiumHaptics.confirm();
+                    _executePowerAction(target, act);
+                  },
+                  colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPowerResultDialog(BuildContext context) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    return MiuixOverlayDialog(
+      show: _powerResultVisible,
+      title: _powerResultTitle.isNotEmpty ? _powerResultTitle : '远程电源',
+      onDismissRequest: _dismissPowerResult,
+      onDismissFinished: _syncDock,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MiuixText(
+            _powerResultMessage,
+            style: theme.textStyles.body2,
+            color: colors.onSurfaceVariantSummary,
+          ),
+          const SizedBox(height: 18),
+          MiuixTextButton(
+            '知道了',
+            onPressed: _dismissPowerResult,
+            colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+          ),
+        ],
       ),
     );
   }
@@ -889,15 +1166,19 @@ class _DeviceWallpaperCard extends StatelessWidget {
     required this.device,
     this.wallpaperPath,
     required this.compact,
+    required this.powerBusy,
     required this.onConnect,
     required this.onMore,
+    required this.onPowerAction,
   });
 
   final AccountDeviceDto device;
   final String? wallpaperPath;
   final bool compact;
+  final bool powerBusy;
   final VoidCallback onConnect;
   final VoidCallback onMore;
+  final ValueChanged<String> onPowerAction;
 
   @override
   Widget build(BuildContext context) {
@@ -907,6 +1188,13 @@ class _DeviceWallpaperCard extends StatelessWidget {
     final online = device.isOnline;
     final controlled = device.isBeingControlled;
     final hasWallpaper = wallpaperPath != null && wallpaperPath!.isNotEmpty;
+    final showWakeBtn =
+        device.isComputerDevice &&
+        device.allowRemotePower &&
+        !online &&
+        device.wolMacs.isNotEmpty;
+    final showOnlinePowerBtns =
+        device.isComputerDevice && device.allowRemotePower && online;
 
     final String idFormatted = DeviceIdentity.formatDeviceId(device.deviceId);
     final String subtitle = !online
@@ -947,7 +1235,7 @@ class _DeviceWallpaperCard extends StatelessWidget {
     }
 
     return OsmiumSurfaceCard(
-      onPressed: online ? onConnect : null,
+      onPressed: online ? onConnect : onMore,
       onLongPress: onMore,
       child: SizedBox(
         height: cardHeight,
@@ -960,6 +1248,50 @@ class _DeviceWallpaperCard extends StatelessWidget {
               ColoredBox(
                 color: (isDark ? Colors.black : Colors.white).withValues(
                   alpha: isDark ? 0.28 : 0.20,
+                ),
+              ),
+            if (showWakeBtn || showOnlinePowerBtns)
+              Positioned(
+                top: compact ? 8 : 10,
+                right: compact ? 8 : 10,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showWakeBtn)
+                      _CardPowerButton(
+                        icon: Icons.power_settings_new_rounded,
+                        label: '开机',
+                        compact: compact,
+                        isDark: isDark,
+                        accent: true,
+                        danger: false,
+                        enabled: !powerBusy,
+                        onTap: () => onPowerAction('wake'),
+                      ),
+                    if (showOnlinePowerBtns) ...[
+                      _CardPowerButton(
+                        icon: Icons.restart_alt_rounded,
+                        label: '重启',
+                        compact: compact,
+                        isDark: isDark,
+                        accent: false,
+                        danger: false,
+                        enabled: !powerBusy,
+                        onTap: () => onPowerAction('restart'),
+                      ),
+                      SizedBox(width: compact ? 5 : 6),
+                      _CardPowerButton(
+                        icon: Icons.power_settings_new_rounded,
+                        label: '关机',
+                        compact: compact,
+                        isDark: isDark,
+                        accent: false,
+                        danger: true,
+                        enabled: !powerBusy,
+                        onTap: () => onPowerAction('shutdown'),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             Positioned(
@@ -1054,6 +1386,88 @@ class _DeviceWallpaperCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardPowerButton extends StatelessWidget {
+  const _CardPowerButton({
+    required this.icon,
+    required this.label,
+    required this.compact,
+    required this.isDark,
+    required this.accent,
+    required this.danger,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool compact;
+  final bool isDark;
+  final bool accent;
+  final bool danger;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MiuixTheme.of(context).colors;
+    final Color fg = danger
+        ? OsmiumColors.dangerFg(isDark)
+        : (accent ? colors.primary : colors.onSurface);
+    final Color effectiveFg = enabled ? fg : fg.withValues(alpha: 0.45);
+    final Color bg = isDark
+        ? Colors.black.withValues(alpha: 0.46)
+        : Colors.white.withValues(alpha: 0.82);
+    final Color border = isDark
+        ? Colors.white.withValues(alpha: 0.16)
+        : Colors.black.withValues(alpha: 0.08);
+    final radius = BorderRadius.circular(999);
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: BackdropFilter(
+        filter: OsmiumGlass.filter(16, saturation: 1.4),
+        child: MiuixPressable(
+          onPressed: enabled ? onTap : null,
+          borderRadius: radius,
+          feedbackType: MiuixPressFeedbackType.sink,
+          sinkAmount: 0.94,
+          child: Container(
+            padding: compact
+                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 5)
+                : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: radius,
+              border: Border.all(color: border, width: 0.75),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: compact ? 13.5 : 14.5,
+                  color: effectiveFg,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: OsmiumTheme.fontFamily,
+                    fontSize: compact ? 11.5 : 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                    color: effectiveFg,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

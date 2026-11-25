@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
@@ -97,6 +98,24 @@ class MainActivity : FlutterActivity() {
                     val link = initialDeepLink
                     initialDeepLink = null
                     result.success(link)
+                }
+                "openExternalUrl" -> {
+                    val rawUrl = call.argument<String>("url")?.trim() ?: ""
+                    val parsed = if (rawUrl.isNotEmpty()) Uri.parse(rawUrl) else null
+                    val scheme = parsed?.scheme?.lowercase()
+                    if (parsed != null && (scheme == "https" || scheme == "http")) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, parsed).apply {
+                                addCategory(Intent.CATEGORY_BROWSABLE)
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (_: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(false)
+                    }
                 }
                 "createSurface" -> {
                     val width = call.argument<Int>("width") ?: 1920

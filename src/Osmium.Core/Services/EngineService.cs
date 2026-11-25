@@ -4,6 +4,63 @@ using Osmium.Core.Network;
 
 namespace Osmium.Core.Services;
 
+public sealed class RemotePowerActionOutcome
+{
+    public bool Ok
+    {
+        get;
+        init;
+    }
+
+    public int Code
+    {
+        get;
+        init;
+    }
+
+    public string Action
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public bool AlreadyOnline
+    {
+        get;
+        init;
+    }
+
+    public int DelaySeconds
+    {
+        get;
+        init;
+    }
+
+    public int RelayedCount
+    {
+        get;
+        init;
+    }
+
+    public int SameSubnetRelayedCount
+    {
+        get;
+        init;
+    }
+
+    public int LocalPacketsSent
+    {
+        get;
+        init;
+    }
+
+    public string ErrorMessage
+    {
+        get;
+        init;
+    } = string.Empty;
+}
+
 public sealed class EngineService : IDisposable
 {
     private readonly OsmiumLogDelegate _nativeLogDelegate;
@@ -40,6 +97,11 @@ public sealed class EngineService : IDisposable
         get;
     }
 
+    public RemotePowerService RemotePower
+    {
+        get;
+    }
+
     public OsmiumCapabilities Capabilities
     {
         get;
@@ -52,14 +114,15 @@ public sealed class EngineService : IDisposable
         private set;
     } = [];
 
-    public EngineService()
+    public EngineService(string? overrideDataDirectory = null, bool isServiceHostMode = false)
     {
-        SettingsService = new SettingsService();
+        SettingsService = new SettingsService(overrideDataDirectory, isServiceHostMode);
         Logging = new LoggingService(SettingsService.DataDirectory);
         Signaling = new SignalingClient(Logging);
         AccountService = new AccountService(SettingsService, Logging);
         Coordinator = new P2PCoordinator(SettingsService, Signaling, AccountService, Logging);
         DeviceWallpapers = new DeviceWallpaperStore(SettingsService.DataDirectory, Logging);
+        RemotePower = new RemotePowerService(SettingsService, AccountService, Coordinator, Logging);
 
         AccountService.DeviceRemoved += deviceId => DeviceWallpapers.RemoveWallpaper(deviceId);
 
@@ -69,8 +132,15 @@ public sealed class EngineService : IDisposable
         Signaling.AccountRevokedReceived += _ =>
             AccountService.HandleRemoteRevoked();
 
+        Signaling.PowerCommandReceived += RemotePower.HandlePowerCommand;
+        Signaling.PowerWolRelayReceived += RemotePower.HandleWolRelay;
+        Signaling.NetworkAddressUpdated += () => _ = SyncSignalingStatusAsync();
+
         AccountService.SessionChanged += () =>
+        {
             _ = Signaling.UpdateAuthTokenAsync(AccountService.CurrentLtoken);
+            _ = SyncSignalingStatusAsync();
+        };
 
         Signaling.Registered += () =>
         {
@@ -163,19 +233,107 @@ public sealed class EngineService : IDisposable
         ProbeCapabilitiesSafe();
     }
 
+    public LocalPowerProfile GetLocalPowerProfile()
+    {
+        bool allowRemotePower = SettingsService.Settings.HostAllowRemotePower &&
+                                (!AccountService.IsLoggedIn || AccountService.IsProfileComplete);
+        return WakeOnLanService.CollectLocalPowerProfile(allowRemotePower);
+    }
+
     public void ConnectSignaling()
     {
         var id = SettingsService.Identity;
+        var powerProfile = GetLocalPowerProfile();
         Signaling.Start(OsmiumSettings.FixedSignalingServerUrl, id.DeviceId, id.DeviceName,
             Coordinator.EffectiveAllowRemoteControl,
-            AccountService.CurrentLtoken);
+            AccountService.CurrentLtoken,
+            powerProfile);
     }
 
     public Task SyncSignalingStatusAsync()
     {
+        var powerProfile = GetLocalPowerProfile();
         return Signaling.UpdateStatusAsync(
             Coordinator.EffectiveAllowRemoteControl,
-            SettingsService.Identity.DeviceName);
+            SettingsService.Identity.DeviceName,
+            powerProfile);
+    }
+
+    public async Task<RemotePowerActionOutcome> RequestRemotePowerAsync(
+        AccountDeviceDto target,
+        string action,
+        CancellationToken ct = default)
+    {
+        string normAction = (action ?? string.Empty).Trim().ToLowerInvariant();
+        if (!AccountService.IsLoggedIn)
+        {
+            return new RemotePowerActionOutcome
+            {
+                Ok = false,
+                Code = OsmiumErrorCode.AccountAuthRequired,
+                Action = normAction,
+                ErrorMessage = AccountService.FormatFriendlyError(OsmiumErrorCode.AccountAuthRequired, 401)
+            };
+        }
+
+        if (!AccountService.IsProfileComplete)
+        {
+            return new RemotePowerActionOutcome
+            {
+                Ok = false,
+                Code = OsmiumErrorCode.AccountProfileIncomplete,
+                Action = normAction,
+                ErrorMessage = AccountService.FormatFriendlyError(OsmiumErrorCode.AccountProfileIncomplete, 403)
+            };
+        }
+
+        var apiRes = await AccountService.SendDevicePowerCommandAsync(target.DeviceId, normAction);
+        if (!apiRes.Ok || apiRes.Data == null)
+        {
+            return new RemotePowerActionOutcome
+            {
+                Ok = false,
+                Code = apiRes.Code,
+                Action = normAction,
+                ErrorMessage = AccountService.FormatFriendlyError(apiRes.Code, apiRes.HttpStatusCode)
+            };
+        }
+
+        int localPacketsSent = 0;
+        if (normAction == "wake" && !apiRes.Data.AlreadyOnline)
+        {
+            var macs = apiRes.Data.WolMacs.Count > 0 ? apiRes.Data.WolMacs : target.WolMacs;
+            var broadcasts = apiRes.Data.WolBroadcasts.Count > 0 ? apiRes.Data.WolBroadcasts : target.WolBroadcasts;
+            if (macs.Count > 0)
+            {
+                try
+                {
+                    var report = await WakeOnLanService.SendMagicPacketsAsync(
+                        macs,
+                        broadcasts,
+                        [9, 7],
+                        repeatCount: 3,
+                        ct: ct);
+                    localPacketsSent = report.PacketsSent;
+                }
+                catch (Exception ex)
+                {
+                    Logging.Warn($"Local Wake-on-LAN broadcast failed for {target.DeviceId}: {ex.Message}");
+                }
+            }
+        }
+
+        return new RemotePowerActionOutcome
+        {
+            Ok = true,
+            Code = OsmiumErrorCode.Ok,
+            Action = normAction,
+            AlreadyOnline = apiRes.Data.AlreadyOnline,
+            DelaySeconds = apiRes.Data.DelaySeconds,
+            RelayedCount = apiRes.Data.RelayedCount,
+            SameSubnetRelayedCount = apiRes.Data.SameSubnetRelayedCount,
+            LocalPacketsSent = localPacketsSent
+        };
     }
 
     public IReadOnlyList<OsmiumGamepadInfo> GetConnectedGamepads()

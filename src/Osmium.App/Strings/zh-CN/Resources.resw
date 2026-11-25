@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -76,7 +76,7 @@
   <data name="Assist_PageTitle" xml:space="preserve"><value>远程协助</value></data>
   <data name="Assist_ThisDevice" xml:space="preserve"><value>本设备</value></data>
   <data name="Assist_AllowRemote" xml:space="preserve"><value>允许他人远程协助</value></data>
-  <data name="Assist_MyDeviceId" xml:space="preserve"><value>本设备 ID</value></data>
+  <data name="Assist_MyDeviceId" xml:space="preserve"><value>本设备ID</value></data>
   <data name="Assist_VerifyMethod" xml:space="preserve"><value>验证方式：</value></data>
   <data name="Assist_OptTemp" xml:space="preserve"><value>临时验证码直连</value></data>
   <data name="Assist_OptTempConfirm" xml:space="preserve"><value>验证码 + 本机确认</value></data>
@@ -84,22 +84,22 @@
   <data name="Assist_CodePrefix" xml:space="preserve"><value>验证码：</value></data>
   <data name="Assist_CopyShare" xml:space="preserve"><value>复制并分享</value></data>
   <data name="Assist_PartnerHeader" xml:space="preserve"><value>远控伙伴设备</value></data>
-  <data name="Assist_PartnerId" xml:space="preserve"><value>伙伴的设备 ID</value></data>
-  <data name="Assist_PartnerIdPlaceholder" xml:space="preserve"><value>请输入设备 ID</value></data>
+  <data name="Assist_PartnerId" xml:space="preserve"><value>伙伴的设备ID</value></data>
+  <data name="Assist_PartnerIdPlaceholder" xml:space="preserve"><value>请输入设备ID</value></data>
   <data name="Assist_PartnerCode" xml:space="preserve"><value>远控代码</value></data>
   <data name="Assist_PartnerCodePlaceholder" xml:space="preserve"><value>请输入远控代码</value></data>
   <data name="Assist_ConnectBtn" xml:space="preserve"><value>连接</value></data>
-  <data name="Assist_ConnectCooldownFmt" xml:space="preserve"><value>等待 {0} 秒</value></data>
+  <data name="Assist_ConnectCooldownFmt" xml:space="preserve"><value>等待{0}秒</value></data>
   <data name="Assist_RecentTitle" xml:space="preserve"><value>最近连接</value></data>
   <data name="Assist_ClearHistory" xml:space="preserve"><value>清除记录</value></data>
   <data name="Assist_NoRecent" xml:space="preserve"><value>暂无历史连接记录</value></data>
   <data name="Assist_EndSession" xml:space="preserve"><value>结束远控</value></data>
   <data name="Assist_Connecting" xml:space="preserve"><value>正在建立连接...</value></data>
-  <data name="Assist_ShareClipboardFmt" xml:space="preserve"><value>Osmium 设备 ID: {0} | 远控代码: {1}</value></data>
+  <data name="Assist_ShareClipboardFmt" xml:space="preserve"><value>Osmium设备ID: {0} | 远控代码: {1}</value></data>
   <data name="Host_PrimaryTag" xml:space="preserve"><value> - 主屏</value></data>
   <data name="Host_DefaultDisplay" xml:space="preserve"><value>主显示器</value></data>
-  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>显示器 {0} - {1} - {2}×{3} @ {4}Hz{5}</value></data>
-  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>显示器 {0} - {1}×{2} @ {3}Hz{4}</value></data>
+  <data name="Host_DisplayItemNamedFmt" xml:space="preserve"><value>显示器{0} - {1} - {2}×{3} @ {4}Hz{5}</value></data>
+  <data name="Host_DisplayItemSimpleFmt" xml:space="preserve"><value>显示器{0} - {1}×{2} @ {3}Hz{4}</value></data>
   <data name="Host_SecVideo" xml:space="preserve"><value>采集与编码</value></data>
   <data name="Host_SecSecurity" xml:space="preserve"><value>访问与安全</value></data>
   <data name="Host_SecPermissions" xml:space="preserve"><value>声音与权限</value></data>
@@ -121,7 +121,7 @@
   <data name="Host_PolicyOnStartup" xml:space="preserve"><value>每次启动时刷新</value></data>
   <data name="Host_RowFixedSwitch" xml:space="preserve"><value>启用固定安全代码</value></data>
   <data name="Host_RowFixedBox" xml:space="preserve"><value>固定安全代码</value></data>
-  <data name="Host_FixedPlaceholder" xml:space="preserve"><value>至少 4 位字符</value></data>
+  <data name="Host_FixedPlaceholder" xml:space="preserve"><value>至少4位字符</value></data>
   <data name="Host_RowAudio" xml:space="preserve"><value>传输系统声音</value></data>
   <data name="Host_RowInput" xml:space="preserve"><value>允许远端键鼠与手柄操作</value></data>
   <data name="Host_RowCursor" xml:space="preserve"><value>采集本地鼠标指针</value></data>
@@ -148,15 +148,15 @@
   <data name="Set_CloseToTray" xml:space="preserve"><value>关闭时隐藏到系统托盘</value></data>
   <data name="Set_HideToTrayOnMinimize" xml:space="preserve"><value>最小化时直接隐藏到系统托盘</value></data>
   <data name="Set_AutoStart" xml:space="preserve"><value>开机自动启动</value></data>
-  <data name="Set_AutoStartDesc" xml:space="preserve"><value>登录 Windows 后自动启动 Osmium</value></data>
-  <data name="Tray_OpenMain" xml:space="preserve"><value>打开 Osmium</value></data>
+  <data name="Set_AutoStartDesc" xml:space="preserve"><value>登录Windows后自动启动Osmium</value></data>
+  <data name="Tray_OpenMain" xml:space="preserve"><value>打开Osmium</value></data>
   <data name="Tray_AutoStart" xml:space="preserve"><value>开机自动启动</value></data>
   <data name="Tray_DisconnectHost" xml:space="preserve"><value>断开当前被控连接</value></data>
-  <data name="Tray_Exit" xml:space="preserve"><value>退出 Osmium</value></data>
+  <data name="Tray_Exit" xml:space="preserve"><value>退出Osmium</value></data>
   <data name="Tray_TooltipControlling" xml:space="preserve"><value>Osmium - 正在被远程控制</value></data>
   <data name="Set_ResTitle" xml:space="preserve"><value>分辨率</value></data>
   <data name="Set_ResAutoHost" xml:space="preserve"><value>跟随被控端原生分辨率</value></data>
-  <data name="Set_ResNativeLabel" xml:space="preserve"><value>显示器 {0} - {1}×{2}</value></data>
+  <data name="Set_ResNativeLabel" xml:space="preserve"><value>显示器{0} - {1}×{2}</value></data>
   <data name="Set_ResCustomLabel" xml:space="preserve"><value>自定义 - {0}×{1}</value></data>
   <data name="Set_FpsTitle" xml:space="preserve"><value>帧率上限</value></data>
   <data name="Set_FpsNativeLabel" xml:space="preserve"><value>{0} FPS - 原生</value></data>
@@ -164,7 +164,7 @@
   <data name="Set_CustomResWidth" xml:space="preserve"><value>宽度 - 256 - 8192</value></data>
   <data name="Set_CustomResHeight" xml:space="preserve"><value>高度 - 144 - 4320</value></data>
   <data name="Set_BitrateTitle" xml:space="preserve"><value>视频码率</value></data>
-  <data name="Set_ResetRec" xml:space="preserve"><value>推荐 {0} Mbps</value></data>
+  <data name="Set_ResetRec" xml:space="preserve"><value>推荐{0} Mbps</value></data>
   <data name="Set_AutoBitrate" xml:space="preserve"><value>自动匹配推荐码率</value></data>
   <data name="Set_UnlockBitrate" xml:space="preserve"><value>解锁超高码率上限</value></data>
   <data name="Set_UnlockBitrateDesc" xml:space="preserve"><value>高码率建议在千兆或万兆局域网环境下使用</value></data>
@@ -180,16 +180,16 @@
   <data name="Set_DecAuto" xml:space="preserve"><value>自动</value></data>
   <data name="Set_DecHw" xml:space="preserve"><value>强制硬件解码</value></data>
   <data name="Set_DecSw" xml:space="preserve"><value>强制软件解码</value></data>
-  <data name="Set_Hdr" xml:space="preserve"><value>启用 HDR 10-bit 色彩</value></data>
-  <data name="Set_HdrDesc" xml:space="preserve"><value>需被控端开启 Windows HDR 后才可生效</value></data>
-  <data name="Set_Yuv444" xml:space="preserve"><value>启用 YUV 4:4:4 无损色度采样</value></data>
+  <data name="Set_Hdr" xml:space="preserve"><value>启用HDR 10-bit色彩</value></data>
+  <data name="Set_HdrDesc" xml:space="preserve"><value>需被控端开启Windows HDR后才可生效</value></data>
+  <data name="Set_Yuv444" xml:space="preserve"><value>启用YUV 4:4:4无损色度采样</value></data>
   <data name="Set_PerfOverlay" xml:space="preserve"><value>默认显示性能监控悬浮窗</value></data>
   <data name="Set_ConnWarn" xml:space="preserve"><value>显示网络波动警告</value></data>
   <data name="Set_ConfWarn" xml:space="preserve"><value>显示解码与配置警告</value></data>
   <data name="Set_AudioChannels" xml:space="preserve"><value>声道配置</value></data>
-  <data name="Set_AudioStereo" xml:space="preserve"><value>立体声 2.0</value></data>
-  <data name="Set_Audio51" xml:space="preserve"><value>5.1 环绕声</value></data>
-  <data name="Set_Audio71" xml:space="preserve"><value>7.1 环绕声</value></data>
+  <data name="Set_AudioStereo" xml:space="preserve"><value>立体声2.0</value></data>
+  <data name="Set_Audio51" xml:space="preserve"><value>5.1环绕声</value></data>
+  <data name="Set_Audio71" xml:space="preserve"><value>7.1环绕声</value></data>
   <data name="Set_MuteHost" xml:space="preserve"><value>串流时静音被控端扬声器</value></data>
   <data name="Set_MuteFocus" xml:space="preserve"><value>窗口失焦时自动静音</value></data>
   <data name="Set_SysKeys" xml:space="preserve"><value>捕获系统快捷键</value></data>
@@ -201,17 +201,17 @@
   <data name="Set_SwapMouse" xml:space="preserve"><value>交换鼠标左右键</value></data>
   <data name="Set_ReverseScroll" xml:space="preserve"><value>反转鼠标滚轮</value></data>
   <data name="Set_MultiGamepad" xml:space="preserve"><value>支持多手柄接入</value></data>
-  <data name="Set_SwapFace" xml:space="preserve"><value>交换手柄 A/B 与 X/Y 按键</value></data>
-  <data name="Set_GamepadMouse" xml:space="preserve"><value>长按 Start 键启用手柄鼠标</value></data>
+  <data name="Set_SwapFace" xml:space="preserve"><value>交换手柄A/B与X/Y按键</value></data>
+  <data name="Set_GamepadMouse" xml:space="preserve"><value>长按Start键启用手柄鼠标</value></data>
   <data name="Set_BgGamepad" xml:space="preserve"><value>窗口失焦时保持手柄输入</value></data>
   <data name="Set_ServerUrl" xml:space="preserve"><value>服务器地址</value></data>
   <data name="Set_SaveReconnect" xml:space="preserve"><value>保存并重连</value></data>
   <data name="Set_AutoConnect" xml:space="preserve"><value>启动时自动连接服务端</value></data>
-  <data name="Set_UdpPort" xml:space="preserve"><value>STUN 端口覆盖</value></data>
-  <data name="Set_UdpPortDesc" xml:space="preserve"><value>0 为自动使用信令服务端下发的 STUN 端口</value></data>
-  <data name="Set_Mtu" xml:space="preserve"><value>UDP 分片大小</value></data>
+  <data name="Set_UdpPort" xml:space="preserve"><value>STUN端口覆盖</value></data>
+  <data name="Set_UdpPortDesc" xml:space="preserve"><value>0为自动使用信令服务端下发的STUN端口</value></data>
+  <data name="Set_Mtu" xml:space="preserve"><value>UDP分片大小</value></data>
   <data name="Set_EnableEncryption" xml:space="preserve"><value>加密传输</value></data>
-  <data name="Set_EnableEncryptionDesc" xml:space="preserve"><value>使用 AES-256-GCM 端到端加密传输数据，需被控端与主控端设置一致</value></data>
+  <data name="Set_EnableEncryptionDesc" xml:space="preserve"><value>使用AES-256-GCM端到端加密传输数据，需被控端与主控端设置一致</value></data>
   <data name="Set_DisableEncryptionWarnTitle" xml:space="preserve"><value>关闭加密传输警告</value></data>
   <data name="Set_DisableEncryptionWarnBody" xml:space="preserve"><value>警告：关闭加密传输后，远程画面、音频以及键盘鼠标输入数据将以明文形式在网络中传输，可能被中间人窃听或篡改。仅建议在完全可信的局域网环境中使用，且被控端与主控端均需关闭加密后才能建立连接。确定要关闭加密传输吗？</value></data>
   <data name="Set_DisableEncryptionConfirm" xml:space="preserve"><value>确认关闭</value></data>
@@ -230,19 +230,19 @@
   <data name="Gamepad_ApplyOk" xml:space="preserve"><value>映射已应用</value></data>
   <data name="Gamepad_ApplyFail" xml:space="preserve"><value>映射字符串格式无效</value></data>
   <data name="Dialog_IncomingTitle" xml:space="preserve"><value>收到远程控制请求</value></data>
-  <data name="Dialog_IncomingBody" xml:space="preserve"><value>设备 &quot;{0}&quot; - {1} 请求远程控制本机。&#x0a;来源 IP: {2}&#x0a;&#x0a;是否允许建立连接？</value></data>
+  <data name="Dialog_IncomingBody" xml:space="preserve"><value>设备 &quot;{0}&quot; - {1}请求远程控制本机。&#x0a;来源IP: {2}&#x0a;&#x0a;是否允许建立连接？</value></data>
   <data name="Dialog_Allow" xml:space="preserve"><value>允许接入</value></data>
   <data name="Dialog_Deny" xml:space="preserve"><value>拒绝</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>确定</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>取消</value></data>
-  <data name="Conn_InvalidId" xml:space="preserve"><value>请输入有效的对方设备 ID</value></data>
+  <data name="Conn_InvalidId" xml:space="preserve"><value>请输入有效的对方设备ID</value></data>
   <data name="Conn_EmptyCode" xml:space="preserve"><value>请输入远控代码</value></data>
   <data name="Conn_Offline" xml:space="preserve"><value>本机尚未连接到服务，请检查网络或服务器地址</value></data>
-  <data name="Conn_CooldownWait" xml:space="preserve"><value>操作过于频繁，请等待 {0} 秒后再试</value></data>
+  <data name="Conn_CooldownWait" xml:space="preserve"><value>操作过于频繁，请等待{0}秒后再试</value></data>
   <data name="Conn_Probing" xml:space="preserve"><value>正在探测网络路径...</value></data>
   <data name="Conn_BindFailed" xml:space="preserve"><value>无法绑定本地传输端口</value></data>
-  <data name="Conn_Requesting" xml:space="preserve"><value>正在连接 {0}...</value></data>
-  <data name="Conn_Rejected" xml:space="preserve"><value>连接被拒绝 {0}: {1}</value></data>
+  <data name="Conn_Requesting" xml:space="preserve"><value>正在连接{0}...</value></data>
+  <data name="Conn_Rejected" xml:space="preserve"><value>连接被拒绝{0}: {1}</value></data>
   <data name="Conn_EncryptionMismatch" xml:space="preserve"><value>加密传输设置不一致，需被控端与主控端同时开启或关闭</value></data>
   <data name="Conn_VerifyingAuth" xml:space="preserve"><value>正在校验远控验证码...</value></data>
   <data name="Conn_CheckingVersion" xml:space="preserve"><value>正在向服务器校验版本兼容性...</value></data>
@@ -273,40 +273,40 @@
   <data name="Gamepad_QuickSettingsTitle" xml:space="preserve"><value>手柄控制行为</value></data>
   <data name="Gamepad_AdvancedRawLabel" xml:space="preserve"><value>映射配置预览</value></data>
   <data name="Gamepad_NoPadTip" xml:space="preserve"><value>当前未检测到手柄，连接手柄后点击刷新即可测试或自定义映射</value></data>
-  <data name="Gamepad_BoundFmt" xml:space="preserve"><value>已将 [{0}] 绑定到 {1}</value></data>
+  <data name="Gamepad_BoundFmt" xml:space="preserve"><value>已将 [{0}] 绑定到{1}</value></data>
   <data name="Gamepad_ClearedFmt" xml:space="preserve"><value>已清除 [{0}] 的绑定</value></data>
   <data name="Gamepad_ResetDialogTitle" xml:space="preserve"><value>恢复默认布局</value></data>
   <data name="Gamepad_ResetOk" xml:space="preserve"><value>已恢复标准手柄默认布局</value></data>
-  <data name="Gamepad_SwapBadge" xml:space="preserve"><value>已启用 A/B - X/Y 键值互换</value></data>
-  <data name="Gamepad_Part_A" xml:space="preserve"><value>A 键</value></data>
-  <data name="Gamepad_Part_B" xml:space="preserve"><value>B 键</value></data>
-  <data name="Gamepad_Part_X" xml:space="preserve"><value>X 键</value></data>
-  <data name="Gamepad_Part_Y" xml:space="preserve"><value>Y 键</value></data>
-  <data name="Gamepad_Part_LB" xml:space="preserve"><value>LB 左肩键</value></data>
-  <data name="Gamepad_Part_RB" xml:space="preserve"><value>RB 右肩键</value></data>
-  <data name="Gamepad_Part_LT" xml:space="preserve"><value>LT 左扳机</value></data>
-  <data name="Gamepad_Part_RT" xml:space="preserve"><value>RT 右扳机</value></data>
-  <data name="Gamepad_Part_Back" xml:space="preserve"><value>View 视图键</value></data>
-  <data name="Gamepad_Part_Guide" xml:space="preserve"><value>Guide 主页键</value></data>
-  <data name="Gamepad_Part_Start" xml:space="preserve"><value>Menu 菜单键</value></data>
-  <data name="Gamepad_Part_LS" xml:space="preserve"><value>L3 左摇杆按下</value></data>
-  <data name="Gamepad_Part_RS" xml:space="preserve"><value>R3 右摇杆按下</value></data>
-  <data name="Gamepad_Part_LX" xml:space="preserve"><value>左摇杆 X 轴</value></data>
-  <data name="Gamepad_Part_LY" xml:space="preserve"><value>左摇杆 Y 轴</value></data>
-  <data name="Gamepad_Part_RX" xml:space="preserve"><value>右摇杆 X 轴</value></data>
-  <data name="Gamepad_Part_RY" xml:space="preserve"><value>右摇杆 Y 轴</value></data>
+  <data name="Gamepad_SwapBadge" xml:space="preserve"><value>已启用A/B - X/Y键值互换</value></data>
+  <data name="Gamepad_Part_A" xml:space="preserve"><value>A键</value></data>
+  <data name="Gamepad_Part_B" xml:space="preserve"><value>B键</value></data>
+  <data name="Gamepad_Part_X" xml:space="preserve"><value>X键</value></data>
+  <data name="Gamepad_Part_Y" xml:space="preserve"><value>Y键</value></data>
+  <data name="Gamepad_Part_LB" xml:space="preserve"><value>LB左肩键</value></data>
+  <data name="Gamepad_Part_RB" xml:space="preserve"><value>RB右肩键</value></data>
+  <data name="Gamepad_Part_LT" xml:space="preserve"><value>LT左扳机</value></data>
+  <data name="Gamepad_Part_RT" xml:space="preserve"><value>RT右扳机</value></data>
+  <data name="Gamepad_Part_Back" xml:space="preserve"><value>View视图键</value></data>
+  <data name="Gamepad_Part_Guide" xml:space="preserve"><value>Guide主页键</value></data>
+  <data name="Gamepad_Part_Start" xml:space="preserve"><value>Menu菜单键</value></data>
+  <data name="Gamepad_Part_LS" xml:space="preserve"><value>L3左摇杆按下</value></data>
+  <data name="Gamepad_Part_RS" xml:space="preserve"><value>R3右摇杆按下</value></data>
+  <data name="Gamepad_Part_LX" xml:space="preserve"><value>左摇杆X轴</value></data>
+  <data name="Gamepad_Part_LY" xml:space="preserve"><value>左摇杆Y轴</value></data>
+  <data name="Gamepad_Part_RX" xml:space="preserve"><value>右摇杆X轴</value></data>
+  <data name="Gamepad_Part_RY" xml:space="preserve"><value>右摇杆Y轴</value></data>
   <data name="Gamepad_Part_Up" xml:space="preserve"><value>方向键 ↑</value></data>
   <data name="Gamepad_Part_Down" xml:space="preserve"><value>方向键 ↓</value></data>
   <data name="Gamepad_Part_Left" xml:space="preserve"><value>方向键 ←</value></data>
   <data name="Gamepad_Part_Right" xml:space="preserve"><value>方向键 →</value></data>
   <data name="Host_RowDrivers" xml:space="preserve"><value>本机虚拟外设驱动</value></data>
-  <data name="Host_DriversReady" xml:space="preserve"><value>USB/IP 虚拟鼠标与音频外设驱动已就绪</value></data>
-  <data name="Host_DriversMissing" xml:space="preserve"><value>未安装 USB/IP 虚拟外设驱动</value></data>
+  <data name="Host_DriversReady" xml:space="preserve"><value>USB/IP虚拟鼠标与音频外设驱动已就绪</value></data>
+  <data name="Host_DriversMissing" xml:space="preserve"><value>未安装USB/IP虚拟外设驱动</value></data>
   <data name="Host_DriversInstallBtn" xml:space="preserve"><value>安装驱动</value></data>
   <data name="Host_DriversReinstallBtn" xml:space="preserve"><value>修复/重装</value></data>
   <data name="Host_DriversUninstallBtn" xml:space="preserve"><value>卸载驱动</value></data>
   <data name="Host_DriversUninstallTitle" xml:space="preserve"><value>卸载虚拟外设驱动</value></data>
-  <data name="Host_DriversUninstallConfirm" xml:space="preserve"><value>将从本机移除 USB/IP 虚拟外设驱动及其驱动存储包，确定继续？</value></data>
+  <data name="Host_DriversUninstallConfirm" xml:space="preserve"><value>将从本机移除USB/IP虚拟外设驱动及其驱动存储包，确定继续？</value></data>
   <data name="Host_RowSystemService" xml:space="preserve"><value>系统输入服务</value></data>
   <data name="Host_SystemServiceReady" xml:space="preserve"><value>运行中</value></data>
   <data name="Host_SystemServiceMissing" xml:space="preserve"><value>未启用</value></data>
@@ -328,24 +328,24 @@
   <data name="Dialog_DefaultPeerName" xml:space="preserve"><value>远端主控设备</value></data>
   <data name="Common_On" xml:space="preserve"><value>开启</value></data>
   <data name="Common_Off" xml:space="preserve"><value>关闭</value></data>
-  <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium 启动错误</value></data>
-  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium 启动失败 - {0}</value></data>
+  <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium启动错误</value></data>
+  <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium启动失败 - {0}</value></data>
   <data name="Startup_CrashLogSavedFmt" xml:space="preserve"><value>崩溃日志已保存至：</value></data>
   <data name="Session_DefaultHostTitle" xml:space="preserve"><value>远程设备</value></data>
   <data name="Session_WaitingVideo" xml:space="preserve"><value>正在建立远程桌面画面...</value></data>
-  <data name="Session_PipelineInitFailed" xml:space="preserve"><value>无法初始化 WinUI 3 D3D11 视频渲染管线</value></data>
+  <data name="Session_PipelineInitFailed" xml:space="preserve"><value>无法初始化WinUI 3 D3D11视频渲染管线</value></data>
   <data name="Session_MenuTooltip" xml:space="preserve"><value>控制菜单</value></data>
   <data name="Session_MenuTitle" xml:space="preserve"><value>远程控制与会话参数</value></data>
   <data name="Session_ViewResTitle" xml:space="preserve"><value>画面查看分辨率</value></data>
   <data name="Session_NativeResUnknown" xml:space="preserve"><value>被控端原生分辨率: --</value></data>
   <data name="Session_NativeResFmt" xml:space="preserve"><value>被控端当前原生分辨率: {0} × {1}</value></data>
-  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100% 原生画质 - {0}×{1}</value></data>
-  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}% 缩小传输 - {1}×{2}</value></data>
-  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1} 等比缩小 - {2}×{3}</value></data>
+  <data name="Session_ScaleNativeFmt" xml:space="preserve"><value>100%原生画质 - {0}×{1}</value></data>
+  <data name="Session_ScalePercentFmt" xml:space="preserve"><value>{0}%缩小传输 - {1}×{2}</value></data>
+  <data name="Session_ScaleBoxFmt" xml:space="preserve"><value>≤ {0}×{1}等比缩小 - {2}×{3}</value></data>
   <data name="Session_FpsColorTitle" xml:space="preserve"><value>帧率上限与色彩传输</value></data>
   <data name="Session_HdrHeader" xml:space="preserve"><value>HDR 10-bit</value></data>
-  <data name="Session_HdrRequiresHostHint" xml:space="preserve"><value>需先在被控端开启 Windows HDR 后才可启用</value></data>
-  <data name="Session_Yuv444Header" xml:space="preserve"><value>YUV 4:4:4 无损采样</value></data>
+  <data name="Session_HdrRequiresHostHint" xml:space="preserve"><value>需先在被控端开启Windows HDR后才可启用</value></data>
+  <data name="Session_Yuv444Header" xml:space="preserve"><value>YUV 4:4:4无损采样</value></data>
   <data name="Session_VsyncHeader" xml:space="preserve"><value>垂直同步</value></data>
   <data name="Session_MouseModeTitle" xml:space="preserve"><value>鼠标控制模式</value></data>
   <data name="Session_MouseController" xml:space="preserve"><value>主控端鼠标</value></data>
@@ -365,16 +365,16 @@
   <data name="Session_NoLocalMic" xml:space="preserve"><value>未检测到可用本地麦克风</value></data>
   <data name="Session_DriversTitle" xml:space="preserve"><value>被控端虚拟驱动管理</value></data>
   <data name="Session_DriverChecking" xml:space="preserve"><value>正在检测被控端驱动状态...</value></data>
-  <data name="Session_DriverUsbReady" xml:space="preserve"><value>USB/IP 虚拟外设驱动已就绪</value></data>
-  <data name="Session_DriverUsbMissing" xml:space="preserve"><value>USB/IP 虚拟外设驱动未安装</value></data>
+  <data name="Session_DriverUsbReady" xml:space="preserve"><value>USB/IP虚拟外设驱动已就绪</value></data>
+  <data name="Session_DriverUsbMissing" xml:space="preserve"><value>USB/IP虚拟外设驱动未安装</value></data>
   <data name="Session_DriverPolicyEnabled" xml:space="preserve"><value>远程驱动管理权限已开启</value></data>
   <data name="Session_DriverPolicyDisabled" xml:space="preserve"><value>被控端安全策略已禁用远程安装/卸载</value></data>
   <data name="Session_RemoteInstallDriver" xml:space="preserve"><value>远程安装驱动</value></data>
   <data name="Session_RemoteReinstallDriver" xml:space="preserve"><value>修复/重装驱动</value></data>
   <data name="Session_RemoteUninstallDriver" xml:space="preserve"><value>远程卸载驱动</value></data>
-  <data name="Session_OsdTitle" xml:space="preserve"><value>性能与状态 OSD</value></data>
-  <data name="Session_OsdToggleHeader" xml:space="preserve"><value>显示右下角可穿透悬浮 OSD</value></data>
-  <data name="Session_OsdDetailHeader" xml:space="preserve"><value>OSD 详细程度</value></data>
+  <data name="Session_OsdTitle" xml:space="preserve"><value>性能与状态OSD</value></data>
+  <data name="Session_OsdToggleHeader" xml:space="preserve"><value>显示右下角可穿透悬浮OSD</value></data>
+  <data name="Session_OsdDetailHeader" xml:space="preserve"><value>OSD详细程度</value></data>
   <data name="Session_OsdCompact" xml:space="preserve"><value>简洁</value></data>
   <data name="Session_OsdStandard" xml:space="preserve"><value>标准</value></data>
   <data name="Session_OsdDetailed" xml:space="preserve"><value>详细</value></data>
@@ -391,21 +391,21 @@
   <data name="Session_CopyBtn" xml:space="preserve"><value>复制</value></data>
   <data name="Session_EndedByHost" xml:space="preserve"><value>被控端已主动断开连接</value></data>
   <data name="Session_EndedFmt" xml:space="preserve"><value>连接已断开: {0}</value></data>
-  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>已捕获光标至被控端虚拟鼠标 - 按 Ctrl+Alt+Shift+M 退出锁定</value></data>
+  <data name="Session_ToastCursorCaptured" xml:space="preserve"><value>已捕获光标至被控端虚拟鼠标 - 按Ctrl+Alt+Shift+M退出锁定</value></data>
   <data name="Session_ToastDriverInstallSent" xml:space="preserve"><value>已向被控端发起虚拟驱动安装请求...</value></data>
   <data name="Session_ToastDriverUninstallSent" xml:space="preserve"><value>已向被控端发起虚拟驱动卸载请求...</value></data>
   <data name="Session_ToastDebugCopied" xml:space="preserve"><value>已复制连接调试信息</value></data>
-  <data name="Session_NoticeSasSent" xml:space="preserve"><value>已向被控端发送 Ctrl + Alt + Del</value></data>
-  <data name="Session_NoticeSasNeedsAdmin" xml:space="preserve"><value>Ctrl+Alt+Del 需要被控端管理员或服务权限</value></data>
+  <data name="Session_NoticeSasSent" xml:space="preserve"><value>已向被控端发送Ctrl + Alt + Del</value></data>
+  <data name="Session_NoticeSasNeedsAdmin" xml:space="preserve"><value>Ctrl+Alt+Del需要被控端管理员或服务权限</value></data>
   <data name="Session_NoticeTaskMgrOpened" xml:space="preserve"><value>已在被控端打开任务管理器</value></data>
   <data name="Session_NoticeDriverInstalled" xml:space="preserve"><value>已在被控端成功安装虚拟外设驱动</value></data>
-  <data name="Session_NoticeDriverInstallFailed" xml:space="preserve"><value>被控端虚拟外设驱动安装失败或未通过 UAC 授权</value></data>
+  <data name="Session_NoticeDriverInstallFailed" xml:space="preserve"><value>被控端虚拟外设驱动安装失败或未通过UAC授权</value></data>
   <data name="Session_NoticeDriverUninstalled" xml:space="preserve"><value>已在被控端成功卸载虚拟外设驱动</value></data>
   <data name="Session_NoticeDriverUninstallFailed" xml:space="preserve"><value>被控端虚拟外设驱动卸载失败</value></data>
   <data name="Session_NoticeDriverMgmtDisabled" xml:space="preserve"><value>被控端未开启允许远程安装/卸载虚拟驱动权限</value></data>
   <data name="Session_NoticeDriverMgmtDenied" xml:space="preserve"><value>被控端用户拒绝了本次远程驱动操作请求</value></data>
   <data name="Session_RouteLan" xml:space="preserve"><value>局域网直连</value></data>
-  <data name="Session_RouteIpv6" xml:space="preserve"><value>IPv6 公网直连</value></data>
+  <data name="Session_RouteIpv6" xml:space="preserve"><value>IPv6公网直连</value></data>
   <data name="Session_RouteDirect" xml:space="preserve"><value>直接连接</value></data>
   <data name="Session_OsdConnTypeFmt" xml:space="preserve"><value>连接类型: {0}</value></data>
   <data name="Session_OsdLatencyFmt" xml:space="preserve"><value>网络延迟: {0} ms</value></data>
@@ -414,8 +414,8 @@
   <data name="Session_OsdFpsFmt" xml:space="preserve"><value>帧率: {0} FPS</value></data>
   <data name="Session_OsdBitrateFmt" xml:space="preserve"><value>传输速率: {0} Mbps</value></data>
   <data name="Session_OsdDurationFmt" xml:space="preserve"><value>连接时长: {0}</value></data>
-  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>丢包率: {0}% - 丢帧 {1}</value></data>
-  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>丢包率: {0}% - {1}/{2} - 丢帧 {3}</value></data>
+  <data name="Session_OsdPacketLossSimpleFmt" xml:space="preserve"><value>丢包率: {0}% - 丢帧{1}</value></data>
+  <data name="Session_OsdPacketLossDetailedFmt" xml:space="preserve"><value>丢包率: {0}% - {1}/{2} - 丢帧{3}</value></data>
   <data name="Session_OsdDecodeFmt" xml:space="preserve"><value>解码延迟: {0} ms</value></data>
   <data name="Session_OsdCodecFmt" xml:space="preserve"><value>编解码: {0} / {1} - {2} {3}</value></data>
   <data name="Session_OsdMouseVirtual" xml:space="preserve"><value>被控端虚拟鼠标</value></data>
@@ -429,30 +429,30 @@
   <data name="Session_DbgLineLocalFmt" xml:space="preserve"><value>本机节点      : {0}</value></data>
   <data name="Session_DbgLinePeerFmt" xml:space="preserve"><value>对端节点      : {0}</value></data>
   <data name="Session_DbgLineSigHostFmt" xml:space="preserve"><value>信令服务器    : {0} - {1}</value></data>
-  <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>信令 URI      : {0}</value></data>
+  <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>信令URI      : {0}</value></data>
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>被控端分辨率  : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>当前传输分辨率: {0} × {1}</value></data>
-  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>帧数 / 延迟   : {0} FPS - 网络 RTT {1} ms - 解码 {2} ms</value></data>
+  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>帧数 / 延迟   : {0} FPS - 网络RTT {1} ms - 解码{2} ms</value></data>
   <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>传输速率      : {0} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>连接时长      : {0}</value></data>
-  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>丢包 / 丢帧   : {0}% - 丢 {1} / 收 {2} - 丢帧 {3}</value></data>
+  <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>丢包 / 丢帧   : {0}% - 丢{1} / 收{2} - 丢帧{3}</value></data>
   <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>编码 / 解码器 : {0} - {1} - {2} - {3}</value></data>
-  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>鼠标 / 外设   : 模式 {0} - 锁定={1} - 虚拟扬声器={2} - 虚拟麦={3}</value></data>
+  <data name="Session_DbgLinePeripheralFmt" xml:space="preserve"><value>鼠标 / 外设   : 模式{0} - 锁定={1} - 虚拟扬声器={2} - 虚拟麦={3}</value></data>
   <data name="Nav_Account" xml:space="preserve"><value>账户管理</value></data>
-  <data name="Session_WhoControllingWhomFmt" xml:space="preserve"><value>{0} 正在远控 {1}</value></data>
-  <data name="Conn_AccountRequired" xml:space="preserve"><value>仅已登录且状态正常的账户可发起远程控制，被控无需登录</value></data>
+  <data name="Session_WhoControllingWhomFmt" xml:space="preserve"><value>{0}正在远控{1}</value></data>
+  <data name="Conn_AccountRequired" xml:space="preserve"><value>请先登录账号后再发起远程控制（被控端无需登录）</value></data>
   <data name="Conn_BlacklistedByHost" xml:space="preserve"><value>被控端账户已将您拉黑，无法发起远程控制</value></data>
-  <data name="Conn_CaptchaRequired" xml:space="preserve"><value>当日远控次数已达安全验证阈值，请先完成人机验证</value></data>
-  <data name="Conn_CaptchaCancelled" xml:space="preserve"><value>已取消安全人机验证</value></data>
+  <data name="Conn_CaptchaRequired" xml:space="preserve"><value>为保障连接安全，请先完成安全验证</value></data>
+  <data name="Conn_CaptchaCancelled" xml:space="preserve"><value>已取消安全验证</value></data>
   <data name="Peer_ConnectAction" xml:space="preserve"><value>远程控制</value></data>
   <data name="Peer_ViewOnlyAction" xml:space="preserve"><value>仅观看</value></data>
   <data name="Peer_CopyIdAction" xml:space="preserve"><value>复制识别码</value></data>
   <data name="Peer_BlacklistControllerBtn" xml:space="preserve"><value>拉黑控制方</value></data>
   <data name="Peer_MetaOs" xml:space="preserve"><value>操作系统</value></data>
-  <data name="Peer_MetaIp" xml:space="preserve"><value>最近登录 IP</value></data>
+  <data name="Peer_MetaIp" xml:space="preserve"><value>最近登录IP</value></data>
   <data name="Peer_MetaLastActive" xml:space="preserve"><value>最近活跃时间</value></data>
-  <data name="Acc_CaptchaWindowTitle" xml:space="preserve"><value>Osmium 安全人机验证</value></data>
-  <data name="Acc_CaptchaHint" xml:space="preserve"><value>请完成下方 GeeTest 安全验证，完成后将自动继续</value></data>
+  <data name="Acc_CaptchaWindowTitle" xml:space="preserve"><value>安全验证</value></data>
+  <data name="Acc_CaptchaHint" xml:space="preserve"><value>请完成下方验证以继续</value></data>
   <data name="Acc_CaptchaOpenBrowser" xml:space="preserve"><value>在浏览器打开</value></data>
   <data name="Acc_CaptchaLoadError" xml:space="preserve"><value>内嵌验证视图加载失败，请点击在浏览器打开完成验证</value></data>
   <data name="Acc_CaptchaSubmitting" xml:space="preserve"><value>已收到验证结果，正在提交校验...</value></data>
@@ -470,11 +470,11 @@
   <data name="Acc_UsernamePlaceholder" xml:space="preserve"><value>自动生成或手动输入名称</value></data>
   <data name="Acc_RandomNameBtn" xml:space="preserve"><value>随机生成</value></data>
   <data name="Acc_RowPassword" xml:space="preserve"><value>账户密码</value></data>
-  <data name="Acc_PasswordPlaceholder" xml:space="preserve"><value>请输入至少 8 位密码</value></data>
+  <data name="Acc_PasswordPlaceholder" xml:space="preserve"><value>请输入至少8位密码</value></data>
   <data name="Acc_RowConfirmPassword" xml:space="preserve"><value>确认密码</value></data>
   <data name="Acc_ConfirmPasswordPlaceholder" xml:space="preserve"><value>请再次输入密码</value></data>
   <data name="Acc_RowOtp" xml:space="preserve"><value>邮箱验证码</value></data>
-  <data name="Acc_OtpPlaceholder" xml:space="preserve"><value>6 位数字验证码</value></data>
+  <data name="Acc_OtpPlaceholder" xml:space="preserve"><value>6位数字验证码</value></data>
   <data name="Acc_SendOtpBtn" xml:space="preserve"><value>获取验证码</value></data>
   <data name="Acc_RowSubmitAction" xml:space="preserve"><value>执行认证</value></data>
   <data name="Acc_SubmitLogin" xml:space="preserve"><value>立即登录</value></data>
@@ -482,7 +482,7 @@
   <data name="Acc_SubmitReset" xml:space="preserve"><value>确认重置密码</value></data>
   <data name="Acc_TabProfile" xml:space="preserve"><value>个人资料与安全</value></data>
   <data name="Acc_TabDevices" xml:space="preserve"><value>已登录设备</value></data>
-  <data name="Acc_TabHistory" xml:space="preserve"><value>近 30 天登录记录</value></data>
+  <data name="Acc_TabHistory" xml:space="preserve"><value>近30天登录记录</value></data>
   <data name="Acc_RowAvatar" xml:space="preserve"><value>用户头像</value></data>
   <data name="Acc_ChangeAvatarBtn" xml:space="preserve"><value>更换头像</value></data>
   <data name="Acc_SaveBtn" xml:space="preserve"><value>保存</value></data>
@@ -496,22 +496,22 @@
   <data name="Acc_ManageBlacklistBtn" xml:space="preserve"><value>管理黑名单</value></data>
   <data name="Acc_BlacklistEmpty" xml:space="preserve"><value>当前黑名单为空</value></data>
   <data name="Acc_UnblockBtn" xml:space="preserve"><value>移出黑名单</value></data>
-  <data name="Acc_RowSessionActions" xml:space="preserve"><value>会话与账户销毁</value></data>
+  <data name="Acc_RowSessionActions" xml:space="preserve"><value>登录与账号</value></data>
   <data name="Acc_LogoutBtn" xml:space="preserve"><value>退出登录</value></data>
-  <data name="Acc_LogoutRevokeAllCheck" xml:space="preserve"><value>同时吊销所有已登录设备的长期凭证</value></data>
-  <data name="Acc_DeleteAccountBtn" xml:space="preserve"><value>注销并销毁账户</value></data>
-  <data name="Acc_RemoveDeviceBtn" xml:space="preserve"><value>下线移除</value></data>
-  <data name="Acc_HistoryEmpty" xml:space="preserve"><value>最近 30 天内暂无登录记录</value></data>
-  <data name="Acc_OtpSentFmt" xml:space="preserve"><value>验证码已发送至 {0}，10 分钟内有效</value></data>
+  <data name="Acc_LogoutRevokeAllCheck" xml:space="preserve"><value>同时退出所有已登录设备</value></data>
+  <data name="Acc_DeleteAccountBtn" xml:space="preserve"><value>注销账户</value></data>
+  <data name="Acc_RemoveDeviceBtn" xml:space="preserve"><value>移除设备</value></data>
+  <data name="Acc_HistoryEmpty" xml:space="preserve"><value>最近30天内暂无登录记录</value></data>
+  <data name="Acc_OtpSentFmt" xml:space="preserve"><value>验证码已发送至{0}，10分钟内有效</value></data>
   <data name="Acc_MsgLoginSuccess" xml:space="preserve"><value>账户登录成功</value></data>
   <data name="Acc_MsgRegisterSuccess" xml:space="preserve"><value>账户注册并登录成功</value></data>
   <data name="Acc_MsgResetSuccess" xml:space="preserve"><value>密码重置成功，请使用新密码登录</value></data>
   <data name="Acc_MsgProfileUpdated" xml:space="preserve"><value>个人资料已更新</value></data>
   <data name="Acc_MsgEmailUpdated" xml:space="preserve"><value>绑定邮箱已成功更换</value></data>
   <data name="Acc_ErrInvalidEmail" xml:space="preserve"><value>请输入有效的电子邮箱地址</value></data>
-  <data name="Acc_ErrPasswordLength" xml:space="preserve"><value>密码长度需在 8 至 128 位之间</value></data>
+  <data name="Acc_ErrPasswordLength" xml:space="preserve"><value>密码长度需在8至128位之间</value></data>
   <data name="Acc_ErrPasswordMismatch" xml:space="preserve"><value>两次输入的密码不一致</value></data>
-  <data name="Acc_ErrEnterOtpFirst" xml:space="preserve"><value>请先输入 6 位邮箱验证码</value></data>
+  <data name="Acc_ErrEnterOtpFirst" xml:space="preserve"><value>请先输入6位邮箱验证码</value></data>
   <data name="Acc_ErrLocked" xml:space="preserve"><value>该账户当前处于安全锁定状态，请先解锁</value></data>
   <data name="Acc_ErrInvalidCredentials" xml:space="preserve"><value>邮箱或密码错误</value></data>
   <data name="Acc_ErrEmailRegistered" xml:space="preserve"><value>该电子邮箱已被注册</value></data>
@@ -520,16 +520,16 @@
   <data name="Acc_ErrOtpInvalid" xml:space="preserve"><value>邮箱验证码不正确</value></data>
   <data name="Acc_ErrOtpAttempts" xml:space="preserve"><value>验证码错误次数过多，请重新获取验证码</value></data>
   <data name="Acc_ErrOtpCooldown" xml:space="preserve"><value>验证码发送过于频繁，请稍后再试</value></data>
-  <data name="Acc_ErrCaptchaFailed" xml:space="preserve"><value>安全人机验证未通过或已过期，请重试</value></data>
-  <data name="Acc_ErrGeetestNotConfigured" xml:space="preserve"><value>服务端尚未配置 GeeTest 极验环境变量</value></data>
-  <data name="Acc_ErrSmtpNotConfigured" xml:space="preserve"><value>服务端尚未配置 SMTP 邮件服务器环境变量</value></data>
-  <data name="Acc_ErrDeviceLimit" xml:space="preserve"><value>单个账户最多同时登录 1000 台设备，请先移除不常用设备</value></data>
+  <data name="Acc_ErrCaptchaFailed" xml:space="preserve"><value>安全验证未通过或已过期，请重试</value></data>
+  <data name="Acc_ErrGeetestNotConfigured" xml:space="preserve"><value>安全验证服务暂不可用，请稍后再试</value></data>
+  <data name="Acc_ErrSmtpNotConfigured" xml:space="preserve"><value>邮件发送服务暂不可用，请稍后再试</value></data>
+  <data name="Acc_ErrDeviceLimit" xml:space="preserve"><value>单个账户最多同时登录1000台设备，请先移除不常用设备</value></data>
   <data name="Acc_ErrInvalidAvatar" xml:space="preserve"><value>头像图片无效或超出大小限制</value></data>
   <data name="Acc_ErrInvalidUsername" xml:space="preserve"><value>请输入有效的用户名称</value></data>
   <data name="Acc_ErrAuthRequired" xml:space="preserve"><value>登录状态已失效，请重新登录</value></data>
   <data name="Acc_ErrRateLimited" xml:space="preserve"><value>请求过于频繁，请稍后再试</value></data>
   <data name="Acc_ErrGeneric" xml:space="preserve"><value>请求处理失败，请稍后重试</value></data>
-  <data name="Acc_StepProgressFmt" xml:space="preserve"><value>步骤 {0} / {1}</value></data>
+  <data name="Acc_StepProgressFmt" xml:space="preserve"><value>步骤{0} / {1}</value></data>
   <data name="Acc_StepAccount" xml:space="preserve"><value>账户邮箱</value></data>
   <data name="Acc_StepVerify" xml:space="preserve"><value>邮箱验证</value></data>
   <data name="Acc_StepPassword" xml:space="preserve"><value>验证密码</value></data>
@@ -556,34 +556,34 @@
   <data name="Set_ShowSidebarDevicesDesc" xml:space="preserve"><value>开启后可在左侧导航栏快速访问已登录同一账户的其他设备</value></data>
   <data name="Set_DevicesSectionTitle" xml:space="preserve"><value>同账户已登录设备</value></data>
   <data name="Set_DevicesLoginPromptTitle" xml:space="preserve"><value>尚未登录账户</value></data>
-  <data name="Set_DevicesLoginPromptDesc" xml:space="preserve"><value>登录 Osmium 账户后，可在此管理侧边栏设备显示与远程退出设备</value></data>
+  <data name="Set_DevicesLoginPromptDesc" xml:space="preserve"><value>登录Osmium账户后，可在此管理侧边栏设备显示与远程退出设备</value></data>
   <data name="Set_DevicesEmpty" xml:space="preserve"><value>当前账户暂无已登录设备记录</value></data>
   <data name="Set_DeviceThisTag" xml:space="preserve"><value>本机</value></data>
   <data name="Set_DeviceSidebarToggleLabel" xml:space="preserve"><value>侧边栏显示</value></data>
   <data name="Set_DeviceSignOutBtn" xml:space="preserve"><value>退出设备</value></data>
   <data name="Set_DeviceSignOutTitle" xml:space="preserve"><value>确认退出该设备</value></data>
-  <data name="Set_DeviceSignOutBodyFmt" xml:space="preserve"><value>确定要将设备 {0} 从当前账户中退出登录吗？退出后该设备需重新登录方可访问账户功能。</value></data>
-  <data name="Set_DeviceSignOutSelfBodyFmt" xml:space="preserve"><value>确定要退出当前设备 {0} 的登录状态吗？</value></data>
+  <data name="Set_DeviceSignOutBodyFmt" xml:space="preserve"><value>确定要将设备{0}从当前账户中退出登录吗？退出后该设备需重新登录方可访问账户功能。</value></data>
+  <data name="Set_DeviceSignOutSelfBodyFmt" xml:space="preserve"><value>确定要退出当前设备{0}的登录状态吗？</value></data>
   <data name="Set_DeviceSignOutSuccess" xml:space="preserve"><value>已成功退出该设备</value></data>
   <data name="Acc_WizardHaveOtpBtn" xml:space="preserve"><value>已有验证码？直接输入</value></data>
   <data name="Acc_OtpSendCooldownFmt" xml:space="preserve"><value>发送验证码 - {0}s</value></data>
   <data name="Acc_OtpResendCooldownFmt" xml:space="preserve"><value>重新发送 - {0}s</value></data>
-  <data name="Acc_ModeLoginDesc" xml:space="preserve"><value>使用已有邮箱和密码登录 Osmium 账户</value></data>
-  <data name="Acc_ModeRegisterDesc" xml:space="preserve"><value>通过邮箱验证创建新的 Osmium 账户</value></data>
+  <data name="Acc_ModeLoginDesc" xml:space="preserve"><value>使用已有邮箱和密码登录Osmium账户</value></data>
+  <data name="Acc_ModeRegisterDesc" xml:space="preserve"><value>通过邮箱验证创建新的Osmium账户</value></data>
   <data name="Acc_ModeResetDesc" xml:space="preserve"><value>通过邮箱验证码重设您的账户登录密码</value></data>
   <data name="Set_DeviceRenameBtn" xml:space="preserve"><value>重命名</value></data>
   <data name="Set_DeviceRenameTitle" xml:space="preserve"><value>重命名设备</value></data>
   <data name="Set_DeviceRenameHeader" xml:space="preserve"><value>自定义设备名称</value></data>
-  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>原始设备名 - {0} - 最多 24 个字符</value></data>
+  <data name="Set_DeviceRenameHintFmt" xml:space="preserve"><value>原始设备名 - {0} - 最多24个字符</value></data>
   <data name="Set_DeviceClearRenameBtn" xml:space="preserve"><value>清除重命名</value></data>
   <data name="Set_DeviceRenameSuccess" xml:space="preserve"><value>设备名称已更新</value></data>
   <data name="Set_DeviceRenameCleared" xml:space="preserve"><value>已恢复设备默认名称</value></data>
   <data name="Host_AlertConnectedTitle" xml:space="preserve"><value>远程控制已连接</value></data>
-  <data name="Host_AlertConnectedBodyFmt" xml:space="preserve"><value>{0} 正在远程控制本计算机</value></data>
+  <data name="Host_AlertConnectedBodyFmt" xml:space="preserve"><value>{0}正在远程控制本计算机</value></data>
   <data name="Session_ClipboardTransferTitle" xml:space="preserve"><value>剪切板与文件传输</value></data>
-  <data name="Session_SharedClipboardHeader" xml:space="preserve"><value>共享剪切板（主控端 → 被控端）</value></data>
-  <data name="Session_FileTransferHeader" xml:space="preserve"><value>文件传输（双向复制粘贴）</value></data>
-  <data name="Session_ToastSharedClipboardOn" xml:space="preserve"><value>已开启共享剪切板（主控端 → 被控端）</value></data>
+  <data name="Session_SharedClipboardHeader" xml:space="preserve"><value>共享剪切板</value></data>
+  <data name="Session_FileTransferHeader" xml:space="preserve"><value>文件双向复制粘贴</value></data>
+  <data name="Session_ToastSharedClipboardOn" xml:space="preserve"><value>已开启共享剪切板</value></data>
   <data name="Session_ToastSharedClipboardOff" xml:space="preserve"><value>已关闭共享剪切板</value></data>
   <data name="Session_ToastFileTransferOn" xml:space="preserve"><value>已开启文件传输，可直接复制粘贴文件</value></data>
   <data name="Session_ToastFileTransferOff" xml:space="preserve"><value>已关闭文件传输</value></data>
@@ -591,8 +591,8 @@
   <data name="Session_ToastClipboardTooLargeFmt" xml:space="preserve"><value>剪切板内容超出单次同步上限（{0} MB）</value></data>
   <data name="Session_FileSendingFmt" xml:space="preserve"><value>正在发送到被控端：{0}（{1}%）</value></data>
   <data name="Session_FileReceivingFmt" xml:space="preserve"><value>正在从被控端接收：{0}（{1}%）</value></data>
-  <data name="Session_FileSentReadyFmt" xml:space="preserve"><value>已发送 {0} 个项目到被控端，可直接 Ctrl+V 粘贴</value></data>
-  <data name="Session_FileReceivedReadyFmt" xml:space="preserve"><value>已从被控端接收 {0} 个项目，可在本地 Ctrl+V 粘贴</value></data>
+  <data name="Session_FileSentReadyFmt" xml:space="preserve"><value>已发送{0}个项目到被控端，可直接Ctrl+V粘贴</value></data>
+  <data name="Session_FileReceivedReadyFmt" xml:space="preserve"><value>已从被控端接收{0}个项目，可在本地Ctrl+V粘贴</value></data>
   <data name="Session_ToastFileTooLargeFmt" xml:space="preserve"><value>文件总大小超出单次传输上限（{0} MB）</value></data>
   <data name="Session_ToastFileDirectionBlocked" xml:space="preserve"><value>当前文件传输方向设置不允许该方向传输</value></data>
   <data name="Session_ToastFileTransferFailed" xml:space="preserve"><value>文件传输失败，请重新复制再试</value></data>
@@ -612,19 +612,19 @@
   <data name="Set_FileTransferClearCache" xml:space="preserve"><value>清理文件传输临时缓存</value></data>
   <data name="Set_FileTransferClearCacheDesc" xml:space="preserve"><value>清理复制粘贴文件时在临时目录中缓存的历史中转文件</value></data>
   <data name="Set_ClearCacheBtn" xml:space="preserve"><value>立即清理</value></data>
-  <data name="Set_FileTransferCacheClearedFmt" xml:space="preserve"><value>已清理文件传输临时缓存，释放 {0} MB</value></data>
+  <data name="Set_FileTransferCacheClearedFmt" xml:space="preserve"><value>已清理文件传输临时缓存，释放{0} MB</value></data>
   <data name="Set_FileTransferCacheEmpty" xml:space="preserve"><value>当前没有需要清理的文件传输缓存</value></data>
   <data name="Host_RowAllowFileTransfer" xml:space="preserve"><value>允许主控端使用文件传输</value></data>
   <data name="Host_RowAllowFileTransferDesc" xml:space="preserve"><value>允许远控连接期间在主控端与本机之间通过复制粘贴传输文件</value></data>
   <data name="Host_SecAlerts" xml:space="preserve"><value>被控端连接提醒</value></data>
-  <data name="Host_RowNotifyOnConnect" xml:space="preserve"><value>被远控连接时发送 Windows 系统通知</value></data>
-  <data name="Host_RowNotifyOnConnectDesc" xml:space="preserve"><value>当有远程设备连接控制本机时，在屏幕右下角弹出 Windows 默认通知提醒</value></data>
+  <data name="Host_RowNotifyOnConnect" xml:space="preserve"><value>被远控连接时发送Windows系统通知</value></data>
+  <data name="Host_RowNotifyOnConnectDesc" xml:space="preserve"><value>当有远程设备连接控制本机时，在屏幕右下角弹出Windows默认通知提醒</value></data>
   <data name="Host_RowFlashTaskbarOnConnect" xml:space="preserve"><value>被远控连接时任务栏标签标红提醒</value></data>
-  <data name="Host_RowFlashTaskbarOnConnectDesc" xml:space="preserve"><value>被控连接后任务栏上的 Osmium 窗口标签常亮红色，手动对焦窗口一次或断开后自动恢复常规</value></data>
+  <data name="Host_RowFlashTaskbarOnConnectDesc" xml:space="preserve"><value>被控连接后任务栏上的Osmium窗口标签常亮红色，手动对焦窗口一次或断开后自动恢复常规</value></data>
   <data name="Conn_BlockedWhileHost" xml:space="preserve"><value>当前本机正在被远程控制，无法同时远控其他设备</value></data>
   <data name="Session_RouteRelay" xml:space="preserve"><value>云端中继</value></data>
   <data name="Conn_SwitchingRelay" xml:space="preserve"><value>直连通道不可达，正在自动切换云端中继...</value></data>
-  <data name="Conn_PunchRetryingFmt" xml:space="preserve"><value>直连通道重试中（第 {0}/{1} 次）...</value></data>
+  <data name="Conn_PunchRetryingFmt" xml:space="preserve"><value>直连通道重试中（第{0}/{1}次）...</value></data>
   <data name="Conn_VerifyingRelay" xml:space="preserve"><value>云端中继通道已建立，正在校验访问凭证...</value></data>
   <data name="Session_ControlCenter" xml:space="preserve"><value>控制中心</value></data>
   <data name="Session_MenuDisplay" xml:space="preserve"><value>显示器</value></data>
@@ -638,12 +638,12 @@
   <data name="Session_MenuMore" xml:space="preserve"><value>更多</value></data>
   <data name="Session_ViewDebugInfo" xml:space="preserve"><value>查看诊断信息...</value></data>
   <data name="Session_CopyDebugInfo" xml:space="preserve"><value>复制诊断信息</value></data>
-  <data name="Session_SwitchedDisplayFmt" xml:space="preserve"><value>已切换至显示器 {0}</value></data>
+  <data name="Session_SwitchedDisplayFmt" xml:space="preserve"><value>已切换至显示器{0}</value></data>
   <data name="Session_PrimaryDisplayTag" xml:space="preserve"><value>主</value></data>
   <data name="Session_NoDisplays" xml:space="preserve"><value>未检测到显示器</value></data>
   <data name="Acc_ModeQrLogin" xml:space="preserve"><value>扫码登录</value></data>
-  <data name="Acc_ModeQrLoginDesc" xml:space="preserve"><value>使用手机端 Osmium 扫描二维码安全登录</value></data>
-  <data name="Acc_QrWaitingScan" xml:space="preserve"><value>请使用手机端 Osmium 扫码</value></data>
+  <data name="Acc_ModeQrLoginDesc" xml:space="preserve"><value>使用手机端Osmium扫描二维码安全登录</value></data>
+  <data name="Acc_QrWaitingScan" xml:space="preserve"><value>请使用手机端Osmium扫码</value></data>
   <data name="Acc_QrScanned" xml:space="preserve"><value>已扫码，请在手机端完成安全验证</value></data>
   <data name="Acc_QrAwaitingConfirm" xml:space="preserve"><value>请在手机端确认登录</value></data>
   <data name="Acc_QrExpired" xml:space="preserve"><value>二维码已失效</value></data>
@@ -655,4 +655,120 @@
   <data name="Acc_ErrQrCancelled" xml:space="preserve"><value>扫码登录已取消</value></data>
   <data name="Acc_HistoryQrTag" xml:space="preserve"><value>扫码</value></data>
   <data name="Acc_HistoryQrExtTag" xml:space="preserve"><value>外部扫码</value></data>
+  <data name="Host_RowAllowRemotePower" xml:space="preserve"><value>允许同账户设备远程开关机/重启</value></data>
+  <data name="Host_RowAllowRemotePowerDesc" xml:space="preserve"><value>仅允许登录同一账户的设备远程关机、重启或通过网卡唤醒开机，远程开机需在主板BIOS中开启Wake-on-LAN</value></data>
+  <data name="Host_ConfigureWolBtn" xml:space="preserve"><value>配置网卡唤醒</value></data>
+  <data name="Host_ConfigureWolTitle" xml:space="preserve"><value>配置Windows网卡唤醒</value></data>
+  <data name="Host_ConfigureWolConfirm" xml:space="preserve"><value>需要管理员权限开启网卡唤醒功能，并关闭可能影响远程开机的Windows快速启动。完成后请确认主板BIOS中已开启Wake-on-LAN。</value></data>
+  <data name="Host_ConfigureWolSuccess" xml:space="preserve"><value>Windows网卡唤醒配置已完成。请确认主板BIOS中已开启Wake-on-LAN / PCIe设备唤醒，即可通过同账户设备远程开机。</value></data>
+  <data name="Host_ConfigureWolFailed" xml:space="preserve"><value>未能完成自动配置，可能未授予管理员权限或网卡驱动不支持。您也可以在设备管理器中手动为网卡开启“魔术数据包唤醒”。</value></data>
+  <data name="Host_WolStatusReady" xml:space="preserve"><value>网卡唤醒已就绪</value></data>
+  <data name="Host_WolStatusNeedsConfig" xml:space="preserve"><value>网卡唤醒待配置</value></data>
+  <data name="Host_WolNoNicFound" xml:space="preserve"><value>未检测到可用物理网卡</value></data>
+  <data name="Power_DockLabel" xml:space="preserve"><value>远程电源</value></data>
+  <data name="Power_ActionWake" xml:space="preserve"><value>远程开机</value></data>
+  <data name="Power_ActionRestart" xml:space="preserve"><value>远程重启</value></data>
+  <data name="Power_ActionShutdown" xml:space="preserve"><value>远程关机</value></data>
+  <data name="Power_TargetNotEnabledHint" xml:space="preserve"><value>目标电脑未在设置中开启远程电源控制</value></data>
+  <data name="Power_TargetNoMacHint" xml:space="preserve"><value>目标电脑尚未上报可用网卡MAC地址</value></data>
+  <data name="Power_ConfirmRestartTitle" xml:space="preserve"><value>确认远程重启</value></data>
+  <data name="Power_ConfirmRestartBodyFmt" xml:space="preserve"><value>确定要远程重启{0}吗？目标电脑将在约3秒后强制重启，未保存的工作可能会丢失。</value></data>
+  <data name="Power_ConfirmShutdownTitle" xml:space="preserve"><value>确认远程关机</value></data>
+  <data name="Power_ConfirmShutdownBodyFmt" xml:space="preserve"><value>确定要远程关闭{0}吗？目标电脑将在约3秒后强制关机，未保存的工作可能会丢失。</value></data>
+  <data name="Power_WakeAlreadyOnlineFmt" xml:space="preserve"><value>{0}当前已处于在线状态，无需唤醒。</value></data>
+  <data name="Power_WakeSentWithRelayFmt" xml:space="preserve"><value>已向{0}发送远程开机信号（通过本机局域网及{1}台在线设备协助唤醒），请等待15-60秒。</value></data>
+  <data name="Power_WakeSentLanOnlyFmt" xml:space="preserve"><value>已通过本机局域网向{0}发送远程开机信号。若不在同一局域网，需目标局域网内有同账号在线电脑协助唤醒。</value></data>
+  <data name="Power_RestartSentFmt" xml:space="preserve"><value>已向{0}发送远程重启指令，目标电脑将在约{1}秒后重启。</value></data>
+  <data name="Power_ShutdownSentFmt" xml:space="preserve"><value>已向{0}发送远程关机指令，目标电脑将在约{1}秒后关机。</value></data>
+  <data name="Power_ErrDeviceOffline" xml:space="preserve"><value>目标电脑当前离线，无法执行关机或重启操作</value></data>
+  <data name="Power_ErrSelfTarget" xml:space="preserve"><value>无法对当前本机设备发起远程电源操作</value></data>
+  <data name="Power_ErrDisabled" xml:space="preserve"><value>目标电脑未开启远程开关机功能</value></data>
+  <data name="Power_ErrUnsupported" xml:space="preserve"><value>目标设备暂不支持远程开关机，或尚未获取到网卡MAC地址</value></data>
+  <data name="Power_ErrCooldown" xml:space="preserve"><value>电源操作过于频繁，请稍候几秒后再试</value></data>
+  <data name="Set_ServiceAutoStart" xml:space="preserve"><value>注册为系统服务进程</value></data>
+  <data name="Set_ServiceAutoStartDesc" xml:space="preserve"><value>作为Windows系统服务在开机时自动后台运行被控端，无需登录系统桌面即可远程连接、锁屏解锁或配合远程开机使用</value></data>
+  <data name="Set_ServiceAutoStartConfirmTitle" xml:space="preserve"><value>启用系统服务开机自启动</value></data>
+  <data name="Set_ServiceAutoStartConfirmBody" xml:space="preserve"><value>需要管理员权限将Osmium注册为Windows系统服务。开启后电脑开机停留在锁屏界面时即可自动上线并接收远程连接，登录桌面后会自动切换至桌面客户端。</value></data>
+  <data name="Set_ServiceAutoStartEnableBtn" xml:space="preserve"><value>注册并启用</value></data>
+  <data name="Set_ServiceAutoStartFailedTitle" xml:space="preserve"><value>系统服务自启动配置未完成</value></data>
+  <data name="Set_ServiceAutoStartFailedBody" xml:space="preserve"><value>未能完成系统服务注册或更新，请确认已授予管理员权限并重试。</value></data>
+  <data name="Host_RestoreWolBtn" xml:space="preserve"><value>卸载配置</value></data>
+  <data name="Host_RestoreWolTitle" xml:space="preserve"><value>卸载网卡唤醒配置</value></data>
+  <data name="Host_RestoreWolConfirm" xml:space="preserve"><value>需要管理员权限将网卡唤醒及Windows快速启动设置恢复至配置前的原始状态，并关闭远程开关机功能。</value></data>
+  <data name="Host_RestoreWolSuccess" xml:space="preserve"><value>已卸载远程开关机相关系统配置，网卡唤醒与Windows快速启动设置已恢复如初。</value></data>
+  <data name="Host_RestoreWolFailed" xml:space="preserve"><value>未能完成全部系统设置恢复（可能未授予管理员权限）。请重试以管理员身份执行恢复。</value></data>
+  <data name="Host_DisablePowerRestorePrompt" xml:space="preserve"><value>检测到本机曾配置过Windows网卡唤醒与快速启动设置，是否立即将其全部恢复至配置前原始状态？</value></data>
+  <data name="Host_DisablePowerKeepWolBtn" xml:space="preserve"><value>仅关闭开关</value></data>
+  <data name="Acc_WaitHoursMinsFmt" xml:space="preserve"><value>{0}小时{1}分钟</value></data>
+  <data name="Acc_WaitHoursFmt" xml:space="preserve"><value>{0}小时</value></data>
+  <data name="Acc_WaitMinsFmt" xml:space="preserve"><value>{0}分钟</value></data>
+  <data name="Acc_WaitSecsFmt" xml:space="preserve"><value>{0}秒</value></data>
+  <data name="Acc_ErrUsernameCooldown" xml:space="preserve"><value>名称每1小时最多修改一次，请稍后再试</value></data>
+  <data name="Acc_ErrUsernameCooldownFmt" xml:space="preserve"><value>名称每1小时最多修改一次，请在{0}后重试</value></data>
+  <data name="Acc_ErrAvatarCooldown" xml:space="preserve"><value>头像每1小时最多修改一次，请稍后再试</value></data>
+  <data name="Acc_ErrAvatarCooldownFmt" xml:space="preserve"><value>头像每1小时最多修改一次，请在{0}后重试</value></data>
+  <data name="Acc_ErrEmailCooldown" xml:space="preserve"><value>邮箱每24小时最多更换一次，请稍后再试</value></data>
+  <data name="Acc_ErrEmailCooldownFmt" xml:space="preserve"><value>邮箱每24小时最多更换一次，请在{0}后重试</value></data>
+  <data name="Acc_ErrPasswordResetCooldown" xml:space="preserve"><value>密码每24小时最多重置一次，请稍后再试</value></data>
+  <data name="Acc_ErrPasswordResetCooldownFmt" xml:space="preserve"><value>密码每24小时最多重置一次，请在{0}后重试</value></data>
+  <data name="Acc_OAuthSectionTitle" xml:space="preserve"><value>其他登录方式</value></data>
+  <data name="Acc_OAuthGoogleBtn" xml:space="preserve"><value>Google</value></data>
+  <data name="Acc_OAuthQqBtn" xml:space="preserve"><value>QQ</value></data>
+  <data name="Acc_OAuthWechatBtn" xml:space="preserve"><value>微信</value></data>
+  <data name="Acc_OAuthDialogTitleFmt" xml:space="preserve"><value>使用{0}登录</value></data>
+  <data name="Acc_OAuthWaitingDescFmt" xml:space="preserve"><value>请在打开的浏览器中完成{0}登录授权</value></data>
+  <data name="Acc_OAuthBrowserTip" xml:space="preserve"><value>授权完成后将自动登录，请保持此窗口打开</value></data>
+  <data name="Acc_OAuthReopenBrowserBtn" xml:space="preserve"><value>重新打开浏览器</value></data>
+  <data name="Acc_OAuthCancelled" xml:space="preserve"><value>已取消登录</value></data>
+  <data name="Acc_OAuthNeedEmailPwdToast" xml:space="preserve"><value>登录成功，请绑定邮箱并设置登录密码以完善账号安全信息</value></data>
+  <data name="Acc_OAuthNeedPwdToast" xml:space="preserve"><value>登录成功，请设置登录密码以完善账号安全信息</value></data>
+  <data name="Acc_EmailUnbound" xml:space="preserve"><value>未绑定邮箱</value></data>
+  <data name="Acc_AddEmailBtn" xml:space="preserve"><value>绑定邮箱</value></data>
+  <data name="Acc_BindEmailHeader" xml:space="preserve"><value>邮箱地址</value></data>
+  <data name="Acc_MsgEmailAddedNeedPwd" xml:space="preserve"><value>邮箱绑定成功，请继续设置登录密码</value></data>
+  <data name="Acc_ProfileIncompleteTitle" xml:space="preserve"><value>请完善账号安全信息</value></data>
+  <data name="Acc_ProfileIncompleteNoEmailDesc" xml:space="preserve"><value>为了保障账号安全，请先绑定邮箱并设置登录密码。完成后即可使用远程开关机及修改个人资料。</value></data>
+  <data name="Acc_ProfileIncompleteNoPasswordDesc" xml:space="preserve"><value>为了保障账号安全，请先设置登录密码。设置完成后即可使用远程开关机及修改个人资料。</value></data>
+  <data name="Acc_RowSetPassword" xml:space="preserve"><value>登录密码</value></data>
+  <data name="Acc_SetPasswordBtn" xml:space="preserve"><value>设置密码</value></data>
+  <data name="Acc_SetPasswordNeedEmailDesc" xml:space="preserve"><value>请先绑定邮箱以接收验证码</value></data>
+  <data name="Acc_SetPasswordReadyDesc" xml:space="preserve"><value>设置账号登录密码以保障账号与设备安全</value></data>
+  <data name="Acc_SetPasswordStep0Hint" xml:space="preserve"><value>将向您的绑定邮箱发送6位验证码，验证通过后即可设置登录密码。</value></data>
+  <data name="Acc_MsgPasswordSetSuccess" xml:space="preserve"><value>登录密码已设置，账号安全信息已完善</value></data>
+  <data name="Acc_ErrProfileIncomplete" xml:space="preserve"><value>请先绑定邮箱并设置登录密码后再进行此操作</value></data>
+  <data name="Acc_ErrEmailRequired" xml:space="preserve"><value>请先绑定邮箱</value></data>
+  <data name="Acc_ErrPasswordAlreadySet" xml:space="preserve"><value>当前账号已设置登录密码</value></data>
+  <data name="Acc_ErrOAuthInvalidProvider" xml:space="preserve"><value>不支持该登录方式</value></data>
+  <data name="Acc_ErrOAuthExpired" xml:space="preserve"><value>登录授权已超时，请重试</value></data>
+  <data name="Acc_ErrOAuthFailed" xml:space="preserve"><value>登录授权未完成，请重试</value></data>
+  <data name="Acc_ErrOAuthNotConfigured" xml:space="preserve"><value>暂不支持该登录方式，请稍后再试或使用邮箱登录</value></data>
+  <data name="Power_ProfileIncompleteHint" xml:space="preserve"><value>需先绑定邮箱并设置登录密码</value></data>
+  <data name="Acc_AuthServiceUnavailableTitle" xml:space="preserve"><value>无法连接账号服务</value></data>
+  <data name="Acc_AuthServiceUnavailableDesc" xml:space="preserve"><value>当前无法连接到服务器，暂不支持登录，请检查网络后重试。</value></data>
+  <data name="Acc_RetryBtn" xml:space="preserve"><value>重试</value></data>
+  <data name="Acc_OAuthBindingsHeader" xml:space="preserve"><value>第三方平台绑定</value></data>
+  <data name="Acc_OAuthBindingsLoading" xml:space="preserve"><value>正在获取第三方平台绑定状态…</value></data>
+  <data name="Acc_OAuthBindingsLoadFailed" xml:space="preserve"><value>暂未能获取第三方平台绑定状态，请稍后重试</value></data>
+  <data name="Acc_OAuthBoundStatus" xml:space="preserve"><value>已绑定</value></data>
+  <data name="Acc_OAuthUnboundStatus" xml:space="preserve"><value>未绑定</value></data>
+  <data name="Acc_OAuthBindBtn" xml:space="preserve"><value>绑定</value></data>
+  <data name="Acc_OAuthUnbindBtn" xml:space="preserve"><value>解绑</value></data>
+  <data name="Acc_OAuthBindDialogTitleFmt" xml:space="preserve"><value>绑定{0}账号</value></data>
+  <data name="Acc_OAuthBindWaitingDescFmt" xml:space="preserve"><value>请在打开的浏览器中完成{0}账号授权</value></data>
+  <data name="Acc_OAuthBindBrowserTip" xml:space="preserve"><value>授权完成后将自动绑定，请保持此窗口打开</value></data>
+  <data name="Acc_OAuthBindCancelled" xml:space="preserve"><value>已取消绑定</value></data>
+  <data name="Acc_MsgOAuthBoundFmt" xml:space="preserve"><value>已绑定{0}账号，之后可直接使用{0}登录</value></data>
+  <data name="Acc_OAuthUnbindConfirmTitle" xml:space="preserve"><value>解除账号绑定</value></data>
+  <data name="Acc_OAuthUnbindConfirmBodyFmt" xml:space="preserve"><value>确定要解除{0}账号的绑定吗？解除后将无法通过{0}登录当前账号。</value></data>
+  <data name="Acc_MsgOAuthUnboundFmt" xml:space="preserve"><value>已解除{0}账号绑定</value></data>
+  <data name="Acc_ErrOAuthAlreadyBound" xml:space="preserve"><value>该账号已绑定其他Osmium账号</value></data>
+  <data name="Acc_ErrOAuthProviderAlreadyBound" xml:space="preserve"><value>当前账号已绑定该平台</value></data>
+  <data name="Tab_RemotePower" xml:space="preserve"><value>远程开关机</value></data>
+  <data name="Power_SecLocalTitle" xml:space="preserve"><value>本机远程开关机</value></data>
+  <data name="Power_SecEnvTitle" xml:space="preserve"><value>网卡与唤醒环境</value></data>
+  <data name="Power_ProfileWarningDesc" xml:space="preserve"><value>为了保障设备安全，请先绑定邮箱并设置登录密码，完成后即可开启本机远程开关机功能。</value></data>
+  <data name="Power_RowWolConfigTitle" xml:space="preserve"><value>Windows网卡唤醒配置</value></data>
+  <data name="Power_RowNicInfoTitle" xml:space="preserve"><value>已识别物理网卡</value></data>
+  <data name="Power_RowBiosTipTitle" xml:space="preserve"><value>远程开机使用说明</value></data>
+  <data name="Power_RowBiosTipDesc" xml:space="preserve"><value>远程开机需在主板BIOS中开启Wake-on-LAN或PCIe设备唤醒；跨网络唤醒时，目标局域网内需有同账户在线设备协助唤醒。建议在常规中开启系统服务进程开机自启动，以便开机后无需登录桌面即可连接。</value></data>
 </root>

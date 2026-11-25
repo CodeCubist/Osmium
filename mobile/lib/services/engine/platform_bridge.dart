@@ -96,6 +96,18 @@ class PlatformBridge {
     }
   }
 
+  Future<bool> openExternalUrl(String url) async {
+    if (!Platform.isAndroid || url.trim().isEmpty) return false;
+    try {
+      return await _methodChannel.invokeMethod<bool>('openExternalUrl', {
+            'url': url.trim(),
+          }) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Stream<NativeInputEvent> get events {
     if (!Platform.isAndroid) {
       return const Stream.empty();

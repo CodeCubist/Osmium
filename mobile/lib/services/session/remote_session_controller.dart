@@ -135,7 +135,7 @@ String formatConnectReject(ConnectRejectEvent rej) {
       return _captchaRequiredText;
     case OsmiumErrorCode.connectCooldown:
       final waitSeconds = max(1, (max(1000, rej.cooldownMs) / 1000).ceil());
-      return '操作过于频繁，请等待 $waitSeconds 秒后再试';
+      return '操作过于频繁，请等待$waitSeconds秒后再试';
     case OsmiumErrorCode.deviceOffline:
       return '目标设备当前不在线';
     case OsmiumErrorCode.remoteDisabled:
@@ -367,7 +367,7 @@ class RemoteSessionController extends ChangeNotifier {
     bool aborted() => _isStale(epoch);
 
     if (!engine.isAvailable) {
-      _fail('原生引擎库加载失败，仅支持 Android 设备运行');
+      _fail('原生引擎库加载失败，仅支持Android设备运行');
       return;
     }
 
@@ -648,7 +648,7 @@ class RemoteSessionController extends ChangeNotifier {
           SessionPhase.negotiatingTransport,
           attempt == 1
               ? '正在建立网络直连'
-              : '直连通道重试中（第 $attempt/$maxDirectAttempts 次）...',
+              : '直连通道重试中（第$attempt/$maxDirectAttempts次）...',
         );
         if (attempt > 1) {
           signaling.sendBridgeCandidates(
@@ -953,7 +953,7 @@ class RemoteSessionController extends ChangeNotifier {
     });
 
     _auxFilesSub = _auxChannel!.filesReceivedStream.listen((paths) {
-      _emitToast('已接收 ${paths.length} 个文件');
+      _emitToast('已接收${paths.length}个文件');
     });
 
     _auxWallpaperSub = _auxChannel!.desktopWallpaperStream.listen((bytes) {
@@ -1286,7 +1286,7 @@ class RemoteSessionController extends ChangeNotifier {
   void switchDisplay(int displayIndex) {
     if (_sessionHandle == null) return;
     engine.switchDisplay(_sessionHandle, displayIndex);
-    _emitToast('正在切换显示器 ${displayIndex + 1}');
+    _emitToast('正在切换显示器${displayIndex + 1}');
   }
 
   void toggleMute() {

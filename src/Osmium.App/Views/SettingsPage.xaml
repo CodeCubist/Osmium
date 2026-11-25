@@ -55,6 +55,7 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="NavTabGeneral" Tag="General" IsSelected="True" />
                 <NavigationViewItem x:Name="NavTabCaptureSecurity" Tag="CaptureSecurity" />
+                <NavigationViewItem x:Name="NavTabRemotePower" Tag="RemotePower" />
                 <NavigationViewItem x:Name="NavTabVideo" Tag="Video" />
                 <NavigationViewItem x:Name="NavTabAudioInput" Tag="AudioInput" />
                 <NavigationViewItem x:Name="NavTabNetwork" Tag="Network" />
@@ -126,6 +127,20 @@
                                     <ToggleSwitch x:Name="LaunchOnStartupSwitch"
                                                   Style="{StaticResource OsmiumCompactToggleStyle}"
                                                   Toggled="LaunchOnStartupSwitch_Toggled" />
+                                </controls:SettingsRowCard>
+
+                                <Border x:Name="ServiceAutoStartDivider"
+                                        Style="{StaticResource OsmiumHorizontalDividerStyle}"
+                                        Visibility="Collapsed" />
+
+                                <controls:SettingsRowCard x:Name="RowServiceAutoStart"
+                                                          IsGrouped="True"
+                                                          ShowIcon="False"
+                                                          Margin="20,0,0,0"
+                                                          Visibility="Collapsed">
+                                    <ToggleSwitch x:Name="ServiceAutoStartSwitch"
+                                                  Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                  Toggled="ServiceAutoStartSwitch_Toggled" />
                                 </controls:SettingsRowCard>
                             </StackPanel>
                         </Border>
@@ -423,6 +438,71 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+                    </StackPanel>
+
+
+                    <StackPanel x:Name="PanelRemotePower" Spacing="12" Visibility="Collapsed">
+                        <StackPanel.RenderTransform>
+                            <TranslateTransform x:Name="PanelRemotePowerTranslate" X="0" />
+                        </StackPanel.RenderTransform>
+
+                        <InfoBar x:Name="RemotePowerProfileWarningBar"
+                                 Severity="Warning"
+                                 IsOpen="False"
+                                 IsClosable="False"
+                                 Visibility="Collapsed" />
+
+                        <TextBlock x:Name="SecRemotePowerLocalTitle" Style="{StaticResource OsmiumSectionHeaderStyle}" />
+                        <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                            <StackPanel>
+                                <controls:SettingsRowCard x:Name="RowHostAllowRemotePower" IsGrouped="True"
+                                                          Glyph="&#xF60E;">
+                                    <ToggleSwitch x:Name="HostAllowRemotePowerSwitch"
+                                                  Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                  Toggled="HostAllowRemotePowerSwitch_Toggled" />
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowHostWolConfig" IsGrouped="True" ShowIcon="False">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button x:Name="ConfigureWolBtn"
+                                                CornerRadius="6"
+                                                Click="ConfigureWolBtn_Click" />
+                                        <Button x:Name="RestoreWolBtn"
+                                                CornerRadius="6"
+                                                Click="RestoreWolBtn_Click" />
+                                    </StackPanel>
+                                </controls:SettingsRowCard>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="SecRemotePowerEnvTitle" Style="{StaticResource OsmiumSectionHeaderStyle}" />
+                        <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                            <StackPanel>
+                                <controls:SettingsRowCard x:Name="RowRemotePowerNicInfo" IsGrouped="True"
+                                                          Glyph="&#xE99A;">
+                                    <Border Background="{ThemeResource OsmiumSubtlePillBrush}"
+                                            CornerRadius="6"
+                                            Padding="10,4"
+                                            VerticalAlignment="Center">
+                                        <TextBlock x:Name="RemotePowerMacText"
+                                                   Text="-"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   IsTextSelectionEnabled="True" />
+                                    </Border>
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowRemotePowerBiosTip" IsGrouped="True" ShowIcon="False">
+                                    <Button x:Name="BtnRefreshRemotePowerStatus"
+                                            CornerRadius="6"
+                                            Click="BtnRefreshRemotePowerStatus_Click" />
+                                </controls:SettingsRowCard>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
 

@@ -442,8 +442,8 @@
   <data name="Session_WhoControllingWhomFmt" xml:space="preserve"><value>{0} is controlling {1}</value></data>
   <data name="Conn_AccountRequired" xml:space="preserve"><value>Only signed-in unlocked accounts can initiate remote control; being controlled does not require signing in</value></data>
   <data name="Conn_BlacklistedByHost" xml:space="preserve"><value>The host account has blacklisted your account; connection refused</value></data>
-  <data name="Conn_CaptchaRequired" xml:space="preserve"><value>Daily remote control security verification threshold reached; please complete the human verification challenge</value></data>
-  <data name="Conn_CaptchaCancelled" xml:space="preserve"><value>Security human verification was canceled</value></data>
+  <data name="Conn_CaptchaRequired" xml:space="preserve"><value>Please complete the security verification to continue</value></data>
+  <data name="Conn_CaptchaCancelled" xml:space="preserve"><value>Security verification cancelled</value></data>
   <data name="Peer_ConnectAction" xml:space="preserve"><value>Remote Control</value></data>
   <data name="Peer_ViewOnlyAction" xml:space="preserve"><value>View Only</value></data>
   <data name="Peer_CopyIdAction" xml:space="preserve"><value>Copy Device ID</value></data>
@@ -451,8 +451,8 @@
   <data name="Peer_MetaOs" xml:space="preserve"><value>Operating System</value></data>
   <data name="Peer_MetaIp" xml:space="preserve"><value>Last Login IP</value></data>
   <data name="Peer_MetaLastActive" xml:space="preserve"><value>Last Active Time</value></data>
-  <data name="Acc_CaptchaWindowTitle" xml:space="preserve"><value>Osmium Security Verification</value></data>
-  <data name="Acc_CaptchaHint" xml:space="preserve"><value>Please complete the GeeTest verification below to continue automatically</value></data>
+  <data name="Acc_CaptchaWindowTitle" xml:space="preserve"><value>Security Verification</value></data>
+  <data name="Acc_CaptchaHint" xml:space="preserve"><value>Please complete the verification below to continue</value></data>
   <data name="Acc_CaptchaOpenBrowser" xml:space="preserve"><value>Open in Browser</value></data>
   <data name="Acc_CaptchaLoadError" xml:space="preserve"><value>Embedded verification view failed to load; please click Open in Browser</value></data>
   <data name="Acc_CaptchaSubmitting" xml:space="preserve"><value>Verification received; validating...</value></data>
@@ -498,7 +498,7 @@
   <data name="Acc_UnblockBtn" xml:space="preserve"><value>Unblock</value></data>
   <data name="Acc_RowSessionActions" xml:space="preserve"><value>Session &amp; Account</value></data>
   <data name="Acc_LogoutBtn" xml:space="preserve"><value>Sign Out</value></data>
-  <data name="Acc_LogoutRevokeAllCheck" xml:space="preserve"><value>Also revoke long-term credentials on all logged-in devices</value></data>
+  <data name="Acc_LogoutRevokeAllCheck" xml:space="preserve"><value>Also sign out of all other devices</value></data>
   <data name="Acc_DeleteAccountBtn" xml:space="preserve"><value>Delete Account</value></data>
   <data name="Acc_RemoveDeviceBtn" xml:space="preserve"><value>Remove Device</value></data>
   <data name="Acc_HistoryEmpty" xml:space="preserve"><value>No login records in the last 30 days</value></data>
@@ -521,8 +521,8 @@
   <data name="Acc_ErrOtpAttempts" xml:space="preserve"><value>Too many failed verification attempts; please request a new code</value></data>
   <data name="Acc_ErrOtpCooldown" xml:space="preserve"><value>Verification code requested too frequently; please wait before retrying</value></data>
   <data name="Acc_ErrCaptchaFailed" xml:space="preserve"><value>Security human verification failed or expired; please try again</value></data>
-  <data name="Acc_ErrGeetestNotConfigured" xml:space="preserve"><value>Server GeeTest credentials are not configured yet</value></data>
-  <data name="Acc_ErrSmtpNotConfigured" xml:space="preserve"><value>Server SMTP email credentials are not configured yet</value></data>
+  <data name="Acc_ErrGeetestNotConfigured" xml:space="preserve"><value>Security verification is temporarily unavailable; please try again later</value></data>
+  <data name="Acc_ErrSmtpNotConfigured" xml:space="preserve"><value>Email verification service is temporarily unavailable; please try again later</value></data>
   <data name="Acc_ErrDeviceLimit" xml:space="preserve"><value>A single account can sign in on up to 1000 devices; please remove an unused device first</value></data>
   <data name="Acc_ErrInvalidAvatar" xml:space="preserve"><value>Avatar image is invalid or exceeds the size limit</value></data>
   <data name="Acc_ErrInvalidUsername" xml:space="preserve"><value>Please enter a valid username</value></data>
@@ -655,4 +655,120 @@
   <data name="Acc_ErrQrCancelled" xml:space="preserve"><value>QR sign-in was cancelled</value></data>
   <data name="Acc_HistoryQrTag" xml:space="preserve"><value>QR</value></data>
   <data name="Acc_HistoryQrExtTag" xml:space="preserve"><value>External QR</value></data>
+  <data name="Host_RowAllowRemotePower" xml:space="preserve"><value>Allow remote power control from same account</value></data>
+  <data name="Host_RowAllowRemotePowerDesc" xml:space="preserve"><value>Allow devices signed into the exact same account to wake (WoL), restart, or shut down this PC; Wake-on-LAN must also be enabled in motherboard BIOS</value></data>
+  <data name="Host_ConfigureWolBtn" xml:space="preserve"><value>Configure WoL</value></data>
+  <data name="Host_ConfigureWolTitle" xml:space="preserve"><value>Configure Windows Wake-on-LAN</value></data>
+  <data name="Host_ConfigureWolConfirm" xml:space="preserve"><value>Administrator permission is required to enable Wake-on-LAN on your network adapter and disable Windows Fast Startup (which can prevent remote wake). Please also make sure Wake-on-LAN is enabled in your motherboard BIOS.</value></data>
+  <data name="Host_ConfigureWolSuccess" xml:space="preserve"><value>Windows Wake-on-LAN configuration completed. Make sure Wake-on-LAN is enabled in your motherboard BIOS to wake this PC remotely from same-account devices.</value></data>
+  <data name="Host_ConfigureWolFailed" xml:space="preserve"><value>Automatic configuration did not complete (administrator permission may have been denied or the NIC driver does not expose this option). You can also enable Wake on Magic Packet manually in Device Manager.</value></data>
+  <data name="Host_WolStatusReady" xml:space="preserve"><value>WoL Ready</value></data>
+  <data name="Host_WolStatusNeedsConfig" xml:space="preserve"><value>WoL Needs Setup</value></data>
+  <data name="Host_WolNoNicFound" xml:space="preserve"><value>No physical NIC detected</value></data>
+  <data name="Power_DockLabel" xml:space="preserve"><value>Power</value></data>
+  <data name="Power_ActionWake" xml:space="preserve"><value>Wake Up (WoL)</value></data>
+  <data name="Power_ActionRestart" xml:space="preserve"><value>Restart</value></data>
+  <data name="Power_ActionShutdown" xml:space="preserve"><value>Shut Down</value></data>
+  <data name="Power_TargetNotEnabledHint" xml:space="preserve"><value>Remote power control is disabled on target PC</value></data>
+  <data name="Power_TargetNoMacHint" xml:space="preserve"><value>No NIC MAC address recorded for target PC</value></data>
+  <data name="Power_ConfirmRestartTitle" xml:space="preserve"><value>Confirm Remote Restart</value></data>
+  <data name="Power_ConfirmRestartBodyFmt" xml:space="preserve"><value>Restart "{0}" now? The target computer will force-restart in about 3 seconds and unsaved work may be lost.</value></data>
+  <data name="Power_ConfirmShutdownTitle" xml:space="preserve"><value>Confirm Remote Shutdown</value></data>
+  <data name="Power_ConfirmShutdownBodyFmt" xml:space="preserve"><value>Shut down "{0}" now? The target computer will force-shut down in about 3 seconds and unsaved work may be lost.</value></data>
+  <data name="Power_WakeAlreadyOnlineFmt" xml:space="preserve"><value>"{0}" is already online.</value></data>
+  <data name="Power_WakeSentWithRelayFmt" xml:space="preserve"><value>Wake signal sent to "{0}" (via local network and {1} online helper device(s)). Please allow 15-60 seconds for it to start up.</value></data>
+  <data name="Power_WakeSentLanOnlyFmt" xml:space="preserve"><value>Wake signal sent to "{0}" on your local network. To wake across networks, another online PC signed into your account on the target network is needed.</value></data>
+  <data name="Power_RestartSentFmt" xml:space="preserve"><value>Restart command delivered to "{0}". It will restart in about {1} seconds.</value></data>
+  <data name="Power_ShutdownSentFmt" xml:space="preserve"><value>Shutdown command delivered to "{0}". It will shut down in about {1} seconds.</value></data>
+  <data name="Power_ErrDeviceOffline" xml:space="preserve"><value>Target computer is currently offline</value></data>
+  <data name="Power_ErrSelfTarget" xml:space="preserve"><value>Cannot run remote power command on the current device</value></data>
+  <data name="Power_ErrDisabled" xml:space="preserve"><value>Remote power control is not enabled on the target computer</value></data>
+  <data name="Power_ErrUnsupported" xml:space="preserve"><value>Target device does not support remote power control or has no recorded NIC MAC address</value></data>
+  <data name="Power_ErrCooldown" xml:space="preserve"><value>Power command sent too frequently; please wait a few seconds</value></data>
+  <data name="Set_ServiceAutoStart" xml:space="preserve"><value>Register as system service (start before Windows sign-in)</value></data>
+  <data name="Set_ServiceAutoStartDesc" xml:space="preserve"><value>Run Osmium host automatically at boot via Windows Service before signing in, enabling lock-screen remote access and Wake-on-LAN readiness</value></data>
+  <data name="Set_ServiceAutoStartConfirmTitle" xml:space="preserve"><value>Enable Pre-Sign-In Service Auto-Start</value></data>
+  <data name="Set_ServiceAutoStartConfirmBody" xml:space="preserve"><value>Administrator permission is required to register Osmium as a Windows system service. Once enabled, your PC will come online automatically at the lock screen before sign-in and hand over smoothly after you sign in.</value></data>
+  <data name="Set_ServiceAutoStartEnableBtn" xml:space="preserve"><value>Register &amp; Enable</value></data>
+  <data name="Set_ServiceAutoStartFailedTitle" xml:space="preserve"><value>Service Auto-Start Setup Failed</value></data>
+  <data name="Set_ServiceAutoStartFailedBody" xml:space="preserve"><value>Unable to register or update the Windows service. Please make sure administrator permission was granted and try again.</value></data>
+  <data name="Host_RestoreWolBtn" xml:space="preserve"><value>Uninstall WoL</value></data>
+  <data name="Host_RestoreWolTitle" xml:space="preserve"><value>Restore Wake-on-LAN Settings</value></data>
+  <data name="Host_RestoreWolConfirm" xml:space="preserve"><value>Administrator permission is required to restore your network adapter Wake-on-LAN and Windows Fast Startup settings to their original state and disable remote power control.</value></data>
+  <data name="Host_RestoreWolSuccess" xml:space="preserve"><value>Remote power system configuration has been uninstalled and all Wake-on-LAN and Windows Fast Startup settings have been restored to their original state.</value></data>
+  <data name="Host_RestoreWolFailed" xml:space="preserve"><value>Could not restore all system settings (administrator permission may have been denied). Please try again with administrator permission.</value></data>
+  <data name="Host_DisablePowerRestorePrompt" xml:space="preserve"><value>Windows Wake-on-LAN and Fast Startup settings were previously configured on this PC. Would you like to restore all of them to their original state now?</value></data>
+  <data name="Host_DisablePowerKeepWolBtn" xml:space="preserve"><value>Keep System Settings</value></data>
+  <data name="Acc_WaitHoursMinsFmt" xml:space="preserve"><value>{0}h {1}m</value></data>
+  <data name="Acc_WaitHoursFmt" xml:space="preserve"><value>{0}h</value></data>
+  <data name="Acc_WaitMinsFmt" xml:space="preserve"><value>{0}m</value></data>
+  <data name="Acc_WaitSecsFmt" xml:space="preserve"><value>{0}s</value></data>
+  <data name="Acc_ErrUsernameCooldown" xml:space="preserve"><value>Username can only be changed once per hour; please try again later</value></data>
+  <data name="Acc_ErrUsernameCooldownFmt" xml:space="preserve"><value>Username can only be changed once per hour; please try again in {0}</value></data>
+  <data name="Acc_ErrAvatarCooldown" xml:space="preserve"><value>Avatar can only be changed once per hour; please try again later</value></data>
+  <data name="Acc_ErrAvatarCooldownFmt" xml:space="preserve"><value>Avatar can only be changed once per hour; please try again in {0}</value></data>
+  <data name="Acc_ErrEmailCooldown" xml:space="preserve"><value>Email can only be changed once every 24 hours; please try again later</value></data>
+  <data name="Acc_ErrEmailCooldownFmt" xml:space="preserve"><value>Email can only be changed once every 24 hours; please try again in {0}</value></data>
+  <data name="Acc_ErrPasswordResetCooldown" xml:space="preserve"><value>Password can only be reset once every 24 hours; please try again later</value></data>
+  <data name="Acc_ErrPasswordResetCooldownFmt" xml:space="preserve"><value>Password can only be reset once every 24 hours; please try again in {0}</value></data>
+  <data name="Acc_OAuthSectionTitle" xml:space="preserve"><value>Or continue with</value></data>
+  <data name="Acc_OAuthGoogleBtn" xml:space="preserve"><value>Google</value></data>
+  <data name="Acc_OAuthQqBtn" xml:space="preserve"><value>QQ</value></data>
+  <data name="Acc_OAuthWechatBtn" xml:space="preserve"><value>WeChat</value></data>
+  <data name="Acc_OAuthDialogTitleFmt" xml:space="preserve"><value>Sign in with {0}</value></data>
+  <data name="Acc_OAuthWaitingDescFmt" xml:space="preserve"><value>Please complete {0} sign-in in your opened browser window.</value></data>
+  <data name="Acc_OAuthBrowserTip" xml:space="preserve"><value>You will be signed in automatically once authorization completes. Please keep this window open.</value></data>
+  <data name="Acc_OAuthReopenBrowserBtn" xml:space="preserve"><value>Reopen Browser</value></data>
+  <data name="Acc_OAuthCancelled" xml:space="preserve"><value>Sign-in cancelled</value></data>
+  <data name="Acc_OAuthNeedEmailPwdToast" xml:space="preserve"><value>Signed in. Please link an email address and set a login password to secure your account.</value></data>
+  <data name="Acc_OAuthNeedPwdToast" xml:space="preserve"><value>Signed in. Please set a login password to secure your account.</value></data>
+  <data name="Acc_EmailUnbound" xml:space="preserve"><value>Not linked</value></data>
+  <data name="Acc_AddEmailBtn" xml:space="preserve"><value>Link Email</value></data>
+  <data name="Acc_BindEmailHeader" xml:space="preserve"><value>Email Address</value></data>
+  <data name="Acc_MsgEmailAddedNeedPwd" xml:space="preserve"><value>Email linked. Please continue to set a login password.</value></data>
+  <data name="Acc_ProfileIncompleteTitle" xml:space="preserve"><value>Complete your account security setup</value></data>
+  <data name="Acc_ProfileIncompleteNoEmailDesc" xml:space="preserve"><value>To keep your account secure, please link an email address and set a login password. Once completed, you can use remote power control and edit your profile.</value></data>
+  <data name="Acc_ProfileIncompleteNoPasswordDesc" xml:space="preserve"><value>To keep your account secure, please set a login password. Once set, you can use remote power control and edit your profile.</value></data>
+  <data name="Acc_RowSetPassword" xml:space="preserve"><value>Login Password</value></data>
+  <data name="Acc_SetPasswordBtn" xml:space="preserve"><value>Set Password</value></data>
+  <data name="Acc_SetPasswordNeedEmailDesc" xml:space="preserve"><value>Link an email address first to receive a verification code</value></data>
+  <data name="Acc_SetPasswordReadyDesc" xml:space="preserve"><value>Create a login password to protect your account and devices</value></data>
+  <data name="Acc_SetPasswordStep0Hint" xml:space="preserve"><value>A 6-digit verification code will be sent to your linked email to verify your identity before setting a password.</value></data>
+  <data name="Acc_MsgPasswordSetSuccess" xml:space="preserve"><value>Login password set. Your account security setup is complete.</value></data>
+  <data name="Acc_ErrProfileIncomplete" xml:space="preserve"><value>Please link an email address and set a login password first</value></data>
+  <data name="Acc_ErrEmailRequired" xml:space="preserve"><value>Please link an email address first</value></data>
+  <data name="Acc_ErrPasswordAlreadySet" xml:space="preserve"><value>A login password is already set for this account</value></data>
+  <data name="Acc_ErrOAuthInvalidProvider" xml:space="preserve"><value>Unsupported sign-in method</value></data>
+  <data name="Acc_ErrOAuthExpired" xml:space="preserve"><value>Authorization timed out; please try again</value></data>
+  <data name="Acc_ErrOAuthFailed" xml:space="preserve"><value>Sign-in was not completed; please try again</value></data>
+  <data name="Acc_ErrOAuthNotConfigured" xml:space="preserve"><value>This sign-in method is currently unavailable; please try again later or sign in with email</value></data>
+  <data name="Power_ProfileIncompleteHint" xml:space="preserve"><value>Requires a linked email and login password</value></data>
+  <data name="Acc_AuthServiceUnavailableTitle" xml:space="preserve"><value>Account service unavailable</value></data>
+  <data name="Acc_AuthServiceUnavailableDesc" xml:space="preserve"><value>Unable to reach the server right now. Sign-in is unavailable until connection is restored.</value></data>
+  <data name="Acc_RetryBtn" xml:space="preserve"><value>Retry</value></data>
+  <data name="Acc_OAuthBindingsHeader" xml:space="preserve"><value>Third-Party Sign-In Accounts</value></data>
+  <data name="Acc_OAuthBindingsLoading" xml:space="preserve"><value>Loading linked accounts…</value></data>
+  <data name="Acc_OAuthBindingsLoadFailed" xml:space="preserve"><value>Unable to load linked accounts right now; please retry</value></data>
+  <data name="Acc_OAuthBoundStatus" xml:space="preserve"><value>Linked</value></data>
+  <data name="Acc_OAuthUnboundStatus" xml:space="preserve"><value>Not linked</value></data>
+  <data name="Acc_OAuthBindBtn" xml:space="preserve"><value>Link</value></data>
+  <data name="Acc_OAuthUnbindBtn" xml:space="preserve"><value>Unlink</value></data>
+  <data name="Acc_OAuthBindDialogTitleFmt" xml:space="preserve"><value>Link {0} Account</value></data>
+  <data name="Acc_OAuthBindWaitingDescFmt" xml:space="preserve"><value>Please complete {0} authorization in your opened browser window.</value></data>
+  <data name="Acc_OAuthBindBrowserTip" xml:space="preserve"><value>Your account will be linked automatically once authorization completes. Please keep this window open.</value></data>
+  <data name="Acc_OAuthBindCancelled" xml:space="preserve"><value>Linking cancelled</value></data>
+  <data name="Acc_MsgOAuthBoundFmt" xml:space="preserve"><value>{0} account linked. You can now sign in with {0}.</value></data>
+  <data name="Acc_OAuthUnbindConfirmTitle" xml:space="preserve"><value>Unlink Account</value></data>
+  <data name="Acc_OAuthUnbindConfirmBodyFmt" xml:space="preserve"><value>Unlink your {0} account? You will no longer be able to sign in with {0}.</value></data>
+  <data name="Acc_MsgOAuthUnboundFmt" xml:space="preserve"><value>{0} account unlinked</value></data>
+  <data name="Acc_ErrOAuthAlreadyBound" xml:space="preserve"><value>This account is already linked to another Osmium account</value></data>
+  <data name="Acc_ErrOAuthProviderAlreadyBound" xml:space="preserve"><value>This sign-in method is already linked to your account</value></data>
+  <data name="Tab_RemotePower" xml:space="preserve"><value>Remote Power</value></data>
+  <data name="Power_SecLocalTitle" xml:space="preserve"><value>This PC Remote Power</value></data>
+  <data name="Power_SecEnvTitle" xml:space="preserve"><value>Network Adapter &amp; Wake Environment</value></data>
+  <data name="Power_ProfileWarningDesc" xml:space="preserve"><value>To protect your device, please link an email address and set a login password before enabling remote power control.</value></data>
+  <data name="Power_RowWolConfigTitle" xml:space="preserve"><value>Windows Wake-on-LAN Setup</value></data>
+  <data name="Power_RowNicInfoTitle" xml:space="preserve"><value>Detected Network Adapter</value></data>
+  <data name="Power_RowBiosTipTitle" xml:space="preserve"><value>Remote Wake Notes</value></data>
+  <data name="Power_RowBiosTipDesc" xml:space="preserve"><value>Remote wake requires Wake-on-LAN or PCIe wake enabled in your motherboard BIOS. Across different networks, another online device signed into the same account on the target LAN is needed to relay the wake signal. Enabling system service auto-start under General is also recommended so you can connect right from the lock screen.</value></data>
 </root>

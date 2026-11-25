@@ -309,7 +309,16 @@ public sealed partial class SettingsPage : Page
         }
     }
 
-    private void LaunchOnStartupSwitch_Toggled(object sender, RoutedEventArgs e)
+    private void UpdateServiceAutoStartRowVisibility()
+    {
+        if (RowServiceAutoStart == null || ServiceAutoStartDivider == null) return;
+        bool visible = LaunchOnStartupSwitch.IsOn || ServiceAutoStartSwitch.IsOn;
+        Visibility v = visible ? Visibility.Visible : Visibility.Collapsed;
+        RowServiceAutoStart.Visibility = v;
+        ServiceAutoStartDivider.Visibility = v;
+    }
+
+    private async void LaunchOnStartupSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
         bool desired = LaunchOnStartupSwitch.IsOn;
@@ -318,7 +327,108 @@ public sealed partial class SettingsPage : Page
             bool prev = _loading;
             _loading = true;
             LaunchOnStartupSwitch.IsOn = StartupHelper.IsAutoStartEnabled();
+            UpdateServiceAutoStartRowVisibility();
             _loading = prev;
+            return;
+        }
+
+        if (!desired && StartupHelper.IsServiceAutoStartEnabled())
+        {
+            ServiceAutoStartSwitch.IsEnabled = false;
+            try
+            {
+                await StartupHelper.DisableServiceAutoStartAsync();
+            }
+            finally
+            {
+                bool prev = _loading;
+                _loading = true;
+                ServiceAutoStartSwitch.IsOn = StartupHelper.IsServiceAutoStartEnabled();
+                _loading = prev;
+                ServiceAutoStartSwitch.IsEnabled = !App.Engine.Coordinator.IsHostStreaming;
+            }
+        }
+
+        UpdateServiceAutoStartRowVisibility();
+    }
+
+    private async void ServiceAutoStartSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading || App.Engine.Coordinator.IsHostStreaming) return;
+        bool desired = ServiceAutoStartSwitch.IsOn;
+
+        if (desired && XamlRoot != null)
+        {
+            var confirmDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Set_ServiceAutoStartConfirmTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString("Set_ServiceAutoStartConfirmBody"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                PrimaryButtonText = LocalizationService.GetString("Set_ServiceAutoStartEnableBtn"),
+                CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await confirmDlg.ShowAsync() != ContentDialogResult.Primary)
+            {
+                bool prev = _loading;
+                _loading = true;
+                ServiceAutoStartSwitch.IsOn = false;
+                UpdateServiceAutoStartRowVisibility();
+                _loading = prev;
+                return;
+            }
+        }
+
+        ServiceAutoStartSwitch.IsEnabled = false;
+        bool ok;
+        try
+        {
+            if (desired)
+            {
+                ok = await StartupHelper.EnableServiceAutoStartAsync(
+                    App.Engine.AccountService,
+                    App.Engine.SettingsService.DataDirectory);
+            }
+            else
+            {
+                ok = await StartupHelper.DisableServiceAutoStartAsync();
+            }
+        }
+        finally
+        {
+            bool prev = _loading;
+            _loading = true;
+            ServiceAutoStartSwitch.IsOn = StartupHelper.IsServiceAutoStartEnabled();
+            UpdateServiceAutoStartRowVisibility();
+            _loading = prev;
+            ServiceAutoStartSwitch.IsEnabled = !App.Engine.Coordinator.IsHostStreaming;
+        }
+
+        if (!ok && XamlRoot != null)
+        {
+            var errDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Set_ServiceAutoStartFailedTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString("Set_ServiceAutoStartFailedBody"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                CloseButtonText = LocalizationService.GetString("Assist_OkBtn"),
+                DefaultButton = ContentDialogButton.Close
+            };
+            await errDlg.ShowAsync();
         }
     }
 
@@ -556,6 +666,347 @@ public sealed partial class SettingsPage : Page
         await ExecuteHostDriverOpAsync(install: false);
     }
 
+    private void BtnRefreshRemotePowerStatus_Click(object sender, RoutedEventArgs e)
+        => RefreshHostRemotePowerRowStatus();
+
+    private void RefreshHostRemotePowerRowStatus()
+    {
+        if (RowHostAllowRemotePower == null) return;
+        _ = Task.Run(() => (Profile: App.Engine.GetLocalPowerProfile(), HasBackup: WakeOnLanService.HasWolBackup()))
+            .ContinueWith(t =>
+            {
+                if (t.IsFaulted) return;
+                var (profile, hasBackup) = t.Result;
+                if (profile == null) return;
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (RowHostAllowRemotePower == null) return;
+                    bool locked = App.Engine.Coordinator.IsHostStreaming;
+                    bool powerProfileBlocked = App.Engine.AccountService.IsLoggedIn &&
+                                               !App.Engine.AccountService.IsProfileComplete;
+                    HostAllowRemotePowerSwitch.IsEnabled = !locked && !powerProfileBlocked;
+                    ConfigureWolBtn.IsEnabled = !locked && !powerProfileBlocked;
+                    RestoreWolBtn.IsEnabled = !locked && (hasBackup || profile.WolReady);
+                    if (BtnRefreshRemotePowerStatus != null)
+                    {
+                        BtnRefreshRemotePowerStatus.IsEnabled = !locked;
+                    }
+
+                    if (RemotePowerProfileWarningBar != null)
+                    {
+                        RemotePowerProfileWarningBar.Title = LocalizationService.GetString("Acc_ProfileIncompleteTitle");
+                        RemotePowerProfileWarningBar.Message = LocalizationService.GetString("Power_ProfileWarningDesc");
+                        RemotePowerProfileWarningBar.IsOpen = powerProfileBlocked;
+                        RemotePowerProfileWarningBar.Visibility = powerProfileBlocked ? Visibility.Visible : Visibility.Collapsed;
+                    }
+
+                    bool hasMac = !string.IsNullOrEmpty(profile.PrimaryMac);
+                    if (RemotePowerMacText != null)
+                    {
+                        RemotePowerMacText.Text = hasMac ? profile.PrimaryMac : "-";
+                    }
+
+                    if (RowRemotePowerNicInfo != null)
+                    {
+                        RowRemotePowerNicInfo.Description = !string.IsNullOrWhiteSpace(profile.AdapterSummary)
+                            ? profile.AdapterSummary
+                            : LocalizationService.GetString("Host_WolNoNicFound");
+                    }
+
+                    if (RowHostWolConfig != null)
+                    {
+                        if (!hasMac)
+                        {
+                            RowHostWolConfig.Description = LocalizationService.GetString("Host_WolNoNicFound");
+                        }
+                        else
+                        {
+                            string stateText = LocalizationService.GetString(profile.WolReady
+                                ? "Host_WolStatusReady"
+                                : "Host_WolStatusNeedsConfig");
+                            RowHostWolConfig.Description = $"{stateText} · MAC: {profile.PrimaryMac}";
+                        }
+                    }
+                });
+            });
+    }
+
+    private async Task<bool> ExecuteRestoreWolElevatedAsync(bool allowDefaultFallback)
+    {
+        try
+        {
+            if (SystemServiceHelper.IsCurrentProcessElevated())
+            {
+                var res = await Task.Run(() => WakeOnLanService.RestoreLocalWindowsWol(allowDefaultFallback));
+                return res.Success;
+            }
+
+            if (!string.IsNullOrEmpty(Environment.ProcessPath))
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = Environment.ProcessPath,
+                    Arguments = allowDefaultFallback ? "--restore-wol --force-default" : "--restore-wol",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                };
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc != null)
+                {
+                    await proc.WaitForExitAsync();
+                    return proc.ExitCode == 0;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    private async void HostAllowRemotePowerSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading || App.Engine.Coordinator.IsHostStreaming) return;
+        if (App.Engine.AccountService.IsLoggedIn && !App.Engine.AccountService.IsProfileComplete)
+        {
+            bool prev = _loading;
+            _loading = true;
+            HostAllowRemotePowerSwitch.IsOn = App.Engine.SettingsService.Settings.HostAllowRemotePower;
+            _loading = prev;
+            return;
+        }
+
+        var s = App.Engine.SettingsService.Settings;
+        s.HostAllowRemotePower = HostAllowRemotePowerSwitch.IsOn;
+        App.Engine.SettingsService.SaveSettings();
+        await App.Engine.SyncSignalingStatusAsync();
+        RefreshHostRemotePowerRowStatus();
+
+        if (!s.HostAllowRemotePower && WakeOnLanService.HasWolBackup() && XamlRoot != null)
+        {
+            var promptDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Host_RestoreWolTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString("Host_DisablePowerRestorePrompt"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                PrimaryButtonText = LocalizationService.GetString("Host_RestoreWolBtn"),
+                CloseButtonText = LocalizationService.GetString("Host_DisablePowerKeepWolBtn"),
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await promptDlg.ShowAsync() == ContentDialogResult.Primary)
+            {
+                ConfigureWolBtn.IsEnabled = false;
+                RestoreWolBtn.IsEnabled = false;
+                bool ok = false;
+                try
+                {
+                    ok = await ExecuteRestoreWolElevatedAsync(allowDefaultFallback: false);
+                }
+                finally
+                {
+                    RefreshHostRemotePowerRowStatus();
+                    await App.Engine.SyncSignalingStatusAsync();
+                }
+
+                if (XamlRoot != null)
+                {
+                    var resultDlg = new ContentDialog
+                    {
+                        XamlRoot = XamlRoot,
+                        RequestedTheme = ActualTheme,
+                        Title = LocalizationService.GetString("Host_RestoreWolTitle"),
+                        Content = new TextBlock
+                        {
+                            Text = LocalizationService.GetString(ok ? "Host_RestoreWolSuccess" : "Host_RestoreWolFailed"),
+                            FontSize = 13,
+                            TextWrapping = TextWrapping.Wrap,
+                            MaxWidth = 420
+                        },
+                        CloseButtonText = LocalizationService.GetString("Assist_OkBtn"),
+                        DefaultButton = ContentDialogButton.Close
+                    };
+                    await resultDlg.ShowAsync();
+                }
+            }
+        }
+    }
+
+    private async void RestoreWolBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
+        if (XamlRoot != null)
+        {
+            var confirmDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Host_RestoreWolTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString("Host_RestoreWolConfirm"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                PrimaryButtonText = LocalizationService.GetString("Host_RestoreWolBtn"),
+                CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+                DefaultButton = ContentDialogButton.Close
+            };
+            if (await confirmDlg.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+
+        ConfigureWolBtn.IsEnabled = false;
+        RestoreWolBtn.IsEnabled = false;
+        HostAllowRemotePowerSwitch.IsEnabled = false;
+        bool ok = false;
+        try
+        {
+            ok = await ExecuteRestoreWolElevatedAsync(allowDefaultFallback: true);
+            if (ok)
+            {
+                var s = App.Engine.SettingsService.Settings;
+                s.HostAllowRemotePower = false;
+                bool prev = _loading;
+                _loading = true;
+                HostAllowRemotePowerSwitch.IsOn = false;
+                _loading = prev;
+                App.Engine.SettingsService.SaveSettings();
+            }
+        }
+        finally
+        {
+            bool locked = App.Engine.Coordinator.IsHostStreaming;
+            bool powerProfileBlocked = App.Engine.AccountService.IsLoggedIn &&
+                                       !App.Engine.AccountService.IsProfileComplete;
+            HostAllowRemotePowerSwitch.IsEnabled = !locked && !powerProfileBlocked;
+            ConfigureWolBtn.IsEnabled = !locked && !powerProfileBlocked;
+            RefreshHostRemotePowerRowStatus();
+            await App.Engine.SyncSignalingStatusAsync();
+        }
+
+        if (XamlRoot != null)
+        {
+            var resultDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Host_RestoreWolTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString(ok ? "Host_RestoreWolSuccess" : "Host_RestoreWolFailed"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                CloseButtonText = LocalizationService.GetString("Assist_OkBtn"),
+                DefaultButton = ContentDialogButton.Close
+            };
+            await resultDlg.ShowAsync();
+        }
+    }
+
+    private async void ConfigureWolBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Engine.Coordinator.IsHostStreaming) return;
+        if (App.Engine.AccountService.IsLoggedIn && !App.Engine.AccountService.IsProfileComplete) return;
+        if (XamlRoot != null)
+        {
+            var confirmDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Host_ConfigureWolTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString("Host_ConfigureWolConfirm"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                PrimaryButtonText = LocalizationService.GetString("Host_ConfigureWolBtn"),
+                CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await confirmDlg.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+
+        ConfigureWolBtn.IsEnabled = false;
+        RestoreWolBtn.IsEnabled = false;
+        bool ok = false;
+        try
+        {
+            if (SystemServiceHelper.IsCurrentProcessElevated())
+            {
+                var res = await Task.Run(WakeOnLanService.ConfigureLocalWindowsWol);
+                ok = res.Success;
+            }
+            else if (!string.IsNullOrEmpty(Environment.ProcessPath))
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = Environment.ProcessPath,
+                    Arguments = "--configure-wol",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                };
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc != null)
+                {
+                    await proc.WaitForExitAsync();
+                    ok = proc.ExitCode == 0;
+                }
+            }
+        }
+        catch
+        {
+            ok = false;
+        }
+        finally
+        {
+            bool powerProfileBlocked = App.Engine.AccountService.IsLoggedIn &&
+                                       !App.Engine.AccountService.IsProfileComplete;
+            ConfigureWolBtn.IsEnabled = !App.Engine.Coordinator.IsHostStreaming && !powerProfileBlocked;
+            RefreshHostRemotePowerRowStatus();
+            await App.Engine.SyncSignalingStatusAsync();
+        }
+
+        if (XamlRoot != null)
+        {
+            var resultDlg = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
+                Title = LocalizationService.GetString("Host_ConfigureWolTitle"),
+                Content = new TextBlock
+                {
+                    Text = LocalizationService.GetString(ok ? "Host_ConfigureWolSuccess" : "Host_ConfigureWolFailed"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                },
+                CloseButtonText = LocalizationService.GetString("Assist_OkBtn"),
+                DefaultButton = ContentDialogButton.Close
+            };
+            await resultDlg.ShowAsync();
+        }
+    }
+
     private void ShowSidebarDevicesSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
@@ -638,6 +1089,8 @@ public sealed partial class SettingsPage : Page
         bool globalSidebarEnabled = settings.ShowSameAccountDevicesInSidebar;
         var compactToggleStyle = Application.Current.Resources["OsmiumCompactToggleStyle"] as Style;
         var secondaryBrush = Application.Current.Resources["TextFillColorSecondaryBrush"] as Brush;
+        var criticalBrush = Application.Current.Resources["SystemFillColorCriticalBrush"] as Brush;
+        bool profileComplete = acc.IsProfileComplete;
 
         foreach (var dev in devices)
         {
@@ -672,6 +1125,100 @@ public sealed partial class SettingsPage : Page
 
             if (!isCurrentDevice)
             {
+                if (dev.IsComputerDevice && dev.AllowRemotePower)
+                {
+                    var capturedPowerDev = dev;
+                    if (!dev.IsOnline)
+                    {
+                        bool hasMacs = dev.WolMacs.Count > 0;
+                        var wakeBtn = new Button
+                        {
+                            Content = LocalizationService.GetString("Power_ActionWake"),
+                            CornerRadius = new CornerRadius(6),
+                            IsEnabled = !hostControlled && profileComplete && hasMacs
+                        };
+                        if (!profileComplete)
+                        {
+                            ToolTipService.SetToolTip(wakeBtn, LocalizationService.GetString("Power_ProfileIncompleteHint"));
+                        }
+                        else if (!hasMacs)
+                        {
+                            ToolTipService.SetToolTip(wakeBtn, LocalizationService.GetString("Power_TargetNoMacHint"));
+                        }
+
+                        wakeBtn.Click += async (_, _) =>
+                        {
+                            if (App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+                            wakeBtn.IsEnabled = false;
+                            try
+                            {
+                                await RemotePowerDialogHelper.ExecuteAsync(
+                                    XamlRoot, ActualTheme, capturedPowerDev, "wake", requireConfirm: false);
+                            }
+                            finally
+                            {
+                                RenderDeviceManagementPanel();
+                            }
+                        };
+                        rightStack.Children.Add(wakeBtn);
+                    }
+                    else
+                    {
+                        var restartBtn = new Button
+                        {
+                            Content = LocalizationService.GetString("Power_ActionRestart"),
+                            CornerRadius = new CornerRadius(6),
+                            IsEnabled = !hostControlled && profileComplete
+                        };
+                        var shutdownBtn = new Button
+                        {
+                            Content = LocalizationService.GetString("Power_ActionShutdown"),
+                            CornerRadius = new CornerRadius(6),
+                            Foreground = criticalBrush,
+                            IsEnabled = !hostControlled && profileComplete
+                        };
+                        if (!profileComplete)
+                        {
+                            string tip = LocalizationService.GetString("Power_ProfileIncompleteHint");
+                            ToolTipService.SetToolTip(restartBtn, tip);
+                            ToolTipService.SetToolTip(shutdownBtn, tip);
+                        }
+
+                        restartBtn.Click += async (_, _) =>
+                        {
+                            if (App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+                            restartBtn.IsEnabled = false;
+                            shutdownBtn.IsEnabled = false;
+                            try
+                            {
+                                await RemotePowerDialogHelper.ExecuteAsync(
+                                    XamlRoot, ActualTheme, capturedPowerDev, "restart", requireConfirm: true);
+                            }
+                            finally
+                            {
+                                RenderDeviceManagementPanel();
+                            }
+                        };
+                        shutdownBtn.Click += async (_, _) =>
+                        {
+                            if (App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+                            restartBtn.IsEnabled = false;
+                            shutdownBtn.IsEnabled = false;
+                            try
+                            {
+                                await RemotePowerDialogHelper.ExecuteAsync(
+                                    XamlRoot, ActualTheme, capturedPowerDev, "shutdown", requireConfirm: true);
+                            }
+                            finally
+                            {
+                                RenderDeviceManagementPanel();
+                            }
+                        };
+                        rightStack.Children.Add(restartBtn);
+                        rightStack.Children.Add(shutdownBtn);
+                    }
+                }
+
                 var sidebarToggleGroup = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,

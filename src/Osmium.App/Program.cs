@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using Osmium.Core.Interop;
+using Osmium.Core.Services;
 
 namespace Osmium.App;
 
@@ -107,6 +108,22 @@ public static class Program
             }
 
             startApp:
+            if (LaunchedAtStartup && ServiceAutoStartHelper.IsServiceHostStreaming())
+            {
+                ServiceAutoStartHelper.SignalServiceHostYield(force: false);
+                while (ServiceAutoStartHelper.IsServiceHostStreaming())
+                {
+                    Thread.Sleep(500);
+                }
+            }
+
+            using var desktopUiMutex = ServiceAutoStartHelper.AcquireDesktopUiActiveMutex();
+            if (ServiceAutoStartHelper.IsServiceAutoStartEnabled())
+            {
+                ServiceAutoStartHelper.SignalServiceHostYield(force: !LaunchedAtStartup);
+                Thread.Sleep(600);
+            }
+
             Application.Start(_ =>
             {
                 var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
@@ -176,7 +193,30 @@ public static class Program
         {
             if (string.Equals(args[i], "--service", StringComparison.OrdinalIgnoreCase))
             {
+                using var bootSupervisor = new ServiceBootHostSupervisor();
+                bootSupervisor.Start();
                 exitCode = NativeMethods.Osmium_RunSystemService();
+                return true;
+            }
+
+            if (string.Equals(args[i], "--service-host", StringComparison.OrdinalIgnoreCase))
+            {
+                string dataDir = GetArgValue(args, "--data-dir") ?? ServiceAutoStartHelper.GetServiceProfileDirectory();
+                exitCode = RunHeadlessServiceHost(dataDir);
+                return true;
+            }
+
+            if (string.Equals(args[i], "--enable-boot-service", StringComparison.OrdinalIgnoreCase))
+            {
+                string? dataDir = GetArgValue(args, "--data-dir");
+                string? ownerSid = GetArgValue(args, "--owner-sid");
+                exitCode = ServiceAutoStartHelper.EnableServiceAutoStartElevated(dataDir, ownerSid) ? 0 : 1;
+                return true;
+            }
+
+            if (string.Equals(args[i], "--disable-boot-service", StringComparison.OrdinalIgnoreCase))
+            {
+                exitCode = ServiceAutoStartHelper.DisableServiceAutoStartElevated() ? 0 : 1;
                 return true;
             }
 
@@ -215,9 +255,110 @@ public static class Program
                 exitCode = NativeMethods.Osmium_UninstallVirtualDrivers() != 0 ? 0 : 1;
                 return true;
             }
+
+            if (string.Equals(args[i], "--configure-wol", StringComparison.OrdinalIgnoreCase))
+            {
+                var wolRes = Osmium.Core.Services.WakeOnLanService.ConfigureLocalWindowsWol();
+                exitCode = wolRes.Success ? 0 : 1;
+                return true;
+            }
+
+            if (string.Equals(args[i], "--restore-wol", StringComparison.OrdinalIgnoreCase))
+            {
+                bool allowDefaultFallback = args.Any(a =>
+                    string.Equals(a, "--force-default", StringComparison.OrdinalIgnoreCase));
+                var restoreRes = Osmium.Core.Services.WakeOnLanService.RestoreLocalWindowsWol(allowDefaultFallback);
+                exitCode = restoreRes.Success ? 0 : 1;
+                return true;
+            }
         }
 
         return false;
+    }
+
+    private static string? GetArgValue(string[] args, string flagName)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (string.Equals(args[i], flagName, StringComparison.OrdinalIgnoreCase))
+            {
+                return args[i + 1];
+            }
+        }
+
+        return null;
+    }
+
+    private static int RunHeadlessServiceHost(string dataDir)
+    {
+        IntPtr stopEvt = ServiceAutoStartHelper.CreateSharedEvent(
+            ServiceAutoStartHelper.ServiceHostStopEventName,
+            manualReset: true,
+            initialState: false);
+        IntPtr yieldEvt = ServiceAutoStartHelper.CreateSharedEvent(
+            ServiceAutoStartHelper.ServiceHostYieldEventName,
+            manualReset: true,
+            initialState: false);
+        IntPtr forceYieldEvt = ServiceAutoStartHelper.CreateSharedEvent(
+            ServiceAutoStartHelper.ServiceHostForceYieldEventName,
+            manualReset: true,
+            initialState: false);
+        IntPtr streamingEvt = ServiceAutoStartHelper.CreateSharedEvent(
+            ServiceAutoStartHelper.ServiceHostStreamingEventName,
+            manualReset: true,
+            initialState: false);
+
+        try
+        {
+            ServiceAutoStartHelper.SetNativeEventState(streamingEvt, false);
+
+            using var engine = new EngineService(dataDir, isServiceHostMode: true);
+            engine.Coordinator.HostSessionStarted += _ =>
+                ServiceAutoStartHelper.SetNativeEventState(streamingEvt, true);
+            engine.Coordinator.HostSessionEnded += _ =>
+                ServiceAutoStartHelper.SetNativeEventState(streamingEvt, false);
+
+            if (!engine.Initialize())
+            {
+                return 1;
+            }
+
+            _ = engine.AccountService.InitializeOnStartupAsync();
+
+            while (true)
+            {
+                if (ServiceAutoStartHelper.IsNativeEventSignaled(stopEvt) ||
+                    ServiceAutoStartHelper.IsNativeEventSignaled(forceYieldEvt))
+                {
+                    break;
+                }
+
+                if (ServiceAutoStartHelper.IsNativeEventSignaled(yieldEvt) &&
+                    !engine.Coordinator.IsHostStreaming)
+                {
+                    break;
+                }
+
+                if (!ServiceAutoStartHelper.IsServiceAutoStartEnabled() &&
+                    !engine.Coordinator.IsHostStreaming)
+                {
+                    break;
+                }
+
+                Thread.Sleep(250);
+            }
+
+            ServiceAutoStartHelper.SetNativeEventState(streamingEvt, false);
+            return 0;
+        }
+        finally
+        {
+            ServiceAutoStartHelper.SetNativeEventState(streamingEvt, false);
+            ServiceAutoStartHelper.CloseNativeHandle(stopEvt);
+            ServiceAutoStartHelper.CloseNativeHandle(yieldEvt);
+            ServiceAutoStartHelper.CloseNativeHandle(forceYieldEvt);
+            ServiceAutoStartHelper.CloseNativeHandle(streamingEvt);
+        }
     }
 
     internal static void ReportFatalError(string stage, Exception ex, bool showDialog)

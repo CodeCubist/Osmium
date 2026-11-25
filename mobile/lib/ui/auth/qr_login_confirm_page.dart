@@ -361,7 +361,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
           child: Column(
             children: [
               _InfoRow(
-                label: '登录 IP',
+                label: '登录IP',
                 value: pc.ipMasked.isNotEmpty ? pc.ipMasked : '-',
                 mono: true,
               ),
@@ -410,7 +410,7 @@ class _QrLoginConfirmPageState extends ConsumerState<QrLoginConfirmPage> {
                     ),
                   )
                 : Text(
-                    locked ? '确认登录 (${_cooldownSec}s)' : '确认登录',
+                    locked ? '确认登录(${_cooldownSec}s)' : '确认登录',
                     style: theme.textStyles.button.copyWith(
                       fontWeight: FontWeight.w600,
                     ),

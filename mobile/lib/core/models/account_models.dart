@@ -61,6 +61,8 @@ class AccountSessionData {
     required this.ltokenExpiresAtUnix,
     this.accountStatus = 'active',
     this.locked = false,
+    this.hasEmail = true,
+    this.hasPassword = true,
   });
 
   final String userId;
@@ -73,6 +75,10 @@ class AccountSessionData {
   final int ltokenExpiresAtUnix;
   final String accountStatus;
   final bool locked;
+  final bool hasEmail;
+  final bool hasPassword;
+
+  bool get isProfileComplete => hasEmail && hasPassword;
 
   bool get isStokenValid {
     if (stoken.isEmpty) return false;
@@ -100,6 +106,8 @@ class AccountSessionData {
     int? ltokenExpiresAtUnix,
     String? accountStatus,
     bool? locked,
+    bool? hasEmail,
+    bool? hasPassword,
   }) {
     return AccountSessionData(
       userId: userId ?? this.userId,
@@ -112,6 +120,8 @@ class AccountSessionData {
       ltokenExpiresAtUnix: ltokenExpiresAtUnix ?? this.ltokenExpiresAtUnix,
       accountStatus: accountStatus ?? this.accountStatus,
       locked: locked ?? this.locked,
+      hasEmail: hasEmail ?? this.hasEmail,
+      hasPassword: hasPassword ?? this.hasPassword,
     );
   }
 
@@ -126,12 +136,16 @@ class AccountSessionData {
     'ltoken_expires_at': ltokenExpiresAtUnix,
     'account_status': accountStatus,
     'locked': locked,
+    'has_email': hasEmail,
+    'has_password': hasPassword,
   };
 
   factory AccountSessionData.fromStoredJson(Map<String, dynamic> json) {
+    final hasEmail = json['has_email'] != false;
+    final hasPassword = json['has_password'] != false;
     return AccountSessionData(
       userId: (json['user_id'] ?? '').toString(),
-      email: (json['email'] ?? '').toString(),
+      email: hasEmail ? (json['email'] ?? '').toString() : '',
       username: (json['username'] ?? '').toString(),
       avatarData: json['avatar_data'] as String?,
       stoken: (json['stoken'] ?? '').toString(),
@@ -140,6 +154,8 @@ class AccountSessionData {
       ltokenExpiresAtUnix: (json['ltoken_expires_at'] as num?)?.toInt() ?? 0,
       accountStatus: (json['account_status'] ?? 'active').toString(),
       locked: json['locked'] == true,
+      hasEmail: hasEmail,
+      hasPassword: hasPassword,
     );
   }
 
@@ -149,9 +165,11 @@ class AccountSessionData {
     final ltExp = (json['ltoken_expires_in'] as num?)?.toInt() ?? 0;
     final status = (json['account_status'] ?? 'active').toString();
     final locked = json['locked'] == true || status.toLowerCase() == 'locked';
+    final hasEmail = json['has_email'] != false;
+    final hasPassword = json['has_password'] != false;
     return AccountSessionData(
       userId: (json['user_id'] ?? '').toString(),
-      email: (json['email'] ?? '').toString(),
+      email: hasEmail ? (json['email'] ?? '').toString() : '',
       username: (json['username'] ?? '').toString(),
       avatarData: json['avatar_data'] as String?,
       stoken: (json['stoken'] ?? '').toString(),
@@ -160,6 +178,139 @@ class AccountSessionData {
       ltokenExpiresAtUnix: ltExp > 0 ? now + ltExp : 0,
       accountStatus: status,
       locked: locked,
+      hasEmail: hasEmail,
+      hasPassword: hasPassword,
+    );
+  }
+}
+
+class OAuthProvidersData {
+  const OAuthProvidersData({
+    this.google = false,
+    this.qq = false,
+    this.wechat = false,
+  });
+
+  final bool google;
+  final bool qq;
+  final bool wechat;
+
+  bool get hasAny => google || qq || wechat;
+
+  bool isAvailable(String provider) {
+    switch (provider) {
+      case 'google':
+        return google;
+      case 'qq':
+        return qq;
+      case 'wechat':
+        return wechat;
+      default:
+        return false;
+    }
+  }
+
+  factory OAuthProvidersData.fromJson(Map<String, dynamic> json) {
+    return OAuthProvidersData(
+      google: json['google'] == true,
+      qq: json['qq'] == true,
+      wechat: json['wechat'] == true,
+    );
+  }
+}
+
+class OAuthStartData {
+  const OAuthStartData({
+    required this.provider,
+    required this.state,
+    required this.pollSecret,
+    required this.authorizeUrl,
+    required this.pollUrl,
+    required this.expiresIn,
+    required this.pollIntervalMs,
+  });
+
+  final String provider;
+  final String state;
+  final String pollSecret;
+  final String authorizeUrl;
+  final String pollUrl;
+  final int expiresIn;
+  final int pollIntervalMs;
+
+  factory OAuthStartData.fromJson(Map<String, dynamic> json) {
+    return OAuthStartData(
+      provider: (json['provider'] ?? '').toString(),
+      state: (json['state'] ?? '').toString(),
+      pollSecret: (json['poll_secret'] ?? '').toString(),
+      authorizeUrl: (json['authorize_url'] ?? '').toString(),
+      pollUrl: (json['poll_url'] ?? '').toString(),
+      expiresIn: (json['expires_in'] as num?)?.toInt() ?? 300,
+      pollIntervalMs: (json['poll_interval_ms'] as num?)?.toInt() ?? 1200,
+    );
+  }
+}
+
+class OAuthStatusData {
+  const OAuthStatusData({
+    required this.state,
+    this.intent = 'login',
+    this.provider,
+    this.bound = false,
+    this.expiresIn = 0,
+    this.session,
+  });
+
+  final String state;
+  final String intent;
+  final String? provider;
+  final bool bound;
+  final int expiresIn;
+  final AccountSessionData? session;
+
+  factory OAuthStatusData.fromJson(Map<String, dynamic> json) {
+    final rawSess = json['session'];
+    return OAuthStatusData(
+      state: (json['state'] ?? '').toString(),
+      intent: (json['intent'] ?? 'login').toString(),
+      provider: json['provider'] as String?,
+      bound: json['bound'] == true,
+      expiresIn: (json['expires_in'] as num?)?.toInt() ?? 0,
+      session: rawSess is Map<String, dynamic>
+          ? AccountSessionData.fromLoginPayload(rawSess)
+          : null,
+    );
+  }
+}
+
+class OAuthBindingsData {
+  const OAuthBindingsData({
+    this.available = const OAuthProvidersData(),
+    this.bound = const OAuthProvidersData(),
+  });
+
+  final OAuthProvidersData available;
+  final OAuthProvidersData bound;
+
+  bool get hasAnyVisible => available.hasAny || bound.hasAny;
+
+  bool isVisible(String provider) =>
+      available.isAvailable(provider) || bound.isAvailable(provider);
+
+  bool isAvailable(String provider) => available.isAvailable(provider);
+
+  bool isBound(String provider) => bound.isAvailable(provider);
+
+  factory OAuthBindingsData.fromJson(Map<String, dynamic> json) {
+    final rawAvail = json['available'];
+    final rawBound = json['bound'];
+    return OAuthBindingsData(
+      available: rawAvail is Map<String, dynamic>
+          ? OAuthProvidersData.fromJson(rawAvail)
+          : const OAuthProvidersData(),
+      bound: rawBound is Map<String, dynamic>
+          ? OAuthProvidersData.fromJson(rawBound)
+          : const OAuthProvidersData(),
     );
   }
 }
@@ -174,6 +325,10 @@ class AccountDeviceDto {
     this.lastIp = '',
     this.isOnline = false,
     this.allowRemote = true,
+    this.allowRemotePower = false,
+    this.wolMacs = const [],
+    this.wolBroadcasts = const [],
+    this.wolReady = false,
     this.isBeingControlled = false,
     this.activeSessionId,
     this.controllerUserName,
@@ -189,11 +344,24 @@ class AccountDeviceDto {
   final String lastIp;
   final bool isOnline;
   final bool allowRemote;
+  final bool allowRemotePower;
+  final List<String> wolMacs;
+  final List<String> wolBroadcasts;
+  final bool wolReady;
   final bool isBeingControlled;
   final String? activeSessionId;
   final String? controllerUserName;
   final String? controllerDeviceId;
   final int lastActiveAt;
+
+  bool get isComputerDevice {
+    final lower = osVersion.toLowerCase();
+    return !lower.contains('android') &&
+        !lower.contains('ios') &&
+        !lower.contains('iphone') &&
+        !lower.contains('ipad') &&
+        !lower.contains('harmonyos');
+  }
 
   String get displayName {
     if (customName != null && customName!.trim().isNotEmpty) {
@@ -218,6 +386,15 @@ class AccountDeviceDto {
       return 0;
     }
 
+    List<String> parseStringList(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<String>()
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+    }
+
     return AccountDeviceDto(
       deviceId: (json['device_id'] ?? json['deviceId'] ?? '').toString(),
       deviceName: (json['device_name'] ?? json['deviceName'] ?? '').toString(),
@@ -230,6 +407,14 @@ class AccountDeviceDto {
       isOnline: json['is_online'] == true || json['isOnline'] == true,
       allowRemote:
           json['allow_remote'] != false && json['allowRemote'] != false,
+      allowRemotePower:
+          json['allow_remote_power'] == true ||
+          json['allowRemotePower'] == true,
+      wolMacs: parseStringList(json['wol_macs'] ?? json['wolMacs']),
+      wolBroadcasts: parseStringList(
+        json['wol_broadcasts'] ?? json['wolBroadcasts'],
+      ),
+      wolReady: json['wol_ready'] == true || json['wolReady'] == true,
       isBeingControlled:
           json['is_being_controlled'] == true ||
           json['isBeingControlled'] == true,
@@ -248,6 +433,57 @@ class AccountDeviceDto {
   }
 }
 
+class DevicePowerResultData {
+  const DevicePowerResultData({
+    required this.action,
+    required this.targetDeviceId,
+    required this.delivered,
+    this.alreadyOnline = false,
+    this.targetOnline = false,
+    this.delaySeconds = 3,
+    this.relayedCount = 0,
+    this.sameSubnetRelayedCount = 0,
+    this.wolMacs = const [],
+    this.wolBroadcasts = const [],
+  });
+
+  final String action;
+  final String targetDeviceId;
+  final bool delivered;
+  final bool alreadyOnline;
+  final bool targetOnline;
+  final int delaySeconds;
+  final int relayedCount;
+  final int sameSubnetRelayedCount;
+  final List<String> wolMacs;
+  final List<String> wolBroadcasts;
+
+  factory DevicePowerResultData.fromJson(Map<String, dynamic> json) {
+    List<String> parseList(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<String>()
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    return DevicePowerResultData(
+      action: (json['action'] ?? '').toString(),
+      targetDeviceId: (json['target_device_id'] ?? '').toString(),
+      delivered: json['delivered'] == true,
+      alreadyOnline: json['already_online'] == true,
+      targetOnline: json['target_online'] == true,
+      delaySeconds: (json['delay_seconds'] as num?)?.toInt() ?? 3,
+      relayedCount: (json['relayed_count'] as num?)?.toInt() ?? 0,
+      sameSubnetRelayedCount:
+          (json['same_subnet_relayed_count'] as num?)?.toInt() ?? 0,
+      wolMacs: parseList(json['wol_macs']),
+      wolBroadcasts: parseList(json['wol_broadcasts']),
+    );
+  }
+}
+
 class AccountApiResult<T> {
   const AccountApiResult({
     required this.ok,
@@ -256,6 +492,7 @@ class AccountApiResult<T> {
     this.message = '',
     this.data,
     this.challenge,
+    this.retryAfterSec,
   });
 
   final bool ok;
@@ -264,6 +501,7 @@ class AccountApiResult<T> {
   final String message;
   final T? data;
   final AccountChallengeInfo? challenge;
+  final int? retryAfterSec;
 
   /// Mirrors Windows `AccountApiResult.RequiresCaptcha`: a challenge is only
   /// actionable when the envelope carries the captcha code, not merely HTTP 202.

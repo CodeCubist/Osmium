@@ -47,7 +47,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
     final parsed = QrParsedRequest.tryParseInApp(raw);
     if (parsed == null) {
-      _showInvalidNotice('请扫描 Osmium 电脑端登录二维码');
+      _showInvalidNotice('请扫描Osmium电脑端登录二维码');
       return;
     }
 

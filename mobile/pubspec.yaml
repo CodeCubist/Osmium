@@ -32,6 +32,9 @@ flutter:
 
   assets:
     - assets/images/osmium_logo.png
+    - assets/icons/google.svg
+    - assets/icons/qq.svg
+    - assets/icons/wechat.svg
 
   fonts:
     - family: MiSans

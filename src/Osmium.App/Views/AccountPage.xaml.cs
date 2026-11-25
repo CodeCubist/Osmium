@@ -85,6 +85,10 @@ public sealed partial class AccountPage : Page
         {
             _ = RefreshAllAccountDataAsync();
         }
+        else
+        {
+            _ = RefreshAuthAvailabilityAsync();
+        }
     }
 
     private void AccountPage_Unloaded(object sender, RoutedEventArgs e)
@@ -95,6 +99,7 @@ public sealed partial class AccountPage : Page
         App.Engine.Coordinator.HostSessionEnded -= OnHostSessionEnded;
         _otpTimer.Stop();
         StopQrLoginSession(cancelRemote: true);
+        StopOAuthLoginFlow();
     }
 
     private void SlideHost_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -198,6 +203,10 @@ public sealed partial class AccountPage : Page
         ModeRegisterDescText.Text = LocalizationService.GetString("Acc_ModeRegisterDesc");
         ModeResetTitleText.Text = LocalizationService.GetString("Acc_ModeReset");
         ModeResetDescText.Text = LocalizationService.GetString("Acc_ModeResetDesc");
+        OAuthSectionTitleText.Text = LocalizationService.GetString("Acc_OAuthSectionTitle");
+        OAuthGoogleBtnText.Text = LocalizationService.GetString("Acc_OAuthGoogleBtn");
+        OAuthQqBtnText.Text = LocalizationService.GetString("Acc_OAuthQqBtn");
+        OAuthWechatBtnText.Text = LocalizationService.GetString("Acc_OAuthWechatBtn");
 
         BtnQrBackText.Text = LocalizationService.GetString("Acc_WizardBackBtn");
         BtnQrRefresh.Content = LocalizationService.GetString("Acc_QrRefreshBtn");
@@ -240,6 +249,8 @@ public sealed partial class AccountPage : Page
 
         RowProfileEmail.Title = LocalizationService.GetString("Acc_RowEmail");
         BtnChangeEmail.Content = LocalizationService.GetString("Acc_ChangeEmailBtn");
+        RowSetPassword.Title = LocalizationService.GetString("Acc_RowSetPassword");
+        BtnSetPassword.Content = LocalizationService.GetString("Acc_SetPasswordBtn");
 
         RowAccountLock.Title = LocalizationService.GetString("Acc_RowAccountLock");
         BtnRefreshStatus.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
@@ -258,7 +269,8 @@ public sealed partial class AccountPage : Page
         BtnRefreshHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
 
         UpdateWizardUiState(snapPanels: true);
-        UpdateOtpCooldownVisuals();
+        ApplyAuthAvailabilityUi();
+        ApplyOAuthBindingsUi();
     }
 
     private void RefreshViewState()
@@ -271,6 +283,10 @@ public sealed partial class AccountPage : Page
 
         if (!loggedIn)
         {
+            _oauthBindings = null;
+            _oauthBindingsLoading = false;
+            _oauthBindingsFailed = false;
+            ApplyOAuthBindingsUi();
             if (string.IsNullOrWhiteSpace(AuthEmailBox.Text) && !string.IsNullOrWhiteSpace(acc.CurrentEmail))
             {
                 AuthEmailBox.Text = acc.CurrentEmail;
@@ -288,7 +304,12 @@ public sealed partial class AccountPage : Page
 
             if (_wizardStep >= TotalWizardSteps) _wizardStep = -1;
             UpdateWizardUiState(snapPanels: true);
-            UpdateOtpCooldownVisuals();
+            ApplyAuthAvailabilityUi();
+            if (!_authApiChecking && !_authApiReachable && !_authApiFailed)
+            {
+                _ = RefreshAuthAvailabilityAsync();
+            }
+
             return;
         }
 
@@ -299,7 +320,33 @@ public sealed partial class AccountPage : Page
             QrLoginFlowPanel.Visibility = Visibility.Collapsed;
         }
 
-        ProfileEmailText.Text = string.IsNullOrWhiteSpace(acc.CurrentEmail) ? "-" : acc.CurrentEmail;
+        bool hasEmail = acc.HasEmail;
+        bool hasPassword = acc.HasPassword;
+        bool profileComplete = acc.IsProfileComplete;
+
+        ProfileEmailText.Text = !hasEmail || string.IsNullOrWhiteSpace(acc.CurrentEmail)
+            ? LocalizationService.GetString("Acc_EmailUnbound")
+            : acc.CurrentEmail;
+        BtnChangeEmail.Content = LocalizationService.GetString(hasEmail ? "Acc_ChangeEmailBtn" : "Acc_AddEmailBtn");
+
+        ProfileIncompleteBar.Visibility = profileComplete ? Visibility.Collapsed : Visibility.Visible;
+        ProfileIncompleteBar.IsOpen = !profileComplete;
+        if (!profileComplete)
+        {
+            ProfileIncompleteBar.Title = LocalizationService.GetString("Acc_ProfileIncompleteTitle");
+            ProfileIncompleteBar.Message = LocalizationService.GetString(
+                !hasEmail ? "Acc_ProfileIncompleteNoEmailDesc" : "Acc_ProfileIncompleteNoPasswordDesc");
+        }
+
+        bool showSetPasswordRow = !hasPassword;
+        DividerSetPassword.Visibility = showSetPasswordRow ? Visibility.Visible : Visibility.Collapsed;
+        RowSetPassword.Visibility = showSetPasswordRow ? Visibility.Visible : Visibility.Collapsed;
+        if (showSetPasswordRow)
+        {
+            RowSetPassword.Description = LocalizationService.GetString(
+                hasEmail ? "Acc_SetPasswordReadyDesc" : "Acc_SetPasswordNeedEmailDesc");
+        }
+
         if (!ProfileUsernameBox.FocusState.HasFlag(FocusState.Keyboard) &&
             !string.IsNullOrWhiteSpace(acc.CurrentUsername))
         {
@@ -313,22 +360,32 @@ public sealed partial class AccountPage : Page
         _ = ApplyAvatarPreviewAsync(acc.CurrentAvatarData);
         RenderDevicesList(acc.SameAccountDevices);
         ApplyHostSecurityLockdown();
+        if (_oauthBindings == null && !_oauthBindingsLoading && !_oauthBindingsFailed)
+        {
+            _ = RefreshOAuthBindingsAsync();
+        }
     }
 
     private void ApplyHostSecurityLockdown()
     {
         bool hostControlled = App.Engine.Coordinator.IsHostStreaming;
-        bool accountLocked = App.Engine.AccountService.IsLocked;
+        var acc = App.Engine.AccountService;
+        bool accountLocked = acc.IsLocked;
+        bool profileComplete = acc.IsProfileComplete;
+        bool hasEmail = acc.HasEmail;
+        bool hasPassword = acc.HasPassword;
 
-        BtnChangeAvatar.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
-        ProfileUsernameBox.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
-        BtnRandomProfileUsername.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
-        BtnSaveUsername.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
-        BtnChangeEmail.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
-        BtnToggleLock.IsEnabled = !hostControlled && !_isBusy;
+        BtnChangeAvatar.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
+        ProfileUsernameBox.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
+        BtnRandomProfileUsername.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
+        BtnSaveUsername.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
+        BtnChangeEmail.IsEnabled = !hostControlled && !accountLocked && (!hasEmail || profileComplete) && !_isBusy;
+        BtnSetPassword.IsEnabled = !hostControlled && !accountLocked && hasEmail && !hasPassword && !_isBusy;
+        BtnToggleLock.IsEnabled = !hostControlled && hasEmail && !_isBusy;
         BtnManageBlacklist.IsEnabled = !hostControlled && !_isBusy;
         BtnLogout.IsEnabled = !hostControlled && !_isBusy;
-        BtnDeleteAccount.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
+        BtnDeleteAccount.IsEnabled = !hostControlled && !accountLocked && hasPassword && !_isBusy;
+        ApplyOAuthBindingsUi();
     }
 
     private async Task ApplyAvatarPreviewAsync(string? dataUri)
@@ -405,7 +462,7 @@ public sealed partial class AccountPage : Page
 
     private void ModeChoiceButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_isBusy) return;
+        if (!CanAttemptAuth) return;
         if (sender is not Button btn || !int.TryParse(btn.Tag?.ToString(), out int mode)) return;
 
         if (mode == 3)

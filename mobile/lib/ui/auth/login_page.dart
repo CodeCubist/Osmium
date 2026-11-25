@@ -12,6 +12,7 @@ import '../../core/theme/osmium_theme.dart';
 import '../../state/app_controller.dart';
 import '../shared/home_widgets.dart';
 import '../widgets/osmium_motion_widgets.dart';
+import '../widgets/social_brand_icons.dart';
 import 'captcha_webview_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -30,19 +31,208 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Timer? _cooldownTimer;
   String? _error;
 
+  bool _oauthBusy = false;
+  bool _oauthDialogVisible = false;
+  bool _oauthPolling = false;
+  String _oauthProvider = '';
+  OAuthStartData? _oauthSession;
+  Timer? _oauthPollTimer;
+  StreamSubscription<String>? _oauthDeepLinkSub;
+
+  bool _checkingAuthApi = true;
+  bool _authApiReachable = false;
+  bool _authApiFailed = false;
+  OAuthProvidersData _oauthProviders = const OAuthProvidersData();
+
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
 
+  bool get _canLogin => _authApiReachable && !_checkingAuthApi;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_checkAuthAvailability());
+  }
+
   @override
   void dispose() {
+    _stopOAuthPolling(cancelRemote: true);
     _cooldownTimer?.cancel();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _usernameCtrl.dispose();
     _codeCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkAuthAvailability() async {
+    setState(() {
+      _checkingAuthApi = true;
+      _authApiReachable = false;
+      _authApiFailed = false;
+      _oauthProviders = const OAuthProvidersData();
+    });
+
+    final res = await ref.read(accountServiceProvider).fetchOAuthProviders();
+    if (!mounted) return;
+    if (res.ok && res.data != null) {
+      setState(() {
+        _checkingAuthApi = false;
+        _authApiReachable = true;
+        _authApiFailed = false;
+        _oauthProviders = res.data!;
+      });
+    } else {
+      setState(() {
+        _checkingAuthApi = false;
+        _authApiReachable = false;
+        _authApiFailed = true;
+        _oauthProviders = const OAuthProvidersData();
+      });
+    }
+  }
+
+  String _oauthProviderLabel(String provider) {
+    switch (provider) {
+      case 'google':
+        return 'Google';
+      case 'qq':
+        return 'QQ';
+      case 'wechat':
+        return '微信';
+      default:
+        return provider;
+    }
+  }
+
+  void _stopOAuthPolling({required bool cancelRemote}) {
+    _oauthPollTimer?.cancel();
+    _oauthPollTimer = null;
+    _oauthDeepLinkSub?.cancel();
+    _oauthDeepLinkSub = null;
+    _oauthPolling = false;
+    final sess = _oauthSession;
+    _oauthSession = null;
+    if (cancelRemote && sess != null) {
+      unawaited(
+        ref
+            .read(accountServiceProvider)
+            .cancelOAuthLogin(state: sess.state, pollSecret: sess.pollSecret),
+      );
+    }
+  }
+
+  void _cancelOAuthFlow() {
+    _stopOAuthPolling(cancelRemote: true);
+    if (mounted) {
+      setState(() {
+        _oauthDialogVisible = false;
+        _oauthBusy = false;
+      });
+    }
+  }
+
+  Future<void> _startOAuthLogin(String provider) async {
+    if (!_canLogin ||
+        !_oauthProviders.isAvailable(provider) ||
+        _submitting ||
+        _oauthBusy) {
+      return;
+    }
+    OsmiumHaptics.selection();
+    setState(() {
+      _oauthBusy = true;
+      _oauthProvider = provider;
+      _error = null;
+    });
+
+    final app = ref.read(appControllerProvider);
+    final accountSvc = ref.read(accountServiceProvider);
+    final res = await accountSvc.startOAuthLogin(
+      provider: provider,
+      identity: app.identity,
+    );
+    if (!mounted) return;
+    if (!res.ok || res.data == null || res.data!.authorizeUrl.isEmpty) {
+      setState(() {
+        _oauthBusy = false;
+        _error = res.message.isNotEmpty ? res.message : '发起登录失败，请重试';
+      });
+      return;
+    }
+
+    final session = res.data!;
+    _stopOAuthPolling(cancelRemote: false);
+    _oauthSession = session;
+
+    final bridge = ref.read(platformBridgeProvider);
+    final opened = await bridge.openExternalUrl(session.authorizeUrl);
+    if (!mounted) return;
+    if (!opened) {
+      _stopOAuthPolling(cancelRemote: true);
+      setState(() {
+        _oauthBusy = false;
+        _error = '未能打开浏览器，请检查系统默认浏览器设置';
+      });
+      return;
+    }
+
+    setState(() {
+      _oauthDialogVisible = true;
+    });
+
+    _oauthDeepLinkSub = bridge.deepLinks.listen((link) {
+      if (link.toLowerCase().startsWith('osmium://oauth-done')) {
+        unawaited(_pollOAuthOnce());
+      }
+    });
+
+    final intervalMs = session.pollIntervalMs.clamp(1000, 3000);
+    _oauthPollTimer = Timer.periodic(
+      Duration(milliseconds: intervalMs),
+      (_) => unawaited(_pollOAuthOnce()),
+    );
+  }
+
+  Future<void> _pollOAuthOnce() async {
+    final session = _oauthSession;
+    if (session == null || _oauthPolling || !mounted) return;
+    _oauthPolling = true;
+    try {
+      final accountSvc = ref.read(accountServiceProvider);
+      final res = await accountSvc.pollOAuthStatus(
+        pollUrl: session.pollUrl,
+        pollSecret: session.pollSecret,
+      );
+      if (!mounted || _oauthSession?.state != session.state) return;
+
+      if (res.ok && res.data != null) {
+        if (res.data!.state == 'completed' && accountSvc.isLoggedIn) {
+          _stopOAuthPolling(cancelRemote: false);
+          setState(() {
+            _oauthDialogVisible = false;
+            _oauthBusy = false;
+          });
+          OsmiumHaptics.confirm();
+          Navigator.of(context).pop(true);
+        }
+        return;
+      }
+
+      if (res.httpStatusCode > 0) {
+        _stopOAuthPolling(cancelRemote: false);
+        setState(() {
+          _oauthDialogVisible = false;
+          _oauthBusy = false;
+          _error = res.message.isNotEmpty ? res.message : '登录授权未完成，请重试';
+        });
+      }
+    } finally {
+      _oauthPolling = false;
+    }
   }
 
   void _startCooldown() {
@@ -90,6 +280,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _sendRegisterCode() async {
+    if (!_canLogin) return;
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       setState(() => _error = '请输入有效邮箱');
@@ -122,6 +313,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _submit() async {
+    if (!_canLogin || _submitting || _oauthBusy) return;
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
     if (email.isEmpty || password.isEmpty) {
@@ -187,6 +379,37 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Widget _buildAvailableOAuthRow(bool isDark) {
+    final items = <Widget>[];
+    void addBtn(String provider, String label, Widget icon) {
+      if (items.isNotEmpty) {
+        items.add(const SizedBox(width: 8));
+      }
+      items.add(
+        Expanded(
+          child: _OAuthProviderButton(
+            label: label,
+            icon: icon,
+            enabled: _canLogin && !_submitting && !_oauthBusy,
+            isDark: isDark,
+            onPressed: () => _startOAuthLogin(provider),
+          ),
+        ),
+      );
+    }
+
+    if (_oauthProviders.google) {
+      addBtn('google', 'Google', const GoogleBrandIcon(size: 18));
+    }
+    if (_oauthProviders.qq) {
+      addBtn('qq', 'QQ', const QqBrandIcon(size: 18));
+    }
+    if (_oauthProviders.wechat) {
+      addBtn('wechat', '微信', const WechatBrandIcon(size: 18));
+    }
+    return Row(children: items);
   }
 
   @override
@@ -324,6 +547,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                               ? '${_codeCooldown}s'
                                               : '获取',
                                           enabled:
+                                              _canLogin &&
                                               !_sendingCode &&
                                               _codeCooldown == 0,
                                           onPressed: _sendRegisterCode,
@@ -374,6 +598,45 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 ),
                               ),
                               OsmiumAnimatedReveal(
+                                visible: _authApiFailed,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: Container(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      10,
+                                      10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: OsmiumColors.dangerBg(isDark)
+                                          .withValues(alpha: 0.85),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: MiuixText(
+                                            '当前无法连接到服务器，暂不支持登录，请检查网络后重试。',
+                                            style: theme.textStyles.body2,
+                                            color: OsmiumColors.dangerFg(
+                                              isDark,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        MiuixTextButton(
+                                          '重试',
+                                          enabled: !_checkingAuthApi,
+                                          onPressed: _checkAuthAvailability,
+                                          minHeight: 32,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              OsmiumAnimatedReveal(
                                 visible: _error != null,
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 10),
@@ -397,7 +660,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               const SizedBox(height: 16),
                               MiuixButton(
-                                onPressed: _submit,
+                                onPressed:
+                                    (_canLogin && !_submitting && !_oauthBusy)
+                                    ? _submit
+                                    : null,
                                 colors: MiuixButtonDefaults.buttonColorsPrimary(
                                   context,
                                 ),
@@ -421,7 +687,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                           child: child,
                                         ),
                                       ),
-                                  child: _submitting
+                                  child: (_submitting || _checkingAuthApi)
                                       ? SizedBox(
                                           key: const ValueKey('submitting'),
                                           width: 18,
@@ -437,6 +703,42 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                         ),
                                 ),
                               ),
+                              if (_authApiReachable &&
+                                  _oauthProviders.hasAny) ...[
+                                const SizedBox(height: 18),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        height: 1,
+                                        color: colors.onSurface.withValues(
+                                          alpha: isDark ? 0.14 : 0.1,
+                                        ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
+                                      child: MiuixText(
+                                        '其他登录方式',
+                                        style: theme.textStyles.footnote1,
+                                        color: colors.onSurfaceVariantSummary,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        height: 1,
+                                        color: colors.onSurface.withValues(
+                                          alpha: isDark ? 0.14 : 0.1,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                _buildAvailableOAuthRow(isDark),
+                              ],
                             ],
                           ),
                         ),
@@ -461,9 +763,125 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
             ),
+            MiuixOverlayDialog(
+              show: _oauthDialogVisible,
+              title: '使用${_oauthProviderLabel(_oauthProvider)}登录',
+              onDismissRequest: _cancelOAuthFlow,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: colors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MiuixText(
+                    '请在浏览器中完成${_oauthProviderLabel(_oauthProvider)}登录授权，完成后将自动返回Osmium。',
+                    style: theme.textStyles.body2,
+                    color: colors.onSurfaceVariantSummary,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: MiuixTextButton(
+                          '取消',
+                          onPressed: _cancelOAuthFlow,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: MiuixTextButton(
+                          '重新打开',
+                          onPressed: () {
+                            final url = _oauthSession?.authorizeUrl;
+                            if (url != null && url.isNotEmpty) {
+                              unawaited(
+                                ref
+                                    .read(platformBridgeProvider)
+                                    .openExternalUrl(url),
+                              );
+                            }
+                          },
+                          colors: MiuixButtonDefaults.buttonColorsPrimary(
+                            context,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         );
       },
+    );
+  }
+}
+
+class _OAuthProviderButton extends StatelessWidget {
+  const _OAuthProviderButton({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.isDark,
+    required this.onPressed,
+  });
+
+  final String label;
+  final Widget icon;
+  final bool enabled;
+  final bool isDark;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MiuixTheme.of(context).colors;
+    final bg = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.72);
+    return MiuixButton(
+      onPressed: enabled ? onPressed : null,
+      minHeight: 40,
+      insideMargin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      colors: MiuixButtonColors(
+        color: bg,
+        disabledColor: bg.withValues(alpha: 0.45),
+        contentColor: colors.onSurface,
+        disabledContentColor: colors.disabledOnSecondaryVariant,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: OsmiumTheme.fontFamily,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

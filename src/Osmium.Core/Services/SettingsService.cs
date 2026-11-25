@@ -16,9 +16,11 @@ public sealed class SettingsService
     private readonly string _dataDir;
     private readonly string _settingsPath;
     private readonly string _identityPath;
+    private readonly bool _isServiceHostMode;
     private readonly object _lock = new();
 
     public string DataDirectory => _dataDir;
+    public bool IsServiceHostMode => _isServiceHostMode;
 
     public OsmiumSettings Settings
     {
@@ -34,13 +36,21 @@ public sealed class SettingsService
 
     public event Action<string>? TemporaryAccessCodeChanged;
 
-    public SettingsService()
+    public SettingsService(string? overrideDataDirectory = null, bool isServiceHostMode = false)
     {
-        string exeDir = AppContext.BaseDirectory;
-        bool portable = File.Exists(Path.Combine(exeDir, "portable.dat"));
-        _dataDir = portable
-            ? Path.Combine(exeDir, "OsmiumData")
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Osmium");
+        _isServiceHostMode = isServiceHostMode;
+        if (!string.IsNullOrWhiteSpace(overrideDataDirectory))
+        {
+            _dataDir = overrideDataDirectory.Trim();
+        }
+        else
+        {
+            string exeDir = AppContext.BaseDirectory;
+            bool portable = File.Exists(Path.Combine(exeDir, "portable.dat"));
+            _dataDir = portable
+                ? Path.Combine(exeDir, "OsmiumData")
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Osmium");
+        }
 
         Directory.CreateDirectory(_dataDir);
         _settingsPath = Path.Combine(_dataDir, "settings.json");
@@ -115,6 +125,10 @@ public sealed class SettingsService
         {
             string json = JsonSerializer.Serialize(Settings, JsonOptions);
             File.WriteAllText(_settingsPath, json);
+            if (!_isServiceHostMode)
+            {
+                ServiceAutoStartHelper.SyncProfileFileToService(_settingsPath, "settings.json");
+            }
         }
     }
 
@@ -124,6 +138,10 @@ public sealed class SettingsService
         {
             string json = JsonSerializer.Serialize(Identity, JsonOptions);
             File.WriteAllText(_identityPath, json);
+            if (!_isServiceHostMode)
+            {
+                ServiceAutoStartHelper.SyncProfileFileToService(_identityPath, "identity.json");
+            }
         }
     }
 

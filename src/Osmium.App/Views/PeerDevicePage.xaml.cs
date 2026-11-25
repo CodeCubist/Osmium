@@ -18,6 +18,7 @@ public sealed partial class PeerDevicePage : Page
 {
     private string _targetDeviceId = string.Empty;
     private bool _isConnecting;
+    private bool _isPowerBusy;
     private int _wallpaperVersion;
     private bool? _appliedWallpaperDark;
     private bool? _appliedWallpaperOffline;
@@ -170,6 +171,9 @@ public sealed partial class PeerDevicePage : Page
         BannerBlacklistBtn.Content = LocalizationService.GetString("Peer_BlacklistControllerBtn");
 
         DockViewOnlyLabel.Text = LocalizationService.GetString("Peer_ViewOnlyAction");
+        DockWakeLabel.Text = LocalizationService.GetString("Power_ActionWake");
+        DockRestartLabel.Text = LocalizationService.GetString("Power_ActionRestart");
+        DockShutdownLabel.Text = LocalizationService.GetString("Power_ActionShutdown");
         DockDisconnectLabel.Text = LocalizationService.GetString("Home_DisconnectBtn");
         DockBlacklistLabel.Text = LocalizationService.GetString("Peer_BlacklistControllerBtn");
 
@@ -247,6 +251,7 @@ public sealed partial class PeerDevicePage : Page
             ColDockBlacklist.Width = new GridLength(1, GridUnitType.Star);
             DockDisconnectBtn.IsEnabled = false;
             DockBlacklistBtn.IsEnabled = false;
+            UpdateDockPowerState(null);
             MenuRenameItem.IsEnabled = false;
             FlyoutRenameDevice.IsEnabled = false;
             UpdatePeerControllingOverlay(false);
@@ -321,9 +326,52 @@ public sealed partial class PeerDevicePage : Page
 
         DockDisconnectBtn.IsEnabled = dev.IsBeingControlled;
         DockBlacklistBtn.IsEnabled = dev.IsBeingControlled && !isSelfAccount;
+        UpdateDockPowerState(dev);
         UpdatePeerControllingOverlay(dev.IsBeingControlled);
         UpdateDockCooldownState();
         _ = UpdateWallpaperAsync();
+    }
+
+    private void UpdateDockPowerState(AccountDeviceDto? dev)
+    {
+        if (DockWakeBtn == null || DockRestartBtn == null || DockShutdownBtn == null) return;
+
+        bool supportsPower = dev != null && dev.IsComputerDevice && dev.AllowRemotePower;
+        bool showWake = supportsPower && !dev!.IsOnline;
+        bool showOnlinePower = supportsPower && dev!.IsOnline;
+
+        DockWakeBtn.Visibility = showWake ? Visibility.Visible : Visibility.Collapsed;
+        DockWakeDivider.Visibility = showWake ? Visibility.Visible : Visibility.Collapsed;
+        ColDockWake.Width = showWake ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+        DockRestartBtn.Visibility = showOnlinePower ? Visibility.Visible : Visibility.Collapsed;
+        DockRestartDivider.Visibility = showOnlinePower ? Visibility.Visible : Visibility.Collapsed;
+        ColDockRestart.Width = showOnlinePower ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+        DockShutdownBtn.Visibility = showOnlinePower ? Visibility.Visible : Visibility.Collapsed;
+        DockShutdownDivider.Visibility = showOnlinePower ? Visibility.Visible : Visibility.Collapsed;
+        ColDockShutdown.Width = showOnlinePower ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+        if (!supportsPower || dev == null) return;
+
+        bool hostStreaming = App.Engine.Coordinator.IsHostStreaming;
+        bool profileComplete = App.Engine.AccountService.IsProfileComplete;
+        bool canControl = !hostStreaming && App.Engine.AccountService.IsLoggedIn && profileComplete && !_isPowerBusy;
+        bool hasMacs = dev.WolMacs.Count > 0;
+
+        DockWakeBtn.IsEnabled = canControl && hasMacs;
+        DockRestartBtn.IsEnabled = canControl;
+        DockShutdownBtn.IsEnabled = canControl;
+
+        string? wakeTip = !profileComplete
+            ? LocalizationService.GetString("Power_ProfileIncompleteHint")
+            : (!hasMacs ? LocalizationService.GetString("Power_TargetNoMacHint") : null);
+        string? onlineTip = !profileComplete
+            ? LocalizationService.GetString("Power_ProfileIncompleteHint")
+            : null;
+        ToolTipService.SetToolTip(DockWakeBtn, wakeTip);
+        ToolTipService.SetToolTip(DockRestartBtn, onlineTip);
+        ToolTipService.SetToolTip(DockShutdownBtn, onlineTip);
     }
 
     private void UpdatePeerControllingOverlay(bool streaming)

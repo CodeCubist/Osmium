@@ -329,10 +329,15 @@ public sealed partial class MainWindow : Window
         _trayIcon = new TrayIconHelper(
             iconPath,
             onRestore: () => DispatcherQueue.TryEnqueue(RestoreFromTray),
-            onToggleAutoStart: () => DispatcherQueue.TryEnqueue(() =>
+            onToggleAutoStart: () => DispatcherQueue.TryEnqueue(async () =>
             {
                 bool next = !StartupHelper.IsAutoStartEnabled();
                 StartupHelper.SetAutoStartEnabled(next);
+                if (!next && StartupHelper.IsServiceAutoStartEnabled())
+                {
+                    await StartupHelper.DisableServiceAutoStartAsync();
+                }
+
                 AutoStartChangedFromTray?.Invoke();
             }),
             onDisconnectHost: () => DispatcherQueue.TryEnqueue(() => App.Engine.Coordinator.StopHostSession()),

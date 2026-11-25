@@ -117,7 +117,7 @@ class _ConnectTabState extends ConsumerState<ConnectTab> {
     if (digits.length != 9) {
       HapticFeedback.mediumImpact();
       _deviceIdShake.currentState?.shake();
-      setState(() => _error = '请输入 9 位设备码');
+      setState(() => _error = '请输入9位设备码');
       return;
     }
     final app = ref.read(appControllerProvider);
@@ -228,7 +228,7 @@ class _ConnectTabState extends ConsumerState<ConnectTab> {
                                   cornerRadius:
                                       OsmiumFieldDefaults.cornerRadius,
                                   controller: _deviceIdCtrl,
-                                  label: '9 位设备码',
+                                  label: '9位设备码',
                                   singleLine: true,
                                   keyboardType: TextInputType.number,
                                   textInputAction: TextInputAction.next,
@@ -365,7 +365,7 @@ class _ConnectTabState extends ConsumerState<ConnectTab> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: MiuixText(
-                                      _error ?? '请输入 9 位设备码',
+                                      _error ?? '请输入9位设备码',
                                       style: theme.textStyles.body2,
                                       color: OsmiumColors.dangerFg(isDark),
                                     ),

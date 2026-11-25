@@ -453,7 +453,7 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
               Expanded(
                 child: _GroupButton(
                   icon: Icons.keyboard_rounded,
-                  label: 'PC 键盘',
+                  label: 'PC键盘',
                   onTap: () {
                     widget.onClose();
                     widget.onOpenKeyboard(KeyboardOverlayMode.pcFull);

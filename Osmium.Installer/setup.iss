@@ -1,4 +1,4 @@
-#define AppName       "Osmium"
+﻿#define AppName       "Osmium"
 #define AppVersion    "1.0.0"
 #define AppVersionNum "1.0.0"
 #define AppPublisher  "Osmium"
@@ -53,10 +53,10 @@ Name: "chs"; MessagesFile: "ChineseSimplified.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-chs.DownloadingWebView2=正在获取必要组件 (Microsoft Edge WebView2 运行时)...
-chs.InstallingWebView2=正在部署必要组件 (Microsoft Edge WebView2 运行时)，请稍候...
-chs.InstallFailedWebView2=必要组件 (Microsoft Edge WebView2 运行时) 部署未成功。请稍后手动安装环境，主程序将继续安装。
-chs.DownloadFailedWebView2=无法获取必要组件 (Microsoft Edge WebView2 运行时)。请检查网络连接状态，或稍后手动完成安装。主程序将继续安装。
+chs.DownloadingWebView2=正在获取必要组件(Microsoft Edge WebView2运行时)...
+chs.InstallingWebView2=正在部署必要组件(Microsoft Edge WebView2运行时)，请稍候...
+chs.InstallFailedWebView2=必要组件(Microsoft Edge WebView2运行时)部署未成功。请稍后手动安装环境，主程序将继续安装。
+chs.DownloadFailedWebView2=无法获取必要组件(Microsoft Edge WebView2运行时)。请检查网络连接状态，或稍后手动完成安装。主程序将继续安装。
 
 chs.RuntimeExecFailed=必要组件安装程序无法执行。请稍后手动安装环境，主程序将继续安装。
 chs.InstallingDrivers=正在部署虚拟外设与手柄驱动，请稍候...
@@ -83,7 +83,7 @@ Source: "{#SrcDir}\*";          DestDir: "{app}"; Flags: ignoreversion recursesu
 
 [Icons]
 Name: "{group}\{#AppName}";          Filename: "{app}\{#AppExe}"; IconFilename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: startmenu
-Name: "{group}\卸载 {#AppName}";     Filename: "{uninstallexe}"; Tasks: startmenu
+Name: "{group}\卸载{#AppName}";     Filename: "{uninstallexe}"; Tasks: startmenu
 Name: "{autodesktop}\{#AppName}";    Filename: "{app}\{#AppExe}"; IconFilename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Registry]
@@ -94,9 +94,11 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 [Run]
 Filename: "{app}\{#AppExe}"; Parameters: "--install-service"; StatusMsg: "{cm:InstallingService}"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#AppExe}"; Parameters: "--install-drivers"; StatusMsg: "{cm:InstallingDrivers}"; Flags: runhidden waituntilterminated; Tasks: installdrivers
-Filename: "{app}\{#AppExe}"; Description: "立即启动 {#AppName}"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\{#AppExe}"; Description: "立即启动{#AppName}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
+Filename: "{app}\{#AppExe}"; Parameters: "--restore-wol"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "RestoreOsmiumWol"
+Filename: "{app}\{#AppExe}"; Parameters: "--disable-boot-service"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "DisableOsmiumBootService"
 Filename: "{app}\{#AppExe}"; Parameters: "--uninstall-service"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "UninstallOsmiumService"
 Filename: "{app}\{#AppExe}"; Parameters: "--uninstall-drivers"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "UninstallOsmiumDrivers"
 

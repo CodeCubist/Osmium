@@ -24,6 +24,8 @@ public sealed partial class AccountPage : Page
     {
         if (_isBusy || App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
         var acc = App.Engine.AccountService;
+        bool isAddEmail = !acc.HasEmail && !acc.HasPassword;
+        if (acc.HasEmail && !acc.HasPassword) return;
 
         int dlgStep = 0;
         int dlgAnimGen = 0;
@@ -42,11 +44,12 @@ public sealed partial class AccountPage : Page
         var pwdBox = new Controls.TogglePasswordBox
         {
             Header = LocalizationService.GetString("Acc_RowPassword"),
-            PlaceholderText = LocalizationService.GetString("Acc_PasswordPlaceholder")
+            PlaceholderText = LocalizationService.GetString("Acc_PasswordPlaceholder"),
+            Visibility = isAddEmail ? Visibility.Collapsed : Visibility.Visible
         };
         var newEmailBox = new TextBox
         {
-            Header = LocalizationService.GetString("Acc_NewEmailHeader"),
+            Header = LocalizationService.GetString(isAddEmail ? "Acc_BindEmailHeader" : "Acc_NewEmailHeader"),
             PlaceholderText = LocalizationService.GetString("Acc_EmailPlaceholder")
         };
         var haveOtpBtn = new Button
@@ -61,7 +64,11 @@ public sealed partial class AccountPage : Page
             HorizontalAlignment = HorizontalAlignment.Right
         };
         var step0Panel = new StackPanel { Spacing = 10, RenderTransform = step0Transform };
-        step0Panel.Children.Add(pwdBox);
+        if (!isAddEmail)
+        {
+            step0Panel.Children.Add(pwdBox);
+        }
+
         step0Panel.Children.Add(newEmailBox);
         step0Panel.Children.Add(haveOtpBtn);
 
@@ -112,7 +119,7 @@ public sealed partial class AccountPage : Page
         {
             XamlRoot = XamlRoot,
             RequestedTheme = ActualTheme,
-            Title = LocalizationService.GetString("Acc_ChangeEmailBtn"),
+            Title = LocalizationService.GetString(isAddEmail ? "Acc_AddEmailBtn" : "Acc_ChangeEmailBtn"),
             Content = rootPanel,
             PrimaryButtonText = LocalizationService.GetString("Acc_WizardSendAndNextBtn"),
             CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
@@ -166,7 +173,7 @@ public sealed partial class AccountPage : Page
             if (dlgStep == 1)
             {
                 targetEmailSummary.Text =
-                    $"{LocalizationService.GetString("Acc_WizardNewEmail")}: {newEmailBox.Text.Trim()}";
+                    $"{LocalizationService.GetString(isAddEmail ? "Acc_BindEmailHeader" : "Acc_WizardNewEmail")}: {newEmailBox.Text.Trim()}";
                 AnimateHorizontalSwap(step0Panel, step0Transform, step1Panel, step1Transform, forward: forward,
                     () => gen == dlgAnimGen, 44);
                 DispatcherQueue.TryEnqueue(() => otpBox.Focus(FocusState.Programmatic));
@@ -181,9 +188,9 @@ public sealed partial class AccountPage : Page
 
         haveOtpBtn.Click += (_, _) =>
         {
-            string pwd = pwdBox.Password;
+            string? pwd = isAddEmail ? null : pwdBox.Password;
             string nextMail = newEmailBox.Text.Trim();
-            if (string.IsNullOrEmpty(pwd) || pwd.Length < 8)
+            if (!isAddEmail && (string.IsNullOrEmpty(pwd) || pwd.Length < 8))
             {
                 feedbackText.Text = LocalizationService.GetString("Acc_ErrPasswordLength");
                 return;
@@ -201,9 +208,9 @@ public sealed partial class AccountPage : Page
 
         async Task<bool> TriggerChangeEmailOtpAsync()
         {
-            string pwd = pwdBox.Password;
+            string? pwd = isAddEmail ? null : pwdBox.Password;
             string nextMail = newEmailBox.Text.Trim();
-            if (string.IsNullOrEmpty(pwd) || pwd.Length < 8)
+            if (!isAddEmail && (string.IsNullOrEmpty(pwd) || pwd.Length < 8))
             {
                 feedbackText.Text = LocalizationService.GetString("Acc_ErrPasswordLength");
                 return false;
@@ -229,7 +236,7 @@ public sealed partial class AccountPage : Page
 
             if (!startRes.RequiresCaptcha || startRes.Challenge == null)
             {
-                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode);
+                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
                 return false;
             }
 
@@ -248,8 +255,7 @@ public sealed partial class AccountPage : Page
                 return true;
             }
 
-            if (pollRes.Code == OsmiumErrorCode.OtpCooldown ||
-                (pollRes.RetryAfter.HasValue && pollRes.RetryAfter.Value.TotalSeconds > 0))
+            if (pollRes.Code == OsmiumErrorCode.OtpCooldown)
             {
                 var cd = pollRes.RetryAfter.HasValue && pollRes.RetryAfter.Value.TotalSeconds > 0
                     ? pollRes.RetryAfter.Value
@@ -258,7 +264,7 @@ public sealed partial class AccountPage : Page
                 UpdateDialogCooldownUi();
             }
 
-            feedbackText.Text = acc.FormatFriendlyError(pollRes.Code, pollRes.HttpStatusCode);
+            feedbackText.Text = acc.FormatFriendlyError(pollRes.Code, pollRes.HttpStatusCode, pollRes.RetryAfter);
             return false;
         }
 
@@ -287,7 +293,7 @@ public sealed partial class AccountPage : Page
             }
         };
 
-        dlg.PrimaryButtonClick += async (_, args) =>
+        dlg.PrimaryButtonClick += async (dialog, args) =>
         {
             var deferral = args.GetDeferral();
             try
@@ -303,16 +309,333 @@ public sealed partial class AccountPage : Page
                     return;
                 }
 
-                var res = await acc.ConfirmChangeEmailAsync(pwdBox.Password, newEmailBox.Text, otpBox.Text);
+                string? pwd = isAddEmail ? null : pwdBox.Password;
+                var res = await acc.ConfirmChangeEmailAsync(pwd, newEmailBox.Text, otpBox.Text);
                 if (!res.Ok)
                 {
                     args.Cancel = true;
-                    feedbackText.Text = acc.FormatFriendlyError(res.Code, res.HttpStatusCode);
+                    feedbackText.Text = acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter);
                 }
                 else
                 {
-                    ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgEmailUpdated"));
+                    ShowStatus(
+                        InfoBarSeverity.Success,
+                        LocalizationService.GetString(isAddEmail ? "Acc_MsgEmailAddedNeedPwd" : "Acc_MsgEmailUpdated"));
                     RefreshViewState();
+                    _ = App.Engine.SyncSignalingStatusAsync();
+                }
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+
+        try
+        {
+            await dlg.ShowAsync();
+        }
+        finally
+        {
+            dlgCooldownTimer.Stop();
+        }
+    }
+
+    private async void BtnSetPassword_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isBusy || App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+        var acc = App.Engine.AccountService;
+        if (!acc.HasEmail || acc.HasPassword) return;
+
+        int dlgStep = 0;
+        int dlgAnimGen = 0;
+        bool dlgSending = false;
+        DateTimeOffset dlgCooldownUntil = DateTimeOffset.MinValue;
+        var dlgCooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+
+        var stepIndicator = new TextBlock
+        {
+            Text = LocalizationService.Format("Acc_StepProgressFmt", 1, 2),
+            FontSize = 12,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+        };
+
+        var step0Transform = new TranslateTransform();
+        var boundEmailText = new TextBlock
+        {
+            Text = $"{LocalizationService.GetString("Acc_WizardCurrentEmail")}: {acc.CurrentEmail}",
+            FontSize = 13,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var step0Hint = new TextBlock
+        {
+            Text = LocalizationService.GetString("Acc_SetPasswordStep0Hint"),
+            FontSize = 12,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            TextWrapping = TextWrapping.Wrap
+        };
+        var haveOtpBtn = new Button
+        {
+            Content = LocalizationService.GetString("Acc_WizardHaveOtpBtn"),
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Height = 28,
+            Padding = new Thickness(4, 2, 4, 2),
+            FontSize = 12,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        var step0Panel = new StackPanel { Spacing = 10, RenderTransform = step0Transform };
+        step0Panel.Children.Add(boundEmailText);
+        step0Panel.Children.Add(step0Hint);
+        step0Panel.Children.Add(haveOtpBtn);
+
+        var step1Transform = new TranslateTransform();
+        var otpBox = new TextBox
+        {
+            Header = LocalizationService.GetString("Acc_RowOtp"),
+            PlaceholderText = LocalizationService.GetString("Acc_OtpPlaceholder"),
+            MaxLength = 12
+        };
+        var newPwdBox = new Controls.TogglePasswordBox
+        {
+            Header = LocalizationService.GetString("Acc_RowPassword"),
+            PlaceholderText = LocalizationService.GetString("Acc_PasswordPlaceholder")
+        };
+        var confirmPwdBox = new Controls.TogglePasswordBox
+        {
+            Header = LocalizationService.GetString("Acc_RowConfirmPassword"),
+            PlaceholderText = LocalizationService.GetString("Acc_ConfirmPasswordPlaceholder")
+        };
+        var resendBtn = new Button
+        {
+            Content = LocalizationService.GetString("Acc_WizardResendBtn"),
+            CornerRadius = new CornerRadius(6),
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        var step1Panel = new StackPanel
+            { Spacing = 10, Visibility = Visibility.Collapsed, RenderTransform = step1Transform };
+        step1Panel.Children.Add(otpBox);
+        step1Panel.Children.Add(newPwdBox);
+        step1Panel.Children.Add(confirmPwdBox);
+        step1Panel.Children.Add(resendBtn);
+
+        var stageHost = new Grid { MinWidth = 340, MaxWidth = 400 };
+        stageHost.SizeChanged += SlideHost_SizeChanged;
+        stageHost.Children.Add(step0Panel);
+        stageHost.Children.Add(step1Panel);
+
+        var feedbackText = new TextBlock
+        {
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 380,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+        };
+
+        var rootPanel = new StackPanel { Spacing = 10, MinWidth = 340, MaxWidth = 400 };
+        rootPanel.Children.Add(stepIndicator);
+        rootPanel.Children.Add(stageHost);
+        rootPanel.Children.Add(feedbackText);
+
+        var dlg = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme,
+            Title = LocalizationService.GetString("Acc_RowSetPassword"),
+            Content = rootPanel,
+            PrimaryButtonText = LocalizationService.GetString("Acc_WizardSendAndNextBtn"),
+            CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        void UpdateDialogCooldownUi()
+        {
+            int rem = (int)Math.Max(0, Math.Ceiling((dlgCooldownUntil - DateTimeOffset.UtcNow).TotalSeconds));
+            if (rem > 0)
+            {
+                if (!dlgCooldownTimer.IsEnabled) dlgCooldownTimer.Start();
+                resendBtn.IsEnabled = false;
+                resendBtn.Content = LocalizationService.Format("Acc_OtpResendCooldownFmt", rem);
+                if (dlgStep == 0)
+                {
+                    dlg.PrimaryButtonText = LocalizationService.Format("Acc_OtpSendCooldownFmt", rem);
+                    dlg.IsPrimaryButtonEnabled = false;
+                }
+            }
+            else
+            {
+                if (dlgCooldownTimer.IsEnabled) dlgCooldownTimer.Stop();
+                resendBtn.IsEnabled = !dlgSending;
+                resendBtn.Content = LocalizationService.GetString("Acc_WizardResendBtn");
+                if (dlgStep == 0)
+                {
+                    dlg.PrimaryButtonText = LocalizationService.GetString("Acc_WizardSendAndNextBtn");
+                    dlg.IsPrimaryButtonEnabled = !dlgSending;
+                }
+            }
+        }
+
+        dlgCooldownTimer.Tick += (_, _) => UpdateDialogCooldownUi();
+
+        void SwitchDialogStep(int nextStep)
+        {
+            bool forward = nextStep > dlgStep;
+            dlgStep = nextStep;
+            stepIndicator.Text = LocalizationService.Format("Acc_StepProgressFmt", dlgStep + 1, 2);
+            dlg.SecondaryButtonText = dlgStep == 1 ? LocalizationService.GetString("Acc_WizardBackBtn") : string.Empty;
+            if (dlgStep == 1)
+            {
+                dlg.PrimaryButtonText = LocalizationService.GetString("Acc_SaveBtn");
+                dlg.IsPrimaryButtonEnabled = true;
+            }
+
+            UpdateDialogCooldownUi();
+
+            int gen = ++dlgAnimGen;
+            if (dlgStep == 1)
+            {
+                AnimateHorizontalSwap(step0Panel, step0Transform, step1Panel, step1Transform, forward: forward,
+                    () => gen == dlgAnimGen, 44);
+                DispatcherQueue.TryEnqueue(() => otpBox.Focus(FocusState.Programmatic));
+            }
+            else
+            {
+                AnimateHorizontalSwap(step1Panel, step1Transform, step0Panel, step0Transform, forward: forward,
+                    () => gen == dlgAnimGen, 44);
+            }
+        }
+
+        haveOtpBtn.Click += (_, _) =>
+        {
+            feedbackText.Text = string.Empty;
+            SwitchDialogStep(1);
+        };
+
+        async Task<bool> TriggerSetPasswordOtpAsync()
+        {
+            var startRes = await acc.StartSetPasswordSendCodeAsync();
+            if (startRes.Code == OsmiumErrorCode.OtpCooldown)
+            {
+                var cd = startRes.RetryAfter.HasValue && startRes.RetryAfter.Value.TotalSeconds > 0
+                    ? startRes.RetryAfter.Value
+                    : TimeSpan.FromSeconds(60);
+                dlgCooldownUntil = DateTimeOffset.UtcNow.Add(cd);
+                UpdateDialogCooldownUi();
+                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode);
+                return true;
+            }
+
+            if (!startRes.RequiresCaptcha || startRes.Challenge == null)
+            {
+                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                return false;
+            }
+
+            var pollRes = await CloudCaptchaWindow.ShowChallengeAsync<AccountOtpSentData>(acc, startRes.Challenge);
+            if (pollRes == null)
+            {
+                feedbackText.Text = LocalizationService.GetString("Conn_CaptchaCancelled");
+                return false;
+            }
+
+            if (pollRes.Ok)
+            {
+                dlgCooldownUntil = DateTimeOffset.UtcNow.AddSeconds(60);
+                UpdateDialogCooldownUi();
+                feedbackText.Text = LocalizationService.Format("Acc_OtpSentFmt", acc.CurrentEmail);
+                return true;
+            }
+
+            if (pollRes.Code == OsmiumErrorCode.OtpCooldown)
+            {
+                var cd = pollRes.RetryAfter.HasValue && pollRes.RetryAfter.Value.TotalSeconds > 0
+                    ? pollRes.RetryAfter.Value
+                    : TimeSpan.FromSeconds(60);
+                dlgCooldownUntil = DateTimeOffset.UtcNow.Add(cd);
+                UpdateDialogCooldownUi();
+            }
+
+            feedbackText.Text = acc.FormatFriendlyError(pollRes.Code, pollRes.HttpStatusCode, pollRes.RetryAfter);
+            return false;
+        }
+
+        resendBtn.Click += async (_, _) =>
+        {
+            if (dlgSending || dlgCooldownUntil > DateTimeOffset.UtcNow) return;
+            dlgSending = true;
+            resendBtn.IsEnabled = false;
+            try
+            {
+                await TriggerSetPasswordOtpAsync();
+            }
+            finally
+            {
+                dlgSending = false;
+                UpdateDialogCooldownUi();
+            }
+        };
+
+        dlg.SecondaryButtonClick += (_, args) =>
+        {
+            if (dlgStep == 1)
+            {
+                args.Cancel = true;
+                SwitchDialogStep(0);
+            }
+        };
+
+        dlg.PrimaryButtonClick += async (dialog, args) =>
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                if (dlgStep == 0)
+                {
+                    args.Cancel = true;
+                    if (await TriggerSetPasswordOtpAsync())
+                    {
+                        SwitchDialogStep(1);
+                    }
+
+                    return;
+                }
+
+                string otp = otpBox.Text.Trim();
+                if (otp.Length != 6 || !otp.All(char.IsDigit))
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrEnterOtpFirst");
+                    return;
+                }
+
+                string newPwd = newPwdBox.Password;
+                if (string.IsNullOrEmpty(newPwd) || newPwd.Length < 8 || newPwd.Length > 128)
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrPasswordLength");
+                    return;
+                }
+
+                if (newPwd != confirmPwdBox.Password)
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrPasswordMismatch");
+                    return;
+                }
+
+                var res = await acc.ConfirmSetPasswordAsync(otp, newPwd);
+                if (!res.Ok)
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter);
+                }
+                else
+                {
+                    ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgPasswordSetSuccess"));
+                    RefreshViewState();
+                    _ = App.Engine.SyncSignalingStatusAsync();
                 }
             }
             finally
@@ -731,9 +1054,14 @@ public sealed partial class AccountPage : Page
         DevicesListPanel.Children.Clear();
 
         bool hostControlled = App.Engine.Coordinator.IsHostStreaming;
+        bool profileComplete = App.Engine.AccountService.IsProfileComplete;
+        string localId = DeviceIdentity.NormalizeDeviceId(App.Engine.SettingsService.Identity.DeviceId);
+        var criticalBrush = Application.Current.Resources["SystemFillColorCriticalBrush"] as Brush;
 
         foreach (var dev in devices)
         {
+            string normId = DeviceIdentity.NormalizeDeviceId(dev.DeviceId);
+            bool isCurrentDevice = string.Equals(normId, localId, StringComparison.Ordinal);
             string statusText = dev.IsBeingControlled
                 ? LocalizationService.GetString("Status_Streaming")
                 : LocalizationService.GetString(dev.IsOnline ? "Status_Online" : "Status_Offline");
@@ -748,6 +1076,100 @@ public sealed partial class AccountPage : Page
 
             var rightStack = new StackPanel
                 { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+
+            if (!isCurrentDevice && dev.IsComputerDevice && dev.AllowRemotePower)
+            {
+                var capturedPowerDev = dev;
+                if (!dev.IsOnline)
+                {
+                    bool hasMacs = dev.WolMacs.Count > 0;
+                    var wakeBtn = new Button
+                    {
+                        Content = LocalizationService.GetString("Power_ActionWake"),
+                        CornerRadius = new CornerRadius(6),
+                        IsEnabled = !hostControlled && profileComplete && hasMacs
+                    };
+                    if (!profileComplete)
+                    {
+                        ToolTipService.SetToolTip(wakeBtn, LocalizationService.GetString("Power_ProfileIncompleteHint"));
+                    }
+                    else if (!hasMacs)
+                    {
+                        ToolTipService.SetToolTip(wakeBtn, LocalizationService.GetString("Power_TargetNoMacHint"));
+                    }
+
+                    wakeBtn.Click += async (_, _) =>
+                    {
+                        if (App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+                        wakeBtn.IsEnabled = false;
+                        try
+                        {
+                            await RemotePowerDialogHelper.ExecuteAsync(
+                                XamlRoot, ActualTheme, capturedPowerDev, "wake", requireConfirm: false);
+                        }
+                        finally
+                        {
+                            RenderDevicesList(App.Engine.AccountService.SameAccountDevices);
+                        }
+                    };
+                    rightStack.Children.Add(wakeBtn);
+                }
+                else
+                {
+                    var restartBtn = new Button
+                    {
+                        Content = LocalizationService.GetString("Power_ActionRestart"),
+                        CornerRadius = new CornerRadius(6),
+                        IsEnabled = !hostControlled && profileComplete
+                    };
+                    var shutdownBtn = new Button
+                    {
+                        Content = LocalizationService.GetString("Power_ActionShutdown"),
+                        CornerRadius = new CornerRadius(6),
+                        Foreground = criticalBrush,
+                        IsEnabled = !hostControlled && profileComplete
+                    };
+                    if (!profileComplete)
+                    {
+                        string tip = LocalizationService.GetString("Power_ProfileIncompleteHint");
+                        ToolTipService.SetToolTip(restartBtn, tip);
+                        ToolTipService.SetToolTip(shutdownBtn, tip);
+                    }
+
+                    restartBtn.Click += async (_, _) =>
+                    {
+                        if (App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+                        restartBtn.IsEnabled = false;
+                        shutdownBtn.IsEnabled = false;
+                        try
+                        {
+                            await RemotePowerDialogHelper.ExecuteAsync(
+                                XamlRoot, ActualTheme, capturedPowerDev, "restart", requireConfirm: true);
+                        }
+                        finally
+                        {
+                            RenderDevicesList(App.Engine.AccountService.SameAccountDevices);
+                        }
+                    };
+                    shutdownBtn.Click += async (_, _) =>
+                    {
+                        if (App.Engine.Coordinator.IsHostStreaming || XamlRoot == null) return;
+                        restartBtn.IsEnabled = false;
+                        shutdownBtn.IsEnabled = false;
+                        try
+                        {
+                            await RemotePowerDialogHelper.ExecuteAsync(
+                                XamlRoot, ActualTheme, capturedPowerDev, "shutdown", requireConfirm: true);
+                        }
+                        finally
+                        {
+                            RenderDevicesList(App.Engine.AccountService.SameAccountDevices);
+                        }
+                    };
+                    rightStack.Children.Add(restartBtn);
+                    rightStack.Children.Add(shutdownBtn);
+                }
+            }
 
             var renameBtn = new Button
             {
@@ -823,6 +1245,9 @@ public sealed partial class AccountPage : Page
             {
                 "qr_login" => $" · {LocalizationService.GetString("Acc_HistoryQrTag")}",
                 "qr_login_external" => $" · {LocalizationService.GetString("Acc_HistoryQrExtTag")}",
+                "oauth_google" => " · Google",
+                "oauth_qq" => " · QQ",
+                "oauth_wechat" => $" · {LocalizationService.GetString("Acc_OAuthWechatBtn")}",
                 _ => string.Empty
             };
             card.ActionContent = new TextBlock
@@ -839,16 +1264,12 @@ public sealed partial class AccountPage : Page
     private void SetBusy(bool busy)
     {
         _isBusy = busy;
-        BtnChooseLogin.IsEnabled = !busy;
-        BtnChooseQrLogin.IsEnabled = !busy;
-        BtnChooseRegister.IsEnabled = !busy;
-        BtnChooseReset.IsEnabled = !busy;
         BtnWizardBack.IsEnabled = !busy;
-        BtnHaveOtpSkip.IsEnabled = !busy;
+        BtnHaveOtpSkip.IsEnabled = !busy && CanAttemptAuth;
         BtnChangeWizardEmail.IsEnabled = !busy;
         WizardBusyRing.IsActive = busy;
         WizardBusyRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-        UpdateOtpCooldownVisuals();
+        ApplyAuthAvailabilityUi();
         ApplyHostSecurityLockdown();
     }
 

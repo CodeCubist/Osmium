@@ -161,6 +161,12 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition x:Name="ColDockWake" Width="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition x:Name="ColDockRestart" Width="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition x:Name="ColDockShutdown" Width="0" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition x:Name="ColDockBlacklist" Width="*" />
@@ -190,10 +196,60 @@
                                 </StackPanel>
                             </Button>
 
-                            <Border Grid.Column="3" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+                            <Border x:Name="DockWakeDivider" Grid.Column="3"
+                                    Style="{StaticResource OsmiumVerticalDividerStyle}"
+                                    Visibility="Collapsed" />
+
+                            <Button x:Name="DockWakeBtn"
+                                    Grid.Column="4"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Visibility="Collapsed"
+                                    Click="PowerWake_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF60E;" />
+                                    <TextBlock x:Name="DockWakeLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border x:Name="DockRestartDivider" Grid.Column="5"
+                                    Style="{StaticResource OsmiumVerticalDividerStyle}"
+                                    Visibility="Collapsed" />
+
+                            <Button x:Name="DockRestartBtn"
+                                    Grid.Column="6"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Visibility="Collapsed"
+                                    Click="PowerRestart_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF13E;" />
+                                    <TextBlock x:Name="DockRestartLabel" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border x:Name="DockShutdownDivider" Grid.Column="7"
+                                    Style="{StaticResource OsmiumVerticalDividerStyle}"
+                                    Visibility="Collapsed" />
+
+                            <Button x:Name="DockShutdownBtn"
+                                    Grid.Column="8"
+                                    Style="{StaticResource OsmiumHeroDockButtonStyle}"
+                                    Visibility="Collapsed"
+                                    Click="PowerShutdown_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}"
+                                              Glyph="&#xF60E;"
+                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                    <TextBlock x:Name="DockShutdownLabel"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border Grid.Column="9" Style="{StaticResource OsmiumVerticalDividerStyle}" />
 
                             <Button x:Name="DockDisconnectBtn"
-                                    Grid.Column="4"
+                                    Grid.Column="10"
                                     Style="{StaticResource OsmiumHeroDockButtonStyle}"
                                     Click="DisconnectPeerSession_Click">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -202,11 +258,11 @@
                                 </StackPanel>
                             </Button>
 
-                            <Border x:Name="DockBlacklistDivider" Grid.Column="5"
+                            <Border x:Name="DockBlacklistDivider" Grid.Column="11"
                                     Style="{StaticResource OsmiumVerticalDividerStyle}" />
 
                             <Button x:Name="DockBlacklistBtn"
-                                    Grid.Column="6"
+                                    Grid.Column="12"
                                     Style="{StaticResource OsmiumHeroDockButtonStyle}"
                                     Click="BlacklistController_Click">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -215,9 +271,9 @@
                                 </StackPanel>
                             </Button>
 
-                            <Border Grid.Column="7" Style="{StaticResource OsmiumVerticalDividerStyle}" />
+                            <Border Grid.Column="13" Style="{StaticResource OsmiumVerticalDividerStyle}" />
 
-                            <Button Grid.Column="8" Style="{StaticResource OsmiumHeroDockButtonStyle}">
+                            <Button Grid.Column="14" Style="{StaticResource OsmiumHeroDockButtonStyle}">
                                 <FontIcon Style="{StaticResource OsmiumDockActionIconStyle}" Glyph="&#xF134;" />
                                 <Button.Flyout>
                                     <MenuFlyout x:Name="DockMoreFlyout" Placement="BottomEdgeAlignedRight">

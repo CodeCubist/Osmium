@@ -123,6 +123,112 @@ public sealed partial class SignalingClient : IDisposable
                     AccountRevokedReceived?.Invoke(reason);
                     break;
                 }
+                case "power_command":
+                {
+                    var args = new PowerCommandEventArgs
+                    {
+                        CommandId = root.TryGetProperty("commandId", out var cid) && cid.ValueKind == JsonValueKind.String
+                            ? cid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Action = root.TryGetProperty("action", out var act) && act.ValueKind == JsonValueKind.String
+                            ? act.GetString() ?? string.Empty
+                            : string.Empty,
+                        TargetDeviceId = root.TryGetProperty("targetDeviceId", out var tid) && tid.ValueKind == JsonValueKind.String
+                            ? tid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                            ? ruid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                            ? rdid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterDeviceName = root.TryGetProperty("requesterDeviceName", out var rdn) && rdn.ValueKind == JsonValueKind.String
+                            ? rdn.GetString() ?? string.Empty
+                            : string.Empty,
+                        DelaySeconds = root.TryGetProperty("delaySeconds", out var ds) && ds.ValueKind == JsonValueKind.Number
+                            ? ds.GetInt32()
+                            : 3,
+                        IssuedAtUnixMs = root.TryGetProperty("issuedAt", out var ia) && ia.ValueKind == JsonValueKind.Number
+                            ? ia.GetInt64()
+                            : 0
+                    };
+                    PowerCommandReceived?.Invoke(args);
+                    break;
+                }
+                case "power_wol_relay":
+                {
+                    var macs = new List<string>();
+                    if (root.TryGetProperty("macs", out var macsEl) && macsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in macsEl.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.String)
+                            {
+                                string? s = item.GetString();
+                                if (!string.IsNullOrWhiteSpace(s)) macs.Add(s);
+                            }
+                        }
+                    }
+
+                    var broadcasts = new List<string>();
+                    if (root.TryGetProperty("broadcasts", out var bEl) && bEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in bEl.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.String)
+                            {
+                                string? s = item.GetString();
+                                if (!string.IsNullOrWhiteSpace(s)) broadcasts.Add(s);
+                            }
+                        }
+                    }
+
+                    var ports = new List<int>();
+                    if (root.TryGetProperty("ports", out var pEl) && pEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in pEl.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out int portVal) &&
+                                portVal is > 0 and <= 65535)
+                            {
+                                ports.Add(portVal);
+                            }
+                        }
+                    }
+
+                    if (ports.Count == 0)
+                    {
+                        ports.Add(9);
+                        ports.Add(7);
+                    }
+
+                    var args = new PowerWolRelayEventArgs
+                    {
+                        CommandId = root.TryGetProperty("commandId", out var cid) && cid.ValueKind == JsonValueKind.String
+                            ? cid.GetString() ?? string.Empty
+                            : string.Empty,
+                        TargetDeviceId = root.TryGetProperty("targetDeviceId", out var tid) && tid.ValueKind == JsonValueKind.String
+                            ? tid.GetString() ?? string.Empty
+                            : string.Empty,
+                        TargetDeviceName = root.TryGetProperty("targetDeviceName", out var tdn) && tdn.ValueKind == JsonValueKind.String
+                            ? tdn.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                            ? ruid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                            ? rdid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Macs = macs,
+                        Broadcasts = broadcasts,
+                        Ports = ports,
+                        IssuedAtUnixMs = root.TryGetProperty("issuedAt", out var ia) && ia.ValueKind == JsonValueKind.Number
+                            ? ia.GetInt64()
+                            : 0
+                    };
+                    PowerWolRelayReceived?.Invoke(args);
+                    break;
+                }
                 case "incoming_connect":
                 {
                     var args = new IncomingConnectEventArgs
@@ -163,6 +269,8 @@ public sealed partial class SignalingClient : IDisposable
                                 : null,
                         ViewOnlyRequested = root.TryGetProperty("viewOnlyRequested", out var vor) &&
                                             vor.ValueKind == JsonValueKind.True,
+                        WebRtcRequested = root.TryGetProperty("webrtcRequested", out var wr) &&
+                                          wr.ValueKind == JsonValueKind.True,
                         CandidatesJson = root.TryGetProperty("candidates", out var cands) ? cands.GetRawText() : "[]",
                         ObservedClientIp = root.TryGetProperty("observedClientIp", out var oip)
                             ? oip.GetString() ?? string.Empty
@@ -241,9 +349,73 @@ public sealed partial class SignalingClient : IDisposable
                             : string.Empty,
                         Reason = root.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String
                             ? r.GetString() ?? string.Empty
-                            : string.Empty
+                            : string.Empty,
+                        WebRtc = root.TryGetProperty("webrtc", out var wr) && wr.ValueKind == JsonValueKind.True,
+                        StunHost = root.TryGetProperty("stunHost", out var sh) && sh.ValueKind == JsonValueKind.String
+                            ? sh.GetString() ?? string.Empty
+                            : AdvertisedStunHost,
+                        StunPort = root.TryGetProperty("stunPort", out var sp) && sp.ValueKind == JsonValueKind.Number
+                            ? (ushort)sp.GetInt32()
+                            : AdvertisedStunPort
                     };
                     VersionCheckResultReceived?.Invoke(args);
+                    break;
+                }
+                case "webrtc_offer":
+                {
+                    var args = new WebRtcSdpEventArgs
+                    {
+                        SessionId = root.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String
+                            ? sid.GetString() ?? string.Empty
+                            : string.Empty,
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) && fid.ValueKind == JsonValueKind.String
+                            ? fid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Sdp = root.TryGetProperty("sdp", out var sdp) && sdp.ValueKind == JsonValueKind.String
+                            ? sdp.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    WebRtcOfferReceived?.Invoke(args);
+                    break;
+                }
+                case "webrtc_answer":
+                {
+                    var args = new WebRtcSdpEventArgs
+                    {
+                        SessionId = root.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String
+                            ? sid.GetString() ?? string.Empty
+                            : string.Empty,
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) && fid.ValueKind == JsonValueKind.String
+                            ? fid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Sdp = root.TryGetProperty("sdp", out var sdp) && sdp.ValueKind == JsonValueKind.String
+                            ? sdp.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    WebRtcAnswerReceived?.Invoke(args);
+                    break;
+                }
+                case "webrtc_ice":
+                {
+                    var args = new WebRtcIceEventArgs
+                    {
+                        SessionId = root.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String
+                            ? sid.GetString() ?? string.Empty
+                            : string.Empty,
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) && fid.ValueKind == JsonValueKind.String
+                            ? fid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Candidate = root.TryGetProperty("candidate", out var cand) && cand.ValueKind == JsonValueKind.String
+                            ? cand.GetString() ?? string.Empty
+                            : string.Empty,
+                        SdpMid = root.TryGetProperty("sdpMid", out var mid) && mid.ValueKind == JsonValueKind.String
+                            ? mid.GetString()
+                            : null,
+                        SdpMLineIndex = root.TryGetProperty("sdpMLineIndex", out var idx) && idx.ValueKind == JsonValueKind.Number
+                            ? idx.GetInt32()
+                            : 0
+                    };
+                    WebRtcIceReceived?.Invoke(args);
                     break;
                 }
                 case "bridge_ready":
@@ -524,6 +696,10 @@ public sealed partial class SignalingClient : IDisposable
     private void OnNetworkAddressChanged(object? sender, EventArgs e)
     {
         NotifyNetworkRecovered();
+        if (_isTransportRegistered && Volatile.Read(ref _disposed) == 0)
+        {
+            NetworkAddressUpdated?.Invoke();
+        }
     }
 
     private void NotifyNetworkRecovered()
@@ -827,6 +1003,7 @@ public sealed partial class SignalingClient : IDisposable
                 _ws = ws;
                 _isTransportRegistered = false;
                 var registerTcs = BeginPendingRegister();
+                var profile = _powerProfile;
                 bool registerSent = await SendJsonAsync(ws, new
                 {
                     type = "register",
@@ -834,7 +1011,16 @@ public sealed partial class SignalingClient : IDisposable
                     deviceName = _deviceName,
                     allowRemote = _allowRemote,
                     osVersion = Environment.OSVersion.VersionString,
-                    ltoken = _ltoken
+                    ltoken = _ltoken,
+                    powerProfile = profile == null
+                        ? null
+                        : new
+                        {
+                            allowRemotePower = profile.AllowRemotePower,
+                            wolMacs = profile.AllowRemotePower ? profile.MacAddresses : new List<string>(),
+                            wolBroadcasts = profile.AllowRemotePower ? profile.BroadcastAddresses : new List<string>(),
+                            wolReady = profile.AllowRemotePower && profile.WolReady
+                        }
                 }, ct);
                 if (!registerSent)
                 {

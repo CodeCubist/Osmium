@@ -300,6 +300,34 @@ public sealed partial class PeerDevicePage : Page
     private void ManageDevices_Click(object sender, RoutedEventArgs e)
         => App.MainWindowInstance?.NavigateToSettings("Devices");
 
+    private void PowerWake_Click(object sender, RoutedEventArgs e)
+        => _ = ExecuteRemotePowerActionAsync("wake", requireConfirm: false);
+
+    private void PowerRestart_Click(object sender, RoutedEventArgs e)
+        => _ = ExecuteRemotePowerActionAsync("restart", requireConfirm: true);
+
+    private void PowerShutdown_Click(object sender, RoutedEventArgs e)
+        => _ = ExecuteRemotePowerActionAsync("shutdown", requireConfirm: true);
+
+    private async Task ExecuteRemotePowerActionAsync(string action, bool requireConfirm)
+    {
+        if (_isPowerBusy || XamlRoot == null) return;
+        var dev = App.Engine.AccountService.FindPeerDevice(_targetDeviceId);
+        if (dev == null || !dev.IsComputerDevice || !dev.AllowRemotePower) return;
+
+        _isPowerBusy = true;
+        UpdateDockPowerState(dev);
+        try
+        {
+            await RemotePowerDialogHelper.ExecuteAsync(XamlRoot, ActualTheme, dev, action, requireConfirm);
+        }
+        finally
+        {
+            _isPowerBusy = false;
+            RefreshPeerDeviceState();
+        }
+    }
+
     private async Task ShowErrorDialogAsync(string message)
     {
         if (XamlRoot == null) return;
