@@ -272,7 +272,6 @@ public sealed partial class AccountPage : Page
         BtnRefreshHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
 
         RowRemoteHistoryHeader.Title = LocalizationService.GetString("Acc_TabRemoteHistory");
-        RowRemoteHistoryHeader.Description = LocalizationService.GetString("Acc_RemoteHistoryDesc");
         BtnRefreshRemoteHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
         if (_cachedRemoteHistory != null)
         {

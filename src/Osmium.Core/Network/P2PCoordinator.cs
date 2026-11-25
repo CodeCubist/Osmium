@@ -439,7 +439,7 @@ public sealed partial class P2PCoordinator : IDisposable
     public event Action<int>? ConnectCooldownChanged;
     public event Action? RemoteSessionStateChanged;
 
-    private bool HasActiveHostPipeline => _activeHostHandle != IntPtr.Zero;
+    public bool HasActiveHostPipeline => _activeHostHandle != IntPtr.Zero;
     public bool IsHostStreaming => _activeHostHandle != IntPtr.Zero && _hostSessionEstablished;
     public bool IsClientSessionActive => Volatile.Read(ref _activeClientSessionCount) > 0;
     public bool IsAnyRemoteSessionActive => IsHostStreaming || IsClientSessionActive;

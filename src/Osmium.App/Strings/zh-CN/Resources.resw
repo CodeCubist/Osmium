@@ -772,7 +772,6 @@
   <data name="Power_RowBiosTipTitle" xml:space="preserve"><value>远程开机使用说明</value></data>
   <data name="Power_RowBiosTipDesc" xml:space="preserve"><value>远程开机需在主板BIOS中开启Wake-on-LAN或PCIe设备唤醒；跨网络唤醒时，目标局域网内需有同账户在线设备协助唤醒。建议在常规中开启系统服务进程开机自启动，以便开机后无需登录桌面即可连接。</value></data>
   <data name="Acc_TabRemoteHistory" xml:space="preserve"><value>近30天远控记录</value></data>
-  <data name="Acc_RemoteHistoryDesc" xml:space="preserve"><value>记录近30天内最新的100条远控历史</value></data>
   <data name="Acc_RemoteHistoryEmpty" xml:space="preserve"><value>最近30天内暂无远控记录</value></data>
   <data name="Acc_RemoteRoleSameAccount" xml:space="preserve"><value>同账号</value></data>
   <data name="Acc_RemoteRoleController" xml:space="preserve"><value>主控</value></data>
@@ -780,4 +779,61 @@
   <data name="Acc_RemoteViewOnlyTag" xml:space="preserve"><value>仅查看</value></data>
   <data name="Acc_RemoteInProgress" xml:space="preserve"><value>进行中</value></data>
   <data name="Acc_DurationMinsSecsFmt" xml:space="preserve"><value>{0}分{1}秒</value></data>
+  <data name="Nav_QuickLaunch" xml:space="preserve"><value>快速启动</value></data>
+  <data name="Host_RowAllowQuickLaunch" xml:space="preserve"><value>允许快速启动程序</value></data>
+  <data name="Host_RowAllowQuickLaunchDesc" xml:space="preserve"><value>开启后，同一账户下的设备可浏览本机目录、添加程序并在启动后自动进入远程控制</value></data>
+  <data name="QL_PageTitle" xml:space="preserve"><value>快速启动</value></data>
+  <data name="QL_AddAppBtn" xml:space="preserve"><value>添加程序</value></data>
+  <data name="QL_FilterAllDevices" xml:space="preserve"><value>全部计算机</value></data>
+  <data name="QL_ThisPcTag" xml:space="preserve"><value>本机</value></data>
+  <data name="QL_LoggedOutTitle" xml:space="preserve"><value>请先登录账户</value></data>
+  <data name="QL_LoggedOutDesc" xml:space="preserve"><value>快速启动仅支持同一账户下的在线计算机，登录后即可添加并跨设备同步启动图标。</value></data>
+  <data name="QL_GoLoginBtn" xml:space="preserve"><value>前往登录</value></data>
+  <data name="QL_Loading" xml:space="preserve"><value>正在加载程序列表…</value></data>
+  <data name="QL_EmptyTitle" xml:space="preserve"><value>尚未添加任何程序</value></data>
+  <data name="QL_EmptyDesc" xml:space="preserve"><value>点击上方添加程序，选择已开启快速启动的同账户计算机及程序目录即可添加图标。</value></data>
+  <data name="QL_MenuLaunchRemote" xml:space="preserve"><value>启动并远程控制</value></data>
+  <data name="QL_MenuLaunchLocal" xml:space="preserve"><value>直接在本机启动</value></data>
+  <data name="QL_MenuDelete" xml:space="preserve"><value>删除</value></data>
+  <data name="QL_DeleteTitle" xml:space="preserve"><value>删除快速启动项</value></data>
+  <data name="QL_DeleteConfirmFmt" xml:space="preserve"><value>确定要移除{0}吗？该操作不会删除目标计算机上的程序文件。</value></data>
+  <data name="QL_SelfDevicePrompt" xml:space="preserve"><value>该程序位于当前计算机上，无法对本机发起远程控制。你可以在手机或其他登录同一账户的电脑上点击此图标以远程启动，或选择直接在本机打开。</value></data>
+  <data name="QL_LaunchingTitleFmt" xml:space="preserve"><value>正在启动{0}</value></data>
+  <data name="QL_StageChecking" xml:space="preserve"><value>正在校验目标设备在线状态、权限与程序目录…</value></data>
+  <data name="QL_StageWaitingForeground" xml:space="preserve"><value>校验通过，正在启动程序并等待窗口抵达前台…</value></data>
+  <data name="QL_StageStartingRemote" xml:space="preserve"><value>程序窗口已抵达前台，正在启动远程控制…</value></data>
+  <data name="QL_AddDialogTitle" xml:space="preserve"><value>添加快速启动程序</value></data>
+  <data name="QL_NoEligibleHostDesc" xml:space="preserve"><value>当前没有在线且已开启快速启动功能的同账户计算机。你可以先开启上方允许快速启动程序开关，或在其他电脑的设置中开启。</value></data>
+  <data name="QL_SelectHostLabel" xml:space="preserve"><value>选择目标计算机（仅显示在线且已开启功能的同账户设备）</value></data>
+  <data name="QL_SelectDirLabel" xml:space="preserve"><value>选择计算机上的目录或程序文件</value></data>
+  <data name="QL_PathPlaceholder" xml:space="preserve"><value>输入或浏览程序所在目录及.exe路径</value></data>
+  <data name="QL_DrivesBtn" xml:space="preserve"><value>磁盘列表</value></data>
+  <data name="QL_UpBtn" xml:space="preserve"><value>上一级</value></data>
+  <data name="QL_BrowseBtn" xml:space="preserve"><value>打开</value></data>
+  <data name="QL_ValidateBtn" xml:space="preserve"><value>校验目录</value></data>
+  <data name="QL_SelectExeCandidateLabel" xml:space="preserve"><value>该目录包含多个可执行程序，请选择要启动的程序</value></data>
+  <data name="QL_MultiExeFoundFmt" xml:space="preserve"><value>在该目录中检测到{0}个可执行程序，请在下方选择其中一个以读取图标</value></data>
+  <data name="QL_ValidatingPath" xml:space="preserve"><value>正在校验目录并读取程序图标…</value></data>
+  <data name="QL_ValidateSuccess" xml:space="preserve"><value>校验通过，已自动读取程序图标</value></data>
+  <data name="QL_AppNameLabel" xml:space="preserve"><value>显示名称</value></data>
+  <data name="QL_ConfirmAddBtn" xml:space="preserve"><value>确认添加</value></data>
+  <data name="QL_StepSelectHost" xml:space="preserve"><value>选择计算机</value></data>
+  <data name="QL_StepSelectDir" xml:space="preserve"><value>选择目录</value></data>
+  <data name="QL_StepConfirm" xml:space="preserve"><value>确认添加</value></data>
+  <data name="QL_StepNextBtn" xml:space="preserve"><value>下一步</value></data>
+  <data name="QL_StepBackBtn" xml:space="preserve"><value>返回</value></data>
+  <data name="QL_ErrEnterPath" xml:space="preserve"><value>请先选择或输入目标目录及程序路径</value></data>
+  <data name="QL_ErrLocalHosting" xml:space="preserve"><value>本机当前正在被远程控制，暂时无法发起快速启动</value></data>
+  <data name="QL_ErrNotOwnDevice" xml:space="preserve"><value>目标设备不属于当前登录账户，无法操作</value></data>
+  <data name="QL_ErrDeviceOffline" xml:space="preserve"><value>目标计算机当前离线，无法校验并启动程序</value></data>
+  <data name="QL_ErrDisabled" xml:space="preserve"><value>目标计算机未开启快速启动功能</value></data>
+  <data name="QL_ErrRemoteDisabled" xml:space="preserve"><value>目标计算机未允许远程控制</value></data>
+  <data name="QL_ErrHostBusy" xml:space="preserve"><value>目标计算机当前正在进行其他远程会话，请稍后再试</value></data>
+  <data name="QL_ErrDirNotFound" xml:space="preserve"><value>目标计算机上不存在该目录，请检查路径是否正确</value></data>
+  <data name="QL_ErrBinaryNotFound" xml:space="preserve"><value>目标目录中未找到有效的可执行二进制文件</value></data>
+  <data name="QL_ErrExitedEarly" xml:space="preserve"><value>程序启动后已提前退出，未检测到前台窗口</value></data>
+  <data name="QL_ErrForegroundTimeout" xml:space="preserve"><value>等待程序窗口抵达前台超时，请检查目标计算机状态</value></data>
+  <data name="QL_ErrAccessDenied" xml:space="preserve"><value>无权访问目标计算机上的该目录</value></data>
+  <data name="QL_ErrLimitExceeded" xml:space="preserve"><value>已达到快速启动程序数量上限（最多100个）</value></data>
+  <data name="QL_ErrGeneric" xml:space="preserve"><value>操作未能完成，请检查网络与目标计算机状态后重试</value></data>
 </root>

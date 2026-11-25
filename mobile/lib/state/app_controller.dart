@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/constants/osmium_constants.dart';
 import '../core/models/account_models.dart';
 import '../core/models/device_identity.dart';
 import '../core/models/osmium_settings.dart';
@@ -95,6 +97,12 @@ class AppController extends ChangeNotifier {
   List<AccountDeviceDto> _accountDevices = const [];
   List<AccountDeviceDto> get accountDevices => _accountDevices;
 
+  List<QuickLaunchAppDto> _quickLaunchApps = const [];
+  List<QuickLaunchAppDto> get quickLaunchApps => _quickLaunchApps;
+
+  bool _refreshingQuickLaunch = false;
+  bool get refreshingQuickLaunch => _refreshingQuickLaunch;
+
   Map<String, String> _deviceWallpapers = const {};
   String? wallpaperPathFor(String deviceId) =>
       _deviceWallpapers[DeviceIdentity.normalizeDeviceId(deviceId)];
@@ -109,6 +117,7 @@ class AppController extends ChangeNotifier {
   StreamSubscription<SignalingConnectionState>? _sigStateSub;
   StreamSubscription<List<AccountDeviceDto>>? _sigDevicesSub;
   StreamSubscription<void>? _sigUnreachableSub;
+  StreamSubscription<void>? _sigQuickLaunchSyncSub;
   StreamSubscription<AccountSessionData?>? _acctSub;
 
   // Startup-only alert: once signaling has registered, later drops just show
@@ -156,17 +165,25 @@ class AppController extends ChangeNotifier {
       notifyListeners();
     });
 
+    _sigQuickLaunchSyncSub = signaling.quickLaunchSyncStream.listen((_) {
+      if (accountService.isLoggedIn) {
+        unawaited(refreshQuickLaunchApps());
+      }
+    });
+
     _acctSub = accountService.sessionStream.listen((session) {
       final prevUserId = _account?.userId;
       _account = session;
       signaling.updateAuthToken(accountService.currentLtoken);
       if (session != null) {
         refreshAccountDevices();
+        unawaited(refreshQuickLaunchApps());
         if (_oauthBindings == null || prevUserId != session.userId) {
           unawaited(refreshOAuthBindings());
         }
       } else {
         _accountDevices = const [];
+        _quickLaunchApps = const [];
         _oauthBindings = null;
         _oauthBindingsLoading = false;
         _oauthBindingsFailed = false;
@@ -205,6 +222,7 @@ class AppController extends ChangeNotifier {
       await Future.wait([
         refreshAccountProfile(),
         refreshAccountDevices(),
+        refreshQuickLaunchApps(),
         refreshOAuthBindings(),
       ]);
     } else {
@@ -368,6 +386,238 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshQuickLaunchApps() async {
+    if (!accountService.isLoggedIn || _refreshingQuickLaunch) return;
+    _refreshingQuickLaunch = true;
+    notifyListeners();
+    try {
+      final res = await accountService.fetchQuickLaunchApps();
+      if (res.ok && res.data != null) {
+        _quickLaunchApps = res.data!;
+      }
+    } finally {
+      _refreshingQuickLaunch = false;
+      notifyListeners();
+    }
+  }
+
+  AccountDeviceDto? findAccountDevice(String deviceId) {
+    final norm = DeviceIdentity.normalizeDeviceId(deviceId);
+    for (final d in _accountDevices) {
+      if (DeviceIdentity.normalizeDeviceId(d.deviceId) == norm) return d;
+    }
+    return null;
+  }
+
+  String _formatQuickLaunchError(int code, String reason) {
+    switch (reason.toUpperCase()) {
+      case 'DIRECTORY_NOT_FOUND':
+      case 'PATH_NOT_FOUND':
+        return '目标计算机上不存在该目录，请检查路径是否正确';
+      case 'BINARY_NOT_FOUND':
+      case 'NO_EXECUTABLE_IN_DIR':
+      case 'NOT_VALID_EXE':
+      case 'INVALID_EXECUTABLE':
+        return '目标目录中未找到有效的可执行二进制文件';
+      case 'PROCESS_EXITED_EARLY':
+        return '程序启动后已提前退出，未检测到前台窗口';
+      case 'FOREGROUND_TIMEOUT':
+      case 'LAUNCH_TIMEOUT':
+        return '等待程序窗口抵达前台超时，请检查目标计算机状态';
+      case 'HOST_BUSY':
+        return '目标计算机当前正在进行其他远程会话，请稍后再试';
+      case 'ACCESS_DENIED':
+        return '无权访问目标计算机上的该目录';
+    }
+    switch (code) {
+      case OsmiumErrorCode.deviceOffline:
+        return '目标计算机当前离线，无法校验并启动程序';
+      case OsmiumErrorCode.forbidden:
+        return '目标设备不属于当前登录账户，无法操作';
+      case OsmiumErrorCode.quickLaunchDisabled:
+        return '目标计算机未开启快速启动功能';
+      case OsmiumErrorCode.remoteDisabled:
+        return '目标计算机未允许远程控制';
+      case OsmiumErrorCode.quickLaunchNotFound:
+        return '目标目录中未找到有效的可执行二进制文件';
+      case OsmiumErrorCode.selfConnect:
+        return '无法对当前设备发起远程控制';
+      case OsmiumErrorCode.accountLocked:
+        return '账号已锁定，请先解锁';
+      case OsmiumErrorCode.accountAuthRequired:
+        return '请先登录同一账户后再使用快速启动';
+      case OsmiumErrorCode.rateLimited:
+        return '操作过于频繁，请稍后再试';
+    }
+    return '启动失败，请检查网络与目标计算机状态后重试';
+  }
+
+  Future<({bool ok, String message, String deviceName, bool cancelled})>
+  launchQuickApp(
+    QuickLaunchAppDto app, {
+    required void Function(String stage) onStage,
+    required ValueNotifier<bool> cancelled,
+  }) async {
+    if (!accountService.isLoggedIn) {
+      return (
+        ok: false,
+        message: '请先登录同一账户后再使用快速启动',
+        deviceName: app.deviceName,
+        cancelled: false,
+      );
+    }
+    if (_signalingState != SignalingConnectionState.connected) {
+      return (
+        ok: false,
+        message: '尚未连接到信令服务器，请稍候重试',
+        deviceName: app.deviceName,
+        cancelled: false,
+      );
+    }
+
+    final targetId = DeviceIdentity.normalizeDeviceId(app.deviceId);
+    final peer = findAccountDevice(targetId);
+    final displayName = peer?.displayName ?? app.deviceName;
+    if (peer == null) {
+      return (
+        ok: false,
+        message: '目标设备不属于当前登录账户，无法操作',
+        deviceName: displayName,
+        cancelled: false,
+      );
+    }
+    if (!peer.isOnline) {
+      return (
+        ok: false,
+        message: '目标计算机当前离线，无法校验并启动程序',
+        deviceName: displayName,
+        cancelled: false,
+      );
+    }
+    if (!peer.allowQuickLaunch) {
+      return (
+        ok: false,
+        message: '目标计算机未开启快速启动功能',
+        deviceName: displayName,
+        cancelled: false,
+      );
+    }
+    if (!peer.allowRemote) {
+      return (
+        ok: false,
+        message: '目标计算机未允许远程控制',
+        deviceName: displayName,
+        cancelled: false,
+      );
+    }
+    if (peer.isBeingControlled) {
+      return (
+        ok: false,
+        message: '目标计算机当前正在进行其他远程会话，请稍后再试',
+        deviceName: displayName,
+        cancelled: false,
+      );
+    }
+
+    onStage('正在校验目标设备在线状态、权限与程序目录…');
+
+    final rnd = Random.secure();
+    final reqId =
+        'ql_${DateTime.now().millisecondsSinceEpoch}_${rnd.nextInt(1 << 30).toRadixString(16)}';
+
+    final completer = Completer<QuickLaunchStartResponseEvent?>();
+    late final StreamSubscription<QuickLaunchStartResponseEvent> sub;
+    sub = signaling.quickLaunchStartResponseStream.listen((evt) {
+      if (evt.requestId != reqId) return;
+      if (evt.status.toLowerCase() == 'launching') {
+        onStage('校验通过，正在启动程序并等待窗口抵达前台…');
+        return;
+      }
+      if (!completer.isCompleted) {
+        completer.complete(evt);
+      }
+    });
+
+    void onCancelChanged() {
+      if (cancelled.value) {
+        signaling.sendQuickLaunchCancel(
+          requestId: reqId,
+          targetDeviceId: targetId,
+        );
+        if (!completer.isCompleted) {
+          completer.complete(null);
+        }
+      }
+    }
+
+    cancelled.addListener(onCancelChanged);
+    final timer = Timer(const Duration(seconds: 42), () {
+      if (!completer.isCompleted) {
+        signaling.sendQuickLaunchCancel(
+          requestId: reqId,
+          targetDeviceId: targetId,
+        );
+        completer.complete(
+          const QuickLaunchStartResponseEvent(
+            requestId: '',
+            hostDeviceId: '',
+            status: 'failed',
+            ok: false,
+            code: 0,
+            reason: 'LAUNCH_TIMEOUT',
+          ),
+        );
+      }
+    });
+
+    try {
+      final sent = signaling.sendQuickLaunchStart(
+        requestId: reqId,
+        targetDeviceId: targetId,
+        appId: app.id,
+        exePath: app.exePath,
+        appName: app.name,
+      );
+      if (!sent) {
+        return (
+          ok: false,
+          message: '信令连接不可用，请稍后重试',
+          deviceName: displayName,
+          cancelled: false,
+        );
+      }
+
+      final evt = await completer.future;
+      if (cancelled.value || evt == null) {
+        return (
+          ok: false,
+          message: '',
+          deviceName: displayName,
+          cancelled: true,
+        );
+      }
+      if (evt.ok && evt.status.toLowerCase() == 'ready') {
+        onStage('程序窗口已抵达前台，正在启动远程控制…');
+        return (
+          ok: true,
+          message: '',
+          deviceName: displayName,
+          cancelled: false,
+        );
+      }
+      return (
+        ok: false,
+        message: _formatQuickLaunchError(evt.code, evt.reason),
+        deviceName: displayName,
+        cancelled: false,
+      );
+    } finally {
+      timer.cancel();
+      cancelled.removeListener(onCancelChanged);
+      await sub.cancel();
+    }
+  }
+
   Future<bool> renameRemoteDevice(String deviceId, String customName) async {
     final res = await accountService.renameDevice(deviceId, customName);
     if (res.ok) {
@@ -510,6 +760,7 @@ class AppController extends ChangeNotifier {
       revokeAll: revokeAll,
     );
     _accountDevices = const [];
+    _quickLaunchApps = const [];
     _oauthBindings = null;
     _oauthBindingsLoading = false;
     _oauthBindingsFailed = false;
@@ -521,6 +772,7 @@ class AppController extends ChangeNotifier {
     _sigStateSub?.cancel();
     _sigDevicesSub?.cancel();
     _sigUnreachableSub?.cancel();
+    _sigQuickLaunchSyncSub?.cancel();
     _acctSub?.cancel();
     _serverUnreachableCtrl.close();
     super.dispose();

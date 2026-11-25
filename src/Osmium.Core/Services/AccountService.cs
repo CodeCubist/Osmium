@@ -794,6 +794,28 @@ public sealed partial class AccountService : IDisposable
     public Task<AccountApiResult<AccountRemoteHistoryData>> GetRemoteHistoryAsync()
         => SendAuthenticatedJsonAsync<AccountRemoteHistoryData>(HttpMethod.Get, "/api/account/remote-history");
 
+    public Task<AccountApiResult<QuickLaunchAppsListData>> GetQuickLaunchAppsAsync()
+        => SendAuthenticatedJsonAsync<QuickLaunchAppsListData>(HttpMethod.Get, "/api/account/quick-launch/apps");
+
+    public Task<AccountApiResult<QuickLaunchAddResultData>> AddQuickLaunchAppAsync(
+        string deviceId,
+        string name,
+        string exePath,
+        string? iconData)
+        => SendAuthenticatedJsonAsync<QuickLaunchAddResultData>(HttpMethod.Post, "/api/account/quick-launch/apps", new
+        {
+            device_id = DeviceIdentity.NormalizeDeviceId(deviceId),
+            name = name.Trim(),
+            exe_path = exePath.Trim(),
+            icon_data = string.IsNullOrWhiteSpace(iconData) ? null : iconData.Trim()
+        }, retryOnTransient: false);
+
+    public Task<AccountApiResult<object>> DeleteQuickLaunchAppAsync(string appId)
+        => SendAuthenticatedJsonAsync<object>(HttpMethod.Post, "/api/account/quick-launch/apps/delete", new
+        {
+            id = appId.Trim()
+        }, retryOnTransient: false);
+
     public Task<AccountApiResult<AccountBlacklistData>> GetBlacklistAsync()
         => SendAuthenticatedJsonAsync<AccountBlacklistData>(HttpMethod.Get, "/api/account/blacklist");
 

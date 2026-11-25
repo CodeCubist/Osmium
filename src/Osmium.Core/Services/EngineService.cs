@@ -102,6 +102,11 @@ public sealed class EngineService : IDisposable
         get;
     }
 
+    public QuickLaunchHostService QuickLaunch
+    {
+        get;
+    }
+
     public OsmiumCapabilities Capabilities
     {
         get;
@@ -123,6 +128,7 @@ public sealed class EngineService : IDisposable
         Coordinator = new P2PCoordinator(SettingsService, Signaling, AccountService, Logging);
         DeviceWallpapers = new DeviceWallpaperStore(SettingsService.DataDirectory, Logging);
         RemotePower = new RemotePowerService(SettingsService, AccountService, Coordinator, Logging);
+        QuickLaunch = new QuickLaunchHostService(SettingsService, AccountService, Signaling, Coordinator, Logging);
 
         AccountService.DeviceRemoved += deviceId => DeviceWallpapers.RemoveWallpaper(deviceId);
 
@@ -247,7 +253,8 @@ public sealed class EngineService : IDisposable
         Signaling.Start(OsmiumSettings.FixedSignalingServerUrl, id.DeviceId, id.DeviceName,
             Coordinator.EffectiveAllowRemoteControl,
             AccountService.CurrentLtoken,
-            powerProfile);
+            powerProfile,
+            SettingsService.Settings.HostAllowQuickLaunch);
     }
 
     public Task SyncSignalingStatusAsync()
@@ -256,7 +263,8 @@ public sealed class EngineService : IDisposable
         return Signaling.UpdateStatusAsync(
             Coordinator.EffectiveAllowRemoteControl,
             SettingsService.Identity.DeviceName,
-            powerProfile);
+            powerProfile,
+            SettingsService.Settings.HostAllowQuickLaunch);
     }
 
     public async Task<RemotePowerActionOutcome> RequestRemotePowerAsync(
@@ -365,6 +373,7 @@ public sealed class EngineService : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
+        QuickLaunch.Dispose();
         Coordinator.Dispose();
         Signaling.Dispose();
         AccountService.Dispose();

@@ -105,6 +105,10 @@ public static class OsmiumErrorCode
     public const int AvatarChangeCooldown = 4015;
     public const int EmailChangeCooldown = 4016;
     public const int PasswordResetCooldown = 4017;
+    public const int QuickLaunchDisabled = 4018;
+    public const int QuickLaunchNotFound = 4019;
+    public const int QuickLaunchLimitExceeded = 4020;
+    public const int QuickLaunchUnsupported = 4021;
 
     public const int InternalError = 5001;
     public const int ServerMisconfigured = 5002;
@@ -617,6 +621,13 @@ public sealed class AccountDeviceDto
 
     [JsonPropertyName("allow_remote_power")]
     public bool AllowRemotePower
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_quick_launch")]
+    public bool AllowQuickLaunch
     {
         get;
         set;
@@ -1343,4 +1354,326 @@ public sealed class OAuthBindingsData
         get;
         set;
     } = new();
+}
+
+public sealed class QuickLaunchAppDto
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("device_id")]
+    public string DeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("device_name")]
+    public string DeviceName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("device_cached")]
+    public bool DeviceCached
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("device_online")]
+    public bool DeviceOnline
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_remote")]
+    public bool AllowRemote
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_quick_launch")]
+    public bool AllowQuickLaunch
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("exe_path")]
+    public string ExePath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("icon_data")]
+    public string? IconData
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("created_at")]
+    public string CreatedAt
+    {
+        get;
+        set;
+    } = string.Empty;
+}
+
+public sealed class QuickLaunchAppsListData
+{
+    [JsonPropertyName("apps")]
+    public List<QuickLaunchAppDto> Apps
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("max_apps")]
+    public int MaxApps
+    {
+        get;
+        set;
+    } = 100;
+}
+
+public sealed class QuickLaunchAddResultData
+{
+    [JsonPropertyName("app")]
+    public QuickLaunchAppDto? App
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class QuickLaunchBrowseEntry
+{
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("path")]
+    public string Path
+    {
+        get;
+        set;
+    } = string.Empty;
+}
+
+public sealed class QuickLaunchBrowseResult
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ok")]
+    public bool Ok
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("code")]
+    public int Code
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("reason")]
+    public string Reason
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("currentPath")]
+    public string CurrentPath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("parentPath")]
+    public string ParentPath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("directories")]
+    public List<QuickLaunchBrowseEntry> Directories
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("executables")]
+    public List<QuickLaunchBrowseEntry> Executables
+    {
+        get;
+        set;
+    } = [];
+}
+
+public sealed class QuickLaunchValidateResult
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ok")]
+    public bool Ok
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("code")]
+    public int Code
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("reason")]
+    public string Reason
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("needsExeSelection")]
+    public bool NeedsExeSelection
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("directoryPath")]
+    public string DirectoryPath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("resolvedExePath")]
+    public string ResolvedExePath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("suggestedName")]
+    public string SuggestedName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("iconData")]
+    public string? IconData
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("candidates")]
+    public List<QuickLaunchBrowseEntry> Candidates
+    {
+        get;
+        set;
+    } = [];
+}
+
+public sealed class QuickLaunchStartResponse
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ok")]
+    public bool Ok
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("code")]
+    public int Code
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("reason")]
+    public string Reason
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("pid")]
+    public int Pid
+    {
+        get;
+        set;
+    }
 }

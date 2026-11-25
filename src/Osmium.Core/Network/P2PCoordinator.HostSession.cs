@@ -937,6 +937,9 @@ public sealed partial class P2PCoordinator : IDisposable
 
     public void StopHostSession() => StopHostSession(notifyPeer: true, notifyEndedReason: "Host stopped session");
 
+    public void StopHostSession(string reason) => StopHostSession(notifyPeer: true,
+        notifyEndedReason: string.IsNullOrWhiteSpace(reason) ? "Host stopped session" : reason);
+
     private void SendHostDesktopWallpaper(AuxTransferChannel channel)
     {
         _ = Task.Run(async () =>

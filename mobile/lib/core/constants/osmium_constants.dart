@@ -62,6 +62,10 @@ class OsmiumErrorCode {
   static const int avatarChangeCooldown = 4015;
   static const int emailChangeCooldown = 4016;
   static const int passwordResetCooldown = 4017;
+  static const int quickLaunchDisabled = 4018;
+  static const int quickLaunchNotFound = 4019;
+  static const int quickLaunchLimitExceeded = 4020;
+  static const int quickLaunchUnsupported = 4021;
   static const int oauthNotConfigured = 5007;
 }
 

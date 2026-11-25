@@ -100,6 +100,26 @@ class ConnectRejectEvent {
   final AccountChallengeInfo? challenge;
 }
 
+class QuickLaunchStartResponseEvent {
+  const QuickLaunchStartResponseEvent({
+    required this.requestId,
+    required this.hostDeviceId,
+    required this.status,
+    required this.ok,
+    required this.code,
+    required this.reason,
+    this.pid = 0,
+  });
+
+  final String requestId;
+  final String hostDeviceId;
+  final String status;
+  final bool ok;
+  final int code;
+  final String reason;
+  final int pid;
+}
+
 class SignalingClient {
   /// Consecutive failures before the server counts as unreachable; Windows
   /// `SignalingClient.OfflineFailureThreshold`.
@@ -140,6 +160,9 @@ class SignalingClient {
   final _sessionEstablishedCtrl = StreamController<String>.broadcast();
   final _cooldownCtrl = StreamController<int>.broadcast();
   final _unreachableCtrl = StreamController<void>.broadcast();
+  final _quickLaunchSyncCtrl = StreamController<void>.broadcast();
+  final _quickLaunchStartResCtrl =
+      StreamController<QuickLaunchStartResponseEvent>.broadcast();
 
   Stream<SignalingConnectionState> get stateStream => _stateCtrl.stream;
   Stream<List<AccountDeviceDto>> get accountDevicesStream =>
@@ -155,6 +178,9 @@ class SignalingClient {
   Stream<(String, String)> get sessionEndedStream => _sessionEndedCtrl.stream;
   Stream<String> get sessionEstablishedStream => _sessionEstablishedCtrl.stream;
   Stream<int> get cooldownStream => _cooldownCtrl.stream;
+  Stream<void> get quickLaunchSyncStream => _quickLaunchSyncCtrl.stream;
+  Stream<QuickLaunchStartResponseEvent> get quickLaunchStartResponseStream =>
+      _quickLaunchStartResCtrl.stream;
 
   /// Fires once per failure streak, when [offlineFailureThreshold]
   /// consecutive attempts have failed without a `registered` reply.
@@ -485,6 +511,24 @@ class SignalingClient {
       case 'session_established':
         _sessionEstablishedCtrl.add((root['sessionId'] ?? '').toString());
         break;
+
+      case 'quick_launch_apps_sync':
+        _quickLaunchSyncCtrl.add(null);
+        break;
+
+      case 'quick_launch_start_res':
+        _quickLaunchStartResCtrl.add(
+          QuickLaunchStartResponseEvent(
+            requestId: (root['requestId'] ?? '').toString(),
+            hostDeviceId: (root['hostDeviceId'] ?? '').toString(),
+            status: (root['status'] ?? '').toString(),
+            ok: root['ok'] == true,
+            code: (root['code'] as num?)?.toInt() ?? 0,
+            reason: (root['reason'] ?? '').toString(),
+            pid: (root['pid'] as num?)?.toInt() ?? 0,
+          ),
+        );
+        break;
     }
   }
 
@@ -591,6 +635,34 @@ class SignalingClient {
     });
   }
 
+  bool sendQuickLaunchStart({
+    required String requestId,
+    required String targetDeviceId,
+    required String appId,
+    required String exePath,
+    required String appName,
+  }) {
+    return sendJson({
+      'type': 'quick_launch_start_req',
+      'requestId': requestId,
+      'targetDeviceId': DeviceIdentity.normalizeDeviceId(targetDeviceId),
+      'appId': appId,
+      'exePath': exePath,
+      'appName': appName,
+    });
+  }
+
+  bool sendQuickLaunchCancel({
+    required String requestId,
+    required String targetDeviceId,
+  }) {
+    return sendJson({
+      'type': 'quick_launch_cancel',
+      'requestId': requestId,
+      'targetDeviceId': DeviceIdentity.normalizeDeviceId(targetDeviceId),
+    });
+  }
+
   void dispose() {
     stop();
     _stateCtrl.close();
@@ -602,7 +674,10 @@ class SignalingClient {
     _relayFallbackCtrl.close();
     _rejectCtrl.close();
     _sessionEndedCtrl.close();
+    _sessionEstablishedCtrl.close();
     _cooldownCtrl.close();
     _unreachableCtrl.close();
+    _quickLaunchSyncCtrl.close();
+    _quickLaunchStartResCtrl.close();
   }
 }

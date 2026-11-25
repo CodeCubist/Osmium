@@ -1327,6 +1327,42 @@ class AccountService {
     }
   }
 
+  Future<AccountApiResult<List<QuickLaunchAppDto>>> fetchQuickLaunchApps() async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed('GET', '/api/account/quick-launch/apps');
+      final status = resp.statusCode ?? 0;
+      final body = resp.data;
+      if (status >= 200 && status < 300 && body is Map<String, dynamic>) {
+        final rawList = (body['data'] is Map<String, dynamic>)
+            ? (body['data']['apps'] as List<dynamic>? ?? const [])
+            : (body['apps'] as List<dynamic>? ?? const []);
+        final apps = rawList
+            .whereType<Map<String, dynamic>>()
+            .map(QuickLaunchAppDto.fromJson)
+            .toList();
+        return AccountApiResult(
+          ok: true,
+          httpStatusCode: status,
+          data: apps,
+        );
+      }
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: status,
+        message: '获取快速启动列表失败',
+      );
+    } catch (e) {
+      return AccountApiResult(ok: false, httpStatusCode: 0, message: '$e');
+    }
+  }
+
   Future<AccountApiResult<void>> renameDevice(
     String deviceId,
     String customName,

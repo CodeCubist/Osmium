@@ -326,6 +326,7 @@ class AccountDeviceDto {
     this.isOnline = false,
     this.allowRemote = true,
     this.allowRemotePower = false,
+    this.allowQuickLaunch = false,
     this.wolMacs = const [],
     this.wolBroadcasts = const [],
     this.wolReady = false,
@@ -345,6 +346,7 @@ class AccountDeviceDto {
   final bool isOnline;
   final bool allowRemote;
   final bool allowRemotePower;
+  final bool allowQuickLaunch;
   final List<String> wolMacs;
   final List<String> wolBroadcasts;
   final bool wolReady;
@@ -410,6 +412,9 @@ class AccountDeviceDto {
       allowRemotePower:
           json['allow_remote_power'] == true ||
           json['allowRemotePower'] == true,
+      allowQuickLaunch:
+          json['allow_quick_launch'] == true ||
+          json['allowQuickLaunch'] == true,
       wolMacs: parseStringList(json['wol_macs'] ?? json['wolMacs']),
       wolBroadcasts: parseStringList(
         json['wol_broadcasts'] ?? json['wolBroadcasts'],
@@ -429,6 +434,57 @@ class AccountDeviceDto {
       lastActiveAt: parseTimestamp(
         json['last_active_at'] ?? json['lastActiveAt'],
       ),
+    );
+  }
+}
+
+class QuickLaunchAppDto {
+  const QuickLaunchAppDto({
+    required this.id,
+    required this.deviceId,
+    required this.deviceName,
+    required this.name,
+    required this.exePath,
+    this.iconData,
+    this.deviceCached = true,
+    this.deviceOnline = false,
+    this.allowRemote = false,
+    this.allowQuickLaunch = false,
+    this.createdAt = '',
+  });
+
+  final String id;
+  final String deviceId;
+  final String deviceName;
+  final String name;
+  final String exePath;
+  final String? iconData;
+  final bool deviceCached;
+  final bool deviceOnline;
+  final bool allowRemote;
+  final bool allowQuickLaunch;
+  final String createdAt;
+
+  factory QuickLaunchAppDto.fromJson(Map<String, dynamic> json) {
+    final hasCached =
+        json.containsKey('device_cached') || json.containsKey('deviceCached');
+    return QuickLaunchAppDto(
+      id: (json['id'] ?? '').toString(),
+      deviceId: (json['device_id'] ?? json['deviceId'] ?? '').toString(),
+      deviceName: (json['device_name'] ?? json['deviceName'] ?? '').toString(),
+      name: (json['name'] ?? 'App').toString(),
+      exePath: (json['exe_path'] ?? json['exePath'] ?? '').toString(),
+      iconData: (json['icon_data'] ?? json['iconData']) as String?,
+      deviceCached: hasCached
+          ? (json['device_cached'] == true || json['deviceCached'] == true)
+          : true,
+      deviceOnline:
+          json['device_online'] == true || json['deviceOnline'] == true,
+      allowRemote: json['allow_remote'] == true || json['allowRemote'] == true,
+      allowQuickLaunch:
+          json['allow_quick_launch'] == true ||
+          json['allowQuickLaunch'] == true,
+      createdAt: (json['created_at'] ?? json['createdAt'] ?? '').toString(),
     );
   }
 }

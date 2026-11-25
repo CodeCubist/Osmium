@@ -127,6 +127,7 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(NavOverviewItem, machine);
 
         NavRemoteConnectText.Text = LocalizationService.GetString("Nav_ConnectWorkspace");
+        NavQuickLaunchText.Text = LocalizationService.GetString("Nav_QuickLaunch");
         NavGamepadText.Text = LocalizationService.GetString("Nav_GamepadMapper");
 
         string accountLabel = App.Engine.AccountService.IsLoggedIn &&
@@ -408,8 +409,11 @@ public sealed partial class MainWindow : Window
     {
         SyncTrayIconVisibility();
         UpdateTrayTooltip();
-        NavigateToLocalHome();
-        RestoreFromTray();
+        if (!App.Engine.QuickLaunch.HasActiveSessionGuard)
+        {
+            NavigateToLocalHome();
+            RestoreFromTray();
+        }
 
         var settings = App.Engine.SettingsService.Settings;
         if (settings.HostNotifyOnConnect)

@@ -1078,13 +1078,7 @@
                             <TranslateTransform x:Name="PanelRemoteHistoryTransform" />
                         </StackPanel.RenderTransform>
                         <controls:SettingsRowCard x:Name="RowRemoteHistoryHeader" Glyph="&#xEABB;">
-                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <TextBlock x:Name="RemoteHistoryCountText"
-                                           FontSize="13"
-                                           FontWeight="SemiBold"
-                                           VerticalAlignment="Center" />
-                                <Button x:Name="BtnRefreshRemoteHistory" CornerRadius="6" Click="BtnRefreshRemoteHistory_Click" />
-                            </StackPanel>
+                            <Button x:Name="BtnRefreshRemoteHistory" CornerRadius="6" Click="BtnRefreshRemoteHistory_Click" />
                         </controls:SettingsRowCard>
 
                         <StackPanel x:Name="RemoteHistoryListPanel" Spacing="8" />

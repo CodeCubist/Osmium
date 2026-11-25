@@ -623,6 +623,99 @@ public sealed class PowerWolRelayEventArgs : EventArgs
     }
 }
 
+public sealed class QuickLaunchBrowseRequestEventArgs : EventArgs
+{
+    public string RequestId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterUserId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string Path
+    {
+        get;
+        init;
+    } = string.Empty;
+}
+
+public sealed class QuickLaunchValidateRequestEventArgs : EventArgs
+{
+    public string RequestId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterUserId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string Path
+    {
+        get;
+        init;
+    } = string.Empty;
+}
+
+public sealed class QuickLaunchStartRequestEventArgs : EventArgs
+{
+    public string RequestId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterDeviceId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string RequesterUserId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string AppId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string ExePath
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string AppName
+    {
+        get;
+        init;
+    } = string.Empty;
+}
+
 public sealed partial class SignalingClient : IDisposable
 {
     private const int OfflineFailureThreshold = 3;
@@ -662,6 +755,7 @@ public sealed partial class SignalingClient : IDisposable
     private string _deviceId = string.Empty;
     private string _deviceName = Environment.MachineName;
     private bool _allowRemote = true;
+    private bool _allowQuickLaunch;
     private string _ltoken = string.Empty;
     private LocalPowerProfile? _powerProfile;
 
@@ -714,6 +808,14 @@ public sealed partial class SignalingClient : IDisposable
     public event Action<string>? AccountRevokedReceived;
     public event Action<PowerCommandEventArgs>? PowerCommandReceived;
     public event Action<PowerWolRelayEventArgs>? PowerWolRelayReceived;
+    public event Action? QuickLaunchAppsSyncReceived;
+    public event Action<QuickLaunchBrowseRequestEventArgs>? QuickLaunchBrowseRequestReceived;
+    public event Action<QuickLaunchValidateRequestEventArgs>? QuickLaunchValidateRequestReceived;
+    public event Action<QuickLaunchStartRequestEventArgs>? QuickLaunchStartRequestReceived;
+    public event Action<string, string>? QuickLaunchCancelReceived;
+    public event Action<QuickLaunchBrowseResult>? QuickLaunchBrowseResponseReceived;
+    public event Action<QuickLaunchValidateResult>? QuickLaunchValidateResponseReceived;
+    public event Action<QuickLaunchStartResponse>? QuickLaunchStartResponseReceived;
     public event Action<WebRtcSdpEventArgs>? WebRtcOfferReceived;
     public event Action<WebRtcSdpEventArgs>? WebRtcAnswerReceived;
     public event Action<WebRtcIceEventArgs>? WebRtcIceReceived;
@@ -752,13 +854,14 @@ public sealed partial class SignalingClient : IDisposable
     }
 
     public void Start(string serverUrl, string deviceId, string deviceName, bool allowRemote, string? ltoken = null,
-        LocalPowerProfile? powerProfile = null)
+        LocalPowerProfile? powerProfile = null, bool allowQuickLaunch = false)
     {
         StopInternal(resetState: false);
         _serverUrl = NormalizeServerUrl(serverUrl);
         _deviceId = deviceId;
         _deviceName = deviceName;
         _allowRemote = allowRemote;
+        _allowQuickLaunch = allowQuickLaunch;
         if (ltoken != null) _ltoken = ltoken;
         if (powerProfile != null) _powerProfile = powerProfile;
 
@@ -809,11 +912,13 @@ public sealed partial class SignalingClient : IDisposable
         });
     }
 
-    public async Task UpdateStatusAsync(bool allowRemote, string deviceName, LocalPowerProfile? powerProfile = null)
+    public async Task UpdateStatusAsync(bool allowRemote, string deviceName, LocalPowerProfile? powerProfile = null,
+        bool? allowQuickLaunch = null)
     {
         _allowRemote = allowRemote;
         _deviceName = deviceName;
         if (powerProfile != null) _powerProfile = powerProfile;
+        if (allowQuickLaunch.HasValue) _allowQuickLaunch = allowQuickLaunch.Value;
         if (!_isTransportRegistered) return;
 
         var profile = _powerProfile;
@@ -821,6 +926,7 @@ public sealed partial class SignalingClient : IDisposable
         {
             type = "update_status",
             allowRemote,
+            allowQuickLaunch = _allowQuickLaunch,
             deviceName,
             powerProfile = profile == null
                 ? null
@@ -1039,6 +1145,114 @@ public sealed partial class SignalingClient : IDisposable
         {
             type = "account_blacklist_user",
             targetHostDeviceId = DeviceIdentity.NormalizeDeviceId(targetHostDeviceId)
+        });
+    }
+
+    public Task<bool> SendQuickLaunchBrowseRequestAsync(string requestId, string targetDeviceId, string path)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_browse_req",
+            requestId,
+            targetDeviceId = DeviceIdentity.NormalizeDeviceId(targetDeviceId),
+            path = path ?? string.Empty
+        });
+    }
+
+    public Task<bool> SendQuickLaunchBrowseResponseAsync(string requesterDeviceId, QuickLaunchBrowseResult res)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_browse_res",
+            requestId = res.RequestId,
+            requesterDeviceId = DeviceIdentity.NormalizeDeviceId(requesterDeviceId),
+            ok = res.Ok,
+            code = res.Code,
+            reason = res.Reason,
+            currentPath = res.CurrentPath,
+            parentPath = res.ParentPath,
+            directories = res.Directories,
+            executables = res.Executables
+        });
+    }
+
+    public Task<bool> SendQuickLaunchValidateRequestAsync(string requestId, string targetDeviceId, string path)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_validate_req",
+            requestId,
+            targetDeviceId = DeviceIdentity.NormalizeDeviceId(targetDeviceId),
+            path = path ?? string.Empty
+        });
+    }
+
+    public Task<bool> SendQuickLaunchValidateResponseAsync(string requesterDeviceId, QuickLaunchValidateResult res)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_validate_res",
+            requestId = res.RequestId,
+            requesterDeviceId = DeviceIdentity.NormalizeDeviceId(requesterDeviceId),
+            ok = res.Ok,
+            code = res.Code,
+            reason = res.Reason,
+            needsExeSelection = res.NeedsExeSelection,
+            directoryPath = res.DirectoryPath,
+            resolvedExePath = res.ResolvedExePath,
+            suggestedName = res.SuggestedName,
+            iconData = res.IconData,
+            candidates = res.Candidates
+        });
+    }
+
+    public Task<bool> SendQuickLaunchStartRequestAsync(
+        string requestId,
+        string targetDeviceId,
+        string appId,
+        string exePath,
+        string appName)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_start_req",
+            requestId,
+            targetDeviceId = DeviceIdentity.NormalizeDeviceId(targetDeviceId),
+            appId = appId ?? string.Empty,
+            exePath = exePath ?? string.Empty,
+            appName = appName ?? string.Empty
+        });
+    }
+
+    public Task<bool> SendQuickLaunchStartResponseAsync(string requesterDeviceId, QuickLaunchStartResponse res)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_start_res",
+            requestId = res.RequestId,
+            requesterDeviceId = DeviceIdentity.NormalizeDeviceId(requesterDeviceId),
+            status = res.Status,
+            ok = res.Ok,
+            code = res.Code,
+            reason = res.Reason,
+            pid = res.Pid
+        });
+    }
+
+    public Task<bool> SendQuickLaunchCancelAsync(string requestId, string targetDeviceId)
+    {
+        if (!_isTransportRegistered) return Task.FromResult(false);
+        return SendJsonAsync(new
+        {
+            type = "quick_launch_cancel",
+            requestId,
+            targetDeviceId = DeviceIdentity.NormalizeDeviceId(targetDeviceId)
         });
     }
 

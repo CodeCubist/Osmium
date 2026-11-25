@@ -1276,7 +1276,6 @@ public sealed partial class AccountPage : Page
     private void RenderRemoteHistoryList(IReadOnlyList<AccountRemoteHistoryRecordDto> records)
     {
         if (RemoteHistoryListPanel == null) return;
-        RemoteHistoryCountText.Text = $"{records.Count} / 100";
         RemoteHistoryListPanel.Children.Clear();
 
         if (records.Count == 0)
