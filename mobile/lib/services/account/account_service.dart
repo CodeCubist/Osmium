@@ -116,10 +116,10 @@ class AccountService {
     final hours = seconds ~/ 3600;
     final mins = (seconds % 3600) ~/ 60;
     final secs = seconds % 60;
-    if (hours > 0 && mins > 0) return '${hours}小时${mins}分钟';
-    if (hours > 0) return '${hours}小时';
-    if (mins > 0) return '${mins}分钟';
-    return '${secs}秒';
+    if (hours > 0 && mins > 0) return '$hours小时$mins分钟';
+    if (hours > 0) return '$hours小时';
+    if (mins > 0) return '$mins分钟';
+    return '$secs秒';
   }
 
   String _formatAccountError(
