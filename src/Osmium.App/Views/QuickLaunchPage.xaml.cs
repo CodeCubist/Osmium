@@ -292,9 +292,7 @@ public sealed partial class QuickLaunchPage : Page
         _isLoading = true;
         if (_apps.Count == 0)
         {
-            LoadingPanel.Visibility = Visibility.Visible;
-            EmptyStatePanel.Visibility = Visibility.Collapsed;
-            AppsScrollViewer.Visibility = Visibility.Collapsed;
+            RenderLauncherGrid();
         }
 
         try
@@ -309,7 +307,6 @@ public sealed partial class QuickLaunchPage : Page
         finally
         {
             _isLoading = false;
-            LoadingPanel.Visibility = Visibility.Collapsed;
             RebuildDeviceFilterCombo();
             RenderLauncherGrid();
         }
@@ -367,7 +364,25 @@ public sealed partial class QuickLaunchPage : Page
 
     private void RenderLauncherGrid()
     {
-        if (!App.Engine.AccountService.IsLoggedIn) return;
+        if (!App.Engine.AccountService.IsLoggedIn)
+        {
+            LoggedOutStatePanel.Visibility = Visibility.Visible;
+            LoadingPanel.Visibility = Visibility.Collapsed;
+            EmptyStatePanel.Visibility = Visibility.Collapsed;
+            AppsScrollViewer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        LoggedOutStatePanel.Visibility = Visibility.Collapsed;
+        if (_isLoading && _apps.Count == 0)
+        {
+            LoadingPanel.Visibility = Visibility.Visible;
+            EmptyStatePanel.Visibility = Visibility.Collapsed;
+            AppsScrollViewer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        LoadingPanel.Visibility = Visibility.Collapsed;
 
         var filtered = _selectedDeviceFilter == "ALL"
             ? _apps
