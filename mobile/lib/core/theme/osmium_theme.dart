@@ -69,7 +69,8 @@ class OsmiumColors {
 
   // Session dark smoked-glass HUD tokens (translucent, never muddy/opaque).
   static const Color sessionGlassFill = Color(0x5C0D111A);
-  static const Color sessionGlassPanelFill = Color(0x850D121B);
+  static const Color sessionGlassRailFill = Color(0xB3090C13);
+  static const Color sessionGlassPanelFill = Color(0x8C1D2534);
   static const Color sessionGlassBorder = Color(0x2EFFFFFF);
   static const Color sessionGlassHairline = Color(0x18FFFFFF);
 

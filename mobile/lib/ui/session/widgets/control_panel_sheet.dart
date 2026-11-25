@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -15,8 +16,8 @@ import '../../../services/session/remote_session_controller.dart';
 import 'session_signals.dart';
 import 'virtual_keyboard_overlay.dart';
 
-/// Frosted session panel: a strip of quick actions over grouped settings.
-/// Slides in from the right in landscape and up from the bottom in portrait.
+/// Frosted session secondary menu docked flush against the [SessionRail].
+/// Slides out from the right rail in landscape and up from the bottom rail in portrait.
 class ControlPanelSheet extends StatefulWidget {
   static const Key surfaceKey = ValueKey('control-panel-surface');
 
@@ -29,11 +30,16 @@ class ControlPanelSheet extends StatefulWidget {
     required this.onOpenKeyboard,
     required this.onClose,
     required this.onDisconnect,
+    this.railInset = 0,
     this.visible = true,
   });
 
   final RemoteSessionController controller;
   final SessionSignals signals;
+
+  /// Thickness occupied by the adjacent docked [SessionRail] along its edge
+  /// (width in landscape, height in portrait, including safe-area inset).
+  final double railInset;
 
   /// Kept mounted while false so the sheet can spring away instead of vanishing.
   final bool visible;
@@ -108,9 +114,20 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
     super.dispose();
   }
 
+  double _panelWidth(Size size) =>
+      math.min(348.0, math.max(240.0, size.width - widget.railInset - 40));
+
+  double _portraitMaxHeight(Size size, EdgeInsets pad) => math.min(
+    size.height * 0.72,
+    math.max(200.0, size.height - widget.railInset - pad.top - 16),
+  );
+
   double get _dismissExtent {
     final size = MediaQuery.sizeOf(context);
-    return size.width > size.height ? size.width : size.height * 0.9;
+    final pad = MediaQuery.paddingOf(context);
+    return size.width > size.height
+        ? _panelWidth(size)
+        : _portraitMaxHeight(size, pad);
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
@@ -149,7 +166,9 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
     final size = MediaQuery.sizeOf(context);
     final pad = MediaQuery.paddingOf(context);
     final isLandscape = size.width > size.height;
-    final extent = isLandscape ? size.width : size.height * 0.9;
+    final panelWidth = _panelWidth(size);
+    final portraitMaxHeight = _portraitMaxHeight(size, pad);
+    final extent = isLandscape ? panelWidth : portraitMaxHeight;
 
     return AnimatedBuilder(
       animation: Listenable.merge([_slide, _dragSpring]),
@@ -175,19 +194,31 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
                   color: Colors.black.withValues(alpha: 0.36 * eased),
                 ),
               ),
-              Align(
-                alignment: isLandscape
-                    ? Alignment.centerRight
-                    : Alignment.bottomCenter,
-                child: Transform.translate(
-                  offset: Offset(dx, dy),
-                  child: GestureDetector(
-                    onTap: () {},
-                    onHorizontalDragUpdate: isLandscape ? _onDragUpdate : null,
-                    onHorizontalDragEnd: isLandscape ? _onDragEnd : null,
-                    onVerticalDragUpdate: isLandscape ? null : _onDragUpdate,
-                    onVerticalDragEnd: isLandscape ? null : _onDragEnd,
-                    child: child,
+              Positioned(
+                top: 0,
+                left: 0,
+                right: isLandscape ? widget.railInset : 0,
+                bottom: isLandscape ? 0 : widget.railInset,
+                child: ClipRect(
+                  child: Align(
+                    alignment: isLandscape
+                        ? Alignment.centerRight
+                        : Alignment.bottomCenter,
+                    child: Transform.translate(
+                      offset: Offset(dx, dy),
+                      child: GestureDetector(
+                        onTap: () {},
+                        onHorizontalDragUpdate: isLandscape
+                            ? _onDragUpdate
+                            : null,
+                        onHorizontalDragEnd: isLandscape ? _onDragEnd : null,
+                        onVerticalDragUpdate: isLandscape
+                            ? null
+                            : _onDragUpdate,
+                        onVerticalDragEnd: isLandscape ? null : _onDragEnd,
+                        child: child,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -225,65 +256,83 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
       },
       child: ListenableBuilder(
         listenable: widget.signals.revision,
-        builder: (context, _) => Container(
-          width: isLandscape ? 348 : double.infinity,
-          constraints: BoxConstraints(
-            maxHeight: isLandscape ? size.height - 20 : size.height * 0.74,
-          ),
-          margin: isLandscape
-              ? EdgeInsets.only(right: pad.right + 10, top: 10, bottom: 10)
-              : EdgeInsets.only(left: 8, right: 8, bottom: pad.bottom + 8),
-          child: _PanelShell(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(14, isLandscape ? 14 : 8, 14, 0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (!isLandscape) ...[
-                    Center(
-                      child: Container(
-                        width: 32,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.24),
-                          borderRadius: BorderRadius.circular(2),
+        builder: (context, _) {
+          final scrollView = SingleChildScrollView(
+            padding: EdgeInsets.only(
+              top: 10,
+              bottom: (isLandscape ? pad.bottom : 0) + 14,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _SectionTitle('操作', first: true),
+                _buildControlGroup(),
+                const _SectionTitle('显示'),
+                _buildDisplayGroup(),
+                const _SectionTitle('声音与传输'),
+                _buildAudioTransferGroup(),
+                const _SectionTitle('系统'),
+                _buildSystemGroup(),
+              ],
+            ),
+          );
+
+          return SizedBox(
+            width: isLandscape ? panelWidth : double.infinity,
+            height: isLandscape ? double.infinity : null,
+            child: ConstrainedBox(
+              constraints: isLandscape
+                  ? const BoxConstraints.expand()
+                  : BoxConstraints(maxHeight: portraitMaxHeight),
+              child: _PanelShell(
+                surfaceKey: ControlPanelSheet.surfaceKey,
+                docked: true,
+                isLandscape: isLandscape,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    isLandscape ? pad.top + 14 : 8,
+                    14,
+                    0,
+                  ),
+                  child: Column(
+                    mainAxisSize: isLandscape
+                        ? MainAxisSize.max
+                        : MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!isLandscape) ...[
+                        Center(
+                          child: Container(
+                            width: 32,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.24),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
                         ),
+                        const SizedBox(height: 12),
+                      ],
+                      _buildHeader(),
+                      const SizedBox(height: 14),
+                      _buildQuickTiles(),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 0.75,
+                        color: OsmiumColors.sessionGlassHairline,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildHeader(),
-                  const SizedBox(height: 14),
-                  _buildQuickTiles(),
-                  const SizedBox(height: 12),
-                  Container(
-                    height: 0.75,
-                    color: OsmiumColors.sessionGlassHairline,
+                      if (isLandscape)
+                        Expanded(child: scrollView)
+                      else
+                        Flexible(child: scrollView),
+                    ],
                   ),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(top: 10, bottom: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _SectionTitle('操作', first: true),
-                          _buildControlGroup(),
-                          const _SectionTitle('显示'),
-                          _buildDisplayGroup(),
-                          const _SectionTitle('声音与传输'),
-                          _buildAudioTransferGroup(),
-                          const _SectionTitle('系统'),
-                          _buildSystemGroup(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -678,17 +727,65 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
 }
 
 class _PanelShell extends StatelessWidget {
-  const _PanelShell({required this.child});
+  const _PanelShell({
+    required this.child,
+    this.surfaceKey,
+    this.docked = false,
+    this.isLandscape = false,
+  });
 
   final Widget child;
+  final Key? surfaceKey;
+  final bool docked;
+  final bool isLandscape;
 
   static const double _radius = 18;
 
   @override
   Widget build(BuildContext context) {
+    if (docked) {
+      final border = isLandscape
+          ? const Border(
+              left: BorderSide(
+                color: OsmiumColors.sessionGlassBorder,
+                width: 0.75,
+              ),
+            )
+          : const Border(
+              top: BorderSide(
+                color: OsmiumColors.sessionGlassBorder,
+                width: 0.75,
+              ),
+            );
+      return ClipRect(
+        key: surfaceKey,
+        child: BackdropFilter(
+          filter: OsmiumGlass.filter(28),
+          child: ColoredBox(
+            color: OsmiumColors.sessionGlassPanelFill,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.06),
+                    Colors.transparent,
+                  ],
+                  stops: const [0, 0.35],
+                ),
+                border: border,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      );
+    }
+
     final shape = BorderRadius.circular(_radius);
     return DecoratedBox(
-      key: ControlPanelSheet.surfaceKey,
+      key: surfaceKey,
       decoration: BoxDecoration(
         borderRadius: shape,
         boxShadow: const [

@@ -60,8 +60,11 @@ class SessionView extends StatefulWidget {
 
 class _SessionViewState extends State<SessionView>
     with SingleTickerProviderStateMixin {
+  static bool _savedRailFolded = false;
+
   late final AnimationController _videoReveal;
   final ValueNotifier<double> _keyboardBar = ValueNotifier(0);
+  bool _railFolded = _savedRailFolded;
 
   // The last host focus the IME came up for, and whether the IME is up only
   // because of it (so focus leaving may take it down again).
@@ -79,19 +82,43 @@ class _SessionViewState extends State<SessionView>
       duration: const Duration(milliseconds: 420),
       value: widget.signals.firstFrame.value ? 1 : 0,
     );
+    widget.signals.phase.addListener(_onPhaseChanged);
     widget.signals.firstFrame.addListener(_onFirstFrame);
     widget.signals.textFocus.addListener(_onTextFocus);
     _onFirstFrame();
   }
 
   @override
+  void didUpdateWidget(covariant SessionView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.panelOpen && !oldWidget.panelOpen && _railFolded) {
+      _railFolded = false;
+      _savedRailFolded = false;
+    }
+  }
+
+  @override
   void dispose() {
+    widget.signals.phase.removeListener(_onPhaseChanged);
     widget.signals.firstFrame.removeListener(_onFirstFrame);
     widget.signals.textFocus.removeListener(_onTextFocus);
     _lowerTimer?.cancel();
     _videoReveal.dispose();
     _keyboardBar.dispose();
     super.dispose();
+  }
+
+  void _onPhaseChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _setRailFolded(bool folded) {
+    if (folded && widget.panelOpen) widget.onClosePanel();
+    if (_railFolded == folded) return;
+    setState(() {
+      _railFolded = folded;
+      _savedRailFolded = folded;
+    });
   }
 
   void _onFirstFrame() {
@@ -135,6 +162,9 @@ class _SessionViewState extends State<SessionView>
   void _setKeyboardMode(KeyboardOverlayMode mode) {
     _lowerTimer?.cancel();
     _imeRaisedByFocus = false;
+    if (mode != KeyboardOverlayMode.none && widget.panelOpen) {
+      widget.onClosePanel();
+    }
     widget.onKeyboardModeChanged(mode);
   }
 
@@ -151,7 +181,25 @@ class _SessionViewState extends State<SessionView>
   @override
   Widget build(BuildContext context) {
     final settings = widget.settings;
-    final topPad = MediaQuery.paddingOf(context);
+    final size = MediaQuery.sizeOf(context);
+    final pad = MediaQuery.paddingOf(context);
+    final isLandscape = size.width > size.height;
+    final phase = widget.signals.phase.value;
+    final railVisible =
+        phase == SessionPhase.streaming &&
+        widget.keyboardMode == KeyboardOverlayMode.none;
+    final railExpanded = railVisible && !_railFolded;
+    final railRightInset = railExpanded && isLandscape
+        ? SessionRail.landscapeWidth
+        : 0.0;
+    final railBottomInset = railExpanded && !isLandscape
+        ? SessionRail.portraitHeight
+        : 0.0;
+    final panelRailInset = railExpanded
+        ? (isLandscape
+              ? SessionRail.landscapeWidth + pad.right
+              : SessionRail.portraitHeight + pad.bottom)
+        : 0.0;
 
     // The session glass is always dark; Miuix switches, sliders and glass
     // rows must draw for it whatever the app theme is.
@@ -173,15 +221,18 @@ class _SessionViewState extends State<SessionView>
             enableHaptics: settings.enableHaptics,
             onUserInteraction: () {},
             keyboardBar: _keyboardBar,
+            rightInset: railRightInset,
+            bottomInset: railBottomInset,
           ),
 
-          // Draggable OSD telemetry capsule, bottom-right by default
+          // Draggable OSD telemetry capsule, avoiding the docked rail
           _DraggableOsd(
             keyboardBar: _keyboardBar,
-            // Clear the precision mouse dock along the bottom edge.
-            bottomInset: settings.controlMode == ControlMode.precisionMouse
-                ? 52
-                : 0,
+            rightInset: railRightInset,
+            // Clear the docked bottom rail (portrait) and precision mouse dock.
+            bottomInset:
+                railBottomInset +
+                (settings.controlMode == ControlMode.precisionMouse ? 52 : 0),
             onTap: _cycleOsdLevel,
             child: RepaintBoundary(
               child: _OsdHost(
@@ -191,49 +242,63 @@ class _SessionViewState extends State<SessionView>
             ),
           ),
 
-          // Edge rail with the everyday actions
-          ValueListenableBuilder<SessionPhase>(
-            valueListenable: widget.signals.phase,
-            builder: (context, phase, _) => SessionRail(
-              visible:
-                  phase == SessionPhase.streaming &&
-                  !widget.panelOpen &&
-                  widget.keyboardMode == KeyboardOverlayMode.none,
-              actions: [
-                SessionRailAction(
-                  icon: Icons.tune_rounded,
-                  label: '操作',
-                  onTap: widget.onOpenPanel,
-                ),
-                SessionRailAction(
-                  icon: Icons.keyboard_alt_outlined,
-                  label: '键盘',
-                  onTap: () => _setKeyboardMode(KeyboardOverlayMode.systemIme),
-                ),
-                SessionRailAction(
-                  icon: Icons.near_me_rounded,
-                  label: '鼠标',
-                  active: settings.controlMode == ControlMode.precisionMouse,
-                  onTap: widget.onToggleControlMode,
-                ),
-                SessionRailAction(
-                  icon: Icons.desktop_windows_outlined,
-                  label: '桌面',
-                  onTap: () => widget.controller.sendCombo([
-                    WinKeys.lWin,
-                    WinKeys.byLabel['D']!,
-                  ]),
-                ),
-                SessionRailAction(
-                  icon: Icons.grid_view_rounded,
-                  label: '多任务',
-                  onTap: () => widget.controller.sendCombo([
-                    WinKeys.lWin,
-                    WinKeys.tab,
-                  ]),
-                ),
-              ],
+          // Frosted control panel docked flush beside/above the primary rail
+          RepaintBoundary(
+            child: ControlPanelSheet(
+              controller: widget.controller,
+              signals: widget.signals,
+              settings: settings,
+              railInset: panelRailInset,
+              visible: widget.panelOpen,
+              onSettingsChanged: widget.onSettingsChanged,
+              onOpenKeyboard: _setKeyboardMode,
+              onClose: widget.onClosePanel,
+              onDisconnect: widget.onDisconnect,
             ),
+          ),
+
+          // Docked primary action rail (right in landscape, bottom in portrait)
+          SessionRail(
+            visible: railVisible,
+            folded: _railFolded,
+            onFoldChanged: _setRailFolded,
+            actions: [
+              SessionRailAction(
+                icon: Icons.tune_rounded,
+                label: '操作',
+                active: widget.panelOpen,
+                onTap: widget.panelOpen
+                    ? widget.onClosePanel
+                    : widget.onOpenPanel,
+              ),
+              SessionRailAction(
+                icon: Icons.keyboard_alt_outlined,
+                label: '键盘',
+                onTap: () => _setKeyboardMode(KeyboardOverlayMode.systemIme),
+              ),
+              SessionRailAction(
+                icon: Icons.near_me_rounded,
+                label: '鼠标',
+                active: settings.controlMode == ControlMode.precisionMouse,
+                onTap: widget.onToggleControlMode,
+              ),
+              SessionRailAction(
+                icon: Icons.desktop_windows_outlined,
+                label: '桌面',
+                onTap: () => widget.controller.sendCombo([
+                  WinKeys.lWin,
+                  WinKeys.byLabel['D']!,
+                ]),
+              ),
+              SessionRailAction(
+                icon: Icons.grid_view_rounded,
+                label: '多任务',
+                onTap: () => widget.controller.sendCombo([
+                  WinKeys.lWin,
+                  WinKeys.tab,
+                ]),
+              ),
+            ],
           ),
 
           // Keyboard overlay (sticky modifiers + system IME / full PC keyboard)
@@ -243,20 +308,6 @@ class _SessionViewState extends State<SessionView>
             controller: widget.controller,
             onModeChanged: _setKeyboardMode,
             visibleHeight: _keyboardBar,
-          ),
-
-          // Frosted control panel
-          RepaintBoundary(
-            child: ControlPanelSheet(
-              controller: widget.controller,
-              signals: widget.signals,
-              settings: settings,
-              visible: widget.panelOpen,
-              onSettingsChanged: widget.onSettingsChanged,
-              onOpenKeyboard: _setKeyboardMode,
-              onClose: widget.onClosePanel,
-              onDisconnect: widget.onDisconnect,
-            ),
           ),
 
           // Staged connection transition & error recovery overlay
@@ -270,7 +321,7 @@ class _SessionViewState extends State<SessionView>
 
           // Floating status toast pill
           Positioned(
-            top: topPad.top + 54,
+            top: pad.top + 54,
             left: 0,
             right: 0,
             child: RepaintBoundary(child: _ToastHost(signals: widget.signals)),
@@ -288,6 +339,7 @@ class _SessionViewState extends State<SessionView>
 class _DraggableOsd extends StatefulWidget {
   const _DraggableOsd({
     required this.keyboardBar,
+    required this.rightInset,
     required this.bottomInset,
     required this.onTap,
     required this.child,
@@ -295,6 +347,7 @@ class _DraggableOsd extends StatefulWidget {
 
   /// Visible height of the keyboard bar above the system IME.
   final ValueListenable<double> keyboardBar;
+  final double rightInset;
   final double bottomInset;
   final VoidCallback onTap;
   final Widget child;
@@ -331,15 +384,13 @@ class _DraggableOsdState extends State<_DraggableOsd> {
   Widget build(BuildContext context) {
     final pad = MediaQuery.paddingOf(context);
     final ime = MediaQuery.viewInsetsOf(context).bottom;
+    final right = pad.right + 14 + widget.rightInset;
     final bottom = pad.bottom + 14 + widget.bottomInset;
     return Positioned.fill(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          pad.left + 14,
-          pad.top + 10,
-          pad.right + 14,
-          bottom,
-        ),
+      child: AnimatedPadding(
+        duration: OsmiumMotion.durationOr(context, OsmiumMotion.small),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.fromLTRB(pad.left + 14, pad.top + 10, right, bottom),
         child: ValueListenableBuilder<double>(
           valueListenable: widget.keyboardBar,
           builder: (context, bar, capsule) {
