@@ -174,6 +174,26 @@ public sealed partial class AccountPage : Page
             var res = await App.Engine.AccountService.CreateQrLoginAsync();
             if (ct.IsCancellationRequested || !_inQrLoginFlow) return;
 
+            if (res.RequiresCaptcha && res.Challenge != null)
+            {
+                var verifiedRes = await CloudCaptchaWindow.ShowChallengeAsync<QrLoginCreateData>(
+                    App.Engine.AccountService,
+                    res.Challenge);
+                if (ct.IsCancellationRequested || !_inQrLoginFlow) return;
+
+                if (verifiedRes == null)
+                {
+                    QrLoadingRing.IsActive = false;
+                    QrLoadingRing.Visibility = Visibility.Collapsed;
+                    BtnQrRefresh.IsEnabled = true;
+                    ApplyQrOverlayState("expired");
+                    ShowStatus(InfoBarSeverity.Informational, LocalizationService.GetString("Conn_CaptchaCancelled"));
+                    return;
+                }
+
+                res = verifiedRes;
+            }
+
             if (!res.Ok || res.Data == null || string.IsNullOrWhiteSpace(res.Data.QrUrl))
             {
                 QrLoadingRing.IsActive = false;
@@ -181,7 +201,7 @@ public sealed partial class AccountPage : Page
                 BtnQrRefresh.IsEnabled = true;
                 ApplyQrOverlayState("expired");
                 ShowStatus(InfoBarSeverity.Error,
-                    App.Engine.AccountService.FormatFriendlyError(res.Code, res.HttpStatusCode));
+                    App.Engine.AccountService.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
                 return;
             }
 

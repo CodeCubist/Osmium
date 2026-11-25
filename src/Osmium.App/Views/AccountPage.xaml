@@ -786,6 +786,7 @@
                     <NavigationViewItem x:Name="NavTabProfile" Tag="Profile" IsSelected="True" />
                     <NavigationViewItem x:Name="NavTabDevices" Tag="Devices" />
                     <NavigationViewItem x:Name="NavTabHistory" Tag="History" />
+                    <NavigationViewItem x:Name="NavTabRemoteHistory" Tag="RemoteHistory" />
                 </NavigationView.MenuItems>
             </NavigationView>
 
@@ -1069,6 +1070,24 @@
                         </controls:SettingsRowCard>
 
                         <StackPanel x:Name="HistoryListPanel" Spacing="8" />
+                    </StackPanel>
+
+
+                    <StackPanel x:Name="PanelRemoteHistory" Spacing="8" Visibility="Collapsed">
+                        <StackPanel.RenderTransform>
+                            <TranslateTransform x:Name="PanelRemoteHistoryTransform" />
+                        </StackPanel.RenderTransform>
+                        <controls:SettingsRowCard x:Name="RowRemoteHistoryHeader" Glyph="&#xEABB;">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock x:Name="RemoteHistoryCountText"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                                <Button x:Name="BtnRefreshRemoteHistory" CornerRadius="6" Click="BtnRefreshRemoteHistory_Click" />
+                            </StackPanel>
+                        </controls:SettingsRowCard>
+
+                        <StackPanel x:Name="RemoteHistoryListPanel" Spacing="8" />
                     </StackPanel>
                 </Grid>
             </ScrollViewer>

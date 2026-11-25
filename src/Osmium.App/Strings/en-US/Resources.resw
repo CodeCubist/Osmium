@@ -771,4 +771,13 @@
   <data name="Power_RowNicInfoTitle" xml:space="preserve"><value>Detected Network Adapter</value></data>
   <data name="Power_RowBiosTipTitle" xml:space="preserve"><value>Remote Wake Notes</value></data>
   <data name="Power_RowBiosTipDesc" xml:space="preserve"><value>Remote wake requires Wake-on-LAN or PCIe wake enabled in your motherboard BIOS. Across different networks, another online device signed into the same account on the target LAN is needed to relay the wake signal. Enabling system service auto-start under General is also recommended so you can connect right from the lock screen.</value></data>
+  <data name="Acc_TabRemoteHistory" xml:space="preserve"><value>30-Day Remote History</value></data>
+  <data name="Acc_RemoteHistoryDesc" xml:space="preserve"><value>Keeps up to the latest 100 remote control records from the last 30 days</value></data>
+  <data name="Acc_RemoteHistoryEmpty" xml:space="preserve"><value>No remote control records in the last 30 days</value></data>
+  <data name="Acc_RemoteRoleSameAccount" xml:space="preserve"><value>Same Account</value></data>
+  <data name="Acc_RemoteRoleController" xml:space="preserve"><value>Outgoing</value></data>
+  <data name="Acc_RemoteRoleHost" xml:space="preserve"><value>Incoming</value></data>
+  <data name="Acc_RemoteViewOnlyTag" xml:space="preserve"><value>View Only</value></data>
+  <data name="Acc_RemoteInProgress" xml:space="preserve"><value>In Progress</value></data>
+  <data name="Acc_DurationMinsSecsFmt" xml:space="preserve"><value>{0}m {1}s</value></data>
 </root>

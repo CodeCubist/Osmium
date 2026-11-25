@@ -771,4 +771,13 @@
   <data name="Power_RowNicInfoTitle" xml:space="preserve"><value>已识别物理网卡</value></data>
   <data name="Power_RowBiosTipTitle" xml:space="preserve"><value>远程开机使用说明</value></data>
   <data name="Power_RowBiosTipDesc" xml:space="preserve"><value>远程开机需在主板BIOS中开启Wake-on-LAN或PCIe设备唤醒；跨网络唤醒时，目标局域网内需有同账户在线设备协助唤醒。建议在常规中开启系统服务进程开机自启动，以便开机后无需登录桌面即可连接。</value></data>
+  <data name="Acc_TabRemoteHistory" xml:space="preserve"><value>近30天远控记录</value></data>
+  <data name="Acc_RemoteHistoryDesc" xml:space="preserve"><value>记录近30天内最新的100条远控历史</value></data>
+  <data name="Acc_RemoteHistoryEmpty" xml:space="preserve"><value>最近30天内暂无远控记录</value></data>
+  <data name="Acc_RemoteRoleSameAccount" xml:space="preserve"><value>同账号</value></data>
+  <data name="Acc_RemoteRoleController" xml:space="preserve"><value>主控</value></data>
+  <data name="Acc_RemoteRoleHost" xml:space="preserve"><value>被控</value></data>
+  <data name="Acc_RemoteViewOnlyTag" xml:space="preserve"><value>仅查看</value></data>
+  <data name="Acc_RemoteInProgress" xml:space="preserve"><value>进行中</value></data>
+  <data name="Acc_DurationMinsSecsFmt" xml:space="preserve"><value>{0}分{1}秒</value></data>
 </root>

@@ -791,6 +791,9 @@ public sealed partial class AccountService : IDisposable
     public Task<AccountApiResult<AccountLoginHistoryData>> GetLoginHistoryAsync()
         => SendAuthenticatedJsonAsync<AccountLoginHistoryData>(HttpMethod.Get, "/api/account/login-history");
 
+    public Task<AccountApiResult<AccountRemoteHistoryData>> GetRemoteHistoryAsync()
+        => SendAuthenticatedJsonAsync<AccountRemoteHistoryData>(HttpMethod.Get, "/api/account/remote-history");
+
     public Task<AccountApiResult<AccountBlacklistData>> GetBlacklistAsync()
         => SendAuthenticatedJsonAsync<AccountBlacklistData>(HttpMethod.Get, "/api/account/blacklist");
 

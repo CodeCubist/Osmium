@@ -387,6 +387,7 @@ public sealed partial class AccountPage : Page
         {
             "Devices" => 1,
             "History" => 2,
+            "RemoteHistory" => 3,
             _ => 0
         };
         ApplyTabSelection(idx, animate: true);
@@ -401,6 +402,7 @@ public sealed partial class AccountPage : Page
             {
                 "Devices" => 1,
                 "History" => 2,
+                "RemoteHistory" => 3,
                 _ => 0
             };
             ApplyTabSelection(idx, animate: true);
@@ -411,6 +413,7 @@ public sealed partial class AccountPage : Page
     {
         1 => PanelDevices,
         2 => PanelHistory,
+        3 => PanelRemoteHistory,
         _ => PanelProfile
     };
 
@@ -418,6 +421,7 @@ public sealed partial class AccountPage : Page
     {
         1 => PanelDevicesTransform,
         2 => PanelHistoryTransform,
+        3 => PanelRemoteHistoryTransform,
         _ => PanelProfileTransform
     };
 
@@ -430,6 +434,7 @@ public sealed partial class AccountPage : Page
         {
             1 => NavTabDevices,
             2 => NavTabHistory,
+            3 => NavTabRemoteHistory,
             _ => NavTabProfile
         };
         if (!ReferenceEquals(AccountNavView.SelectedItem, targetItem))
@@ -442,7 +447,7 @@ public sealed partial class AccountPage : Page
             int gen = ++_tabAnimGen;
             var outgoing = GetTabPanel(prevIndex);
             var incoming = GetTabPanel(index);
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 4; i++)
             {
                 if (i != prevIndex && i != index)
                 {
@@ -464,7 +469,7 @@ public sealed partial class AccountPage : Page
         }
         else
         {
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 4; i++)
             {
                 var p = GetTabPanel(i);
                 p.Visibility = i == index ? Visibility.Visible : Visibility.Collapsed;
@@ -477,6 +482,7 @@ public sealed partial class AccountPage : Page
         {
             if (index == 1) _ = LoadDevicesTabAsync();
             else if (index == 2) _ = LoadHistoryTabAsync();
+            else if (index == 3) _ = LoadRemoteHistoryTabAsync();
         }
     }
 
@@ -488,6 +494,10 @@ public sealed partial class AccountPage : Page
         if (_currentTabIndex == 2)
         {
             await LoadHistoryTabAsync();
+        }
+        else if (_currentTabIndex == 3)
+        {
+            await LoadRemoteHistoryTabAsync();
         }
     }
 

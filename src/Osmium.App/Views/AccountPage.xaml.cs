@@ -32,6 +32,7 @@ public sealed partial class AccountPage : Page
     private int _tabAnimGen;
     private string? _appliedAvatarDataUri;
     private Storyboard? _avatarFadeStoryboard;
+    private IReadOnlyList<AccountRemoteHistoryRecordDto>? _cachedRemoteHistory;
     private readonly Dictionary<string, DateTimeOffset> _otpCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _otpTimer = new();
 
@@ -59,6 +60,7 @@ public sealed partial class AccountPage : Page
             {
                 "Devices" => 1,
                 "History" => 2,
+                "RemoteHistory" => 3,
                 _ => 0
             };
         }
@@ -239,6 +241,7 @@ public sealed partial class AccountPage : Page
         NavTabProfile.Content = LocalizationService.GetString("Acc_TabProfile");
         NavTabDevices.Content = LocalizationService.GetString("Acc_TabDevices");
         NavTabHistory.Content = LocalizationService.GetString("Acc_TabHistory");
+        NavTabRemoteHistory.Content = LocalizationService.GetString("Acc_TabRemoteHistory");
 
         RowProfileAvatar.Title = LocalizationService.GetString("Acc_RowAvatar");
         BtnChangeAvatar.Content = LocalizationService.GetString("Acc_ChangeAvatarBtn");
@@ -268,6 +271,14 @@ public sealed partial class AccountPage : Page
         RowHistoryHeader.Title = LocalizationService.GetString("Acc_TabHistory");
         BtnRefreshHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
 
+        RowRemoteHistoryHeader.Title = LocalizationService.GetString("Acc_TabRemoteHistory");
+        RowRemoteHistoryHeader.Description = LocalizationService.GetString("Acc_RemoteHistoryDesc");
+        BtnRefreshRemoteHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
+        if (_cachedRemoteHistory != null)
+        {
+            RenderRemoteHistoryList(_cachedRemoteHistory);
+        }
+
         UpdateWizardUiState(snapPanels: true);
         ApplyAuthAvailabilityUi();
         ApplyOAuthBindingsUi();
@@ -283,6 +294,7 @@ public sealed partial class AccountPage : Page
 
         if (!loggedIn)
         {
+            _cachedRemoteHistory = null;
             _oauthBindings = null;
             _oauthBindingsLoading = false;
             _oauthBindingsFailed = false;

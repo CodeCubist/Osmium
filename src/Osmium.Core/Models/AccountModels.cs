@@ -887,6 +887,125 @@ public sealed class AccountLoginHistoryData
     } = [];
 }
 
+public sealed class AccountRemoteHistoryRecordDto
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("session_id")]
+    public string SessionId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("role")]
+    public string Role
+    {
+        get;
+        set;
+    } = "controller";
+
+    [JsonPropertyName("same_account")]
+    public bool SameAccount
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("view_only")]
+    public bool ViewOnly
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("in_progress")]
+    public bool InProgress
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("local_device_id")]
+    public string LocalDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("local_device_name")]
+    public string LocalDeviceName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("peer_device_id")]
+    public string PeerDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("peer_device_name")]
+    public string PeerDeviceName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("peer_user_name")]
+    public string PeerUserName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("started_at")]
+    public string StartedAt
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ended_at")]
+    public string? EndedAt
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("duration_sec")]
+    public long DurationSec
+    {
+        get;
+        set;
+    }
+
+    [JsonIgnore] public string FormattedLocalDeviceId => DeviceIdentity.FormatDeviceId(LocalDeviceId);
+    [JsonIgnore] public string FormattedPeerDeviceId => DeviceIdentity.FormatDeviceId(PeerDeviceId);
+
+    [JsonIgnore]
+    public string LocalStartedTimeText => DateTimeOffset.TryParse(StartedAt, out var dt)
+        ? dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        : StartedAt;
+}
+
+public sealed class AccountRemoteHistoryData
+{
+    [JsonPropertyName("records")]
+    public List<AccountRemoteHistoryRecordDto> Records
+    {
+        get;
+        set;
+    } = [];
+}
+
 public sealed class AccountBlacklistItemDto
 {
     [JsonPropertyName("blocked_user_id")]
