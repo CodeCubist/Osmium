@@ -782,6 +782,9 @@
   <data name="Nav_QuickLaunch" xml:space="preserve"><value>快速启动</value></data>
   <data name="Host_RowAllowQuickLaunch" xml:space="preserve"><value>允许快速启动程序</value></data>
   <data name="Host_RowAllowQuickLaunchDesc" xml:space="preserve"><value>开启后，同一账户下的设备可浏览本机目录、添加程序并在启动后自动进入远程控制</value></data>
+  <data name="Host_AlertQuickLaunchTitle" xml:space="preserve"><value>快速启动已触发</value></data>
+  <data name="Host_AlertQuickLaunchLocalBodyFmt" xml:space="preserve"><value>本机已通过快速启动打开{0}</value></data>
+  <data name="Host_AlertQuickLaunchRemoteBodyFmt" xml:space="preserve"><value>{0}已在本计算机快速启动{1}</value></data>
   <data name="QL_PageTitle" xml:space="preserve"><value>快速启动</value></data>
   <data name="QL_AddAppBtn" xml:space="preserve"><value>添加程序</value></data>
   <data name="QL_FilterAllDevices" xml:space="preserve"><value>全部计算机</value></data>

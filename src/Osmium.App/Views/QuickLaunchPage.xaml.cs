@@ -693,7 +693,7 @@ public sealed partial class QuickLaunchPage : Page
             };
             if (await dlg.ShowAsync() == ContentDialogResult.Primary)
             {
-                if (!App.Engine.QuickLaunch.TryLaunchLocalExecutable(app.ExePath, out string err))
+                if (!App.Engine.QuickLaunch.TryLaunchLocalExecutable(app.ExePath, out string err, app.Name))
                 {
                     await ShowMessageDialogAsync(
                         LocalizationService.GetString("Assist_ErrorTitle"),

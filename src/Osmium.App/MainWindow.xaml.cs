@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window
         App.Engine.Coordinator.ConfirmDriverActionAsync = ConfirmDriverActionOnUiAsync;
         App.Engine.Coordinator.HostSessionStarted += info => DispatcherQueue.TryEnqueue(() => OnHostSessionStarted(info));
         App.Engine.Coordinator.HostSessionEnded += _ => DispatcherQueue.TryEnqueue(OnHostSessionEnded);
+        App.Engine.QuickLaunch.AppLaunchedOnHost += args => DispatcherQueue.TryEnqueue(() => OnQuickLaunchAppStartedOnHost(args));
         App.Engine.AccountService.SessionChanged += () => DispatcherQueue.TryEnqueue(() =>
         {
             ApplyLocalization();
@@ -429,6 +430,26 @@ public sealed partial class MainWindow : Window
         {
             _taskbarFlasher?.SetSolidRed(_hwnd);
         }
+    }
+
+    private void OnQuickLaunchAppStartedOnHost(Osmium.Core.Services.QuickLaunchHostStartedEventArgs args)
+    {
+        EnsureTrayIcon();
+        string title = LocalizationService.GetString("Host_AlertQuickLaunchTitle");
+        string body;
+        if (args.IsLocalLaunch)
+        {
+            body = LocalizationService.Format("Host_AlertQuickLaunchLocalBodyFmt", args.AppName);
+        }
+        else
+        {
+            string who = App.Engine.AccountService.ResolveAccountDeviceName(
+                args.RequesterDeviceId,
+                DeviceIdentity.FormatDeviceId(args.RequesterDeviceId));
+            body = LocalizationService.Format("Host_AlertQuickLaunchRemoteBodyFmt", who, args.AppName);
+        }
+
+        _trayIcon?.ShowNotification(title, body);
     }
 
     private void OnHostSessionEnded()

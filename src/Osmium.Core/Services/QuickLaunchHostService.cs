@@ -10,6 +10,14 @@ using Windows.Storage.Streams;
 
 namespace Osmium.Core.Services;
 
+public sealed class QuickLaunchHostStartedEventArgs : EventArgs
+{
+    public required string AppName { get; init; }
+    public required string ExePath { get; init; }
+    public required string RequesterDeviceId { get; init; }
+    public required bool IsLocalLaunch { get; init; }
+}
+
 public sealed class QuickLaunchHostService : IDisposable
 {
     private const int IconSize = 64;
@@ -68,6 +76,8 @@ public sealed class QuickLaunchHostService : IDisposable
             }
         }
     }
+
+    public event Action<QuickLaunchHostStartedEventArgs>? AppLaunchedOnHost;
 
     public QuickLaunchHostService(
         SettingsService settings,
@@ -259,7 +269,7 @@ public sealed class QuickLaunchHostService : IDisposable
         }
     }
 
-    public bool TryLaunchLocalExecutable(string exePath, out string error)
+    public bool TryLaunchLocalExecutable(string exePath, out string error, string? appName = null)
     {
         error = string.Empty;
         if (!TryNormalizeLocalPath(exePath, out string normPath) || !IsValidWindowsExecutable(normPath))
@@ -276,6 +286,16 @@ public sealed class QuickLaunchHostService : IDisposable
                 FileName = normPath,
                 WorkingDirectory = string.IsNullOrWhiteSpace(dir) ? Environment.CurrentDirectory : dir,
                 UseShellExecute = true
+            });
+            string displayName = !string.IsNullOrWhiteSpace(appName)
+                ? appName.Trim()
+                : ExtractFriendlyExeName(normPath);
+            AppLaunchedOnHost?.Invoke(new QuickLaunchHostStartedEventArgs
+            {
+                AppName = displayName,
+                ExePath = normPath,
+                RequesterDeviceId = DeviceIdentity.NormalizeDeviceId(_settings.Identity.DeviceId),
+                IsLocalLaunch = true
             });
             return true;
         }
@@ -542,6 +562,17 @@ public sealed class QuickLaunchHostService : IDisposable
             }
 
             _log.Info($"QuickLaunch started '{exePath}' (rootPid={startedProc?.Id ?? 0}) for peer {req.RequesterDeviceId}");
+
+            string displayName = !string.IsNullOrWhiteSpace(req.AppName)
+                ? req.AppName.Trim()
+                : ExtractFriendlyExeName(exePath);
+            AppLaunchedOnHost?.Invoke(new QuickLaunchHostStartedEventArgs
+            {
+                AppName = displayName,
+                ExePath = exePath,
+                RequesterDeviceId = DeviceIdentity.NormalizeDeviceId(req.RequesterDeviceId),
+                IsLocalLaunch = false
+            });
 
             int foregroundPid = 0;
             var sw = Stopwatch.StartNew();

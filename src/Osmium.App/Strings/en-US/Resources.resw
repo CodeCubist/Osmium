@@ -782,6 +782,9 @@
   <data name="Nav_QuickLaunch" xml:space="preserve"><value>Quick Launch</value></data>
   <data name="Host_RowAllowQuickLaunch" xml:space="preserve"><value>Allow Quick Launch</value></data>
   <data name="Host_RowAllowQuickLaunchDesc" xml:space="preserve"><value>Allow devices signed into the same account to browse folders, add apps, and start remote sessions when launched</value></data>
+  <data name="Host_AlertQuickLaunchTitle" xml:space="preserve"><value>Quick Launch Triggered</value></data>
+  <data name="Host_AlertQuickLaunchLocalBodyFmt" xml:space="preserve"><value>Launched "{0}" locally via Quick Launch</value></data>
+  <data name="Host_AlertQuickLaunchRemoteBodyFmt" xml:space="preserve"><value>{0} launched "{1}" on this computer</value></data>
   <data name="QL_PageTitle" xml:space="preserve"><value>Quick Launch</value></data>
   <data name="QL_AddAppBtn" xml:space="preserve"><value>Add App</value></data>
   <data name="QL_FilterAllDevices" xml:space="preserve"><value>All Computers</value></data>
