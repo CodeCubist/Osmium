@@ -1,6 +1,7 @@
 #include "AndroidAudioEngine.h"
 
 #include <android/log.h>
+#include <sys/resource.h>
 #include <algorithm>
 #include <cstring>
 #include <dlfcn.h>
@@ -13,8 +14,8 @@ namespace osmium::mobile
 {
     namespace
     {
-        constexpr size_t kRingCapacitySamples = 48000 * 2 / 4; // 250ms @ 48kHz stereo
-        constexpr size_t kMaxBufferedSamples = 48000 * 2 / 10; // Cap latency ~100ms
+        constexpr size_t kMaxPendingOpusFrames = 8;
+        constexpr size_t kMaxPooledOpusBufs = 16;
         constexpr int kMicSampleRate = 48000;
         constexpr int kMicChannels = 1;
         constexpr int kMicFrameSamples = 960; // 20ms @ 48kHz
@@ -28,11 +29,27 @@ namespace osmium::mobile
     void AndroidAudioEngine::StopAll()
     {
         StopMicCapture();
-        std::lock_guard<std::mutex> lock(m_PlayMutex);
-        StopPlaybackLocked();
+
+        std::thread workerToJoin;
+        {
+            std::lock_guard<std::mutex> ql(m_QueueMutex);
+            m_DecodeStop = true;
+            m_PendingQueue.clear();
+            m_FreeBuffers.clear();
+            if (m_DecodeThread.joinable())
+            {
+                workerToJoin = std::move(m_DecodeThread);
+            }
+        }
+        m_QueueCv.notify_all();
+        if (workerToJoin.joinable())
+        {
+            workerToJoin.join();
+        }
+        StopPlayback();
     }
 
-    void AndroidAudioEngine::StopPlaybackLocked()
+    void AndroidAudioEngine::StopPlayback()
     {
         if (m_PlayStream)
         {
@@ -46,23 +63,26 @@ namespace osmium::mobile
             m_Decoder = nullptr;
         }
         m_PlaySampleRate = 0;
-        m_PlayChannels = 0;
-        std::lock_guard<std::mutex> rl(m_RingMutex);
-        m_RingRead = m_RingWrite = m_RingCount = 0;
+        m_PlayChannels.store(2, std::memory_order_relaxed);
+        m_HasSequence = false;
+        m_LastSequence = 0;
+        m_RingRead.store(0, std::memory_order_relaxed);
+        m_RingWrite.store(0, std::memory_order_relaxed);
     }
 
-    bool AndroidAudioEngine::EnsurePlaybackLocked(uint16_t sampleRate, uint8_t channels)
+    bool AndroidAudioEngine::EnsurePlayback(uint16_t sampleRate, uint8_t channels)
     {
         if (sampleRate == 0) sampleRate = 48000;
         if (channels == 0 || channels > 2) channels = 2;
 
         if (m_PlayStream && m_Decoder &&
-            m_PlaySampleRate == sampleRate && m_PlayChannels == channels)
+            m_PlaySampleRate == sampleRate &&
+            m_PlayChannels.load(std::memory_order_relaxed) == channels)
         {
             return true;
         }
 
-        StopPlaybackLocked();
+        StopPlayback();
 
         int err = 0;
         m_Decoder = opus_decoder_create(sampleRate, channels, &err);
@@ -72,18 +92,17 @@ namespace osmium::mobile
             return false;
         }
 
-        {
-            std::lock_guard<std::mutex> rl(m_RingMutex);
-            m_PcmRing.assign(kRingCapacitySamples, 0);
-            m_RingRead = m_RingWrite = m_RingCount = 0;
-        }
+        m_PcmRing.assign(kRingCapacity, 0);
+        m_RingRead.store(0, std::memory_order_relaxed);
+        m_RingWrite.store(0, std::memory_order_relaxed);
+        m_PlayChannels.store(channels, std::memory_order_release);
         m_DecodeScratch.resize(5760 * channels);
 
         AAudioStreamBuilder* builder = nullptr;
         if (AAudio_createStreamBuilder(&builder) != AAUDIO_OK || !builder)
         {
             LOGE("AAudio_createStreamBuilder failed");
-            StopPlaybackLocked();
+            StopPlayback();
             return false;
         }
 
@@ -105,7 +124,7 @@ namespace osmium::mobile
         if (res != AAUDIO_OK || !m_PlayStream)
         {
             LOGE("AAudio open output stream failed: %d", res);
-            StopPlaybackLocked();
+            StopPlayback();
             return false;
         }
 
@@ -113,13 +132,13 @@ namespace osmium::mobile
         if (res != AAUDIO_OK)
         {
             LOGE("AAudio start output stream failed: %d", res);
-            StopPlaybackLocked();
+            StopPlayback();
             return false;
         }
 
         m_PlaySampleRate = sampleRate;
-        m_PlayChannels = channels;
-        LOGI("AAudio output started (%u Hz, %u ch)", sampleRate, channels);
+        m_HasSequence = false;
+        LOGI("AAudio output started (%u Hz, %u ch, lock-free SPSC)", sampleRate, channels);
         return true;
     }
 
@@ -131,42 +150,52 @@ namespace osmium::mobile
     {
         auto* self = static_cast<AndroidAudioEngine*>(userData);
         auto* out = static_cast<int16_t*>(audioData);
-        const size_t totalSamples = static_cast<size_t>(numFrames) *
-                                    std::max<uint8_t>(1, self->m_PlayChannels);
+        const uint8_t ch = std::max<uint8_t>(1, self->m_PlayChannels.load(std::memory_order_acquire));
+        const uint32_t totalSamples = static_cast<uint32_t>(numFrames) * ch;
+
+        const uint32_t r = self->m_RingRead.load(std::memory_order_relaxed);
+        const uint32_t w = self->m_RingWrite.load(std::memory_order_acquire);
+        const uint32_t avail = w - r;
 
         if (self->m_Muted.load(std::memory_order_relaxed))
         {
-            std::memset(out, 0, totalSamples * sizeof(int16_t));
-            std::lock_guard<std::mutex> rl(self->m_RingMutex);
-            size_t discard = std::min(totalSamples, self->m_RingCount);
-            self->m_RingRead = (self->m_RingRead + discard) % self->m_PcmRing.size();
-            self->m_RingCount -= discard;
+            std::memset(out, 0, static_cast<size_t>(totalSamples) * sizeof(int16_t));
+            const uint32_t discard = std::min(totalSamples, avail);
+            self->m_RingRead.store(r + discard, std::memory_order_release);
             return AAUDIO_CALLBACK_RESULT_CONTINUE;
         }
 
-        std::lock_guard<std::mutex> rl(self->m_RingMutex);
-        const size_t cap = self->m_PcmRing.size();
-        if (cap == 0 || self->m_RingCount == 0)
+        if (avail == 0 || self->m_PcmRing.size() < kRingCapacity)
         {
-            std::memset(out, 0, totalSamples * sizeof(int16_t));
+            std::memset(out, 0, static_cast<size_t>(totalSamples) * sizeof(int16_t));
             return AAUDIO_CALLBACK_RESULT_CONTINUE;
         }
 
-        size_t toRead = std::min(totalSamples, self->m_RingCount);
-        size_t firstPart = std::min(toRead, cap - self->m_RingRead);
-        std::memcpy(out, self->m_PcmRing.data() + self->m_RingRead, firstPart * sizeof(int16_t));
+        const uint32_t toRead = std::min(totalSamples, avail);
+        const uint32_t readIdx = r & kRingMask;
+        const uint32_t firstPart = std::min(toRead, kRingCapacity - readIdx);
+        std::memcpy(out, self->m_PcmRing.data() + readIdx, static_cast<size_t>(firstPart) * sizeof(int16_t));
         if (toRead > firstPart)
         {
-            std::memcpy(out + firstPart, self->m_PcmRing.data(), (toRead - firstPart) * sizeof(int16_t));
+            std::memcpy(out + firstPart, self->m_PcmRing.data(),
+                        static_cast<size_t>(toRead - firstPart) * sizeof(int16_t));
         }
-        self->m_RingRead = (self->m_RingRead + toRead) % cap;
-        self->m_RingCount -= toRead;
+        self->m_RingRead.store(r + toRead, std::memory_order_release);
 
         if (toRead < totalSamples)
         {
-            std::memset(out + toRead, 0, (totalSamples - toRead) * sizeof(int16_t));
+            std::memset(out + toRead, 0, static_cast<size_t>(totalSamples - toRead) * sizeof(int16_t));
         }
         return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+
+    void AndroidAudioEngine::EnsureDecodeThreadLocked()
+    {
+        if (!m_DecodeThread.joinable())
+        {
+            m_DecodeStop = false;
+            m_DecodeThread = std::thread(&AndroidAudioEngine::DecodeWorkerLoop, this);
+        }
     }
 
     void AndroidAudioEngine::PushOpusFrame(
@@ -174,47 +203,147 @@ namespace osmium::mobile
         uint16_t bytes,
         uint16_t sampleRate,
         uint8_t channels,
-        uint16_t /*sampleCount*/)
+        uint16_t sampleCount,
+        uint32_t sequence)
     {
-        if (!data || bytes == 0) return;
-        std::lock_guard<std::mutex> lock(m_PlayMutex);
-        if (!EnsurePlaybackLocked(sampleRate, channels)) return;
+        if (!data || bytes == 0 || bytes > 4096) return;
+        if (m_Muted.load(std::memory_order_relaxed)) return;
+
+        {
+            std::lock_guard<std::mutex> ql(m_QueueMutex);
+            EnsureDecodeThreadLocked();
+            while (m_PendingQueue.size() >= kMaxPendingOpusFrames)
+            {
+                auto dropped = std::move(m_PendingQueue.front());
+                m_PendingQueue.pop_front();
+                if (m_FreeBuffers.size() < kMaxPooledOpusBufs && dropped.data.capacity() <= 4096)
+                {
+                    dropped.data.clear();
+                    m_FreeBuffers.push_back(std::move(dropped.data));
+                }
+            }
+
+            PendingOpusFrame frame;
+            frame.sequence = sequence;
+            frame.sampleRate = sampleRate > 0 ? sampleRate : 48000;
+            frame.channels = (channels == 1 || channels == 2) ? channels : 2;
+            frame.sampleCount = sampleCount > 0 ? sampleCount : 960;
+            if (!m_FreeBuffers.empty())
+            {
+                frame.data = std::move(m_FreeBuffers.back());
+                m_FreeBuffers.pop_back();
+            }
+            frame.data.assign(data, data + bytes);
+            m_PendingQueue.push_back(std::move(frame));
+        }
+        m_QueueCv.notify_one();
+    }
+
+    void AndroidAudioEngine::DecodeWorkerLoop()
+    {
+        setpriority(PRIO_PROCESS, 0, -8);
+
+        for (;;)
+        {
+            PendingOpusFrame frame;
+            {
+                std::unique_lock<std::mutex> ql(m_QueueMutex);
+                m_QueueCv.wait(ql, [this] { return m_DecodeStop || !m_PendingQueue.empty(); });
+                if (m_DecodeStop) break;
+                frame = std::move(m_PendingQueue.front());
+                m_PendingQueue.pop_front();
+            }
+
+            ProcessOpusFrame(frame);
+
+            if (frame.data.capacity() <= 4096)
+            {
+                std::lock_guard<std::mutex> ql(m_QueueMutex);
+                if (m_FreeBuffers.size() < kMaxPooledOpusBufs)
+                {
+                    frame.data.clear();
+                    m_FreeBuffers.push_back(std::move(frame.data));
+                }
+            }
+        }
+    }
+
+    void AndroidAudioEngine::WritePcmRing(const int16_t* samples, size_t count)
+    {
+        if (!samples || count == 0 || m_PcmRing.size() < kRingCapacity) return;
+
+        const uint32_t r = m_RingRead.load(std::memory_order_acquire);
+        const uint32_t w = m_RingWrite.load(std::memory_order_relaxed);
+        const uint32_t used = w - r;
+
+        // Keep buffered playback audio below ~105ms by smoothly skipping excess producer
+        // frames instead of mutating the consumer's read pointer.
+        const uint32_t ch = std::max<uint32_t>(1, m_PlayChannels.load(std::memory_order_relaxed));
+        const uint32_t rate = m_PlaySampleRate > 0 ? m_PlaySampleRate : 48000U;
+        const uint32_t maxBufferedSamples = (rate * ch * 105U) / 1000U;
+        if (used + count > maxBufferedSamples || used + count > kRingCapacity)
+        {
+            return;
+        }
+
+        const uint32_t toWrite = static_cast<uint32_t>(count);
+        const uint32_t writeIdx = w & kRingMask;
+        const uint32_t firstPart = std::min(toWrite, kRingCapacity - writeIdx);
+        std::memcpy(m_PcmRing.data() + writeIdx, samples, static_cast<size_t>(firstPart) * sizeof(int16_t));
+        if (toWrite > firstPart)
+        {
+            std::memcpy(m_PcmRing.data(), samples + firstPart,
+                        static_cast<size_t>(toWrite - firstPart) * sizeof(int16_t));
+        }
+        m_RingWrite.store(w + toWrite, std::memory_order_release);
+    }
+
+    void AndroidAudioEngine::ProcessOpusFrame(const PendingOpusFrame& frame)
+    {
+        if (frame.data.empty() || m_Muted.load(std::memory_order_relaxed)) return;
+        if (!EnsurePlayback(frame.sampleRate, frame.channels)) return;
+
+        const uint8_t ch = m_PlayChannels.load(std::memory_order_relaxed);
+        const int maxPerCh = static_cast<int>(m_DecodeScratch.size() / std::max<uint8_t>(1, ch));
+
+        // Single-packet loss concealment (in-band FEC) if sequence jumped by 2 and buffer isn't backed up.
+        if (frame.sequence != 0 && m_HasSequence)
+        {
+            const uint32_t diff = frame.sequence - m_LastSequence;
+            const uint32_t used = m_RingWrite.load(std::memory_order_relaxed) -
+                m_RingRead.load(std::memory_order_acquire);
+            const uint32_t rate = m_PlaySampleRate > 0 ? m_PlaySampleRate : 48000U;
+            if (diff == 2 && used < (rate * ch * 70U) / 1000U)
+            {
+                int fecFrames = opus_decode(
+                    m_Decoder,
+                    frame.data.data(),
+                    static_cast<int>(frame.data.size()),
+                    m_DecodeScratch.data(),
+                    std::min<int>(frame.sampleCount, maxPerCh),
+                    1);
+                if (fecFrames > 0)
+                {
+                    WritePcmRing(m_DecodeScratch.data(), static_cast<size_t>(fecFrames) * ch);
+                }
+            }
+        }
+        if (frame.sequence != 0)
+        {
+            m_LastSequence = frame.sequence;
+            m_HasSequence = true;
+        }
 
         int decodedFrames = opus_decode(
             m_Decoder,
-            data,
-            bytes,
+            frame.data.data(),
+            static_cast<int>(frame.data.size()),
             m_DecodeScratch.data(),
-            static_cast<int>(m_DecodeScratch.size() / m_PlayChannels),
+            maxPerCh,
             0);
         if (decodedFrames <= 0) return;
 
-        const size_t samples = static_cast<size_t>(decodedFrames) * m_PlayChannels;
-        std::lock_guard<std::mutex> rl(m_RingMutex);
-        const size_t cap = m_PcmRing.size();
-        if (cap == 0) return;
-
-        // Drift catch-up: keep buffered audio below ~100ms
-        if (m_RingCount + samples > kMaxBufferedSamples)
-        {
-            size_t target = kMaxBufferedSamples / 2;
-            if (m_RingCount > target)
-            {
-                size_t drop = m_RingCount - target;
-                m_RingRead = (m_RingRead + drop) % cap;
-                m_RingCount -= drop;
-            }
-        }
-
-        size_t writable = std::min(samples, cap - m_RingCount);
-        size_t firstPart = std::min(writable, cap - m_RingWrite);
-        std::memcpy(m_PcmRing.data() + m_RingWrite, m_DecodeScratch.data(), firstPart * sizeof(int16_t));
-        if (writable > firstPart)
-        {
-            std::memcpy(m_PcmRing.data(), m_DecodeScratch.data() + firstPart, (writable - firstPart) * sizeof(int16_t));
-        }
-        m_RingWrite = (m_RingWrite + writable) % cap;
-        m_RingCount += writable;
+        WritePcmRing(m_DecodeScratch.data(), static_cast<size_t>(decodedFrames) * ch);
     }
 
     bool AndroidAudioEngine::StartMicCapture(MicFrameCallback callback)
@@ -230,11 +359,15 @@ namespace osmium::mobile
             return false;
         }
         opus_encoder_ctl(m_Encoder, OPUS_SET_BITRATE(32000));
+        opus_encoder_ctl(m_Encoder, OPUS_SET_COMPLEXITY(5));
+        opus_encoder_ctl(m_Encoder, OPUS_SET_INBAND_FEC(1));
+        opus_encoder_ctl(m_Encoder, OPUS_SET_PACKET_LOSS_PERC(5));
         opus_encoder_ctl(m_Encoder, OPUS_SET_DTX(1));
 
         m_MicCb = std::move(callback);
         m_MicAccum.clear();
-        m_MicAccum.reserve(kMicFrameSamples * 2);
+        m_MicAccum.reserve(kMicFrameSamples * 4);
+        m_MicReadPos = 0;
 
         AAudioStreamBuilder* builder = nullptr;
         if (AAudio_createStreamBuilder(&builder) != AAUDIO_OK || !builder)
@@ -295,6 +428,7 @@ namespace osmium::mobile
         }
         m_MicCb = nullptr;
         m_MicAccum.clear();
+        m_MicReadPos = 0;
     }
 
     aaudio_data_callback_result_t AndroidAudioEngine::MicCallback(
@@ -310,15 +444,15 @@ namespace osmium::mobile
         const auto* in = static_cast<const int16_t*>(audioData);
         self->m_MicAccum.insert(self->m_MicAccum.end(), in, in + numFrames);
 
-        while (self->m_MicAccum.size() >= kMicFrameSamples)
+        while (self->m_MicAccum.size() - self->m_MicReadPos >= kMicFrameSamples)
         {
             int encoded = opus_encode(
                 self->m_Encoder,
-                self->m_MicAccum.data(),
+                self->m_MicAccum.data() + self->m_MicReadPos,
                 kMicFrameSamples,
                 self->m_MicOutBuf,
                 sizeof(self->m_MicOutBuf));
-            self->m_MicAccum.erase(self->m_MicAccum.begin(), self->m_MicAccum.begin() + kMicFrameSamples);
+            self->m_MicReadPos += kMicFrameSamples;
             if (encoded > 0)
             {
                 self->m_MicCb(
@@ -328,6 +462,17 @@ namespace osmium::mobile
                     kMicChannels,
                     kMicFrameSamples);
             }
+        }
+        if (self->m_MicReadPos == self->m_MicAccum.size())
+        {
+            self->m_MicAccum.clear();
+            self->m_MicReadPos = 0;
+        }
+        else if (self->m_MicReadPos >= static_cast<size_t>(kMicFrameSamples) * 4)
+        {
+            self->m_MicAccum.erase(self->m_MicAccum.begin(),
+                                   self->m_MicAccum.begin() + static_cast<ptrdiff_t>(self->m_MicReadPos));
+            self->m_MicReadPos = 0;
         }
         return AAUDIO_CALLBACK_RESULT_CONTINUE;
     }

@@ -41,8 +41,26 @@ namespace osmium::mobile
             outFrame.captureTimeUs = hdr->captureTimeUs;
             outFrame.payload.assign(dataPtr, dataPtr + dataBytes);
 
-            if (isKey) m_LastCompletedKeyFrameId = hdr->frameId;
+            if (isKey)
+            {
+                m_LastCompletedKeyFrameId = hdr->frameId;
+                for (auto it = m_Pending.begin(); it != m_Pending.end();)
+                {
+                    if (it->first < hdr->frameId) it = m_Pending.erase(it);
+                    else ++it;
+                }
+            }
             return true;
+        }
+
+        if (m_Pending.find(hdr->frameId) == m_Pending.end())
+        {
+            // Keep pending reassembly table tightly bounded so bursts of incomplete
+            // frames never bloat memory or slow down stale purging.
+            while (m_Pending.size() >= 16)
+            {
+                m_Pending.erase(m_Pending.begin());
+            }
         }
 
         auto& pf = m_Pending[hdr->frameId];
@@ -68,6 +86,7 @@ namespace osmium::mobile
         {
             if (pf.chunkStride == 0)
             {
+                if (dataBytes > 32768) return false;
                 pf.chunkStride = static_cast<uint32_t>(dataBytes);
                 pf.flatBuf.resize(static_cast<size_t>(pf.totalChunks) * pf.chunkStride);
                 if (!pf.lastChunkBuf.empty())
@@ -80,6 +99,10 @@ namespace osmium::mobile
                     std::memcpy(pf.flatBuf.data() + lastOff, pf.lastChunkBuf.data(), pf.lastChunkBuf.size());
                     pf.lastChunkBuf.clear();
                 }
+            }
+            else if (dataBytes != pf.chunkStride)
+            {
+                return false;
             }
             const size_t offset = static_cast<size_t>(hdr->chunkIndex) * pf.chunkStride;
             if (offset + dataBytes > pf.flatBuf.size())
@@ -127,7 +150,15 @@ namespace osmium::mobile
         outFrame.captureTimeUs = pf.captureTimeUs;
         outFrame.payload = std::move(pf.flatBuf);
 
-        if (outFrame.isKeyFrame) m_LastCompletedKeyFrameId = hdr->frameId;
+        if (outFrame.isKeyFrame)
+        {
+            m_LastCompletedKeyFrameId = hdr->frameId;
+            for (auto it = m_Pending.begin(); it != m_Pending.end();)
+            {
+                if (it->first < hdr->frameId) it = m_Pending.erase(it);
+                else ++it;
+            }
+        }
         m_Pending.erase(hdr->frameId);
         return true;
     }

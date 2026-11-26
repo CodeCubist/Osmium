@@ -547,8 +547,12 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
 
     void ClientVideoDecoder::RefreshClientHdrState(bool force)
     {
+        if (!force && !m_WantHdr.load(std::memory_order_relaxed) && !m_SwapChainIsHdr)
+        {
+            return;
+        }
         uint64_t nowMs = NowMillis();
-        if (!force && m_LastClientHdrQueryMs != 0 && (nowMs - m_LastClientHdrQueryMs) < 1000)
+        if (!force && m_LastClientHdrQueryMs != 0 && (nowMs - m_LastClientHdrQueryMs) < 4000)
         {
             return;
         }

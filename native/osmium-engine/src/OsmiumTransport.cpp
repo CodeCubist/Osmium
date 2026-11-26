@@ -146,11 +146,6 @@ namespace osmium
             SecureZeroMemory(m_DecKeyObj.data(), m_DecKeyObj.size());
             m_DecKeyObj.clear();
         }
-        if (!m_SendScratchPlain.empty())
-        {
-            SecureZeroMemory(m_SendScratchPlain.data(), m_SendScratchPlain.size());
-            m_SendScratchPlain.clear();
-        }
         if (m_AesAlg)
         {
             BCryptCloseAlgorithmProvider(m_AesAlg, 0);
@@ -912,7 +907,7 @@ namespace osmium
             RawSendTo(bestSock, bestPeer, bestPeerLen, punchAckPkt, sizeof(punchAckPkt));
         }
 
-        m_ActiveSock = bestSock;
+        m_ActiveSock.store(bestSock, std::memory_order_release);
         m_PeerDirectAddr = bestPeer;
         m_PeerDirectAddrLen = bestPeerLen;
         m_ActiveLocalPort.store((bestSock == m_Sock6) ? m_LocalPort6 : m_LocalPort4);
@@ -931,18 +926,21 @@ namespace osmium
         }
 
         u_long nonBlocking = 1;
-        ioctlsocket(m_ActiveSock, FIONBIO, &nonBlocking);
-        int tos = 0xB8;
+        ioctlsocket(bestSock, FIONBIO, &nonBlocking);
+        // Keep DSCP at default Best-Effort (0x00 / WMM AC_BE). Marking high-bitrate
+        // video UDP sockets with EF (0xB8 / WMM AC_VO) disables A-MPDU aggregation
+        // and triggers AP voice-queue policing/drops on Wi-Fi LAN & P2P links.
+        int tos = 0;
         if (m_PeerDirectAddr.ss_family == AF_INET6)
         {
-            setsockopt(m_ActiveSock, IPPROTO_IPV6, IPV6_TCLASS, reinterpret_cast<const char*>(&tos), sizeof(tos));
+            setsockopt(bestSock, IPPROTO_IPV6, IPV6_TCLASS, reinterpret_cast<const char*>(&tos), sizeof(tos));
         }
         else
         {
-            setsockopt(m_ActiveSock, IPPROTO_IP, IP_TOS, reinterpret_cast<const char*>(&tos), sizeof(tos));
+            setsockopt(bestSock, IPPROTO_IP, IP_TOS, reinterpret_cast<const char*>(&tos), sizeof(tos));
         }
 
-        if (connect(m_ActiveSock, reinterpret_cast<const sockaddr*>(&m_PeerDirectAddr), m_PeerDirectAddrLen) == 0)
+        if (connect(bestSock, reinterpret_cast<const sockaddr*>(&m_PeerDirectAddr), m_PeerDirectAddrLen) == 0)
         {
             m_UdpConnected.store(true, std::memory_order_release);
         }
@@ -1421,11 +1419,11 @@ namespace osmium
         }
         {
             std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
-            if (m_RelayRecvQueue.size() >= 256)
+            if (m_RelayRecvQueue.size() >= 1024)
             {
                 auto dropped = std::move(m_RelayRecvQueue.front());
                 m_RelayRecvQueue.pop_front();
-                if (m_RelayFreePool.size() < 64 && dropped.capacity() <= 36864)
+                if (m_RelayFreePool.size() < 128 && dropped.capacity() <= 36864)
                 {
                     dropped.clear();
                     m_RelayFreePool.push_back(std::move(dropped));
@@ -1467,11 +1465,11 @@ namespace osmium
                     continue;
                 }
 
-                if (m_RelayRecvQueue.size() >= 256)
+                if (m_RelayRecvQueue.size() >= 1024)
                 {
                     auto dropped = std::move(m_RelayRecvQueue.front());
                     m_RelayRecvQueue.pop_front();
-                    if (m_RelayFreePool.size() < 64 && dropped.capacity() <= 36864)
+                    if (m_RelayFreePool.size() < 128 && dropped.capacity() <= 36864)
                     {
                         dropped.clear();
                         m_RelayFreePool.push_back(std::move(dropped));
@@ -1782,19 +1780,49 @@ namespace osmium
     {
         if (!payload || payloadLen < sizeof(proto::AppPacketHeader)) return false;
         const bool isRelay = m_RelayMode.load(std::memory_order_acquire);
-        if (!m_Connected.load() || m_Closed.load() || (!isRelay && m_ActiveSock == INVALID_SOCKET)) return false;
+        const SOCKET activeSock = m_ActiveSock.load(std::memory_order_acquire);
+        if (!m_Connected.load(std::memory_order_acquire) || m_Closed.load(std::memory_order_acquire) ||
+            (!isRelay && activeSock == INVALID_SOCKET))
+        {
+            return false;
+        }
 
-        constexpr size_t kFastStackPlainCap = 2048;
+        // Classify priority/drop hint for relay & WebRTC P2P transports (zero ABI break):
+        //   0        : critical control (Ping/Pong/Input/Auth/Control/IDR/Aux)
+        //  -1        : real-time audio (bounded low-latency lane, never HoL-blocks control)
+        //  <= -2     : video keyframe (group = -(frameId + 2))
+        //  > 0       : droppable video P-frame (group = frameId)
+        int32_t dropGroupId = 0;
+        if (isRelay)
+        {
+            if (pktType == proto::AppPacketType::AudioFrame ||
+                pktType == proto::AppPacketType::ClientMicAudioFrame)
+            {
+                dropGroupId = -1;
+            }
+            else if (pktType == proto::AppPacketType::VideoChunk && payloadLen >= sizeof(proto::VideoChunkHeader))
+            {
+                const auto* vhdr = reinterpret_cast<const proto::VideoChunkHeader*>(payload);
+                const uint32_t g = vhdr->frameId & 0x3FFFFFFFU;
+                if (vhdr->isKeyFrame == 0)
+                {
+                    dropGroupId = static_cast<int32_t>(g == 0 ? 1U : g);
+                }
+                else
+                {
+                    dropGroupId = -static_cast<int32_t>(g + 2U);
+                }
+            }
+        }
 
-        std::lock_guard<std::mutex> lock(m_SendMutex);
-        const bool useEncryption = m_EncryptionEnabled.load(std::memory_order_acquire);
-        if ((useEncryption && !m_EncKey) || m_Closed.load()) return false;
+        constexpr size_t kFastStackPlainCap = 17408;
+        alignas(16) uint8_t stackPlain[kFastStackPlainCap];
+        alignas(16) uint8_t stackWire[sizeof(proto::EncryptedFrameHeader) + kFastStackPlainCap];
+        std::vector<uint8_t> dynPlain;
+        std::vector<uint8_t> dynWire;
 
         uint8_t* plainPtr = nullptr;
         uint8_t* wireBuf = nullptr;
-        alignas(16) uint8_t stackPlain[kFastStackPlainCap];
-        alignas(16) uint8_t stackWire[sizeof(proto::EncryptedFrameHeader) + kFastStackPlainCap];
-
         if (payloadLen <= kFastStackPlainCap)
         {
             plainPtr = stackPlain;
@@ -1802,19 +1830,33 @@ namespace osmium
         }
         else
         {
-            m_SendScratchPlain.resize(payloadLen);
-            m_SendScratchWire.resize(sizeof(proto::EncryptedFrameHeader) + payloadLen);
-            plainPtr = m_SendScratchPlain.data();
-            wireBuf = m_SendScratchWire.data();
+            dynPlain.resize(payloadLen);
+            dynWire.resize(sizeof(proto::EncryptedFrameHeader) + payloadLen);
+            plainPtr = dynPlain.data();
+            wireBuf = dynWire.data();
         }
 
         memcpy(plainPtr, payload, payloadLen);
         reinterpret_cast<proto::AppPacketHeader*>(plainPtr)->type = static_cast<uint8_t>(pktType);
 
         size_t wireLen = 0;
-        const bool ok = useEncryption
-                            ? EncryptFrameWithEncKey(plainPtr, payloadLen, wireBuf, wireLen)
-                            : FramePlaintext(plainPtr, payloadLen, wireBuf, wireLen);
+        bool ok = false;
+        {
+            std::lock_guard<std::mutex> lock(m_SendMutex);
+            const bool useEncryption = m_EncryptionEnabled.load(std::memory_order_acquire);
+            if ((useEncryption && !m_EncKey) || m_Closed.load(std::memory_order_acquire))
+            {
+                if (payloadLen <= 256 || pktType == proto::AppPacketType::AuthRequest)
+                {
+                    SecureZeroMemory(plainPtr, payloadLen);
+                }
+                return false;
+            }
+            ok = useEncryption
+                     ? EncryptFrameWithEncKey(plainPtr, payloadLen, wireBuf, wireLen)
+                     : FramePlaintext(plainPtr, payloadLen, wireBuf, wireLen);
+        }
+
         if (payloadLen <= 256 || pktType == proto::AppPacketType::AuthRequest)
         {
             SecureZeroMemory(plainPtr, payloadLen);
@@ -1824,6 +1866,8 @@ namespace osmium
             return false;
         }
 
+        // Socket / Relay I/O runs completely outside m_SendMutex so audio, Ping/Pong,
+        // input, KCP ACKs, and video bursts never block each other on syscalls or P/Invoke.
         if (isRelay)
         {
             RelaySendFunc fn;
@@ -1831,34 +1875,27 @@ namespace osmium
                 std::lock_guard<std::mutex> rl(m_RelaySendMutex);
                 fn = m_RelaySendFn;
             }
-            if (!fn || m_Closed.load()) return false;
-            int32_t dropGroupId = 0;
-            if (pktType == proto::AppPacketType::VideoChunk && payloadLen >= sizeof(proto::VideoChunkHeader))
-            {
-                const auto* vhdr = reinterpret_cast<const proto::VideoChunkHeader*>(payload);
-                if (vhdr->isKeyFrame == 0)
-                {
-                    const uint32_t g = vhdr->frameId & 0x7FFFFFFFU;
-                    dropGroupId = static_cast<int32_t>(g == 0 ? 1U : g);
-                }
-            }
+            if (!fn || m_Closed.load(std::memory_order_acquire)) return false;
             return fn(wireBuf, wireLen, dropGroupId);
         }
+
+        const SOCKET sendSock = m_ActiveSock.load(std::memory_order_acquire);
+        if (sendSock == INVALID_SOCKET || m_Closed.load(std::memory_order_acquire)) return false;
 
         if (m_UdpConnected.load(std::memory_order_acquire))
         {
             const char* ptr = reinterpret_cast<const char*>(wireBuf);
             const int iLen = static_cast<int>(wireLen);
-            int sent = send(m_ActiveSock, ptr, iLen, 0);
+            int sent = send(sendSock, ptr, iLen, 0);
             if (sent == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
             {
                 SwitchToThread();
-                sent = send(m_ActiveSock, ptr, iLen, 0);
+                sent = send(sendSock, ptr, iLen, 0);
             }
             return sent == iLen;
         }
 
-        return RawSendTo(m_ActiveSock, m_PeerDirectAddr, m_PeerDirectAddrLen, wireBuf, wireLen);
+        return RawSendTo(sendSock, m_PeerDirectAddr, m_PeerDirectAddrLen, wireBuf, wireLen);
     }
 
     int OsmiumTransport::ReceiveEncrypted(std::vector<uint8_t>& outPlaintext, int timeoutMs)
@@ -1905,7 +1942,7 @@ namespace osmium
                     if (buf.capacity() > 0 && buf.capacity() <= 36864)
                     {
                         std::lock_guard<std::mutex> ql(m_RelayRecvMutex);
-                        if (m_RelayFreePool.size() < 64)
+                        if (m_RelayFreePool.size() < 128)
                         {
                             buf.clear();
                             m_RelayFreePool.push_back(std::move(buf));
@@ -1943,7 +1980,8 @@ namespace osmium
             return -1;
         }
 
-        if (m_ActiveSock == INVALID_SOCKET) return -1;
+        const SOCKET activeSock = m_ActiveSock.load(std::memory_order_acquire);
+        if (activeSock == INVALID_SOCKET) return -1;
 
         const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1, timeoutMs));
         const bool udpConn = m_UdpConnected.load(std::memory_order_acquire);
@@ -1953,8 +1991,8 @@ namespace osmium
             sockaddr_storage from{};
             int fromLen = sizeof(from);
             int n = udpConn
-                        ? recv(m_ActiveSock, reinterpret_cast<char*>(buf), sizeof(buf), 0)
-                        : recvfrom(m_ActiveSock, reinterpret_cast<char*>(buf), sizeof(buf), 0,
+                        ? recv(activeSock, reinterpret_cast<char*>(buf), sizeof(buf), 0)
+                        : recvfrom(activeSock, reinterpret_cast<char*>(buf), sizeof(buf), 0,
                                    reinterpret_cast<sockaddr*>(&from), &fromLen);
 
             if (n < 0)
@@ -1971,7 +2009,7 @@ namespace osmium
                 uint64_t remMs = deadline - now;
                 fd_set rfds;
                 FD_ZERO(&rfds);
-                FD_SET(m_ActiveSock, &rfds);
+                FD_SET(activeSock, &rfds);
                 timeval tv{};
                 tv.tv_sec = static_cast<long>(remMs / 1000);
                 tv.tv_usec = static_cast<long>((remMs % 1000) * 1000);
@@ -2002,11 +2040,11 @@ namespace osmium
                     memcpy(ack + 8, m_SessionToken, 16);
                     if (udpConn)
                     {
-                        send(m_ActiveSock, reinterpret_cast<const char*>(ack), sizeof(ack), 0);
+                        send(activeSock, reinterpret_cast<const char*>(ack), sizeof(ack), 0);
                     }
                     else
                     {
-                        RawSendTo(m_ActiveSock, from, fromLen, ack, sizeof(ack));
+                        RawSendTo(activeSock, from, fromLen, ack, sizeof(ack));
                     }
                 }
                 continue;

@@ -1385,38 +1385,62 @@ class AccountService {
     }
   }
 
-  Future<AccountApiResult<void>> renameDevice(
+  Future<AccountApiResult<List<AccountDeviceDto>>> renameDevice(
     String deviceId,
     String customName,
   ) async {
     try {
+      final normalizedId = DeviceIdentity.normalizeDeviceId(deviceId);
       final resp = await _sendAuthed(
-        'PUT',
-        '/api/account/devices/${DeviceIdentity.normalizeDeviceId(deviceId)}/name',
-        body: {'custom_name': customName.trim()},
+        'POST',
+        '/api/account/devices/rename',
+        body: {
+          'device_id': normalizedId,
+          'custom_name': customName.trim(),
+        },
       );
-      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      final parsed = _parseEnvelope<List<AccountDeviceDto>>(resp, (m) {
+        final rawList = m['devices'] as List<dynamic>? ?? const [];
+        return rawList
+            .whereType<Map<String, dynamic>>()
+            .map(AccountDeviceDto.fromJson)
+            .toList();
+      });
       return AccountApiResult(
         ok: parsed.ok,
         httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
         message: parsed.message,
+        data: parsed.data,
       );
     } catch (e) {
       return AccountApiResult(ok: false, httpStatusCode: 0, message: '$e');
     }
   }
 
-  Future<AccountApiResult<void>> removeDevice(String deviceId) async {
+  Future<AccountApiResult<List<AccountDeviceDto>>> removeDevice(
+    String deviceId,
+  ) async {
     try {
+      final normalizedId = DeviceIdentity.normalizeDeviceId(deviceId);
       final resp = await _sendAuthed(
-        'DELETE',
-        '/api/account/devices/${DeviceIdentity.normalizeDeviceId(deviceId)}',
+        'POST',
+        '/api/account/devices/remove',
+        body: {'device_id': normalizedId},
       );
-      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      final parsed = _parseEnvelope<List<AccountDeviceDto>>(resp, (m) {
+        final rawList = m['devices'] as List<dynamic>? ?? const [];
+        return rawList
+            .whereType<Map<String, dynamic>>()
+            .map(AccountDeviceDto.fromJson)
+            .toList();
+      });
       return AccountApiResult(
         ok: parsed.ok,
         httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
         message: parsed.message,
+        data: parsed.data,
       );
     } catch (e) {
       return AccountApiResult(ok: false, httpStatusCode: 0, message: '$e');

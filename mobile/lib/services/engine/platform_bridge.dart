@@ -190,6 +190,15 @@ class PlatformBridge {
     } catch (_) {}
   }
 
+  Future<int> rebindSurface() async {
+    if (!Platform.isAndroid) return 0;
+    try {
+      return await _methodChannel.invokeMethod<int>('rebindSurface') ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<void> destroySurface() async {
     if (!Platform.isAndroid) return;
     try {

@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <regex>
+#include <sched.h>
 #include <sstream>
 #include <unistd.h>
 
@@ -149,7 +150,8 @@ namespace osmium::mobile
         int s6 = m_Sock6;
         m_Sock4 = -1;
         m_Sock6 = -1;
-        m_ActiveSock = -1;
+        m_ActiveSock.store(-1, std::memory_order_release);
+        m_UdpConnected.store(false, std::memory_order_release);
         m_PunchAttemptCount = 0;
         if (s4 >= 0) ::close(s4);
         if (s6 >= 0 && s6 != s4) ::close(s6);
@@ -756,7 +758,7 @@ namespace osmium::mobile
             RawSendTo(bestSock, bestPeer, bestPeerLen, punchAckPkt, sizeof(punchAckPkt));
         }
 
-        m_ActiveSock = bestSock;
+        m_ActiveSock.store(bestSock, std::memory_order_release);
         m_PeerAddr = bestPeer;
         m_PeerAddrLen = bestPeerLen;
         m_Route.store(RouteFromTier(bestTier), std::memory_order_release);
@@ -765,13 +767,25 @@ namespace osmium::mobile
         if (bestSock == m_Sock4 && m_Sock6 >= 0) { ::close(m_Sock6); m_Sock6 = -1; }
         else if (bestSock == m_Sock6 && m_Sock4 >= 0) { ::close(m_Sock4); m_Sock4 = -1; }
 
-        setNonBlock(m_ActiveSock);
+        setNonBlock(bestSock);
 
-        int tos = 0xB8;
+        // Keep DSCP at default Best-Effort (0x00 / WMM AC_BE). Marking UDP sockets with
+        // EF (0xB8 / WMM AC_VO) disables A-MPDU aggregation on Android Wi-Fi drivers and
+        // routers, causing periodic latency spikes and packet bursts to drop.
+        int tos = 0;
         if (m_PeerAddr.ss_family == AF_INET6)
-            setsockopt(m_ActiveSock, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
+            setsockopt(bestSock, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
         else
-            setsockopt(m_ActiveSock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+            setsockopt(bestSock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+
+        if (::connect(bestSock, reinterpret_cast<const sockaddr*>(&m_PeerAddr), m_PeerAddrLen) == 0)
+        {
+            m_UdpConnected.store(true, std::memory_order_release);
+        }
+        else
+        {
+            m_UdpConnected.store(false, std::memory_order_release);
+        }
 
         if (m_KcpEnabled.load(std::memory_order_acquire))
         {
@@ -795,7 +809,8 @@ namespace osmium::mobile
         int s6 = m_Sock6;
         m_Sock4 = -1;
         m_Sock6 = -1;
-        m_ActiveSock = -1;
+        m_ActiveSock.store(-1, std::memory_order_release);
+        m_UdpConnected.store(false, std::memory_order_release);
         m_PunchAttemptCount = 0;
         if (s4 >= 0) ::close(s4);
         if (s6 >= 0 && s6 != s4) ::close(s6);
@@ -822,6 +837,7 @@ namespace osmium::mobile
         {
             std::lock_guard<std::mutex> ql(m_RelaySendMutex);
             m_RelayHighSendQueue.clear();
+            m_RelayAudioSendQueue.clear();
             m_RelayDropSendQueue.clear();
         }
 
@@ -860,7 +876,9 @@ namespace osmium::mobile
         std::lock_guard<std::mutex> lock(m_RelaySendMutex);
         auto* q = !m_RelayHighSendQueue.empty()
                       ? &m_RelayHighSendQueue
-                      : (!m_RelayDropSendQueue.empty() ? &m_RelayDropSendQueue : nullptr);
+                      : (!m_RelayAudioSendQueue.empty()
+                             ? &m_RelayAudioSendQueue
+                             : (!m_RelayDropSendQueue.empty() ? &m_RelayDropSendQueue : nullptr));
         if (!q) return 0;
         const auto& front = q->front();
         int32_t len = static_cast<int32_t>(front.data.size());
@@ -1367,40 +1385,86 @@ namespace osmium::mobile
             return false;
         if (!appPayload || len < sizeof(proto::AppPacketHeader)) return false;
 
-        std::lock_guard<std::mutex> lock(m_SendMutex);
-        std::vector<uint8_t> plain(len);
-        std::memcpy(plain.data(), appPayload, len);
-        plain[0] = static_cast<uint8_t>(type);
+        constexpr size_t kFastStackPlainCap = 2048;
+        alignas(16) uint8_t stackPlain[kFastStackPlainCap];
+        alignas(16) uint8_t stackWire[sizeof(proto::EncryptedFrameHeader) + kFastStackPlainCap];
+        std::vector<uint8_t> dynPlain;
+        std::vector<uint8_t> dynWire;
 
-        std::vector<uint8_t> wire(sizeof(proto::EncryptedFrameHeader) + len);
+        uint8_t* plainPtr = nullptr;
+        uint8_t* wirePtr = nullptr;
+        if (len <= kFastStackPlainCap)
+        {
+            plainPtr = stackPlain;
+            wirePtr = stackWire;
+        }
+        else
+        {
+            dynPlain.resize(len);
+            dynWire.resize(sizeof(proto::EncryptedFrameHeader) + len);
+            plainPtr = dynPlain.data();
+            wirePtr = dynWire.data();
+        }
+
+        std::memcpy(plainPtr, appPayload, len);
+        plainPtr[0] = static_cast<uint8_t>(type);
+
         size_t wireLen = 0;
-        bool ok = m_EncryptionEnabled.load(std::memory_order_acquire)
-                      ? EncryptFrame(plain.data(), plain.size(), wire.data(), wireLen)
-                      : FramePlaintext(plain.data(), plain.size(), wire.data(), wireLen);
+        bool ok = false;
+        {
+            std::lock_guard<std::mutex> lock(m_SendMutex);
+            ok = m_EncryptionEnabled.load(std::memory_order_acquire)
+                     ? EncryptFrame(plainPtr, len, wirePtr, wireLen)
+                     : FramePlaintext(plainPtr, len, wirePtr, wireLen);
+        }
         if (!ok) return false;
-        wire.resize(wireLen);
 
         if (m_RelayMode.load(std::memory_order_acquire))
         {
-            bool droppable = (type == proto::AppPacketType::VideoChunk ||
-                              type == proto::AppPacketType::InputMouseMove);
+            const bool isAudio = (type == proto::AppPacketType::AudioFrame ||
+                                  type == proto::AppPacketType::ClientMicAudioFrame);
+            const bool droppable = (type == proto::AppPacketType::VideoChunk ||
+                                    type == proto::AppPacketType::InputMouseMove);
+            std::vector<uint8_t> wireVec(wirePtr, wirePtr + wireLen);
             std::lock_guard<std::mutex> ql(m_RelaySendMutex);
-            if (droppable)
+            if (isAudio)
+            {
+                while (m_RelayAudioSendQueue.size() >= 8)
+                {
+                    m_RelayAudioSendQueue.pop_front();
+                }
+                m_RelayAudioSendQueue.push_back({std::move(wireVec), true});
+            }
+            else if (droppable)
             {
                 if (m_RelayDropSendQueue.size() > 128)
                 {
                     m_RelayDropSendQueue.pop_front();
                 }
-                m_RelayDropSendQueue.push_back({std::move(wire), true});
+                m_RelayDropSendQueue.push_back({std::move(wireVec), true});
             }
             else
             {
-                m_RelayHighSendQueue.push_back({std::move(wire), false});
+                m_RelayHighSendQueue.push_back({std::move(wireVec), false});
             }
             return true;
         }
 
-        return RawSendTo(m_ActiveSock, m_PeerAddr, m_PeerAddrLen, wire.data(), wire.size());
+        const int activeSock = m_ActiveSock.load(std::memory_order_acquire);
+        if (activeSock < 0 || m_Closed.load(std::memory_order_acquire)) return false;
+
+        if (m_UdpConnected.load(std::memory_order_acquire))
+        {
+            ssize_t sent = ::send(activeSock, wirePtr, wireLen, 0);
+            if (sent < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            {
+                sched_yield();
+                sent = ::send(activeSock, wirePtr, wireLen, 0);
+            }
+            return sent == static_cast<ssize_t>(wireLen);
+        }
+
+        return RawSendTo(activeSock, m_PeerAddr, m_PeerAddrLen, wirePtr, wireLen);
     }
 
     int MobileTransport::ReceiveEncrypted(std::vector<uint8_t>& outPlain, int timeoutMs)
@@ -1441,15 +1505,19 @@ namespace osmium::mobile
             return ok ? 1 : 0;
         }
 
-        if (m_ActiveSock < 0) return -1;
+        const int activeSock = m_ActiveSock.load(std::memory_order_acquire);
+        if (activeSock < 0) return -1;
+        const bool udpConn = m_UdpConnected.load(std::memory_order_acquire);
         const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1, timeoutMs));
         while (!m_Closed.load(std::memory_order_acquire))
         {
             uint8_t wireBuf[32768];
             sockaddr_storage from{};
             socklen_t fromLen = sizeof(from);
-            ssize_t n = ::recvfrom(m_ActiveSock, wireBuf, sizeof(wireBuf), 0,
-                                   reinterpret_cast<sockaddr*>(&from), &fromLen);
+            ssize_t n = udpConn
+                            ? ::recv(activeSock, wireBuf, sizeof(wireBuf), 0)
+                            : ::recvfrom(activeSock, wireBuf, sizeof(wireBuf), 0,
+                                         reinterpret_cast<sockaddr*>(&from), &fromLen);
             if (n < 0)
             {
                 if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -1459,7 +1527,7 @@ namespace osmium::mobile
                 uint64_t now = NowMillis();
                 if (now >= deadline) return 0;
                 int rem = static_cast<int>(deadline - now);
-                pollfd pfd{m_ActiveSock, POLLIN, 0};
+                pollfd pfd{activeSock, POLLIN, 0};
                 int sel = ::poll(&pfd, 1, std::max(1, rem));
                 if (sel == 0) return 0;
                 if (sel < 0) return m_Closed.load(std::memory_order_acquire) ? -1 : 0;
@@ -1479,7 +1547,14 @@ namespace osmium::mobile
                     ack[5] = static_cast<uint8_t>(proto::WireMsgType::PunchAck);
                     ack[6] = static_cast<uint8_t>(m_LocalRole);
                     std::memcpy(ack + 8, m_SessionToken, 16);
-                    RawSendTo(m_ActiveSock, from, fromLen, ack, sizeof(ack));
+                    if (udpConn)
+                    {
+                        ::send(activeSock, ack, sizeof(ack), 0);
+                    }
+                    else
+                    {
+                        RawSendTo(activeSock, from, fromLen, ack, sizeof(ack));
+                    }
                     continue;
                 }
                 if (wireType == proto::WireMsgType::PunchAck)

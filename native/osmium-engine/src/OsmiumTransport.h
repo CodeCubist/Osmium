@@ -113,7 +113,7 @@ namespace osmium
 
         SOCKET m_Sock4 = INVALID_SOCKET;
         SOCKET m_Sock6 = INVALID_SOCKET;
-        SOCKET m_ActiveSock = INVALID_SOCKET;
+        std::atomic<SOCKET> m_ActiveSock{INVALID_SOCKET};
         uint16_t m_LocalPort4 = 0;
         uint16_t m_LocalPort6 = 0;
         std::atomic<uint16_t> m_ActiveLocalPort{0};
@@ -141,8 +141,6 @@ namespace osmium
 
         std::mutex m_SendMutex;
         std::mutex m_RecvCryptoMutex;
-        std::vector<uint8_t> m_SendScratchPlain;
-        std::vector<uint8_t> m_SendScratchWire;
 
         std::atomic<uint64_t> m_SendSequence{1};
         uint8_t m_NoncePrefix[4]{};

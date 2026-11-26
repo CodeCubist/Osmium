@@ -16,8 +16,9 @@ namespace Osmium.Core.Network;
 public sealed class CloudRelayTransport : IDisposable
 {
     private const int MaxPacketBytes = 32768;
-    private const int MaxBatchPayloadBytes = 32768;
-    private const int MaxQueuedVideoBytes = 384 * 1024;
+    private const int MaxBatchPayloadBytes = 24576;
+    private const int MaxQueuedVideoBytes = 256 * 1024;
+    private const int MaxQueuedAudioPackets = 8;
     private const int MaxIncomingFrameBytes = 131072;
     private const int SocketBufferBytes = 512 * 1024;
 
@@ -26,8 +27,11 @@ public sealed class CloudRelayTransport : IDisposable
     private readonly ClientWebSocket _ws = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly TaskCompletionSource<bool> _peerReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    
-    private readonly ConcurrentQueue<(byte[] Buf, int Len)> _highPriorityQueue = new();
+
+    private readonly ConcurrentQueue<(byte[] Buf, int Len)> _ctrlQueue = new();
+    private readonly object _audioQueueLock = new();
+    private readonly Queue<(byte[] Buf, int Len)> _audioQueue = new();
+    private int _queuedAudioCount;
     private readonly object _videoQueueLock = new();
     private readonly Queue<(byte[] Buf, int Len, int GroupId)> _videoQueue = new();
     private readonly SemaphoreSlim _sendSignal = new(0, 1);
@@ -188,24 +192,70 @@ public sealed class CloudRelayTransport : IDisposable
             return 0;
         }
 
-        if (dropGroupId > 0)
+        // dropGroupId convention:
+        //   0      : critical control (Ping/Pong/Input/Auth/IDR/Status/Aux)
+        //  -1      : real-time audio (bounded low-latency queue, drops oldest on overflow)
+        //  <= -2   : video keyframe group (-(frameId + 2))
+        //  > 0     : droppable video P-frame group (frameId)
+        if (dropGroupId == 0)
         {
-            if (dropGroupId == Volatile.Read(ref _droppedVideoGroupId))
+            byte[] rented = ArrayPool<byte>.Shared.Rent(length);
+            Marshal.Copy(dataPtr, rented, 0, length);
+            _ctrlQueue.Enqueue((rented, length));
+        }
+        else if (dropGroupId == -1)
+        {
+            byte[] rentedAudio = ArrayPool<byte>.Shared.Rent(length);
+            Marshal.Copy(dataPtr, rentedAudio, 0, length);
+            lock (_audioQueueLock)
+            {
+                while (_audioQueue.Count >= MaxQueuedAudioPackets)
+                {
+                    var staleAudio = _audioQueue.Dequeue();
+                    ArrayPool<byte>.Shared.Return(staleAudio.Buf);
+                }
+
+                _audioQueue.Enqueue((rentedAudio, length));
+                Volatile.Write(ref _queuedAudioCount, _audioQueue.Count);
+            }
+        }
+        else
+        {
+            bool isKeyframe = dropGroupId <= -2;
+            if (!isKeyframe && dropGroupId == Volatile.Read(ref _droppedVideoGroupId))
             {
                 return 1;
             }
 
             lock (_videoQueueLock)
             {
-                if (dropGroupId == _droppedVideoGroupId)
+                if (!isKeyframe && dropGroupId == _droppedVideoGroupId)
                 {
                     return 1;
                 }
 
-                while (_queuedVideoBytes + length > MaxQueuedVideoBytes && _videoQueue.Count > 0)
+                int byteLimit = isKeyframe ? MaxQueuedVideoBytes * 2 : MaxQueuedVideoBytes;
+                while (_queuedVideoBytes + length > byteLimit && _videoQueue.Count > 0)
                 {
                     int targetGroup = _videoQueue.Peek().GroupId;
-                    Volatile.Write(ref _droppedVideoGroupId, targetGroup);
+                    bool targetIsKeyframe = targetGroup <= -2;
+
+                    // Protect an in-flight keyframe from being evicted by a P-frame or by itself.
+                    if (targetIsKeyframe && (!isKeyframe || targetGroup == dropGroupId))
+                    {
+                        if (!isKeyframe)
+                        {
+                            Volatile.Write(ref _droppedVideoGroupId, dropGroupId);
+                            return 1;
+                        }
+                        break;
+                    }
+
+                    if (!targetIsKeyframe)
+                    {
+                        Volatile.Write(ref _droppedVideoGroupId, targetGroup);
+                    }
+
                     while (_videoQueue.Count > 0 && _videoQueue.Peek().GroupId == targetGroup)
                     {
                         var stale = _videoQueue.Dequeue();
@@ -225,12 +275,6 @@ public sealed class CloudRelayTransport : IDisposable
                 _videoQueue.Enqueue((rentedVideo, length, dropGroupId));
             }
         }
-        else
-        {
-            byte[] rented = ArrayPool<byte>.Shared.Rent(length);
-            Marshal.Copy(dataPtr, rented, 0, length);
-            _highPriorityQueue.Enqueue((rented, length));
-        }
 
         if (Interlocked.Exchange(ref _signalPending, 1) == 0)
         {
@@ -246,6 +290,30 @@ public sealed class CloudRelayTransport : IDisposable
         return 1;
     }
 
+    private bool TryDequeueAudioPacket(out (byte[] Buf, int Len) item)
+    {
+        if (Volatile.Read(ref _queuedAudioCount) == 0)
+        {
+            item = default;
+            return false;
+        }
+
+        lock (_audioQueueLock)
+        {
+            if (_audioQueue.Count > 0)
+            {
+                item = _audioQueue.Dequeue();
+                Volatile.Write(ref _queuedAudioCount, _audioQueue.Count);
+                return true;
+            }
+
+            Volatile.Write(ref _queuedAudioCount, 0);
+        }
+
+        item = default;
+        return false;
+    }
+
     private bool TryDequeueVideoChunk(out (byte[] Buf, int Len, int GroupId) item)
     {
         lock (_videoQueueLock)
@@ -254,7 +322,7 @@ public sealed class CloudRelayTransport : IDisposable
             {
                 var next = _videoQueue.Dequeue();
                 _queuedVideoBytes -= next.Len;
-                if (next.GroupId == _droppedVideoGroupId)
+                if (next.GroupId > 0 && next.GroupId == _droppedVideoGroupId)
                 {
                     ArrayPool<byte>.Shared.Return(next.Buf);
                     continue;
@@ -282,12 +350,13 @@ public sealed class CloudRelayTransport : IDisposable
                 while (!ct.IsCancellationRequested && _ws.State == WebSocketState.Open)
                 {
                     int offset = 0;
-                    
-                    while (_highPriorityQueue.TryDequeue(out var hi))
+
+                    // 1. Always pack critical control packets first (Ping/Pong/Input/Auth/IDR).
+                    while (_ctrlQueue.TryDequeue(out var ctrl))
                     {
                         try
                         {
-                            int needed = 2 + hi.Len;
+                            int needed = 2 + ctrl.Len;
                             if (offset > 0 && offset + needed > MaxBatchPayloadBytes)
                             {
                                 await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
@@ -295,13 +364,13 @@ public sealed class CloudRelayTransport : IDisposable
                                 offset = 0;
                             }
 
-                            BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)hi.Len);
-                            Buffer.BlockCopy(hi.Buf, 0, batchBuf, offset + 2, hi.Len);
+                            BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)ctrl.Len);
+                            Buffer.BlockCopy(ctrl.Buf, 0, batchBuf, offset + 2, ctrl.Len);
                             offset += needed;
                         }
                         finally
                         {
-                            ArrayPool<byte>.Shared.Return(hi.Buf);
+                            ArrayPool<byte>.Shared.Return(ctrl.Buf);
                         }
 
                         if (offset >= MaxBatchPayloadBytes)
@@ -310,14 +379,35 @@ public sealed class CloudRelayTransport : IDisposable
                         }
                     }
 
-                    if (offset > 0)
+                    // 2. Coalesce real-time audio packets into the SAME WebSocket binary batch
+                    // instead of flushing a separate tiny WS/TLS frame per audio packet.
+                    while (offset < MaxBatchPayloadBytes && TryDequeueAudioPacket(out var aud))
                     {
-                        await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
-                            WebSocketMessageType.Binary, endOfMessage: true, ct);
-                        continue;
+                        try
+                        {
+                            int needed = 2 + aud.Len;
+                            if (offset > 0 && offset + needed > MaxBatchPayloadBytes)
+                            {
+                                await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
+                                    WebSocketMessageType.Binary, endOfMessage: true, ct);
+                                offset = 0;
+                            }
+
+                            BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)aud.Len);
+                            Buffer.BlockCopy(aud.Buf, 0, batchBuf, offset + 2, aud.Len);
+                            offset += needed;
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(aud.Buf);
+                        }
                     }
-                    
-                    while (_highPriorityQueue.IsEmpty && TryDequeueVideoChunk(out var vid))
+
+                    // 3. Fill remaining batch space with video chunks while control & audio stay clear.
+                    while (offset < MaxBatchPayloadBytes &&
+                           _ctrlQueue.IsEmpty &&
+                           Volatile.Read(ref _queuedAudioCount) == 0 &&
+                           TryDequeueVideoChunk(out var vid))
                     {
                         try
                         {
@@ -327,13 +417,6 @@ public sealed class CloudRelayTransport : IDisposable
                                 await _ws.SendAsync(new ArraySegment<byte>(batchBuf, 0, offset),
                                     WebSocketMessageType.Binary, endOfMessage: true, ct);
                                 offset = 0;
-                                if (!_highPriorityQueue.IsEmpty)
-                                {
-                                    BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(0, 2), (ushort)vid.Len);
-                                    Buffer.BlockCopy(vid.Buf, 0, batchBuf, 2, vid.Len);
-                                    offset = needed;
-                                    break;
-                                }
                             }
 
                             BinaryPrimitives.WriteUInt16LittleEndian(batchBuf.AsSpan(offset, 2), (ushort)vid.Len);
@@ -345,7 +428,7 @@ public sealed class CloudRelayTransport : IDisposable
                             ArrayPool<byte>.Shared.Return(vid.Buf);
                         }
 
-                        if (offset >= MaxBatchPayloadBytes)
+                        if (!_ctrlQueue.IsEmpty || Volatile.Read(ref _queuedAudioCount) > 0)
                         {
                             break;
                         }
@@ -495,9 +578,20 @@ public sealed class CloudRelayTransport : IDisposable
 
     private void DrainAndReturnPooledQueues()
     {
-        while (_highPriorityQueue.TryDequeue(out var hi))
+        while (_ctrlQueue.TryDequeue(out var hi))
         {
             ArrayPool<byte>.Shared.Return(hi.Buf);
+        }
+
+        lock (_audioQueueLock)
+        {
+            while (_audioQueue.Count > 0)
+            {
+                var aud = _audioQueue.Dequeue();
+                ArrayPool<byte>.Shared.Return(aud.Buf);
+            }
+
+            Volatile.Write(ref _queuedAudioCount, 0);
         }
 
         lock (_videoQueueLock)

@@ -11,6 +11,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <jni.h>
+#include <sys/resource.h>
 
 #include <algorithm>
 #include <atomic>
@@ -84,6 +85,10 @@ namespace
         std::atomic<uint32_t> micSeqCounter{1};
         std::atomic<uint32_t> actionSeqCounter{1};
         std::atomic<uint64_t> lastIdrRequestMs{0};
+        std::atomic<uint32_t> idrRetryCount{0};
+        std::atomic<uint64_t> lastVideoChunkMs{0};
+        std::atomic<uint64_t> lastRenderedMs{0};
+        std::atomic<bool> resetReassembler{false};
         std::atomic<bool> hasLastAbsMouse{false};
         std::atomic<float> lastAbsMouseX{0.5f};
         std::atomic<float> lastAbsMouseY{0.5f};
@@ -118,12 +123,25 @@ namespace
             }
         }
 
-        void RequestIdr(uint64_t minGapMs)
+        void RequestIdr(uint64_t minGapMs, bool useBackoff = true)
         {
             uint64_t nowMs = MobileTransport::NowMillis();
+            uint64_t effectiveGap = minGapMs;
+            if (useBackoff && minGapMs > 0)
+            {
+                const uint32_t retries = idrRetryCount.load(std::memory_order_relaxed);
+                if (retries == 0) effectiveGap = minGapMs;
+                else if (retries == 1) effectiveGap = std::max<uint64_t>(minGapMs, 400ULL);
+                else if (retries == 2) effectiveGap = std::max<uint64_t>(minGapMs, 700ULL);
+                else effectiveGap = std::max<uint64_t>(minGapMs, 1000ULL);
+            }
             uint64_t last = lastIdrRequestMs.load(std::memory_order_relaxed);
-            if (last != 0 && nowMs - last < minGapMs) return;
+            if (last != 0 && nowMs - last < effectiveGap) return;
             if (!lastIdrRequestMs.compare_exchange_strong(last, nowMs, std::memory_order_relaxed)) return;
+            if (useBackoff)
+            {
+                idrRetryCount.fetch_add(1, std::memory_order_relaxed);
+            }
             osmium::proto::AppPacketHeader idrReq{};
             transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
             if (!transport->IsKcpActive() &&
@@ -131,6 +149,20 @@ namespace
             {
                 transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
             }
+        }
+
+        void ResetVideoPipelineForRecovery(bool hardRebuildDecoder)
+        {
+            {
+                std::lock_guard<std::mutex> lock(frameQueueMutex);
+                frameQueue.clear();
+                decodeGate.Reset();
+            }
+            resetReassembler.store(true, std::memory_order_release);
+            decoder.RecoverCodec(hardRebuildDecoder);
+            idrRetryCount.store(0, std::memory_order_relaxed);
+            lastIdrRequestMs.store(0, std::memory_order_relaxed);
+            RequestIdr(0, false);
         }
 
         void PushEvent(int32_t type, int32_t flags, const uint8_t* data, size_t len)
@@ -155,9 +187,12 @@ namespace
 
     void RecvLoop(MobileSessionContext* ctx)
     {
+        setpriority(PRIO_PROCESS, 0, -10);
         uint64_t lastPingMs = 0;
         uint64_t lastStatsMs = MobileTransport::NowMillis();
+        uint64_t lastStalePurgeMs = lastStatsMs;
         uint64_t lastRxMs = lastStatsMs;
+        ctx->lastRenderedMs.store(lastStatsMs, std::memory_order_relaxed);
         std::vector<uint8_t> plain;
 
         // Immediately request an IDR keyframe so first frame arrives fast
@@ -168,6 +203,11 @@ namespace
 
         while (!ctx->stopFlag.load(std::memory_order_acquire))
         {
+            if (ctx->resetReassembler.exchange(false, std::memory_order_acq_rel))
+            {
+                ctx->reassembler.Reset();
+            }
+
             uint64_t nowMs = MobileTransport::NowMillis();
 
             // Send Ping every 500ms
@@ -199,7 +239,7 @@ namespace
                 break;
             }
 
-            int r = ctx->transport->ReceiveEncrypted(plain, 15);
+            int r = ctx->transport->ReceiveEncrypted(plain, 8);
             if (r < 0)
             {
                 ctx->sessionActive.store(false, std::memory_order_release);
@@ -208,9 +248,13 @@ namespace
             }
 
             nowMs = MobileTransport::NowMillis();
-            if (ctx->reassembler.PurgeStale(nowMs, ctx->transport->GetRttMs()))
+            if (nowMs - lastStalePurgeMs >= 40ULL)
             {
-                ctx->droppedFrames.fetch_add(1, std::memory_order_relaxed);
+                lastStalePurgeMs = nowMs;
+                if (ctx->reassembler.PurgeStale(nowMs, ctx->transport->GetRttMs()))
+                {
+                    ctx->droppedFrames.fetch_add(1, std::memory_order_relaxed);
+                }
             }
 
             if (r == 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) continue;
@@ -222,6 +266,7 @@ namespace
             if (type == osmium::proto::AppPacketType::VideoChunk &&
                 plain.size() > sizeof(osmium::proto::VideoChunkHeader))
             {
+                ctx->lastVideoChunkMs.store(nowMs, std::memory_order_relaxed);
                 const auto* hdr = reinterpret_cast<const osmium::proto::VideoChunkHeader*>(plain.data());
                 AssembledVideoFrame frame;
                 if (ctx->reassembler.PushChunk(
@@ -258,7 +303,8 @@ namespace
                             hdr->payloadBytes,
                             hdr->sampleRate,
                             hdr->channels,
-                            hdr->sampleCount);
+                            hdr->sampleCount,
+                            hdr->sequence);
                     }
                 }
             }
@@ -310,50 +356,122 @@ namespace
 
     void DecodeLoop(MobileSessionContext* ctx)
     {
+        setpriority(PRIO_PROCESS, 0, -6);
+        uint64_t lastWatchdogRecoverMs = 0;
+        uint32_t watchdogRecoverCount = 0;
+        uint64_t lastSurfaceRebindReqMs = 0;
+
+        auto onRendered = [&](uint32_t rendered, uint32_t decUs)
+        {
+            if (rendered == 0) return;
+            const uint64_t nowMs = MobileTransport::NowMillis();
+            ctx->lastRenderedMs.store(nowMs, std::memory_order_relaxed);
+            ctx->idrRetryCount.store(0, std::memory_order_relaxed);
+            watchdogRecoverCount = 0;
+            ctx->decodeTimeUs.store(decUs, std::memory_order_relaxed);
+            ctx->renderedFramesWindow.fetch_add(rendered, std::memory_order_relaxed);
+            if (!ctx->firstFrameRendered.exchange(true, std::memory_order_acq_rel))
+            {
+                ctx->PushEvent(1, 0, nullptr, 0);
+            }
+        };
+
         while (!ctx->stopFlag.load(std::memory_order_acquire))
         {
             AssembledVideoFrame frame;
             bool hasFrame = false;
             bool gateWaiting = false;
-            bool hasQueuedFrames = false;
+            size_t queuedAfterPop = 0;
             uint32_t gateDropped = 0;
+            const uint64_t reorderGraceMs =
+                std::clamp<uint64_t>(static_cast<uint64_t>(ctx->transport->GetRttMs()) + 10ULL, 12ULL, 35ULL);
+            const int waitMs = ctx->decoder.HasInFlightFrames() ? 4 : 30;
             {
                 std::unique_lock<std::mutex> lock(ctx->frameQueueMutex);
                 ctx->frameQueueCv.wait_for(
                     lock,
-                    std::chrono::milliseconds(50),
+                    std::chrono::milliseconds(waitMs),
                     [ctx] { return !ctx->frameQueue.empty() || ctx->stopFlag.load(std::memory_order_acquire); });
                 if (ctx->stopFlag.load(std::memory_order_acquire)) break;
                 hasFrame = ctx->decodeGate.SelectNext(
-                    ctx->frameQueue, MobileTransport::NowMillis(), gateDropped, frame);
+                    ctx->frameQueue, MobileTransport::NowMillis(), gateDropped, frame, reorderGraceMs);
                 gateWaiting = ctx->decodeGate.waitingForKeyframe;
-                hasQueuedFrames = !ctx->frameQueue.empty();
+                queuedAfterPop = ctx->frameQueue.size();
             }
             if (gateDropped != 0)
             {
                 ctx->droppedFrames.fetch_add(gateDropped, std::memory_order_relaxed);
             }
+
+            if (ctx->decoder.ConsumeSurfaceStale() || !ctx->decoder.HasSurface())
+            {
+                const uint64_t nowMs = MobileTransport::NowMillis();
+                if (nowMs - lastSurfaceRebindReqMs >= 1000ULL)
+                {
+                    lastSurfaceRebindReqMs = nowMs;
+                    LOGW("Video surface missing/stale; requesting SurfaceProducer rebind");
+                    ctx->PushEvent(7, 0, nullptr, 0);
+                }
+            }
+
+            if (queuedAfterPop >= osmium::kVideoMaxOrderedBacklog)
+            {
+                ctx->RequestIdr(350);
+            }
+
             if (!hasFrame)
             {
-                if (gateWaiting || !ctx->firstFrameRendered.load(std::memory_order_relaxed)) ctx->RequestIdr(150);
-                if (hasQueuedFrames) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                // Drain hardware-pipelined decoded frames immediately so we never sit idle
+                // for 30ms while a decoded frame is already waiting inside AMediaCodec.
+                uint32_t drainDecUs = 0;
+                uint32_t drained = ctx->decoder.DrainPendingOutput(drainDecUs);
+                if (drained > 0)
+                {
+                    onRendered(drained, drainDecUs);
+                }
+
+                // Self-healing 0-FPS watchdog: if video bandwidth is actively flowing
+                // yet 0 frames have rendered for >= 1800ms, rebuild codec + reset gate/reassembler.
+                const uint64_t nowMs = MobileTransport::NowMillis();
+                const uint64_t lastChunk = ctx->lastVideoChunkMs.load(std::memory_order_relaxed);
+                const uint64_t lastRender = ctx->lastRenderedMs.load(std::memory_order_relaxed);
+                if (lastChunk != 0 &&
+                    (nowMs - lastChunk) < 1500ULL &&
+                    (nowMs - lastRender) >= 1800ULL &&
+                    (nowMs - lastWatchdogRecoverMs) >= 1800ULL)
+                {
+                    lastWatchdogRecoverMs = nowMs;
+                    watchdogRecoverCount++;
+                    const bool hardRebuild = (watchdogRecoverCount >= 2);
+                    LOGW("0-FPS watchdog triggered (video arriving, no render for %llu ms, attempt=%u, hard=%d)",
+                         static_cast<unsigned long long>(nowMs - lastRender), watchdogRecoverCount,
+                         hardRebuild ? 1 : 0);
+                    ctx->ResetVideoPipelineForRecovery(hardRebuild);
+                    if (watchdogRecoverCount >= 2 && (nowMs - lastSurfaceRebindReqMs) >= 1500ULL)
+                    {
+                        lastSurfaceRebindReqMs = nowMs;
+                        ctx->PushEvent(7, 0, nullptr, 0);
+                    }
+                    continue;
+                }
+
+                if (gateWaiting || !ctx->firstFrameRendered.load(std::memory_order_relaxed))
+                {
+                    ctx->RequestIdr(350);
+                }
+                if (queuedAfterPop > 0) std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
 
             uint32_t decUs = 0;
-            const uint32_t rendered = ctx->decoder.DecodeAndRender(frame, decUs);
+            const uint32_t rendered = ctx->decoder.DecodeAndRender(frame, decUs, queuedAfterPop > 0);
             if (rendered != 0)
             {
-                ctx->decodeTimeUs.store(decUs, std::memory_order_relaxed);
-                ctx->renderedFramesWindow.fetch_add(rendered, std::memory_order_relaxed);
-                if (!ctx->firstFrameRendered.exchange(true, std::memory_order_acq_rel))
-                {
-                    ctx->PushEvent(1, 0, nullptr, 0);
-                }
+                onRendered(rendered, decUs);
             }
             else if (ctx->decoder.IsWaitingForKeyFrame())
             {
-                ctx->RequestIdr(150);
+                ctx->RequestIdr(350);
             }
         }
     }
@@ -658,8 +776,15 @@ extern "C"
         if (win)
         {
             ANativeWindow_release(win);
-            osmium::proto::AppPacketHeader idrReq{};
-            ctx->transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
+            {
+                std::lock_guard<std::mutex> lock(ctx->frameQueueMutex);
+                ctx->frameQueue.clear();
+                ctx->decodeGate.Reset();
+            }
+            ctx->resetReassembler.store(true, std::memory_order_release);
+            ctx->idrRetryCount.store(0, std::memory_order_relaxed);
+            ctx->lastIdrRequestMs.store(0, std::memory_order_relaxed);
+            ctx->RequestIdr(0, false);
         }
     }
 
@@ -931,7 +1056,9 @@ extern "C"
     {
         if (!session) return;
         auto* ctx = static_cast<MobileSessionContext*>(session);
-        ctx->RequestIdr(0);
+        // Full recovery on manual screen refresh: rebuild AMediaCodec, clear stale queues/gate/reassembler,
+        // and immediately request a fresh IDR keyframe so refresh actually rescues wedged decoders.
+        ctx->ResetVideoPipelineForRecovery(true);
     }
 
     int32_t OsmiumMobile_SendAuxData(void* session, const uint8_t* data, int32_t len)

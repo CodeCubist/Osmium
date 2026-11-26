@@ -1,5 +1,6 @@
 package com.osmium.osmium_mobile
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
@@ -7,6 +8,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
@@ -32,6 +34,7 @@ class MainActivity : FlutterActivity() {
     private var pointerCaptureActive = false
     private var initialDeepLink: String? = null
     private var deepLinkSink: EventChannel.EventSink? = null
+    private var lowLatencyWifiLock: WifiManager.WifiLock? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,6 +132,10 @@ class MainActivity : FlutterActivity() {
                     surfaceBridge?.resizeSurface(width, height)
                     result.success(true)
                 }
+                "rebindSurface" -> {
+                    val handleId = surfaceBridge?.rebindCurrentSurface() ?: 0L
+                    result.success(handleId)
+                }
                 "destroySurface" -> {
                     surfaceBridge?.destroySurface()
                     result.success(true)
@@ -193,8 +200,39 @@ class MainActivity : FlutterActivity() {
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             controller.hide(WindowInsetsCompat.Type.systemBars())
+            setLowLatencyWifiLock(true)
         } else {
             controller.show(WindowInsetsCompat.Type.systemBars())
+            setLowLatencyWifiLock(false)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setLowLatencyWifiLock(enabled: Boolean) {
+        try {
+            if (enabled) {
+                if (lowLatencyWifiLock == null) {
+                    val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                    if (wm != null) {
+                        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                        } else {
+                            WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                        }
+                        lowLatencyWifiLock = wm.createWifiLock(mode, "Osmium:LowLatencyStream").apply {
+                            setReferenceCounted(false)
+                        }
+                    }
+                }
+                if (lowLatencyWifiLock?.isHeld == false) {
+                    lowLatencyWifiLock?.acquire()
+                }
+            } else {
+                if (lowLatencyWifiLock?.isHeld == true) {
+                    lowLatencyWifiLock?.release()
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 
@@ -309,6 +347,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        setLowLatencyWifiLock(false)
+        lowLatencyWifiLock = null
         avatarExecutor.shutdownNow()
         surfaceBridge?.destroySurface()
         super.onDestroy()

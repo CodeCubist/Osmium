@@ -384,6 +384,9 @@ class AppController extends ChangeNotifier {
     await settingsRepo.saveDeviceName(trimmed);
     signaling.updateDeviceName(trimmed);
     notifyListeners();
+    if (accountService.isLoggedIn && _identity.deviceId.isNotEmpty) {
+      unawaited(accountService.renameDevice(_identity.deviceId, trimmed));
+    }
   }
 
   Future<void> refreshAccountDevices() async {
@@ -638,7 +641,14 @@ class AppController extends ChangeNotifier {
   Future<bool> renameRemoteDevice(String deviceId, String customName) async {
     final res = await accountService.renameDevice(deviceId, customName);
     if (res.ok) {
-      await refreshAccountDevices();
+      if (res.data != null) {
+        _accountDevices = res.data!
+            .where((d) => d.deviceId != _identity.deviceId)
+            .toList();
+        notifyListeners();
+      } else {
+        await refreshAccountDevices();
+      }
     }
     return res.ok;
   }
@@ -647,9 +657,15 @@ class AppController extends ChangeNotifier {
     final res = await accountService.removeDevice(deviceId);
     if (res.ok) {
       final normalized = DeviceIdentity.normalizeDeviceId(deviceId);
-      _accountDevices = _accountDevices
-          .where((d) => d.deviceId != deviceId)
-          .toList();
+      if (res.data != null) {
+        _accountDevices = res.data!
+            .where((d) => d.deviceId != _identity.deviceId)
+            .toList();
+      } else {
+        _accountDevices = _accountDevices
+            .where((d) => DeviceIdentity.normalizeDeviceId(d.deviceId) != normalized)
+            .toList();
+      }
       final stillInHistory = _history.any(
         (h) => DeviceIdentity.normalizeDeviceId(h.deviceId) == normalized,
       );

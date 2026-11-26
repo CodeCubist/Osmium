@@ -119,6 +119,7 @@ namespace osmium
         bool m_PqHdrActive = false;
         bool m_Yuv444Active = false;
         std::atomic<bool> m_ForceIdr{true};
+        std::vector<uint8_t> m_CachedParamSets;
         std::vector<std::string> m_ExcludedEncoders;
     };
 }

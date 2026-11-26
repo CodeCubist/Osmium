@@ -366,7 +366,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
     void HostCapture::RefreshOutputHdrState()
     {
         uint64_t nowMs = NowMillis();
-        if (m_LastWhiteQueryMs != 0 && (nowMs - m_LastWhiteQueryMs) < 500)
+        if (m_LastWhiteQueryMs != 0 && (nowMs - m_LastWhiteQueryMs) < 2000)
         {
             return;
         }
@@ -914,7 +914,10 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         outFrame.isHdr10Pq = false;
         outFrame.isNv12 = false;
         outFrame.nv12Texture.Reset();
-        RefreshOutputHdrState();
+        if (preferPqHdr || m_OutputIsHdr)
+        {
+            RefreshOutputHdrState();
+        }
 
         const uint64_t nowMs = NowMillis();
         if (m_GdiFallbackUntilMs != 0 && nowMs < m_GdiFallbackUntilMs)
@@ -982,8 +985,9 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         {
             if (hasUsableCache)
             {
-                // Keep the SDR fallback check independent of the requested frame rate.
-                if (!wantPq && nowMs - m_LastDxgiFrameOrGdiProbeMs >= 500)
+                // Keep the SDR fallback check independent of the requested frame rate,
+                // throttled to 2s so static desktop intervals do not trigger 20-40ms GDI hitches.
+                if (!wantPq && nowMs - m_LastDxgiFrameOrGdiProbeMs >= 2000)
                 {
                     m_LastDxgiFrameOrGdiProbeMs = nowMs;
                     if (captureGdi(false))

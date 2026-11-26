@@ -289,7 +289,10 @@ namespace
         std::atomic<bool> captureUsesDuplication{false};
         std::atomic<bool> reconfigNeeded{false};
         std::atomic<bool> statusDirty{true};
+        std::atomic<bool> displayCacheDirty{true};
+        std::atomic<bool> driverCacheDirty{true};
         std::atomic<bool> idrRecoveryPending{true};
+        std::atomic<uint64_t> lastKeyFrameEmitMs{0};
         std::atomic<bool> stopFlag{false};
 
         std::atomic<uint32_t> frameIdCounter{1};
@@ -299,6 +302,22 @@ namespace
         std::atomic<uint32_t> totalEncodedFrames{0};
         std::atomic<uint32_t> droppedFrames{0};
 
+        std::atomic<int32_t> cachedNativeW{1920};
+        std::atomic<int32_t> cachedNativeH{1080};
+        std::atomic<int32_t> cachedStreamW{1920};
+        std::atomic<int32_t> cachedStreamH{1080};
+        std::atomic<bool> cachedHostHdr{false};
+        std::atomic<bool> cachedPqHdr{false};
+        std::atomic<bool> cachedYuv444{false};
+
+        std::vector<OsmiumDisplayInfo> cachedDisplays;
+        bool cachedHasUsb = false;
+        uint64_t lastDisplayEnumMs = 0;
+        uint64_t lastDriverProbeMs = 0;
+
+        std::mutex statusMutex;
+        std::condition_variable statusCv;
+
         std::mutex sysActionMutex;
         std::condition_variable sysActionCv;
         std::deque<int32_t> sysActionQueue;
@@ -306,30 +325,53 @@ namespace
         std::thread videoThread;
         std::thread recvThread;
         std::thread sysActionThread;
+        std::thread statusThread;
     };
+
+    void NotifyHostStatusDirty(HostSessionContext* ctx, bool refreshDisplays = false, bool refreshDriver = false)
+    {
+        if (!ctx) return;
+        if (refreshDisplays) ctx->displayCacheDirty.store(true, std::memory_order_release);
+        if (refreshDriver) ctx->driverCacheDirty.store(true, std::memory_order_release);
+        ctx->statusDirty.store(true, std::memory_order_release);
+        ctx->statusCv.notify_one();
+    }
 
     void PushHostStatusJson(HostSessionContext* ctx)
     {
         if (!ctx || !ctx->transport || ctx->stopFlag.load()) return;
 
-        ctx->capture.RefreshOutputHdrState();
-        auto displays = HostCapture::EnumerateDisplays();
+        const uint64_t nowMs = NowMillis();
+        if (ctx->displayCacheDirty.exchange(false, std::memory_order_acq_rel) ||
+            ctx->lastDisplayEnumMs == 0 || (nowMs - ctx->lastDisplayEnumMs) >= 10000ULL)
+        {
+            ctx->cachedDisplays = HostCapture::EnumerateDisplays();
+            ctx->lastDisplayEnumMs = nowMs;
+        }
+        if (ctx->driverCacheDirty.exchange(false, std::memory_order_acq_rel) ||
+            ctx->lastDriverProbeMs == 0 || (nowMs - ctx->lastDriverProbeMs) >= 30000ULL)
+        {
+            ctx->cachedHasUsb = UsbIpVirtualDevices::IsDriverAvailable();
+            ctx->lastDriverProbeMs = nowMs;
+        }
+
+        const auto& displays = ctx->cachedDisplays;
         int32_t activeIdx = 0;
-        int32_t nativeW = ctx->capture.GetWidth();
-        int32_t nativeH = ctx->capture.GetHeight();
-        int32_t streamW = ctx->encoder.GetOutWidth();
-        int32_t streamH = ctx->encoder.GetOutHeight();
+        int32_t nativeW = ctx->cachedNativeW.load(std::memory_order_relaxed);
+        int32_t nativeH = ctx->cachedNativeH.load(std::memory_order_relaxed);
+        int32_t streamW = ctx->cachedStreamW.load(std::memory_order_relaxed);
+        int32_t streamH = ctx->cachedStreamH.load(std::memory_order_relaxed);
         HostVideoSettings video;
-        bool hostHdrEnabled = ctx->capture.IsOutputHdr();
-        bool hdr = ctx->encoder.IsPqHdrActive();
-        bool yuv444 = ctx->encoder.IsYuv444Active();
+        bool hostHdrEnabled = ctx->cachedHostHdr.load(std::memory_order_relaxed);
+        bool hdr = ctx->cachedPqHdr.load(std::memory_order_relaxed);
+        bool yuv444 = ctx->cachedYuv444.load(std::memory_order_relaxed);
         int32_t mMode = 0;
         bool smartEng = false;
         bool vMouse = ctx->virtualUsb.IsVirtualMouseActive();
         bool vSpk = ctx->virtualUsb.IsVirtualSpeakerActive();
         bool vMic = ctx->virtualUsb.IsVirtualMicActive();
         bool locked = HostSystemAgent::IsSessionLocked();
-        bool hasUsb = UsbIpVirtualDevices::IsDriverAvailable();
+        bool hasUsb = ctx->cachedHasUsb;
         std::string lastAct;
 
         {
@@ -404,6 +446,41 @@ namespace
         memset(pkt.data(), 0, sizeof(proto::AppPacketHeader));
         memcpy(pkt.data() + sizeof(proto::AppPacketHeader), json.data(), json.size());
         ctx->transport->SendEncrypted(proto::AppPacketType::HostStatusJson, pkt.data(), pkt.size());
+    }
+
+    void HostStatusLoop(HostSessionContext* ctx)
+    {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+        HRESULT hrCom = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        uint64_t lastPushMs = 0;
+        bool lastPrivacyActive = false;
+
+        while (!ctx->stopFlag.load(std::memory_order_acquire))
+        {
+            {
+                std::unique_lock<std::mutex> lock(ctx->statusMutex);
+                ctx->statusCv.wait_for(lock, std::chrono::milliseconds(500), [ctx]
+                {
+                    return ctx->stopFlag.load(std::memory_order_acquire) ||
+                        ctx->statusDirty.load(std::memory_order_acquire);
+                });
+            }
+            if (ctx->stopFlag.load(std::memory_order_acquire)) break;
+
+            const uint64_t nowMs = NowMillis();
+            const bool privacyActive = ctx->privacyScreen.IsActive();
+            if (ctx->statusDirty.exchange(false, std::memory_order_acq_rel) ||
+                privacyActive != lastPrivacyActive ||
+                lastPushMs == 0 ||
+                (nowMs - lastPushMs) >= 2000ULL)
+            {
+                lastPrivacyActive = privacyActive;
+                lastPushMs = nowMs;
+                PushHostStatusJson(ctx);
+            }
+        }
+
+        if (SUCCEEDED(hrCom)) CoUninitialize();
     }
 
     void ApplyHostMouseModeLocked(HostSessionContext* ctx)
@@ -529,7 +606,7 @@ namespace
                 {
                     ctx->lastActionMsg = ok ? "DRIVER_UNINSTALLED" : "DRIVER_UNINSTALL_FAILED";
                 }
-                ctx->statusDirty.store(true);
+                NotifyHostStatusDirty(ctx, false, true);
             }
         }
         ctx->privacyScreen.Hide();
@@ -609,7 +686,14 @@ namespace
                                            acceptsNv12 ? ctx->encoder.GetOutHeight() : 0,
                                            ctx->encoder.GetD3dInputDevice());
             activeFps = settings.fps;
-            ctx->statusDirty.store(true);
+            ctx->cachedNativeW.store(capW, std::memory_order_relaxed);
+            ctx->cachedNativeH.store(capH, std::memory_order_relaxed);
+            ctx->cachedStreamW.store(ctx->encoder.GetOutWidth(), std::memory_order_relaxed);
+            ctx->cachedStreamH.store(ctx->encoder.GetOutHeight(), std::memory_order_relaxed);
+            ctx->cachedHostHdr.store(hostHdr, std::memory_order_relaxed);
+            ctx->cachedPqHdr.store(ctx->encoder.IsPqHdrActive(), std::memory_order_relaxed);
+            ctx->cachedYuv444.store(ctx->encoder.IsYuv444Active(), std::memory_order_relaxed);
+            NotifyHostStatusDirty(ctx, true, false);
             return true;
         };
 
@@ -648,7 +732,6 @@ namespace
 
         uint64_t lastStatsMs = NowMillis();
         uint64_t lastMonitorTickMs = 0;
-        uint64_t lastStatusPushMs = 0;
         uint64_t lastEncodedPacketMs = NowMillis();
         uint64_t lastEncoderRecoverMs = 0;
         uint32_t consecutiveEncodeErrors = 0;
@@ -676,8 +759,10 @@ namespace
         CapturedFrame capFrame;
         std::vector<EncodedPacket> encodedPackets;
         std::vector<uint8_t> chunkBuf;
+        chunkBuf.reserve(sizeof(proto::VideoChunkHeader) + proto::kMaxRelayVideoChunkPayload);
 
-        PushHostStatusJson(ctx);
+        NotifyHostStatusDirty(ctx, true, true);
+        uint64_t nextFrameDeadlineUs = NowMicros();
 
         while (!ctx->stopFlag.load())
         {
@@ -700,35 +785,45 @@ namespace
             {
                 if (ctx->virtualUsb.SetVirtualMouseEnabled(true))
                 {
-                    ctx->statusDirty.store(true);
+                    NotifyHostStatusDirty(ctx);
                 }
             }
             else if (!wantVirtMouse && ctx->virtualUsb.IsVirtualMouseActive())
             {
                 ctx->virtualUsb.SetVirtualMouseEnabled(false);
-                ctx->statusDirty.store(true);
+                NotifyHostStatusDirty(ctx);
             }
 
             uint64_t nowMs = NowMillis();
-            if (nowMs - lastMonitorTickMs >= 150)
+            if (nowMs - lastMonitorTickMs >= 200)
             {
                 lastMonitorTickMs = nowMs;
-                ctx->capture.RefreshOutputHdrState();
-                bool curHostHdr = ctx->capture.IsOutputHdr();
-                if (curHostHdr != ctx->lastHostHdr)
-                {
-                    ctx->lastHostHdr = curHostHdr;
-                    ctx->reconfigNeeded.store(true);
-                    ctx->statusDirty.store(true);
-                }
 
                 int32_t mMode = 0;
                 bool curSmart = false;
+                bool hdrRequested = false;
                 {
                     std::lock_guard<std::mutex> lock(ctx->cfgMutex);
                     mMode = ctx->mouseMode;
                     curSmart = ctx->smartEngaged;
+                    hdrRequested = ctx->videoSettings.hdr;
                 }
+
+                // Only poll Windows DisplayConfig HDR state when HDR is requested or active
+                // (HostCapture internally throttles QueryDisplayConfig to once per 2000ms).
+                if (hdrRequested || ctx->lastHostHdr)
+                {
+                    ctx->capture.RefreshOutputHdrState();
+                    bool curHostHdr = ctx->capture.IsOutputHdr();
+                    if (curHostHdr != ctx->lastHostHdr)
+                    {
+                        ctx->lastHostHdr = curHostHdr;
+                        ctx->cachedHostHdr.store(curHostHdr, std::memory_order_relaxed);
+                        ctx->reconfigNeeded.store(true);
+                        NotifyHostStatusDirty(ctx);
+                    }
+                }
+
                 if (mMode == 2)
                 {
                     bool nextSmart = HostSystemAgent::IsSmartFullscreenOrCursorLocked(ctx->capture.GetDesktopRect());
@@ -737,18 +832,16 @@ namespace
                         std::lock_guard<std::mutex> lock(ctx->cfgMutex);
                         ctx->smartEngaged = nextSmart;
                         ApplyHostMouseModeLocked(ctx);
-                        ctx->statusDirty.store(true);
+                        NotifyHostStatusDirty(ctx);
                     }
                 }
             }
 
             const bool privacyActive = ctx->privacyScreen.IsActive();
-            if (ctx->statusDirty.exchange(false) || privacyActive != lastPrivacyActivity ||
-                (nowMs - lastStatusPushMs >= 2000))
+            if (privacyActive != lastPrivacyActivity)
             {
                 lastPrivacyActivity = privacyActive;
-                lastStatusPushMs = nowMs;
-                PushHostStatusJson(ctx);
+                NotifyHostStatusDirty(ctx);
             }
 
             const uint64_t frameIntervalUs = 1000000ULL / static_cast<uint64_t>(activeFps);
@@ -839,14 +932,41 @@ namespace
                         size_t totalChunks = (ep.data.size() + maxChunkPayload - 1) / maxChunkPayload;
                         if (totalChunks > 65535) continue;
 
-                        const bool paceUdpBurst = (!isRelayRoute && totalChunks > 12);
-                        const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 48 &&
+                        const bool paceUdpBurst = (!isRelayRoute && totalChunks > 4);
+                        const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 80 &&
                             ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
                         const int passCount = sendKeyRedundantPass ? 2 : 1;
+                        // Smooth per-frame UDP pacing prevents 600+ Mbps Wi-Fi/router microburst drops
+                        // on both LAN (especially Mobile Wi-Fi) and P2P while keeping frame span tight.
+                        const uint64_t perChunkUs = isLanRoute ? 45ULL : 75ULL;
+                        const uint64_t maxSpanUs = ep.isKeyFrame
+                                                       ? std::min<uint64_t>((frameIntervalUs * 60ULL) / 100ULL, 9000ULL)
+                                                       : std::min<uint64_t>((frameIntervalUs * 45ULL) / 100ULL, 5500ULL);
+                        const uint64_t targetSpanUs = paceUdpBurst
+                                                          ? std::min<uint64_t>(
+                                                              maxSpanUs, static_cast<uint64_t>(totalChunks) * perChunkUs)
+                                                          : 0ULL;
+
+                        auto waitUntilPaceUs = [](uint64_t deadlineUs)
+                        {
+                            for (;;)
+                            {
+                                const uint64_t nowU = NowMicros();
+                                if (nowU >= deadlineUs) break;
+                                if (deadlineUs - nowU > 80ULL)
+                                {
+                                    SwitchToThread();
+                                }
+                                else
+                                {
+                                    _mm_pause();
+                                }
+                            }
+                        };
 
                         for (int pass = 0; pass < passCount; ++pass)
                         {
-                            uint64_t nextPaceUs = paceUdpBurst ? NowMicros() : 0;
+                            const uint64_t burstStartUs = paceUdpBurst ? NowMicros() : 0ULL;
                             for (size_t ci = 0; ci < totalChunks; ++ci)
                             {
                                 size_t offset = ci * maxChunkPayload;
@@ -870,27 +990,26 @@ namespace
                                 ctx->transport->SendEncrypted(proto::AppPacketType::VideoChunk, chunkBuf.data(),
                                                               chunkBuf.size());
                                 ctx->bytesSentWindow.fetch_add(chunkBuf.size());
-                                if (paceUdpBurst && (ci % 6) == 5 && (ci + 1) < totalChunks)
+                                if (paceUdpBurst && ((ci & 1U) == 1U) && (ci + 1) < totalChunks)
                                 {
-                                    nextPaceUs = std::max(nextPaceUs + 120ULL, NowMicros() + 80ULL);
-                                    while (NowMicros() < nextPaceUs)
-                                    {
-                                        _mm_pause();
-                                    }
+                                    const uint64_t targetUs = burstStartUs +
+                                        ((static_cast<uint64_t>(ci + 1) * targetSpanUs) /
+                                            static_cast<uint64_t>(totalChunks));
+                                    waitUntilPaceUs(targetUs);
                                 }
                             }
                             if (pass + 1 < passCount)
                             {
-                                uint64_t gapUntil = NowMicros() + 300ULL;
-                                while (NowMicros() < gapUntil)
-                                {
-                                    _mm_pause();
-                                }
+                                waitUntilPaceUs(NowMicros() + 600ULL);
                             }
                         }
 
                         ctx->framesEncodedWindow.fetch_add(1);
                         ctx->totalEncodedFrames.fetch_add(1);
+                        if (ep.isKeyFrame)
+                        {
+                            ctx->lastKeyFrameEmitMs.store(NowMillis(), std::memory_order_relaxed);
+                        }
                         sentAnyPacket = true;
                     }
 
@@ -981,7 +1100,16 @@ namespace
                 }
             }
 
-            hiResTimer.WaitUntilUs(loopStartUs + frameIntervalUs);
+            // Phase-locked frame pacing prevents downward FPS drift when individual frames
+            // slightly overrun the interval, locking cleanly onto 60/90/120/144 FPS targets.
+            nextFrameDeadlineUs += frameIntervalUs;
+            const uint64_t afterFrameUs = NowMicros();
+            if (nextFrameDeadlineUs + frameIntervalUs < afterFrameUs ||
+                nextFrameDeadlineUs > loopStartUs + frameIntervalUs * 2ULL)
+            {
+                nextFrameDeadlineUs = afterFrameUs;
+            }
+            hiResTimer.WaitUntilUs(nextFrameDeadlineUs);
         }
 
         ctx->injector.ReleaseAllInputs();
@@ -1038,8 +1166,15 @@ namespace
             auto type = static_cast<proto::AppPacketType>(plain[0]);
             if (type == proto::AppPacketType::VideoIdrRequest)
             {
-                ctx->idrRecoveryPending.store(true, std::memory_order_release);
-                ctx->encoder.ForceKeyFrame();
+                // Cooldown prevents duplicate UDP IDR requests or rapid client retries from
+                // triggering back-to-back giant keyframes that self-congest Wi-Fi/P2P/Relay.
+                const uint64_t nowMs = NowMillis();
+                const uint64_t lastKeyMs = ctx->lastKeyFrameEmitMs.load(std::memory_order_relaxed);
+                if (lastKeyMs == 0 || (nowMs - lastKeyMs) >= 250ULL)
+                {
+                    ctx->idrRecoveryPending.store(true, std::memory_order_release);
+                    ctx->encoder.ForceKeyFrame();
+                }
             }
             else if (type == proto::AppPacketType::Ping && plain.size() >= sizeof(proto::PingPongPayload))
             {
@@ -1085,7 +1220,7 @@ namespace
                 {
                     ctx->reconfigNeeded.store(true);
                 }
-                ctx->statusDirty.store(true);
+                NotifyHostStatusDirty(ctx, changed, false);
             }
             else if (type == proto::AppPacketType::ControlVideoParams && plain.size() >= sizeof(
                 proto::ControlVideoParamsPayload))
@@ -1117,7 +1252,7 @@ namespace
                     ctx->hideHostCursorInHostMode = (p->hideHostCursor != 0);
                     ApplyHostMouseModeLocked(ctx);
                 }
-                ctx->statusDirty.store(true);
+                NotifyHostStatusDirty(ctx);
             }
             else if (type == proto::AppPacketType::ControlVirtualAudio && plain.size() >= sizeof(
                 proto::ControlVirtualAudioPayload))
@@ -1136,7 +1271,7 @@ namespace
                         ctx->lastActionMsg = "AUDIO_UPDATED";
                     }
                 }
-                ctx->statusDirty.store(true);
+                NotifyHostStatusDirty(ctx);
             }
             else if (type == proto::AppPacketType::ControlSystemAction && plain.size() >= sizeof(
                 proto::ControlSystemActionPayload))
@@ -1261,8 +1396,24 @@ namespace
             outFrame.colorFlags = hdr->colorFlags;
             outFrame.payload.assign(dataPtr, dataPtr + dataBytes);
 
-            if (isKey) lastCompletedKeyFrameId = hdr->frameId;
+            if (isKey)
+            {
+                lastCompletedKeyFrameId = hdr->frameId;
+                for (auto it = pending.begin(); it != pending.end();)
+                {
+                    if (it->first < hdr->frameId) it = pending.erase(it);
+                    else ++it;
+                }
+            }
             return true;
+        }
+
+        if (pending.find(hdr->frameId) == pending.end())
+        {
+            while (pending.size() >= 16)
+            {
+                pending.erase(pending.begin());
+            }
         }
 
         auto& pf = pending[hdr->frameId];
@@ -1350,7 +1501,15 @@ namespace
         outFrame.colorFlags = pf.colorFlags;
         outFrame.payload = std::move(pf.flatBuf);
 
-        if (outFrame.isKeyFrame) lastCompletedKeyFrameId = hdr->frameId;
+        if (outFrame.isKeyFrame)
+        {
+            lastCompletedKeyFrameId = hdr->frameId;
+            for (auto it = pending.begin(); it != pending.end();)
+            {
+                if (it->first < hdr->frameId) it = pending.erase(it);
+                else ++it;
+            }
+        }
         pending.erase(hdr->frameId);
         return true;
     }
@@ -1404,8 +1563,15 @@ namespace
         SDL_Gamepad* gamepads[4]{};
         SDL_JoystickID gamepadIds[4]{};
 
+        std::mutex callbackMutex;
+        std::condition_variable callbackCv;
+        bool hasPendingStatusJson = false;
+        std::string pendingStatusJson;
+        std::deque<std::vector<uint8_t>> pendingAuxData;
+
         std::thread recvThread;
         std::thread renderThread;
+        std::thread callbackThread;
     };
 
     void ParseStatusHintFields(EmbeddedClientContext* c, const std::string& json)
@@ -1457,17 +1623,72 @@ namespace
         }
     }
 
+    void EmbeddedClientCallbackLoop(EmbeddedClientContext* ctx)
+    {
+        while (!ctx->stopFlag.load(std::memory_order_acquire))
+        {
+            std::string statusJson;
+            bool hasStatus = false;
+            std::vector<uint8_t> auxPkt;
+            bool hasAux = false;
+
+            {
+                std::unique_lock<std::mutex> lock(ctx->callbackMutex);
+                ctx->callbackCv.wait(lock, [ctx]
+                {
+                    return ctx->stopFlag.load(std::memory_order_acquire) ||
+                        ctx->hasPendingStatusJson ||
+                        !ctx->pendingAuxData.empty();
+                });
+                if (ctx->stopFlag.load(std::memory_order_acquire)) break;
+
+                if (ctx->hasPendingStatusJson)
+                {
+                    statusJson = std::move(ctx->pendingStatusJson);
+                    ctx->pendingStatusJson.clear();
+                    ctx->hasPendingStatusJson = false;
+                    hasStatus = true;
+                }
+                else if (!ctx->pendingAuxData.empty())
+                {
+                    auxPkt = std::move(ctx->pendingAuxData.front());
+                    ctx->pendingAuxData.pop_front();
+                    hasAux = true;
+                }
+            }
+
+            if (hasStatus && ctx->callbacks.onStatusJson)
+            {
+                ctx->callbacks.onStatusJson(statusJson.c_str());
+            }
+            if (hasAux && ctx->callbacks.onAuxData && !auxPkt.empty())
+            {
+                ctx->callbacks.onAuxData(auxPkt.data(), static_cast<int32_t>(auxPkt.size()));
+            }
+        }
+    }
+
     void EmbeddedClientRecvLoop(EmbeddedClientContext* ctx)
     {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         std::map<uint32_t, PendingFrameChunks> pending;
         uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
+        uint64_t lastPingMs = 0;
         std::vector<uint8_t> plain;
 
         while (!ctx->stopFlag.load())
         {
-            int r = ctx->transport->ReceiveEncrypted(plain, 10);
+            uint64_t preNowMs = NowMillis();
+            if (preNowMs - lastPingMs >= 500ULL)
+            {
+                lastPingMs = preNowMs;
+                proto::PingPongPayload ping{};
+                ping.timestampUs = NowMicros();
+                ctx->transport->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
+            }
+
+            int r = ctx->transport->ReceiveEncrypted(plain, 8);
             if (r < 0)
             {
                 ctx->remoteEnded.store(true);
@@ -1536,7 +1757,8 @@ namespace
                         hdr->payloadBytes,
                         hdr->sampleRate,
                         hdr->channels,
-                        hdr->sampleCount);
+                        hdr->sampleCount,
+                        hdr->sequence);
                 }
             }
             else if (type == proto::AppPacketType::HostStatusJson && plain.size() > sizeof(proto::AppPacketHeader))
@@ -1547,22 +1769,38 @@ namespace
                 ParseStatusHintFields(ctx, json);
                 if (ctx->callbacks.onStatusJson)
                 {
-                    ctx->callbacks.onStatusJson(json.c_str());
+                    {
+                        std::lock_guard<std::mutex> lock(ctx->callbackMutex);
+                        ctx->pendingStatusJson = std::move(json);
+                        ctx->hasPendingStatusJson = true;
+                    }
+                    ctx->callbackCv.notify_one();
                 }
             }
             else if (type == proto::AppPacketType::Pong && plain.size() >= sizeof(proto::PingPongPayload))
             {
                 const auto* pong = reinterpret_cast<const proto::PingPongPayload*>(plain.data());
-                uint64_t rttUs = NowMicros() - pong->timestampUs;
-                ctx->transport->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+                const uint64_t nowUs = NowMicros();
+                if (nowUs >= pong->timestampUs)
+                {
+                    ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                }
             }
             else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
             {
                 if (ctx->callbacks.onAuxData)
                 {
-                    ctx->callbacks.onAuxData(
-                        plain.data() + sizeof(proto::AppPacketHeader),
-                        static_cast<int32_t>(plain.size() - sizeof(proto::AppPacketHeader)));
+                    {
+                        std::lock_guard<std::mutex> lock(ctx->callbackMutex);
+                        if (ctx->pendingAuxData.size() >= 128)
+                        {
+                            ctx->pendingAuxData.pop_front();
+                        }
+                        ctx->pendingAuxData.emplace_back(
+                            plain.data() + sizeof(proto::AppPacketHeader),
+                            plain.data() + plain.size());
+                    }
+                    ctx->callbackCv.notify_one();
                 }
             }
             else if (type == proto::AppPacketType::Disconnect)
@@ -1669,8 +1907,19 @@ namespace
         bool firedStarted = false;
         bool hasRenderedFirstFrame = false;
         uint64_t lastIdrReqMs = 0;
+        uint32_t idrRetryCount = 0;
         uint64_t lastStatsMs = NowMillis();
-        uint64_t lastPingMs = 0;
+
+        auto requestIdrBackoff = [&](uint64_t curMs)
+        {
+            const uint64_t gapMs = (idrRetryCount == 0) ? 200ULL : (idrRetryCount == 1 ? 400ULL : 750ULL);
+            if (lastIdrReqMs == 0 || (curMs - lastIdrReqMs) >= gapMs)
+            {
+                lastIdrReqMs = curMs;
+                idrRetryCount++;
+                SendReliableIdrRequest(ctx->transport);
+            }
+        };
 
         SendReliableIdrRequest(ctx->transport);
 
@@ -1679,13 +1928,8 @@ namespace
             bool hasPendingRetx = FlushPendingUdpActions(ctx);
 
             uint64_t nowMs = NowMillis();
-            if (nowMs - lastPingMs >= 500)
-            {
-                lastPingMs = nowMs;
-                proto::PingPongPayload ping{};
-                ping.timestampUs = NowMicros();
-                ctx->transport->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
-            }
+            const uint64_t rttMs = ctx->transport->GetLastRttMs();
+            const uint64_t reorderGraceMs = std::clamp<uint64_t>(rttMs + 10ULL, 12ULL, 35ULL);
 
             AssembledVideoFrame nextFrame;
             bool hasFrame = false;
@@ -1699,7 +1943,7 @@ namespace
                 }
                 uint32_t gateDropped = 0;
                 hasFrame = ctx->decodeGate.SelectNext(
-                    ctx->frameQueue, NowMillis(), gateDropped, nextFrame);
+                    ctx->frameQueue, NowMillis(), gateDropped, nextFrame, reorderGraceMs);
                 queuedAfterPop = ctx->frameQueue.size();
                 gateWaiting = ctx->decodeGate.waitingForKeyframe;
                 if (gateDropped != 0)
@@ -1710,13 +1954,17 @@ namespace
 
             FlushPendingUdpActions(ctx);
 
+            if (queuedAfterPop >= osmium::kVideoMaxOrderedBacklog)
+            {
+                requestIdrBackoff(nowMs);
+            }
+
             if (!hasFrame)
             {
                 ctx->decoder.RepaintIfResized();
-                if ((!hasRenderedFirstFrame || gateWaiting) && (nowMs - lastIdrReqMs >= 150))
+                if (!hasRenderedFirstFrame || gateWaiting)
                 {
-                    lastIdrReqMs = nowMs;
-                    SendReliableIdrRequest(ctx->transport);
+                    requestIdrBackoff(nowMs);
                 }
                 // Reorder grace leaves frames queued but nothing decodable;
                 // yield instead of spinning the render thread.
@@ -1726,11 +1974,7 @@ namespace
             {
                 if (!hasRenderedFirstFrame && !nextFrame.isKeyFrame)
                 {
-                    if (nowMs - lastIdrReqMs >= 150)
-                    {
-                        lastIdrReqMs = nowMs;
-                        SendReliableIdrRequest(ctx->transport);
-                    }
+                    requestIdrBackoff(nowMs);
                 }
                 else
                 {
@@ -1758,6 +2002,7 @@ namespace
                     if (ok)
                     {
                         hasRenderedFirstFrame = true;
+                        idrRetryCount = 0;
                         ctx->enableHdr.store((nextFrame.colorFlags & proto::kVideoFlagHdr) != 0 ? 1 : 0);
                         ctx->enableYuv444.store((nextFrame.colorFlags & proto::kVideoFlagYuv444) != 0 ? 1 : 0);
                         decodedTotal++;
@@ -1777,10 +2022,9 @@ namespace
                             }
                         }
                     }
-                    else if (nowMs - lastIdrReqMs >= 200)
+                    else
                     {
-                        lastIdrReqMs = nowMs;
-                        SendReliableIdrRequest(ctx->transport);
+                        requestIdrBackoff(nowMs);
                     }
                 }
             }
@@ -2454,6 +2698,7 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     ctx->hideHostCursorInHostMode = (ctx->mouseMode == 0);
 
     ctx->sysActionThread = std::thread(HostSysActionLoop, ctx);
+    ctx->statusThread = std::thread(HostStatusLoop, ctx);
     ctx->videoThread = std::thread(HostVideoLoop, ctx);
     ctx->recvThread = std::thread(HostRecvLoop, ctx);
 
@@ -2467,6 +2712,7 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
     auto* ctx = static_cast<HostSessionContext*>(hostHandle);
     ctx->stopFlag.store(true);
     ctx->sysActionCv.notify_all();
+    ctx->statusCv.notify_all();
     ctx->textFocus.Stop();
 
     if (ctx->transport)
@@ -2491,6 +2737,11 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
         if (ctx->recvThread.get_id() == curTid) ctx->recvThread.detach();
         else ctx->recvThread.join();
     }
+    if (ctx->statusThread.joinable())
+    {
+        if (ctx->statusThread.get_id() == curTid) ctx->statusThread.detach();
+        else ctx->statusThread.join();
+    }
     if (ctx->sysActionThread.joinable())
     {
         if (ctx->sysActionThread.get_id() == curTid) ctx->sysActionThread.detach();
@@ -2509,7 +2760,7 @@ OSMIUM_API void Osmium_HostAllowPrivacyScreen(void* hostHandle, const wchar_t* w
         ctx->privacyWallpaperPath = wallpaperPath ? wallpaperPath : L"";
     }
     ctx->allowPrivacyScreen.store(true);
-    ctx->statusDirty.store(true);
+    NotifyHostStatusDirty(ctx);
 }
 
 OSMIUM_API int32_t Osmium_HostSendAuxData(void* hostHandle, const uint8_t* data, int32_t length)
@@ -2589,6 +2840,7 @@ OSMIUM_API int32_t Osmium_StartClientEmbedded(
         SDL_free(ids);
     }
 
+    ctx->callbackThread = std::thread(EmbeddedClientCallbackLoop, ctx);
     ctx->recvThread = std::thread(EmbeddedClientRecvLoop, ctx);
     ctx->renderThread = std::thread(EmbeddedClientRenderLoop, ctx);
 
@@ -2618,6 +2870,7 @@ OSMIUM_API void Osmium_StopClientEmbedded(void* clientHandle)
     auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
     ctx->stopFlag.store(true);
     ctx->queueCv.notify_all();
+    ctx->callbackCv.notify_all();
 
     ctx->micCapture.Stop();
 
@@ -2642,6 +2895,11 @@ OSMIUM_API void Osmium_StopClientEmbedded(void* clientHandle)
     {
         if (ctx->renderThread.get_id() == curTid) ctx->renderThread.detach();
         else ctx->renderThread.join();
+    }
+    if (ctx->callbackThread.joinable())
+    {
+        if (ctx->callbackThread.get_id() == curTid) ctx->callbackThread.detach();
+        else ctx->callbackThread.join();
     }
 
     for (int i = 0; i < 4; ++i)
@@ -2996,11 +3254,20 @@ OSMIUM_API int32_t Osmium_RunClientSession(
         std::map<uint32_t, PendingFrameChunks> pending;
         uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
+        uint64_t lastPingMs = 0;
         std::vector<uint8_t> plain;
 
         while (!recvStop.load() && !g_ClientStopRequested.load())
         {
-            int r = t->ReceiveEncrypted(plain, 10);
+            uint64_t preNowMs = NowMillis();
+            if (preNowMs - lastPingMs >= 500ULL)
+            {
+                lastPingMs = preNowMs;
+                proto::PingPongPayload ping{};
+                ping.timestampUs = NowMicros();
+                t->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
+            }
+            int r = t->ReceiveEncrypted(plain, 8);
             if (r < 0)
             {
                 remoteEnded.store(true);
@@ -3065,13 +3332,17 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 {
                     audioPlayer.PushOpusFrame(
                         plain.data() + sizeof(proto::AudioFrameHeader),
-                        hdr->payloadBytes, hdr->sampleRate, hdr->channels, hdr->sampleCount);
+                        hdr->payloadBytes, hdr->sampleRate, hdr->channels, hdr->sampleCount, hdr->sequence);
                 }
             }
             else if (type == proto::AppPacketType::Pong && plain.size() >= sizeof(proto::PingPongPayload))
             {
                 const auto* pong = reinterpret_cast<const proto::PingPongPayload*>(plain.data());
-                t->RecordRttMs(static_cast<uint32_t>((NowMicros() - pong->timestampUs) / 1000ULL));
+                const uint64_t nowUs = NowMicros();
+                if (nowUs >= pong->timestampUs)
+                {
+                    t->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                }
             }
             else if (type == proto::AppPacketType::Disconnect)
             {
@@ -3090,7 +3361,7 @@ OSMIUM_API int32_t Osmium_RunClientSession(
     uint32_t decodedTotal = 0, renderedWindow = 0;
     double avgDecodeMs = 0.0;
     bool firedStarted = false, hasRenderedFirstFrame = false;
-    uint64_t lastIdrReqMs = 0, lastStatsMs = NowMillis(), lastPingMs = 0, lastGamepadPollMs = 0;
+    uint64_t lastIdrReqMs = 0, lastStatsMs = NowMillis(), lastGamepadPollMs = 0;
 
     while (!g_ClientStopRequested.load() && !remoteEnded.load())
     {
@@ -3124,14 +3395,8 @@ OSMIUM_API int32_t Osmium_RunClientSession(
             lastGamepadPollMs = nowMs;
             inputCapture.PollGamepads();
         }
-        if (nowMs - lastPingMs >= 500)
-        {
-            lastPingMs = nowMs;
-            proto::PingPongPayload ping{};
-            ping.timestampUs = NowMicros();
-            t->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
-        }
 
+        const uint64_t reorderGraceMs = std::clamp<uint64_t>(t->GetLastRttMs() + 10ULL, 12ULL, 35ULL);
         AssembledVideoFrame nextFrame;
         bool hasFrame = false;
         size_t queuedAfterPop = 0;
@@ -3140,7 +3405,7 @@ OSMIUM_API int32_t Osmium_RunClientSession(
             if (frameQueue.empty()) queueCv.wait_for(ql, std::chrono::milliseconds(4));
             uint32_t gateDropped = 0;
             hasFrame = decodeGate.SelectNext(
-                frameQueue, NowMillis(), gateDropped, nextFrame);
+                frameQueue, NowMillis(), gateDropped, nextFrame, reorderGraceMs);
             queuedAfterPop = frameQueue.size();
             if (gateDropped != 0) droppedFrames.fetch_add(gateDropped);
         }

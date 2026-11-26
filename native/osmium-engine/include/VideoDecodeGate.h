@@ -10,8 +10,8 @@
 namespace osmium
 {
     inline constexpr std::uint64_t kVideoReorderGraceMs = 30;
-    inline constexpr std::size_t kVideoMaxOrderedBacklog = 8;
-    inline constexpr std::size_t kVideoMaxQueuedFrames = 16;
+    inline constexpr std::size_t kVideoMaxOrderedBacklog = 4;
+    inline constexpr std::size_t kVideoMaxQueuedFrames = 12;
 
     // The host emits no B-frames. Feed contiguous frame IDs to the decoder
     // and skip a missing reference only when an IDR can restart the stream.
@@ -19,6 +19,14 @@ namespace osmium
     struct VideoDecodeGate
     {
         bool waitingForKeyframe = true;
+
+        void Reset()
+        {
+            waitingForKeyframe = true;
+            m_HasFedFrame = false;
+            m_LastFedFrameId = 0;
+            m_GapSinceMs = 0;
+        }
 
         // Called under the frame queue mutex, like SelectNext. Prefer to keep
         // the next dependent frames and any keyframes when the queue fills.
@@ -52,7 +60,8 @@ namespace osmium
             return dropped;
         }
 
-        bool SelectNext(std::deque<Frame>& queue, std::uint64_t nowMs, std::uint32_t& dropped, Frame& outFrame)
+        bool SelectNext(std::deque<Frame>& queue, std::uint64_t nowMs, std::uint32_t& dropped, Frame& outFrame,
+                        std::uint64_t reorderGraceMs = kVideoReorderGraceMs)
         {
             if (queue.empty()) return false;
 
@@ -60,7 +69,7 @@ namespace osmium
             {
                 if (m_GapSinceMs == 0) m_GapSinceMs = nowMs;
                 // A complete keyframe at the head already replaces the missing reference.
-                if (!queue.front().isKeyFrame && nowMs - m_GapSinceMs < kVideoReorderGraceMs) return false;
+                if (!queue.front().isKeyFrame && nowMs - m_GapSinceMs < reorderGraceMs) return false;
                 waitingForKeyframe = true;
             }
 

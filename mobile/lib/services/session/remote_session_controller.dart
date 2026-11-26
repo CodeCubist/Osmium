@@ -892,7 +892,7 @@ class RemoteSessionController extends ChangeNotifier {
 
       // Start relay outgoing pump immediately so authenticateClient packets flow
       _relayPumpTimer?.cancel();
-      _relayPumpTimer = Timer.periodic(const Duration(milliseconds: 4), (_) {
+      _relayPumpTimer = Timer.periodic(const Duration(milliseconds: 2), (_) {
         if (aborted() || !identical(_relayWs, ws)) return;
         _flushRelayOutgoing(ws, transport);
       });
@@ -921,14 +921,14 @@ class RemoteSessionController extends ChangeNotifier {
 
     final batch = BytesBuilder(copy: false);
     var count = 0;
-    while (count < 24) {
+    while (count < 48) {
       final pkt = engine.pollRelayOutgoing(transport);
       if (pkt == null || pkt.isEmpty) break;
       final hdr = ByteData(2)..setUint16(0, pkt.length, Endian.little);
       batch.add(hdr.buffer.asUint8List());
       batch.add(pkt);
       count++;
-      if (batch.length >= 24 * 1024) break;
+      if (batch.length >= 32 * 1024) break;
     }
     if (batch.length > 0) {
       try {
@@ -1056,6 +1056,9 @@ class RemoteSessionController extends ChangeNotifier {
                 ws.add(framed);
               } catch (_) {}
             }
+            break;
+          case 7: // RequestSurfaceRebind (native watchdog detected stale/missing surface)
+            unawaited(_rebindSurfaceForRecovery());
             break;
         }
       }
@@ -1356,7 +1359,19 @@ class RemoteSessionController extends ChangeNotifier {
     engine.sendSystemAction(_sessionHandle, action);
   }
 
+  Future<void> _rebindSurfaceForRecovery() async {
+    if (_disposed || _sessionHandle == null) return;
+    final handleId = await platformBridge.rebindSurface();
+    if (_disposed || _sessionHandle == null || handleId == 0) return;
+    _surfaceHandleId = handleId;
+    engine.updateSurface(_sessionHandle, handleId);
+  }
+
   void requestIdr() {
+    if (_sessionHandle == null) return;
+    if (_surfaceHandleId == 0) {
+      unawaited(_rebindSurfaceForRecovery());
+    }
     engine.requestIdr(_sessionHandle);
   }
 

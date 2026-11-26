@@ -82,6 +82,83 @@ namespace osmium
             });
             return lut;
         }
+
+        // Scans an Annex-B bitstream and extracts H.264 (SPS/PPS) or HEVC (VPS/SPS/PPS)
+        // parameter-set NAL units so every IDR keyframe sent to Android/PC decoders is
+        // guaranteed to carry inline codec configuration headers.
+        bool ExtractAnnexBParamSets(
+            proto::VideoCodecId codecId,
+            const uint8_t* data,
+            size_t len,
+            std::vector<uint8_t>& outParamSets)
+        {
+            if (!data || len < 5) return false;
+            if (codecId != proto::VideoCodecId::H264 && codecId != proto::VideoCodecId::HEVC) return false;
+
+            auto findStartCode = [&](size_t from, size_t& scLen) -> size_t
+            {
+                for (size_t i = from; i + 3 < len; ++i)
+                {
+                    if (data[i] == 0 && data[i + 1] == 0)
+                    {
+                        if (data[i + 2] == 1)
+                        {
+                            scLen = 3;
+                            return i;
+                        }
+                        if (i + 3 < len && data[i + 2] == 0 && data[i + 3] == 1)
+                        {
+                            scLen = 4;
+                            return i;
+                        }
+                    }
+                }
+                scLen = 0;
+                return len;
+            };
+
+            std::vector<uint8_t> collected;
+            bool hasSps = false;
+            bool hasPps = false;
+            size_t scLen = 0;
+            size_t pos = findStartCode(0, scLen);
+            while (pos < len)
+            {
+                const size_t nalStart = pos + scLen;
+                size_t nextScLen = 0;
+                const size_t nextPos = findStartCode(nalStart, nextScLen);
+                if (nalStart < nextPos)
+                {
+                    bool isParam = false;
+                    if (codecId == proto::VideoCodecId::H264)
+                    {
+                        const uint8_t nalType = data[nalStart] & 0x1FU;
+                        if (nalType == 7) { isParam = true; hasSps = true; }
+                        else if (nalType == 8) { isParam = true; hasPps = true; }
+                    }
+                    else if (codecId == proto::VideoCodecId::HEVC)
+                    {
+                        const uint8_t nalType = (data[nalStart] >> 1) & 0x3FU;
+                        if (nalType == 32) { isParam = true; }
+                        else if (nalType == 33) { isParam = true; hasSps = true; }
+                        else if (nalType == 34) { isParam = true; hasPps = true; }
+                    }
+                    if (isParam)
+                    {
+                        collected.insert(collected.end(), data + pos, data + nextPos);
+                    }
+                }
+                pos = nextPos;
+                scLen = nextScLen;
+            }
+
+            if (hasSps && hasPps && !collected.empty())
+            {
+                outParamSets = std::move(collected);
+                return true;
+            }
+            return false;
+        }
     }
 
     HostVideoEncoder::~HostVideoEncoder()
@@ -123,6 +200,7 @@ namespace osmium
         m_HdrActive = false;
         m_PqHdrActive = false;
         m_Yuv444Active = false;
+        m_CachedParamSets.clear();
     }
 
     bool HostVideoEncoder::Initialize(
@@ -301,7 +379,9 @@ namespace osmium
         ctx->rc_max_rate = ctx->bit_rate;
         // Limit bursts from scene changes without making every frame fit a one-frame VBV.
         ctx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, ctx->bit_rate * 2 / ctx->framerate.num));
-        ctx->gop_size = std::max(1, fps * 2);
+        // Long periodic GOP (10s instead of 2s) eliminates frequent unsolicited keyframe
+        // spikes on Wi-Fi/P2P/Relay while on-demand VideoIdrRequest handles loss recovery.
+        ctx->gop_size = std::max(1, fps * 10);
         ctx->max_b_frames = 0;
         ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
 
@@ -401,7 +481,8 @@ namespace osmium
         }
 
         if (captureDevice && supportsD3D11 && chosenFmt == AV_PIX_FMT_NV12 && !wantHdr && !wantYuv444 &&
-            (name.find("amf") != std::string::npos || name.find("nvenc") != std::string::npos))
+            (name.find("amf") != std::string::npos || name.find("nvenc") != std::string::npos ||
+                name.find("qsv") != std::string::npos))
         {
             ctx->hw_frames_ctx = CreateD3D11Nv12Frames(captureDevice, m_OutWidth, m_OutHeight);
             if (ctx->hw_frames_ctx) ctx->pix_fmt = AV_PIX_FMT_D3D11;
@@ -422,6 +503,12 @@ namespace osmium
         m_HdrActive = hdrUsed;
         m_PqHdrActive = hdrUsed;
         m_Yuv444Active = yuv444Used;
+        m_CachedParamSets.clear();
+        if (ctx->extradata && ctx->extradata_size > 0)
+        {
+            ExtractAnnexBParamSets(m_CodecId, ctx->extradata, static_cast<size_t>(ctx->extradata_size),
+                                   m_CachedParamSets);
+        }
         return true;
     }
 
@@ -434,10 +521,11 @@ namespace osmium
             sws_freeContext(m_SwsCtx);
             m_SwsCtx = nullptr;
         }
+        const int swsFlags = (m_SrcWidth == m_OutWidth && m_SrcHeight == m_OutHeight) ? SWS_POINT : SWS_BILINEAR;
         m_SwsCtx = sws_getContext(
             m_SrcWidth, m_SrcHeight, srcFmt,
             m_OutWidth, m_OutHeight, static_cast<AVPixelFormat>(m_YuvFrame->format),
-            SWS_BILINEAR, nullptr, nullptr, nullptr);
+            swsFlags, nullptr, nullptr, nullptr);
         if (!m_SwsCtx)
         {
             m_SwsSrcFmt = AV_PIX_FMT_NONE;
@@ -609,11 +697,20 @@ namespace osmium
                 for (int p = 0; p < 2; ++p)
                 {
                     const int rows = p == 0 ? m_OutHeight : m_OutHeight / 2;
-                    for (int y = 0; y < rows; ++y)
+                    if (srcStride == m_OutWidth && m_YuvFrame->linesize[p] == m_OutWidth)
                     {
-                        std::memcpy(m_YuvFrame->data[p] + static_cast<size_t>(y) * m_YuvFrame->linesize[p],
-                                    plane, m_OutWidth);
-                        plane += srcStride;
+                        const size_t planeBytes = static_cast<size_t>(rows) * static_cast<size_t>(m_OutWidth);
+                        std::memcpy(m_YuvFrame->data[p], plane, planeBytes);
+                        plane += planeBytes;
+                    }
+                    else
+                    {
+                        for (int y = 0; y < rows; ++y)
+                        {
+                            std::memcpy(m_YuvFrame->data[p] + static_cast<size_t>(y) * m_YuvFrame->linesize[p],
+                                        plane, m_OutWidth);
+                            plane += srcStride;
+                        }
                     }
                 }
             }
@@ -668,7 +765,29 @@ namespace osmium
                 EncodedPacket pkt;
                 pkt.isKeyFrame = (m_Pkt->flags & AV_PKT_FLAG_KEY) != 0;
                 pkt.codecId = m_CodecId;
-                pkt.data.assign(m_Pkt->data, m_Pkt->data + m_Pkt->size);
+                if (pkt.isKeyFrame && (m_CodecId == proto::VideoCodecId::H264 || m_CodecId == proto::VideoCodecId::HEVC))
+                {
+                    std::vector<uint8_t> inlinePs;
+                    if (ExtractAnnexBParamSets(m_CodecId, m_Pkt->data, static_cast<size_t>(m_Pkt->size), inlinePs))
+                    {
+                        m_CachedParamSets = std::move(inlinePs);
+                        pkt.data.assign(m_Pkt->data, m_Pkt->data + m_Pkt->size);
+                    }
+                    else if (!m_CachedParamSets.empty())
+                    {
+                        pkt.data.reserve(m_CachedParamSets.size() + static_cast<size_t>(m_Pkt->size));
+                        pkt.data.insert(pkt.data.end(), m_CachedParamSets.begin(), m_CachedParamSets.end());
+                        pkt.data.insert(pkt.data.end(), m_Pkt->data, m_Pkt->data + m_Pkt->size);
+                    }
+                    else
+                    {
+                        pkt.data.assign(m_Pkt->data, m_Pkt->data + m_Pkt->size);
+                    }
+                }
+                else
+                {
+                    pkt.data.assign(m_Pkt->data, m_Pkt->data + m_Pkt->size);
+                }
                 outPackets.push_back(std::move(pkt));
                 av_packet_unref(m_Pkt);
             }

@@ -9,6 +9,7 @@ class VideoSurfaceBridge(
 ) {
     private var producer: TextureRegistry.SurfaceProducer? = null
     private var currentSurfaceHandle: Long = 0L
+    private var boundSurface: Surface? = null
 
     companion object {
         init {
@@ -45,18 +46,31 @@ class VideoSurfaceBridge(
         releaseNativeHandle()
         val surf = prod.surface
         if (surf.isValid) {
+            boundSurface = surf
             currentSurfaceHandle = nativeRegisterSurface(surf)
             onSurfaceHandleChanged(currentSurfaceHandle)
         }
     }
 
+    fun rebindCurrentSurface(): Long {
+        val prod = producer ?: return 0L
+        rebindSurface(prod)
+        return currentSurfaceHandle
+    }
+
     fun resizeSurface(width: Int, height: Int) {
-        producer?.setSize(width.coerceAtLeast(16), height.coerceAtLeast(16))
+        val prod = producer ?: return
+        prod.setSize(width.coerceAtLeast(16), height.coerceAtLeast(16))
+        val surf = prod.surface
+        if (surf.isValid && (surf !== boundSurface || currentSurfaceHandle == 0L)) {
+            rebindSurface(prod)
+        }
     }
 
     private fun releaseNativeHandle() {
         val h = currentSurfaceHandle
         currentSurfaceHandle = 0L
+        boundSurface = null
         if (h != 0L) {
             nativeUnregisterSurface(h)
         }

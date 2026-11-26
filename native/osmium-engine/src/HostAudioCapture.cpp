@@ -104,6 +104,7 @@ namespace osmium
 
     void HostAudioCapture::CaptureThreadProc()
     {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
         HRESULT hrCom = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
         int opusErr = OPUS_OK;
@@ -115,15 +116,21 @@ namespace osmium
             return;
         }
         opus_encoder_ctl(m_Opus, OPUS_SET_BITRATE(96000));
+        opus_encoder_ctl(m_Opus, OPUS_SET_COMPLEXITY(5));
+        opus_encoder_ctl(m_Opus, OPUS_SET_INBAND_FEC(1));
+        opus_encoder_ctl(m_Opus, OPUS_SET_PACKET_LOSS_PERC(5));
 
         ComPtr<IMMDeviceEnumerator> enumerator;
         ComPtr<IMMDevice> device;
         ComPtr<IAudioClient> audioClient;
         ComPtr<IAudioCaptureClient> captureClient;
         WAVEFORMATEX* mixFmt = nullptr;
+        HANDLE audioEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        bool useEventDriven = false;
 
         auto initWasapiLoopback = [&]() -> bool
         {
+            useEventDriven = false;
             if (mixFmt)
             {
                 CoTaskMemFree(mixFmt);
@@ -153,10 +160,22 @@ namespace osmium
                 return false;
             }
 
-            if (FAILED(
-                    audioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, 200000, 0, mixFmt,
-                        nullptr)) ||
-                FAILED(audioClient->GetService(IID_PPV_ARGS(&captureClient))))
+            if (audioEvent &&
+                SUCCEEDED(audioClient->Initialize(
+                    AUDCLNT_SHAREMODE_SHARED,
+                    AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                    200000, 0, mixFmt, nullptr)) &&
+                SUCCEEDED(audioClient->SetEventHandle(audioEvent)))
+            {
+                useEventDriven = true;
+            }
+            else if (FAILED(audioClient->Initialize(
+                AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, 200000, 0, mixFmt, nullptr)))
+            {
+                return false;
+            }
+
+            if (FAILED(audioClient->GetService(IID_PPV_ARGS(&captureClient))))
             {
                 return false;
             }
@@ -185,8 +204,8 @@ namespace osmium
                 return false;
             }
 
-            OSM_LOG_INFO("WASAPI loopback audio capture started (%u Hz, %u ch -> 48kHz Opus)",
-                         mixFmt->nSamplesPerSec, mixFmt->nChannels);
+            OSM_LOG_INFO("WASAPI loopback audio capture started (%u Hz, %u ch -> 48kHz Opus 20ms, event=%d)",
+                         mixFmt->nSamplesPerSec, mixFmt->nChannels, useEventDriven ? 1 : 0);
             return true;
         };
 
@@ -196,10 +215,15 @@ namespace osmium
             OSM_LOG_WARN("WASAPI loopback endpoint initially unavailable");
         }
 
-        constexpr int kFrameSamples = 480;
+        // 20ms Opus frames (960 samples @ 48kHz = 50 pkt/s) cut audio packet/mutex/WS overhead in half
+        // compared to 10ms frames while preserving ultra-low latency and enabling in-band FEC.
+        constexpr int kFrameSamples = 960;
+        constexpr size_t kFrameFloats = static_cast<size_t>(kFrameSamples) * 2;
         std::vector<int16_t> vspkPcm(kFrameSamples * 2);
+        size_t vspkHave = 0;
         std::vector<float> pcmFifo;
-        pcmFifo.reserve(4800);
+        pcmFifo.reserve(kFrameFloats * 8);
+        size_t fifoReadPos = 0;
         std::vector<float> resampled(4096 * 2);
         uint8_t opusBuf[1500]{};
         bool prevVirtualMode = false;
@@ -216,14 +240,19 @@ namespace osmium
                 {
                     prevVirtualMode = true;
                     pcmFifo.clear();
+                    fifoReadPos = 0;
+                    vspkHave = 0;
                     OSM_LOG_INFO(
                         "HostAudioCapture reading directly from Osmium Virtual Speaker USB/IP sink (host muted)");
                 }
 
-                size_t got = m_VirtualDevices->PopSpeakerPcm48kStereo(vspkPcm.data(), kFrameSamples);
-                if (got >= static_cast<size_t>(kFrameSamples))
+                size_t need = static_cast<size_t>(kFrameSamples) - vspkHave;
+                size_t got = m_VirtualDevices->PopSpeakerPcm48kStereo(vspkPcm.data() + vspkHave * 2, need);
+                vspkHave += got;
+                if (vspkHave >= static_cast<size_t>(kFrameSamples))
                 {
                     int encoded = opus_encode(m_Opus, vspkPcm.data(), kFrameSamples, opusBuf, sizeof(opusBuf));
+                    vspkHave = 0;
                     if (encoded > 0 && m_Callback)
                     {
                         m_Callback(opusBuf, encoded, kFrameSamples);
@@ -231,7 +260,7 @@ namespace osmium
                 }
                 else
                 {
-                    Sleep(3);
+                    Sleep(4);
                 }
                 continue;
             }
@@ -239,6 +268,7 @@ namespace osmium
             if (prevVirtualMode)
             {
                 prevVirtualMode = false;
+                vspkHave = 0;
                 Sleep(120);
                 wasapiReady = initWasapiLoopback();
             }
@@ -260,7 +290,14 @@ namespace osmium
 
             if (packetLength == 0)
             {
-                Sleep(3);
+                if (useEventDriven && audioEvent)
+                {
+                    WaitForSingleObject(audioEvent, 15);
+                }
+                else
+                {
+                    Sleep(4);
+                }
                 continue;
             }
 
@@ -302,11 +339,11 @@ namespace osmium
 
                 captureClient->ReleaseBuffer(numFrames);
 
-                while (pcmFifo.size() >= static_cast<size_t>(kFrameSamples) * 2)
+                while (pcmFifo.size() - fifoReadPos >= kFrameFloats)
                 {
                     int encoded = opus_encode_float(
                         m_Opus,
-                        pcmFifo.data(),
+                        pcmFifo.data() + fifoReadPos,
                         kFrameSamples,
                         opusBuf,
                         sizeof(opusBuf));
@@ -314,13 +351,25 @@ namespace osmium
                     {
                         m_Callback(opusBuf, encoded, kFrameSamples);
                     }
-                    pcmFifo.erase(pcmFifo.begin(), pcmFifo.begin() + static_cast<ptrdiff_t>(kFrameSamples) * 2);
+                    fifoReadPos += kFrameFloats;
+                }
+
+                if (fifoReadPos == pcmFifo.size())
+                {
+                    pcmFifo.clear();
+                    fifoReadPos = 0;
+                }
+                else if (fifoReadPos >= kFrameFloats * 4)
+                {
+                    pcmFifo.erase(pcmFifo.begin(), pcmFifo.begin() + static_cast<ptrdiff_t>(fifoReadPos));
+                    fifoReadPos = 0;
                 }
 
                 if (FAILED(captureClient->GetNextPacketSize(&packetLength))) break;
             }
         }
 
+        if (audioEvent) CloseHandle(audioEvent);
         if (mixFmt) CoTaskMemFree(mixFmt);
         captureClient.Reset();
         if (audioClient) audioClient->Stop();

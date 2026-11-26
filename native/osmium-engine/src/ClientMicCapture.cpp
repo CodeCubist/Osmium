@@ -128,6 +128,7 @@ namespace osmium
 
     void ClientMicCapture::CaptureThreadProc(std::string deviceIdUtf8)
     {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
         HRESULT hrCom = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
         ComPtr<IMMDeviceEnumerator> en;
@@ -137,6 +138,8 @@ namespace osmium
         WAVEFORMATEX* mixFmt = nullptr;
         OpusEncoder* opus = nullptr;
         SwrContext* swr = nullptr;
+        HANDLE audioEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        bool useEventDriven = false;
 
         auto cleanup = [&]()
         {
@@ -151,6 +154,11 @@ namespace osmium
             {
                 client->Stop();
                 client.Reset();
+            }
+            if (audioEvent)
+            {
+                CloseHandle(audioEvent);
+                audioEvent = nullptr;
             }
             device.Reset();
             en.Reset();
@@ -194,10 +202,21 @@ namespace osmium
             return;
         }
 
-        if (FAILED(client->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 200000, 0, mixFmt, nullptr)) ||
-            FAILED(client->GetService(IID_PPV_ARGS(&capture))))
+        if (audioEvent &&
+            SUCCEEDED(client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, 200000, 0, mixFmt, nullptr)) &&
+            SUCCEEDED(client->SetEventHandle(audioEvent)))
+        {
+            useEventDriven = true;
+        }
+        else if (FAILED(client->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 200000, 0, mixFmt, nullptr)))
         {
             OSM_LOG_WARN("Failed to initialize WASAPI microphone capture");
+            cleanup();
+            return;
+        }
+        if (FAILED(client->GetService(IID_PPV_ARGS(&capture))))
+        {
+            OSM_LOG_WARN("Failed to acquire WASAPI microphone capture client");
             cleanup();
             return;
         }
@@ -210,6 +229,9 @@ namespace osmium
             return;
         }
         opus_encoder_ctl(opus, OPUS_SET_BITRATE(64000));
+        opus_encoder_ctl(opus, OPUS_SET_COMPLEXITY(5));
+        opus_encoder_ctl(opus, OPUS_SET_INBAND_FEC(1));
+        opus_encoder_ctl(opus, OPUS_SET_PACKET_LOSS_PERC(5));
 
         AVChannelLayout outLayout{}, inLayout{};
         av_channel_layout_default(&outLayout, 2);
@@ -241,9 +263,11 @@ namespace osmium
         OSM_LOG_INFO("Client WASAPI microphone capture started (%u Hz, %u ch -> 48kHz Opus)",
                      mixFmt->nSamplesPerSec, mixFmt->nChannels);
 
-        constexpr int kFrameSamples = 480;
+        constexpr int kFrameSamples = 960;
+        constexpr size_t kFrameFloats = static_cast<size_t>(kFrameSamples) * 2;
         std::vector<float> fifo;
-        fifo.reserve(4800);
+        fifo.reserve(kFrameFloats * 8);
+        size_t fifoReadPos = 0;
         std::vector<float> resampled(4096 * 2);
         uint8_t opusBuf[1500]{};
 
@@ -253,7 +277,14 @@ namespace osmium
             if (FAILED(capture->GetNextPacketSize(&pktLen))) break;
             if (pktLen == 0)
             {
-                Sleep(3);
+                if (useEventDriven && audioEvent)
+                {
+                    WaitForSingleObject(audioEvent, 15);
+                }
+                else
+                {
+                    Sleep(4);
+                }
                 continue;
             }
 
@@ -292,14 +323,25 @@ namespace osmium
 
                 capture->ReleaseBuffer(numFrames);
 
-                while (fifo.size() >= static_cast<size_t>(kFrameSamples) * 2)
+                while (fifo.size() - fifoReadPos >= kFrameFloats)
                 {
-                    int encoded = opus_encode_float(opus, fifo.data(), kFrameSamples, opusBuf, sizeof(opusBuf));
+                    int encoded = opus_encode_float(opus, fifo.data() + fifoReadPos, kFrameSamples, opusBuf,
+                                                    sizeof(opusBuf));
                     if (encoded > 0 && m_Callback)
                     {
                         m_Callback(opusBuf, encoded, kFrameSamples);
                     }
-                    fifo.erase(fifo.begin(), fifo.begin() + static_cast<ptrdiff_t>(kFrameSamples) * 2);
+                    fifoReadPos += kFrameFloats;
+                }
+                if (fifoReadPos == fifo.size())
+                {
+                    fifo.clear();
+                    fifoReadPos = 0;
+                }
+                else if (fifoReadPos >= kFrameFloats * 4)
+                {
+                    fifo.erase(fifo.begin(), fifo.begin() + static_cast<ptrdiff_t>(fifoReadPos));
+                    fifoReadPos = 0;
                 }
 
                 if (FAILED(capture->GetNextPacketSize(&pktLen))) break;

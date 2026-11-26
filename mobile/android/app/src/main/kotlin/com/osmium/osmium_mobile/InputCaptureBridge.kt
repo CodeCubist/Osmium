@@ -9,6 +9,7 @@ import kotlin.math.roundToInt
 
 class InputCaptureBridge : EventChannel.StreamHandler {
     private var eventSink: EventChannel.EventSink? = null
+    private var pendingSurfaceHandleId: Long? = null
     private var lastMouseButtons: Int = 0
     private var gamepadButtonsMask: Int = 0
     private var lastLx: Int = 0
@@ -20,6 +21,11 @@ class InputCaptureBridge : EventChannel.StreamHandler {
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         eventSink = events
+        val pending = pendingSurfaceHandleId
+        if (events != null && pending != null) {
+            pendingSurfaceHandleId = null
+            emitSurfaceChanged(pending)
+        }
     }
 
     override fun onCancel(arguments: Any?) {
@@ -27,7 +33,12 @@ class InputCaptureBridge : EventChannel.StreamHandler {
     }
 
     fun emitSurfaceChanged(surfaceHandleId: Long) {
-        eventSink?.success(
+        val sink = eventSink
+        if (sink == null) {
+            pendingSurfaceHandleId = surfaceHandleId
+            return
+        }
+        sink.success(
             mapOf(
                 "kind" to "surface_changed",
                 "surfaceHandleId" to surfaceHandleId

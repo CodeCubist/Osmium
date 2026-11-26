@@ -120,7 +120,8 @@ namespace osmium::mobile
 
         int m_Sock4 = -1;
         int m_Sock6 = -1;
-        int m_ActiveSock = -1;
+        std::atomic<int> m_ActiveSock{-1};
+        std::atomic<bool> m_UdpConnected{false};
         uint16_t m_LocalPort4 = 0;
         uint16_t m_LocalPort6 = 0;
         sockaddr_in m_StunKeepaliveAddr{};
@@ -158,6 +159,7 @@ namespace osmium::mobile
 
         std::mutex m_RelaySendMutex;
         std::deque<RelayOutgoingPacket> m_RelayHighSendQueue;
+        std::deque<RelayOutgoingPacket> m_RelayAudioSendQueue;
         std::deque<RelayOutgoingPacket> m_RelayDropSendQueue;
 
         std::atomic<bool> m_KcpEnabled{false};
