@@ -73,7 +73,7 @@ body:
     attributes:
       label: 软件版本 (Software Version)
       description: 提供触发此问题时的 Osmium 完整版本号
-      placeholder: 例如：v1.0.0
+      placeholder: 例如：v1.0.2
     validations:
       required: true
 

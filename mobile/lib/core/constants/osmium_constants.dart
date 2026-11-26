@@ -3,9 +3,9 @@ class OsmiumConstants {
 
   static const String defaultSignalingUrl = 'wss://osmium.fufu.skin';
   static const String defaultApiBaseUrl = 'https://osmium.fufu.skin';
-  static const String protocolVersion = '1.0.1';
-  static const String minimumSupportedVersion = '1.0.1';
-  static const String userAgent = 'Osmium-Mobile/1.0.1';
+  static const String protocolVersion = '1.0.2';
+  static const String minimumSupportedVersion = '1.0.2';
+  static const String userAgent = 'Osmium-Mobile/1.0.2';
 
   static bool isVersionSupported(String? raw) {
     if (raw == null) return false;
@@ -17,7 +17,7 @@ class OsmiumConstants {
     final pat = int.parse(m.group(3) ?? '0');
     if (maj != 1) return maj > 1;
     if (min != 0) return min > 0;
-    return pat >= 1;
+    return pat >= 2;
   }
 
   /// Frame-rate choices supported by the Windows host.
