@@ -24,11 +24,13 @@ internal static class StartupHelper
 
     public static bool IsServiceAutoStartEnabled() => ServiceAutoStartHelper.IsServiceAutoStartEnabled();
 
-    public static async Task<bool> EnableServiceAutoStartAsync(AccountService account, string dataDir)
+    public static async Task<bool> EnableServiceAutoStartAsync(AccountService account, SettingsService settings)
     {
         try
         {
+            string dataDir = settings.DataDirectory;
             account.StageServiceSessionForElevation();
+            settings.StageServiceIdentityForElevation();
             string? ownerSid = ServiceAutoStartHelper.GetCurrentUserSidString();
 
             bool ok;

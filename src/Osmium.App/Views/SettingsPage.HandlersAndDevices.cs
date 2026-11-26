@@ -487,7 +487,7 @@ public sealed partial class SettingsPage : Page
             {
                 ok = await StartupHelper.EnableServiceAutoStartAsync(
                     App.Engine.AccountService,
-                    App.Engine.SettingsService.DataDirectory);
+                    App.Engine.SettingsService);
             }
             else
             {

@@ -1,11 +1,19 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Osmium.Core.Helpers;
 using Osmium.Core.Models;
 
 namespace Osmium.Core.Services;
 
 public sealed class SettingsService
 {
+    public const string IdentityFileName = "osmium_identity.dat";
+    private const string LegacyIdentityFileName = "identity.json";
+    private static readonly byte[] IdentityEntropyBytes = Encoding.UTF8.GetBytes("Osmium.Device.Identity.v1");
+    private static readonly byte[] ServiceIdentityEntropyBytes = Encoding.UTF8.GetBytes("Osmium.Device.ServiceIdentity.v1");
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -16,6 +24,7 @@ public sealed class SettingsService
     private readonly string _dataDir;
     private readonly string _settingsPath;
     private readonly string _identityPath;
+    private readonly string _legacyIdentityPath;
     private readonly bool _isServiceHostMode;
     private readonly object _lock = new();
 
@@ -54,7 +63,10 @@ public sealed class SettingsService
 
         Directory.CreateDirectory(_dataDir);
         _settingsPath = Path.Combine(_dataDir, "settings.json");
-        _identityPath = Path.Combine(_dataDir, "identity.json");
+        _identityPath = Path.Combine(
+            _dataDir,
+            _isServiceHostMode ? ServiceAutoStartHelper.ServiceIdentityFileName : IdentityFileName);
+        _legacyIdentityPath = Path.Combine(_dataDir, LegacyIdentityFileName);
 
         Load();
     }
@@ -91,22 +103,13 @@ public sealed class SettingsService
                 Settings.SettingsSchemaVersion = 2;
             }
 
-            if (File.Exists(_identityPath))
+            DeviceIdentity? loadedIdentity = TryLoadEncryptedIdentity(_identityPath, _isServiceHostMode);
+            if (loadedIdentity == null && File.Exists(_legacyIdentityPath))
             {
-                try
-                {
-                    string json = File.ReadAllText(_identityPath);
-                    Identity = JsonSerializer.Deserialize<DeviceIdentity>(json, JsonOptions) ?? new DeviceIdentity();
-                }
-                catch
-                {
-                    Identity = new DeviceIdentity();
-                }
+                loadedIdentity = TryLoadLegacyPlaintextIdentity(_legacyIdentityPath);
             }
-            else
-            {
-                Identity = new DeviceIdentity();
-            }
+
+            Identity = loadedIdentity ?? new DeviceIdentity();
 
             if (Identity.RefreshPolicy == AccessCodeRefreshPolicy.OnAppStartup)
             {
@@ -136,12 +139,129 @@ public sealed class SettingsService
     {
         lock (_lock)
         {
-            string json = JsonSerializer.Serialize(Identity, JsonOptions);
-            File.WriteAllText(_identityPath, json);
-            if (!_isServiceHostMode)
+            byte[] plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(Identity, JsonOptions));
+            bool encryptedSaved = false;
+            try
             {
-                ServiceAutoStartHelper.SyncProfileFileToService(_identityPath, "identity.json");
+                if (_isServiceHostMode)
+                {
+                    byte[]? svcCipher = DpapiStorageHelper.ProtectBytes(
+                        plain,
+                        ServiceIdentityEntropyBytes,
+                        "OsmiumServiceIdentity",
+                        localMachineScope: true);
+                    if (svcCipher != null)
+                    {
+                        DpapiStorageHelper.WriteBytesAtomic(_identityPath, svcCipher);
+                        encryptedSaved = true;
+                    }
+                }
+                else
+                {
+                    byte[]? cipher = DpapiStorageHelper.ProtectBytes(
+                        plain,
+                        IdentityEntropyBytes,
+                        "OsmiumDeviceIdentity",
+                        localMachineScope: false);
+                    if (cipher != null)
+                    {
+                        DpapiStorageHelper.WriteBytesAtomic(_identityPath, cipher);
+                        encryptedSaved = true;
+                    }
+
+                    if (ServiceAutoStartHelper.IsServiceAutoStartEnabled())
+                    {
+                        byte[]? svcCipher = DpapiStorageHelper.ProtectBytes(
+                            plain,
+                            ServiceIdentityEntropyBytes,
+                            "OsmiumServiceIdentity",
+                            localMachineScope: true);
+                        if (svcCipher != null)
+                        {
+                            ServiceAutoStartHelper.WriteServiceIdentityBytes(svcCipher);
+                        }
+                    }
+                }
             }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(plain);
+            }
+
+            if (encryptedSaved && File.Exists(_legacyIdentityPath))
+            {
+                DpapiStorageHelper.SecureDeleteFile(_legacyIdentityPath);
+            }
+        }
+    }
+
+    public void StageServiceIdentityForElevation()
+    {
+        if (_isServiceHostMode) return;
+        lock (_lock)
+        {
+            byte[] plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(Identity, JsonOptions));
+            try
+            {
+                byte[]? svcCipher = DpapiStorageHelper.ProtectBytes(
+                    plain,
+                    ServiceIdentityEntropyBytes,
+                    "OsmiumServiceIdentity",
+                    localMachineScope: true);
+                if (svcCipher != null)
+                {
+                    string stagedPath = Path.Combine(_dataDir, ServiceAutoStartHelper.ServiceIdentityFileName);
+                    DpapiStorageHelper.WriteBytesAtomic(stagedPath, svcCipher);
+                }
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(plain);
+            }
+        }
+    }
+
+    private static DeviceIdentity? TryLoadEncryptedIdentity(string path, bool isServiceHostMode)
+    {
+        try
+        {
+            if (!File.Exists(path)) return null;
+            byte[] cipher = File.ReadAllBytes(path);
+            if (cipher.Length == 0) return null;
+
+            byte[]? plain = DpapiStorageHelper.UnprotectBytes(
+                cipher,
+                isServiceHostMode ? ServiceIdentityEntropyBytes : IdentityEntropyBytes);
+            if (plain == null || plain.Length == 0) return null;
+
+            string json;
+            try
+            {
+                json = Encoding.UTF8.GetString(plain);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(plain);
+            }
+
+            return JsonSerializer.Deserialize<DeviceIdentity>(json, JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static DeviceIdentity? TryLoadLegacyPlaintextIdentity(string path)
+    {
+        try
+        {
+            string json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<DeviceIdentity>(json, JsonOptions);
+        }
+        catch
+        {
+            return null;
         }
     }
 

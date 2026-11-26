@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
+using Osmium.Core.Helpers;
 using Osmium.Core.Interop;
 
 namespace Osmium.Core.Services;
@@ -12,6 +13,7 @@ public static partial class ServiceAutoStartHelper
     public const string RegistryEnabledValue = "ServiceAutoStart";
     public const string RegistryDataDirValue = "ServiceDataDir";
     public const string ServiceSessionFileName = "osmium_account_session.svc.dat";
+    public const string ServiceIdentityFileName = "osmium_identity.svc.dat";
 
     public const string DesktopUiActiveMutexName = @"Global\OsmiumDesktopUiActive";
     public const string ServiceHostYieldEventName = @"Global\OsmiumServiceHostYield";
@@ -196,21 +198,23 @@ public static partial class ServiceAutoStartHelper
             if (!string.IsNullOrWhiteSpace(sourceDataDir) && Directory.Exists(sourceDataDir))
             {
                 CopyFileAtomicSafe(Path.Combine(sourceDataDir, "settings.json"), Path.Combine(profileDir, "settings.json"));
-                CopyFileAtomicSafe(Path.Combine(sourceDataDir, "identity.json"), Path.Combine(profileDir, "identity.json"));
                 string wallpaper = WindowsWallpaperHelper.PrivacyWallpaperFileName;
                 CopyFileAtomicSafe(Path.Combine(sourceDataDir, wallpaper), Path.Combine(profileDir, wallpaper));
+
+                string stagedSvcIdentity = Path.Combine(sourceDataDir, ServiceIdentityFileName);
+                if (File.Exists(stagedSvcIdentity))
+                {
+                    CopyFileAtomicSafe(stagedSvcIdentity, Path.Combine(profileDir, ServiceIdentityFileName));
+                    DpapiStorageHelper.SecureDeleteFile(stagedSvcIdentity);
+                }
+
+                DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, "identity.json"));
 
                 string stagedSvcSession = Path.Combine(sourceDataDir, ServiceSessionFileName);
                 if (File.Exists(stagedSvcSession))
                 {
                     CopyFileAtomicSafe(stagedSvcSession, Path.Combine(profileDir, ServiceSessionFileName));
-                    try
-                    {
-                        File.Delete(stagedSvcSession);
-                    }
-                    catch
-                    {
-                    }
+                    DpapiStorageHelper.SecureDeleteFile(stagedSvcSession);
                 }
             }
 
@@ -247,17 +251,9 @@ public static partial class ServiceAutoStartHelper
             SignalEventByName(ServiceHostStopEventName);
 
             string profileDir = GetServiceProfileDirectory();
-            string svcSessionPath = Path.Combine(profileDir, ServiceSessionFileName);
-            if (File.Exists(svcSessionPath))
-            {
-                try
-                {
-                    File.Delete(svcSessionPath);
-                }
-                catch
-                {
-                }
-            }
+            DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, ServiceSessionFileName));
+            DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, ServiceIdentityFileName));
+            DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, "identity.json"));
 
             return true;
         }
@@ -277,6 +273,35 @@ public static partial class ServiceAutoStartHelper
             string profileDir = GetServiceProfileDirectory();
             if (!Directory.Exists(profileDir)) return;
             CopyFileAtomicSafe(sourceFilePath, Path.Combine(profileDir, targetFileName));
+        }
+        catch
+        {
+        }
+    }
+
+    public static void WriteServiceIdentityBytes(byte[] protectedBytes)
+    {
+        if (!IsServiceAutoStartEnabled()) return;
+        try
+        {
+            string profileDir = GetServiceProfileDirectory();
+            if (!Directory.Exists(profileDir)) return;
+            string target = Path.Combine(profileDir, ServiceIdentityFileName);
+            DpapiStorageHelper.WriteBytesAtomic(target, protectedBytes);
+            DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, "identity.json"));
+        }
+        catch
+        {
+        }
+    }
+
+    public static void RemoveServiceIdentityFile()
+    {
+        try
+        {
+            string profileDir = GetServiceProfileDirectory();
+            DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, ServiceIdentityFileName));
+            DpapiStorageHelper.SecureDeleteFile(Path.Combine(profileDir, "identity.json"));
         }
         catch
         {
