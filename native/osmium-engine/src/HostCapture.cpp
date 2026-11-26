@@ -341,6 +341,17 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_StagingTex.Reset();
         m_StagingFmt = DXGI_FORMAT_UNKNOWN;
         m_Nv12 = {};
+        m_DxgiPointerSeen = false;
+        m_DxgiPointerVisible = false;
+        m_DxgiPointerHasShape = false;
+        m_DxgiPointerX = 0;
+        m_DxgiPointerY = 0;
+        m_DxgiPointerW = 0;
+        m_DxgiPointerH = 0;
+        m_DxgiPointerShapeGen = 0;
+        m_DxgiPointerRawBuf.clear();
+        m_DxgiPointerBlack.clear();
+        m_DxgiPointerWhite.clear();
         m_Context.Reset();
         m_Device.Reset();
     }
@@ -358,12 +369,20 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_GdiFallbackUntilMs = 0;
     }
 
-    bool HostCapture::EnsureCursorScratch()
+    bool HostCapture::EnsureCursorScratch(int minSize)
     {
-        if (m_CursorBlackDc && m_CursorBlackBits && m_CursorWhiteDc && m_CursorWhiteBits)
+        const int clampedReq = std::clamp(minSize, kMinCursorBoxSize, kMaxCursorBoxSize);
+        if (m_CursorBlackDc && m_CursorBlackBits && m_CursorWhiteDc && m_CursorWhiteBits &&
+            m_CursorScratchSize >= clampedReq)
         {
             return true;
         }
+        int targetSize = kMinCursorBoxSize;
+        while (targetSize < clampedReq && targetSize < kMaxCursorBoxSize)
+        {
+            targetSize *= 2;
+        }
+        targetSize = std::min(targetSize, kMaxCursorBoxSize);
         ReleaseCursorScratch();
 
         m_CursorScreenDc = GetDC(nullptr);
@@ -371,8 +390,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         BITMAPINFO bmi{};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = kCursorBoxSize;
-        bmi.bmiHeader.biHeight = -kCursorBoxSize;
+        bmi.bmiHeader.biWidth = targetSize;
+        bmi.bmiHeader.biHeight = -targetSize;
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = BI_RGB;
@@ -397,6 +416,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         m_CursorBlackOld = SelectObject(m_CursorBlackDc, m_CursorBlackBmp);
         m_CursorWhiteOld = SelectObject(m_CursorWhiteDc, m_CursorWhiteBmp);
+        m_CursorScratchSize = targetSize;
         return true;
     }
 
@@ -419,8 +439,269 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_CursorWhiteBmp = nullptr;
         m_CursorWhiteOld = nullptr;
         m_CursorWhiteBits = nullptr;
+        m_CursorScratchSize = 0;
         m_CursorPrevBlack.clear();
         m_CursorPrevWhite.clear();
+        m_GdiAniHandle = nullptr;
+        m_GdiAniStep = 0;
+        m_GdiAniLastStepMs = 0;
+        m_GdiAniProbedStatic = false;
+        m_GdiAniStep0Snapshot.clear();
+    }
+
+    bool HostCapture::QueryGdiCursorMetrics(HCURSOR hCursor, int& outHotX, int& outHotY, int& outW, int& outH) const
+    {
+        if (!hCursor) return false;
+        ICONINFO ii{};
+        if (!GetIconInfo(hCursor, &ii)) return false;
+        outHotX = static_cast<int>(ii.xHotspot);
+        outHotY = static_cast<int>(ii.yHotspot);
+
+        int bmpW = 0;
+        int bmpH = 0;
+        if (ii.hbmColor)
+        {
+            BITMAP bm{};
+            if (GetObjectW(ii.hbmColor, sizeof(bm), &bm) > 0)
+            {
+                bmpW = bm.bmWidth;
+                bmpH = std::abs(bm.bmHeight);
+            }
+        }
+        else if (ii.hbmMask)
+        {
+            BITMAP bm{};
+            if (GetObjectW(ii.hbmMask, sizeof(bm), &bm) > 0)
+            {
+                bmpW = bm.bmWidth;
+                bmpH = std::abs(bm.bmHeight) / 2;
+            }
+        }
+        if (ii.hbmMask) DeleteObject(ii.hbmMask);
+        if (ii.hbmColor) DeleteObject(ii.hbmColor);
+
+        const int sysW = GetSystemMetrics(SM_CXCURSOR);
+        const int sysH = GetSystemMetrics(SM_CYCURSOR);
+        outW = std::clamp(std::max({bmpW, sysW, 32}), 32, kMaxCursorBoxSize);
+        outH = std::clamp(std::max({bmpH, sysH, 32}), 32, kMaxCursorBoxSize);
+        return true;
+    }
+
+    UINT HostCapture::ResolveGdiAniStep(HCURSOR hCursor, int curW, int curH, uint64_t nowMs)
+    {
+        if (!hCursor) return 0;
+        if (hCursor != m_GdiAniHandle)
+        {
+            m_GdiAniHandle = hCursor;
+            m_GdiAniStep = 0;
+            m_GdiAniLastStepMs = nowMs;
+            m_GdiAniProbedStatic = false;
+            m_GdiAniStep0Snapshot.clear();
+            return 0;
+        }
+        if (m_GdiAniProbedStatic || (nowMs - m_GdiAniLastStepMs) < 66ULL)
+        {
+            return m_GdiAniStep;
+        }
+
+        m_GdiAniLastStepMs = nowMs;
+        if (!EnsureCursorScratch(std::max(curW, curH)))
+        {
+            return 0;
+        }
+
+        const int stride = m_CursorScratchSize;
+        if (m_GdiAniStep == 0 && m_GdiAniStep0Snapshot.empty())
+        {
+            for (int y = 0; y < curH; ++y)
+            {
+                std::memset(m_CursorBlackBits + static_cast<size_t>(y) * stride, 0x00, static_cast<size_t>(curW) * 4);
+            }
+            DrawIconEx(m_CursorBlackDc, 0, 0, hCursor, 0, 0, 0, nullptr, DI_NORMAL);
+            GdiFlush();
+            m_GdiAniStep0Snapshot.resize(static_cast<size_t>(curW) * static_cast<size_t>(curH));
+            for (int y = 0; y < curH; ++y)
+            {
+                std::memcpy(m_GdiAniStep0Snapshot.data() + static_cast<size_t>(y) * curW,
+                            m_CursorBlackBits + static_cast<size_t>(y) * stride,
+                            static_cast<size_t>(curW) * 4);
+            }
+        }
+
+        const UINT nextStep = m_GdiAniStep + 1U;
+        for (int y = 0; y < curH; ++y)
+        {
+            std::memset(m_CursorBlackBits + static_cast<size_t>(y) * stride, 0x00, static_cast<size_t>(curW) * 4);
+        }
+        if (!DrawIconEx(m_CursorBlackDc, 0, 0, hCursor, 0, 0, nextStep, nullptr, DI_NORMAL))
+        {
+            // Reached end of .ani frame sequence; loop back to frame 0.
+            m_GdiAniStep = 0;
+            return 0;
+        }
+        GdiFlush();
+
+        if (nextStep == 1U)
+        {
+            bool identical = (m_GdiAniStep0Snapshot.size() == static_cast<size_t>(curW) * static_cast<size_t>(curH));
+            for (int y = 0; identical && y < curH; ++y)
+            {
+                if (std::memcmp(m_GdiAniStep0Snapshot.data() + static_cast<size_t>(y) * curW,
+                                m_CursorBlackBits + static_cast<size_t>(y) * stride,
+                                static_cast<size_t>(curW) * 4) != 0)
+                {
+                    identical = false;
+                }
+            }
+            if (identical)
+            {
+                // Static .cur ignores istepIfAniCur; stop probing to avoid unnecessary GDI draws.
+                m_GdiAniProbedStatic = true;
+                m_GdiAniStep = 0;
+                m_GdiAniStep0Snapshot.clear();
+                return 0;
+            }
+        }
+
+        m_GdiAniStep = nextStep;
+        return m_GdiAniStep;
+    }
+
+    void HostCapture::UpdateDxgiPointer(const DXGI_OUTDUPL_FRAME_INFO& frameInfo)
+    {
+        if (!m_Duplication || frameInfo.LastMouseUpdateTime.QuadPart == 0)
+        {
+            return;
+        }
+
+        m_DxgiPointerSeen = true;
+        m_DxgiPointerVisible = (frameInfo.PointerPosition.Visible != FALSE);
+        m_DxgiPointerX = frameInfo.PointerPosition.Position.x;
+        m_DxgiPointerY = frameInfo.PointerPosition.Position.y;
+
+        if (frameInfo.PointerShapeBufferSize == 0)
+        {
+            return;
+        }
+
+        m_DxgiPointerRawBuf.resize(frameInfo.PointerShapeBufferSize);
+        UINT requiredSize = 0;
+        DXGI_OUTDUPL_POINTER_SHAPE_INFO shapeInfo{};
+        HRESULT hr = m_Duplication->GetFramePointerShape(
+            frameInfo.PointerShapeBufferSize,
+            m_DxgiPointerRawBuf.data(),
+            &requiredSize,
+            &shapeInfo);
+        if (hr == DXGI_ERROR_MORE_DATA && requiredSize > 0)
+        {
+            m_DxgiPointerRawBuf.resize(requiredSize);
+            hr = m_Duplication->GetFramePointerShape(
+                requiredSize,
+                m_DxgiPointerRawBuf.data(),
+                &requiredSize,
+                &shapeInfo);
+        }
+        if (FAILED(hr) || requiredSize == 0 || shapeInfo.Width == 0 || shapeInfo.Height == 0)
+        {
+            return;
+        }
+
+        const bool isMono = (shapeInfo.Type == DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MONOCHROME);
+        const int curW = static_cast<int>(shapeInfo.Width);
+        const int curH = isMono ? static_cast<int>(shapeInfo.Height / 2U) : static_cast<int>(shapeInfo.Height);
+        if (curW <= 0 || curH <= 0 || curW > kMaxCursorBoxSize || curH > kMaxCursorBoxSize)
+        {
+            return;
+        }
+
+        const size_t pixelCount = static_cast<size_t>(curW) * static_cast<size_t>(curH);
+        m_DxgiPointerBlack.assign(pixelCount, 0xFF000000U);
+        m_DxgiPointerWhite.assign(pixelCount, 0xFFFFFFFFU);
+
+        const uint8_t* raw = m_DxgiPointerRawBuf.data();
+        const size_t pitch = shapeInfo.Pitch;
+        if (isMono)
+        {
+            if (pitch * static_cast<size_t>(curH) * 2U > requiredSize) return;
+            for (int y = 0; y < curH; ++y)
+            {
+                const uint8_t* andRow = raw + static_cast<size_t>(y) * pitch;
+                const uint8_t* xorRow = raw + static_cast<size_t>(y + curH) * pitch;
+                for (int x = 0; x < curW; ++x)
+                {
+                    const uint8_t mask = static_cast<uint8_t>(0x80U >> (x & 7));
+                    const bool andBit = (andRow[x >> 3] & mask) != 0;
+                    const bool xorBit = (xorRow[x >> 3] & mask) != 0;
+                    const uint32_t bVal = xorBit ? 0xFFFFFFFFU : 0xFF000000U;
+                    const uint32_t wVal = (andBit != xorBit) ? 0xFFFFFFFFU : 0xFF000000U;
+                    const size_t idx = static_cast<size_t>(y) * curW + x;
+                    m_DxgiPointerBlack[idx] = bVal;
+                    m_DxgiPointerWhite[idx] = wVal;
+                }
+            }
+        }
+        else if (shapeInfo.Type == DXGI_OUTDUPL_POINTER_SHAPE_TYPE_COLOR)
+        {
+            if (pitch * static_cast<size_t>(curH) > requiredSize) return;
+            for (int y = 0; y < curH; ++y)
+            {
+                const uint8_t* row = raw + static_cast<size_t>(y) * pitch;
+                for (int x = 0; x < curW; ++x)
+                {
+                    const uint8_t sb = row[x * 4 + 0];
+                    const uint8_t sg = row[x * 4 + 1];
+                    const uint8_t sr = row[x * 4 + 2];
+                    const uint8_t sa = row[x * 4 + 3];
+                    const uint32_t invA = 255U - sa;
+                    const uint32_t bb = (static_cast<uint32_t>(sb) * sa + 127U) / 255U;
+                    const uint32_t bg = (static_cast<uint32_t>(sg) * sa + 127U) / 255U;
+                    const uint32_t br = (static_cast<uint32_t>(sr) * sa + 127U) / 255U;
+                    const uint32_t wb = std::min<uint32_t>(255U, bb + invA);
+                    const uint32_t wg = std::min<uint32_t>(255U, bg + invA);
+                    const uint32_t wr = std::min<uint32_t>(255U, br + invA);
+                    const size_t idx = static_cast<size_t>(y) * curW + x;
+                    m_DxgiPointerBlack[idx] = bb | (bg << 8) | (br << 16) | 0xFF000000U;
+                    m_DxgiPointerWhite[idx] = wb | (wg << 8) | (wr << 16) | 0xFF000000U;
+                }
+            }
+        }
+        else if (shapeInfo.Type == DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MASKED_COLOR)
+        {
+            if (pitch * static_cast<size_t>(curH) > requiredSize) return;
+            for (int y = 0; y < curH; ++y)
+            {
+                const uint8_t* row = raw + static_cast<size_t>(y) * pitch;
+                for (int x = 0; x < curW; ++x)
+                {
+                    const uint8_t sb = row[x * 4 + 0];
+                    const uint8_t sg = row[x * 4 + 1];
+                    const uint8_t sr = row[x * 4 + 2];
+                    const uint8_t mask = row[x * 4 + 3];
+                    const size_t idx = static_cast<size_t>(y) * curW + x;
+                    if (mask == 0)
+                    {
+                        const uint32_t opaque = uint32_t(sb) | (uint32_t(sg) << 8) | (uint32_t(sr) << 16) | 0xFF000000U;
+                        m_DxgiPointerBlack[idx] = opaque;
+                        m_DxgiPointerWhite[idx] = opaque;
+                    }
+                    else
+                    {
+                        m_DxgiPointerBlack[idx] = uint32_t(sb) | (uint32_t(sg) << 8) | (uint32_t(sr) << 16) | 0xFF000000U;
+                        m_DxgiPointerWhite[idx] = uint32_t(255U - sb) | (uint32_t(255U - sg) << 8) |
+                            (uint32_t(255U - sr) << 16) | 0xFF000000U;
+                    }
+                }
+            }
+        }
+        else
+        {
+            return;
+        }
+
+        m_DxgiPointerW = curW;
+        m_DxgiPointerH = curH;
+        m_DxgiPointerHasShape = true;
+        ++m_DxgiPointerShapeGen;
     }
 
     bool HostCapture::RefreshMonitorBoundsForGdi()
@@ -989,13 +1270,63 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         return true;
     }
 
+    bool HostCapture::EnsureGpuCursorTextures(int minWidth, int minHeight)
+    {
+        auto& nv12 = m_Nv12;
+        if (!m_Device) return false;
+        const int reqW = std::clamp(minWidth, kMinCursorBoxSize, kMaxCursorBoxSize);
+        const int reqH = std::clamp(minHeight, kMinCursorBoxSize, kMaxCursorBoxSize);
+        if (nv12.cursorBlackTex && nv12.cursorBlackSrv &&
+            nv12.cursorWhiteTex && nv12.cursorWhiteSrv &&
+            nv12.cursorTexWidth >= reqW && nv12.cursorTexHeight >= reqH)
+        {
+            return true;
+        }
+
+        int texW = kMinCursorBoxSize;
+        while (texW < reqW && texW < kMaxCursorBoxSize) texW *= 2;
+        int texH = kMinCursorBoxSize;
+        while (texH < reqH && texH < kMaxCursorBoxSize) texH *= 2;
+        texW = std::min(texW, kMaxCursorBoxSize);
+        texH = std::min(texH, kMaxCursorBoxSize);
+
+        nv12.cursorBlackSrv.Reset();
+        nv12.cursorBlackTex.Reset();
+        nv12.cursorWhiteSrv.Reset();
+        nv12.cursorWhiteTex.Reset();
+        nv12.cursorTexWidth = 0;
+        nv12.cursorTexHeight = 0;
+        nv12.uploadedDxgiShapeGen = 0;
+        nv12.uploadedCursorHandle = nullptr;
+
+        D3D11_TEXTURE2D_DESC ctd{};
+        ctd.Width = static_cast<UINT>(texW);
+        ctd.Height = static_cast<UINT>(texH);
+        ctd.MipLevels = 1;
+        ctd.ArraySize = 1;
+        ctd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        ctd.SampleDesc.Count = 1;
+        ctd.Usage = D3D11_USAGE_DEFAULT;
+        ctd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        if (FAILED(m_Device->CreateTexture2D(&ctd, nullptr, &nv12.cursorBlackTex)) ||
+            FAILED(m_Device->CreateShaderResourceView(nv12.cursorBlackTex.Get(), nullptr, &nv12.cursorBlackSrv)) ||
+            FAILED(m_Device->CreateTexture2D(&ctd, nullptr, &nv12.cursorWhiteTex)) ||
+            FAILED(m_Device->CreateShaderResourceView(nv12.cursorWhiteTex.Get(), nullptr, &nv12.cursorWhiteSrv)))
+        {
+            return false;
+        }
+
+        nv12.cursorTexWidth = texW;
+        nv12.cursorTexHeight = texH;
+        return true;
+    }
+
     bool HostCapture::EnsureGpuCursorPipeline()
     {
         auto& nv12 = m_Nv12;
         if (!m_Device || !m_Context) return false;
         if (nv12.cursorVs && nv12.cursorPs && nv12.cursorCb &&
-            nv12.cursorBlackTex && nv12.cursorBlackSrv &&
-            nv12.cursorWhiteTex && nv12.cursorWhiteSrv)
+            EnsureGpuCursorTextures(kMinCursorBoxSize, kMinCursorBoxSize))
         {
             return true;
         }
@@ -1023,23 +1354,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         if (FAILED(m_Device->CreateBuffer(&cbd, nullptr, &nv12.cursorCb))) return false;
 
-        D3D11_TEXTURE2D_DESC ctd{};
-        ctd.Width = kCursorBoxSize;
-        ctd.Height = kCursorBoxSize;
-        ctd.MipLevels = 1;
-        ctd.ArraySize = 1;
-        ctd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-        ctd.SampleDesc.Count = 1;
-        ctd.Usage = D3D11_USAGE_DEFAULT;
-        ctd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        if (FAILED(m_Device->CreateTexture2D(&ctd, nullptr, &nv12.cursorBlackTex)) ||
-            FAILED(m_Device->CreateShaderResourceView(nv12.cursorBlackTex.Get(), nullptr, &nv12.cursorBlackSrv)) ||
-            FAILED(m_Device->CreateTexture2D(&ctd, nullptr, &nv12.cursorWhiteTex)) ||
-            FAILED(m_Device->CreateShaderResourceView(nv12.cursorWhiteTex.Get(), nullptr, &nv12.cursorWhiteSrv)))
-        {
-            return false;
-        }
-        return true;
+        return EnsureGpuCursorTextures(kMinCursorBoxSize, kMinCursorBoxSize);
     }
 
     bool HostCapture::DrawGpuCursorOntoInput(bool freshFrame, bool& outChanged)
@@ -1070,89 +1385,166 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             }
         };
 
-        CURSORINFO ci{};
-        ci.cbSize = sizeof(ci);
-        const bool cursorShowing = GetCursorInfo(&ci) && ((ci.flags & CURSOR_SHOWING) != 0) && (ci.hCursor != nullptr);
-        if (!cursorShowing)
-        {
-            if (!freshFrame && nv12.hasDrawnCursor)
-            {
-                restoreOldBox();
-                outChanged = true;
-            }
-            return true;
-        }
-
-        const int cx = ci.ptScreenPos.x - m_DesktopRect.left;
-        const int cy = ci.ptScreenPos.y - m_DesktopRect.top;
-        if (cx < -kCursorBoxSize || cy < -kCursorBoxSize ||
-            cx >= nv12.sourceWidth + kCursorBoxSize || cy >= nv12.sourceHeight + kCursorBoxSize)
-        {
-            if (!freshFrame && nv12.hasDrawnCursor)
-            {
-                restoreOldBox();
-                outChanged = true;
-            }
-            return true;
-        }
-
-        const uint64_t nowMs = NowMillis();
         bool shapeUpdated = false;
-        const bool handleChanged = (ci.hCursor != nv12.uploadedCursorHandle);
-        const bool animCheckDue = (!handleChanged && (nowMs - nv12.uploadedCursorMs) >= 120ULL);
-        if (handleChanged || animCheckDue)
+        int drawX = 0;
+        int drawY = 0;
+        int curW = 0;
+        int curH = 0;
+        bool cursorVisible = false;
+
+        // Prefer native DXGI hardware pointer shape: delivers exact DWM .ani animation frames,
+        // Windows Accessibility oversized pointers (up to 512x512), and avoids double-cursoring
+        // when DWM already composites software cursors into the desktop surface.
+        if (m_DxgiPointerSeen && (!m_DxgiPointerVisible || m_DxgiPointerHasShape))
         {
-            if (!EnsureCursorScratch()) return false;
-            if (handleChanged)
+            cursorVisible = m_DxgiPointerVisible && m_DxgiPointerHasShape;
+            if (cursorVisible)
             {
-                ICONINFO ii{};
-                if (!GetIconInfo(ci.hCursor, &ii))
+                drawX = m_DxgiPointerX;
+                drawY = m_DxgiPointerY;
+                curW = m_DxgiPointerW;
+                curH = m_DxgiPointerH;
+                if (!EnsureGpuCursorTextures(curW, curH)) return false;
+
+                if (!nv12.uploadedFromDxgi || nv12.uploadedDxgiShapeGen != m_DxgiPointerShapeGen)
                 {
-                    if (!freshFrame && nv12.hasDrawnCursor)
-                    {
-                        restoreOldBox();
-                        outChanged = true;
-                    }
-                    return true;
+                    D3D11_BOX dstBox{0, 0, 0, static_cast<UINT>(curW), static_cast<UINT>(curH), 1};
+                    m_Context->UpdateSubresource(nv12.cursorBlackTex.Get(), 0, &dstBox,
+                                                 m_DxgiPointerBlack.data(), static_cast<UINT>(curW) * 4, 0);
+                    m_Context->UpdateSubresource(nv12.cursorWhiteTex.Get(), 0, &dstBox,
+                                                 m_DxgiPointerWhite.data(), static_cast<UINT>(curW) * 4, 0);
+                    nv12.uploadedFromDxgi = true;
+                    nv12.uploadedDxgiShapeGen = m_DxgiPointerShapeGen;
+                    nv12.activeCursorW = curW;
+                    nv12.activeCursorH = curH;
+                    shapeUpdated = true;
                 }
-                nv12.uploadedHotX = static_cast<int>(ii.xHotspot);
-                nv12.uploadedHotY = static_cast<int>(ii.yHotspot);
-                if (ii.hbmMask) DeleteObject(ii.hbmMask);
-                if (ii.hbmColor) DeleteObject(ii.hbmColor);
             }
-
-            constexpr size_t kBoxPixels = static_cast<size_t>(kCursorBoxSize) * static_cast<size_t>(kCursorBoxSize);
-            constexpr size_t kBoxBytes = kBoxPixels * 4;
-            std::memset(m_CursorBlackBits, 0x00, kBoxBytes);
-            std::memset(m_CursorWhiteBits, 0xFF, kBoxBytes);
-            DrawIconEx(m_CursorBlackDc, 0, 0, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
-            DrawIconEx(m_CursorWhiteDc, 0, 0, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
-            GdiFlush();
-
-            const bool pixelsChanged = handleChanged ||
-                m_CursorPrevBlack.size() != kBoxPixels ||
-                m_CursorPrevWhite.size() != kBoxPixels ||
-                std::memcmp(m_CursorPrevBlack.data(), m_CursorBlackBits, kBoxBytes) != 0 ||
-                std::memcmp(m_CursorPrevWhite.data(), m_CursorWhiteBits, kBoxBytes) != 0;
-
-            nv12.uploadedCursorHandle = ci.hCursor;
-            nv12.uploadedCursorMs = nowMs;
-            if (pixelsChanged)
+        }
+        else
+        {
+            // Fallback before DXGI delivers its first mouse update (uses dynamic size + .ani stepping).
+            CURSORINFO ci{};
+            ci.cbSize = sizeof(ci);
+            const bool gdiShowing = GetCursorInfo(&ci) && ((ci.flags & CURSOR_SHOWING) != 0) && (ci.hCursor != nullptr);
+            if (gdiShowing)
             {
-                m_CursorPrevBlack.assign(m_CursorBlackBits, m_CursorBlackBits + kBoxPixels);
-                m_CursorPrevWhite.assign(m_CursorWhiteBits, m_CursorWhiteBits + kBoxPixels);
-                m_Context->UpdateSubresource(nv12.cursorBlackTex.Get(), 0, nullptr, m_CursorBlackBits, kCursorBoxSize * 4, 0);
-                m_Context->UpdateSubresource(nv12.cursorWhiteTex.Get(), 0, nullptr, m_CursorWhiteBits, kCursorBoxSize * 4, 0);
-                shapeUpdated = true;
+                const int cx = ci.ptScreenPos.x - m_DesktopRect.left;
+                const int cy = ci.ptScreenPos.y - m_DesktopRect.top;
+                if (cx >= -kMaxCursorBoxSize && cy >= -kMaxCursorBoxSize &&
+                    cx < nv12.sourceWidth + kMaxCursorBoxSize && cy < nv12.sourceHeight + kMaxCursorBoxSize)
+                {
+                    const uint64_t nowMs = NowMillis();
+                    const bool handleChanged = nv12.uploadedFromDxgi || (ci.hCursor != nv12.uploadedCursorHandle);
+                    if (handleChanged)
+                    {
+                        int hotX = 0, hotY = 0, gw = 0, gh = 0;
+                        if (!QueryGdiCursorMetrics(ci.hCursor, hotX, hotY, gw, gh))
+                        {
+                            if (!freshFrame && nv12.hasDrawnCursor)
+                            {
+                                restoreOldBox();
+                                outChanged = true;
+                            }
+                            return true;
+                        }
+                        nv12.uploadedHotX = hotX;
+                        nv12.uploadedHotY = hotY;
+                        nv12.uploadedGdiW = gw;
+                        nv12.uploadedGdiH = gh;
+                    }
+
+                    curW = std::clamp(nv12.uploadedGdiW, 32, kMaxCursorBoxSize);
+                    curH = std::clamp(nv12.uploadedGdiH, 32, kMaxCursorBoxSize);
+                    const UINT prevStep = m_GdiAniStep;
+                    const UINT aniStep = ResolveGdiAniStep(ci.hCursor, curW, curH, nowMs);
+                    const bool aniAdvanced = (!handleChanged && aniStep != prevStep);
+                    const bool periodicCheck = (!handleChanged && !aniAdvanced && (nowMs - nv12.uploadedCursorMs) >= 120ULL);
+
+                    if (handleChanged || aniAdvanced || periodicCheck)
+                    {
+                        if (!EnsureCursorScratch(std::max(curW, curH)) || !EnsureGpuCursorTextures(curW, curH))
+                        {
+                            return false;
+                        }
+                        const int stride = m_CursorScratchSize;
+                        for (int y = 0; y < curH; ++y)
+                        {
+                            std::memset(m_CursorBlackBits + static_cast<size_t>(y) * stride, 0x00, static_cast<size_t>(curW) * 4);
+                            std::memset(m_CursorWhiteBits + static_cast<size_t>(y) * stride, 0xFF, static_cast<size_t>(curW) * 4);
+                        }
+                        DrawIconEx(m_CursorBlackDc, 0, 0, ci.hCursor, 0, 0, aniStep, nullptr, DI_NORMAL);
+                        DrawIconEx(m_CursorWhiteDc, 0, 0, ci.hCursor, 0, 0, aniStep, nullptr, DI_NORMAL);
+                        GdiFlush();
+
+                        const size_t tightCount = static_cast<size_t>(curW) * static_cast<size_t>(curH);
+                        bool pixelsChanged = handleChanged || aniAdvanced ||
+                            m_CursorPrevBlack.size() != tightCount || m_CursorPrevWhite.size() != tightCount;
+                        if (!pixelsChanged)
+                        {
+                            for (int y = 0; y < curH; ++y)
+                            {
+                                if (std::memcmp(m_CursorPrevBlack.data() + static_cast<size_t>(y) * curW,
+                                                m_CursorBlackBits + static_cast<size_t>(y) * stride,
+                                                static_cast<size_t>(curW) * 4) != 0 ||
+                                    std::memcmp(m_CursorPrevWhite.data() + static_cast<size_t>(y) * curW,
+                                                m_CursorWhiteBits + static_cast<size_t>(y) * stride,
+                                                static_cast<size_t>(curW) * 4) != 0)
+                                {
+                                    pixelsChanged = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        nv12.uploadedFromDxgi = false;
+                        nv12.uploadedCursorHandle = ci.hCursor;
+                        nv12.uploadedCursorMs = nowMs;
+                        nv12.activeCursorW = curW;
+                        nv12.activeCursorH = curH;
+                        if (pixelsChanged)
+                        {
+                            m_CursorPrevBlack.resize(tightCount);
+                            m_CursorPrevWhite.resize(tightCount);
+                            for (int y = 0; y < curH; ++y)
+                            {
+                                std::memcpy(m_CursorPrevBlack.data() + static_cast<size_t>(y) * curW,
+                                            m_CursorBlackBits + static_cast<size_t>(y) * stride,
+                                            static_cast<size_t>(curW) * 4);
+                                std::memcpy(m_CursorPrevWhite.data() + static_cast<size_t>(y) * curW,
+                                            m_CursorWhiteBits + static_cast<size_t>(y) * stride,
+                                            static_cast<size_t>(curW) * 4);
+                            }
+                            D3D11_BOX dstBox{0, 0, 0, static_cast<UINT>(curW), static_cast<UINT>(curH), 1};
+                            m_Context->UpdateSubresource(nv12.cursorBlackTex.Get(), 0, &dstBox,
+                                                         m_CursorPrevBlack.data(), static_cast<UINT>(curW) * 4, 0);
+                            m_Context->UpdateSubresource(nv12.cursorWhiteTex.Get(), 0, &dstBox,
+                                                         m_CursorPrevWhite.data(), static_cast<UINT>(curW) * 4, 0);
+                            shapeUpdated = true;
+                        }
+                    }
+
+                    drawX = cx - nv12.uploadedHotX;
+                    drawY = cy - nv12.uploadedHotY;
+                    cursorVisible = true;
+                }
             }
         }
 
-        const int drawX = cx - nv12.uploadedHotX;
-        const int drawY = cy - nv12.uploadedHotY;
+        if (!cursorVisible)
+        {
+            if (!freshFrame && nv12.hasDrawnCursor)
+            {
+                restoreOldBox();
+                outChanged = true;
+            }
+            return true;
+        }
+
         const int x0 = std::clamp(drawX, 0, nv12.sourceWidth);
         const int y0 = std::clamp(drawY, 0, nv12.sourceHeight);
-        const int x1 = std::clamp(drawX + kCursorBoxSize, 0, nv12.sourceWidth);
-        const int y1 = std::clamp(drawY + kCursorBoxSize, 0, nv12.sourceHeight);
+        const int x1 = std::clamp(drawX + curW, 0, nv12.sourceWidth);
+        const int y1 = std::clamp(drawY + curH, 0, nv12.sourceHeight);
         const bool inBounds = (x1 > x0 && y1 > y0);
 
         if (!freshFrame)
@@ -1492,6 +1884,10 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_LastDxgiFrameOrGdiProbeMs = NowMillis();
         m_InitialHdrTimeouts = 0;
 
+        // Capture native DWM pointer updates (handles .ani frames & Accessibility oversized pointers)
+        // while the DXGI duplication frame is held, even for pointer-only updates.
+        UpdateDxgiPointer(frameInfo);
+
         // A pointer-only update can reuse the desktop unless a previous readback failed.
         if (frameInfo.LastPresentTime.QuadPart == 0 && hasUsableCache && m_ConsecutiveDuplFailures == 0)
         {
@@ -1657,16 +2053,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         {
             CURSORINFO ci{};
             ci.cbSize = sizeof(ci);
-            if (GetCursorInfo(&ci) && (ci.flags & CURSOR_SHOWING))
+            if (GetCursorInfo(&ci) && (ci.flags & CURSOR_SHOWING) && ci.hCursor)
             {
-                ICONINFO ii{};
-                if (GetIconInfo(ci.hCursor, &ii))
+                int hotX = 0, hotY = 0, curW = 0, curH = 0;
+                if (QueryGdiCursorMetrics(ci.hCursor, hotX, hotY, curW, curH))
                 {
-                    int drawX = ci.ptScreenPos.x - m_DesktopRect.left - static_cast<int>(ii.xHotspot);
-                    int drawY = ci.ptScreenPos.y - m_DesktopRect.top - static_cast<int>(ii.yHotspot);
-                    DrawIconEx(hMem, drawX, drawY, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
-                    if (ii.hbmMask) DeleteObject(ii.hbmMask);
-                    if (ii.hbmColor) DeleteObject(ii.hbmColor);
+                    int drawX = ci.ptScreenPos.x - m_DesktopRect.left - hotX;
+                    int drawY = ci.ptScreenPos.y - m_DesktopRect.top - hotY;
+                    const UINT aniStep = ResolveGdiAniStep(ci.hCursor, curW, curH, NowMillis());
+                    DrawIconEx(hMem, drawX, drawY, ci.hCursor, 0, 0, aniStep, nullptr, DI_NORMAL);
                 }
             }
         }
@@ -1685,81 +2080,152 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
     void HostCapture::OverlayCursor(CapturedFrame& frame)
     {
+        auto pqToSrgbChan = [](double v) -> uint8_t
+        {
+            double c = std::clamp(v, 0.0, 1.0);
+            double s = (c <= 0.0031308) ? (12.92 * c) : (1.055 * std::pow(c, 1.0 / 2.4) - 0.055);
+            return static_cast<uint8_t>(std::clamp(std::lround(s * 255.0), 0L, 255L));
+        };
+        auto srgbToLin = [](uint8_t b) -> double
+        {
+            double s = static_cast<double>(b) / 255.0;
+            return (s <= 0.04045) ? (s / 12.92) : std::pow((s + 0.055) / 1.055, 2.4);
+        };
+        auto nitsToPq10 = [](double nits) -> uint32_t
+        {
+            constexpr double m1 = 0.1593017578125;
+            constexpr double m2 = 78.84375;
+            constexpr double c1 = 0.8359375;
+            constexpr double c2 = 18.8515625;
+            constexpr double c3 = 18.6875;
+            double L = std::clamp(nits / 10000.0, 0.0, 1.0);
+            if (L <= 1e-9) return 0U;
+            double Lm1 = std::pow(L, m1);
+            double pq = std::pow(std::clamp((c1 + c2 * Lm1) / (1.0 + c3 * Lm1), 0.0, 1.0), m2);
+            return static_cast<uint32_t>(std::clamp(std::lround(pq * 1023.0), 0L, 1023L));
+        };
+        auto pq10ToNits = [](uint32_t code) -> double
+        {
+            constexpr double m1 = 0.1593017578125;
+            constexpr double m2 = 78.84375;
+            constexpr double c1 = 0.8359375;
+            constexpr double c2 = 18.8515625;
+            constexpr double c3 = 18.6875;
+            double pq = static_cast<double>(code & 0x3FFU) / 1023.0;
+            if (pq <= 1e-6) return 0.0;
+            double p = std::pow(pq, 1.0 / m2);
+            double num = std::max(0.0, p - c1);
+            double den = std::max(1e-6, c2 - c3 * p);
+            return 10000.0 * std::pow(num / den, 1.0 / m1);
+        };
+
+        // Fast path when DXGI Desktop Duplication provides native pointer shape
+        // (supports .ani frames and Accessibility oversized cursors in HDR / BGRA modes too).
+        if (m_DxgiPointerSeen && (!m_DxgiPointerVisible || m_DxgiPointerHasShape))
+        {
+            if (!m_DxgiPointerVisible || !m_DxgiPointerHasShape) return;
+            const int drawX = m_DxgiPointerX;
+            const int drawY = m_DxgiPointerY;
+            const int curW = m_DxgiPointerW;
+            const int curH = m_DxgiPointerH;
+            const double whiteNits = std::max(1.0f, m_SdrWhiteScale) * 80.0;
+
+            auto blendChan = [](uint8_t dst, uint8_t b, uint8_t w) -> uint8_t
+            {
+                const int val = static_cast<int>(b) +
+                    (static_cast<int>(dst) * (static_cast<int>(w) - static_cast<int>(b)) + 127) / 255;
+                return static_cast<uint8_t>(std::clamp(val, 0, 255));
+            };
+
+            for (int y = 0; y < curH; ++y)
+            {
+                const int sy = drawY + y;
+                if (sy < 0 || sy >= frame.height) continue;
+                for (int x = 0; x < curW; ++x)
+                {
+                    const int sx = drawX + x;
+                    if (sx < 0 || sx >= frame.width) continue;
+                    const size_t idx = static_cast<size_t>(y) * curW + x;
+                    const uint32_t bp = m_DxgiPointerBlack[idx];
+                    const uint32_t wp = m_DxgiPointerWhite[idx];
+                    if (bp == 0xFF000000U && wp == 0xFFFFFFFFU) continue; // Fully transparent pixel
+
+                    uint8_t* dst = frame.pixels.data() + (static_cast<size_t>(sy) * frame.stride) +
+                        static_cast<size_t>(sx) * 4;
+                    const uint8_t bb = static_cast<uint8_t>(bp & 0xFFU);
+                    const uint8_t bg = static_cast<uint8_t>((bp >> 8) & 0xFFU);
+                    const uint8_t br = static_cast<uint8_t>((bp >> 16) & 0xFFU);
+                    const uint8_t wb = static_cast<uint8_t>(wp & 0xFFU);
+                    const uint8_t wg = static_cast<uint8_t>((wp >> 8) & 0xFFU);
+                    const uint8_t wr = static_cast<uint8_t>((wp >> 16) & 0xFFU);
+
+                    if (frame.isHdr10Pq)
+                    {
+                        uint32_t packed = *reinterpret_cast<const uint32_t*>(dst);
+                        double r20 = pq10ToNits(packed) / whiteNits;
+                        double g20 = pq10ToNits(packed >> 10) / whiteNits;
+                        double b20 = pq10ToNits(packed >> 20) / whiteNits;
+                        double r709 = 1.660491 * r20 - 0.587641 * g20 - 0.072850 * b20;
+                        double g709 = -0.124550 * r20 + 1.132900 * g20 - 0.008349 * b20;
+                        double b709 = -0.018151 * r20 - 0.100579 * g20 + 1.118730 * b20;
+                        const uint8_t ob = blendChan(pqToSrgbChan(b709), bb, wb);
+                        const uint8_t og = blendChan(pqToSrgbChan(g709), bg, wg);
+                        const uint8_t or_ = blendChan(pqToSrgbChan(r709), br, wr);
+                        double nr709 = srgbToLin(or_) * whiteNits;
+                        double ng709 = srgbToLin(og) * whiteNits;
+                        double nb709 = srgbToLin(ob) * whiteNits;
+                        double nr20 = 0.6274040 * nr709 + 0.3292830 * ng709 + 0.0433130 * nb709;
+                        double ng20 = 0.0690970 * nr709 + 0.9195400 * ng709 + 0.0113620 * nb709;
+                        double nb20 = 0.0163916 * nr709 + 0.0880132 * ng709 + 0.8955950 * nb709;
+                        *reinterpret_cast<uint32_t*>(dst) =
+                            0xC0000000U | nitsToPq10(nr20) | (nitsToPq10(ng20) << 10) | (nitsToPq10(nb20) << 20);
+                    }
+                    else
+                    {
+                        dst[0] = blendChan(dst[0], bb, wb);
+                        dst[1] = blendChan(dst[1], bg, wg);
+                        dst[2] = blendChan(dst[2], br, wr);
+                        dst[3] = 0xFF;
+                    }
+                }
+            }
+            return;
+        }
+
         CURSORINFO ci{};
         ci.cbSize = sizeof(ci);
-        if (!GetCursorInfo(&ci) || !(ci.flags & CURSOR_SHOWING)) return;
+        if (!GetCursorInfo(&ci) || !(ci.flags & CURSOR_SHOWING) || !ci.hCursor) return;
 
         int cx = ci.ptScreenPos.x - m_DesktopRect.left;
         int cy = ci.ptScreenPos.y - m_DesktopRect.top;
-        if (cx < 0 || cy < 0 || cx >= frame.width || cy >= frame.height) return;
+        if (cx < -kMaxCursorBoxSize || cy < -kMaxCursorBoxSize ||
+            cx >= frame.width + kMaxCursorBoxSize || cy >= frame.height + kMaxCursorBoxSize) return;
 
-        ICONINFO ii{};
-        if (!GetIconInfo(ci.hCursor, &ii)) return;
-        int hotX = static_cast<int>(ii.xHotspot);
-        int hotY = static_cast<int>(ii.yHotspot);
-        if (ii.hbmMask) DeleteObject(ii.hbmMask);
-        if (ii.hbmColor) DeleteObject(ii.hbmColor);
+        int hotX = 0, hotY = 0, curW = 0, curH = 0;
+        if (!QueryGdiCursorMetrics(ci.hCursor, hotX, hotY, curW, curH)) return;
 
-        const int box = kCursorBoxSize;
         int drawX = cx - hotX;
         int drawY = cy - hotY;
 
-        if (!EnsureCursorScratch()) return;
+        if (!EnsureCursorScratch(std::max(curW, curH))) return;
+        const UINT aniStep = ResolveGdiAniStep(ci.hCursor, curW, curH, NowMillis());
         HDC hMem = m_CursorBlackDc;
         uint32_t* pixels = m_CursorBlackBits;
+        const int stride = m_CursorScratchSize;
         {
             std::vector<uint32_t> beforePatch;
             if (frame.isHdr10Pq)
             {
-                beforePatch.assign(static_cast<size_t>(box * box), 0U);
+                beforePatch.assign(static_cast<size_t>(curW) * static_cast<size_t>(curH), 0U);
             }
-
-            auto pqToSrgbChan = [](double v) -> uint8_t
-            {
-                double c = std::clamp(v, 0.0, 1.0);
-                double s = (c <= 0.0031308) ? (12.92 * c) : (1.055 * std::pow(c, 1.0 / 2.4) - 0.055);
-                return static_cast<uint8_t>(std::clamp(std::lround(s * 255.0), 0L, 255L));
-            };
-            auto srgbToLin = [](uint8_t b) -> double
-            {
-                double s = static_cast<double>(b) / 255.0;
-                return (s <= 0.04045) ? (s / 12.92) : std::pow((s + 0.055) / 1.055, 2.4);
-            };
-            auto nitsToPq10 = [](double nits) -> uint32_t
-            {
-                constexpr double m1 = 0.1593017578125;
-                constexpr double m2 = 78.84375;
-                constexpr double c1 = 0.8359375;
-                constexpr double c2 = 18.8515625;
-                constexpr double c3 = 18.6875;
-                double L = std::clamp(nits / 10000.0, 0.0, 1.0);
-                if (L <= 1e-9) return 0U;
-                double Lm1 = std::pow(L, m1);
-                double pq = std::pow(std::clamp((c1 + c2 * Lm1) / (1.0 + c3 * Lm1), 0.0, 1.0), m2);
-                return static_cast<uint32_t>(std::clamp(std::lround(pq * 1023.0), 0L, 1023L));
-            };
-            auto pq10ToNits = [](uint32_t code) -> double
-            {
-                constexpr double m1 = 0.1593017578125;
-                constexpr double m2 = 78.84375;
-                constexpr double c1 = 0.8359375;
-                constexpr double c2 = 18.8515625;
-                constexpr double c3 = 18.6875;
-                double pq = static_cast<double>(code & 0x3FFU) / 1023.0;
-                if (pq <= 1e-6) return 0.0;
-                double p = std::pow(pq, 1.0 / m2);
-                double num = std::max(0.0, p - c1);
-                double den = std::max(1e-6, c2 - c3 * p);
-                return 10000.0 * std::pow(num / den, 1.0 / m1);
-            };
 
             const double whiteNits = std::max(1.0f, m_SdrWhiteScale) * 80.0;
 
-            for (int y = 0; y < box; ++y)
+            for (int y = 0; y < curH; ++y)
             {
                 int sy = drawY + y;
                 if (sy < 0 || sy >= frame.height) continue;
-                for (int x = 0; x < box; ++x)
+                for (int x = 0; x < curW; ++x)
                 {
                     int sx = drawX + x;
                     if (sx < 0 || sx >= frame.width) continue;
@@ -1778,35 +2244,35 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                         uint8_t gb = pqToSrgbChan(g709);
                         uint8_t bb = pqToSrgbChan(b709);
                         uint32_t bg = uint32_t(bb) | (uint32_t(gb) << 8) | (uint32_t(rb) << 16) | 0xFF000000U;
-                        pixels[y * box + x] = bg;
-                        beforePatch[y * box + x] = bg;
+                        pixels[y * stride + x] = bg;
+                        beforePatch[static_cast<size_t>(y) * curW + x] = bg;
                     }
                     else
                     {
                         uint32_t bg = uint32_t(src[0]) | (uint32_t(src[1]) << 8) | (uint32_t(src[2]) << 16) |
                             0xFF000000U;
-                        pixels[y * box + x] = bg;
+                        pixels[y * stride + x] = bg;
                     }
                 }
             }
 
-            DrawIconEx(hMem, 0, 0, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
+            DrawIconEx(hMem, 0, 0, ci.hCursor, 0, 0, aniStep, nullptr, DI_NORMAL);
             GdiFlush();
 
-            for (int y = 0; y < box; ++y)
+            for (int y = 0; y < curH; ++y)
             {
                 int sy = drawY + y;
                 if (sy < 0 || sy >= frame.height) continue;
-                for (int x = 0; x < box; ++x)
+                for (int x = 0; x < curW; ++x)
                 {
                     int sx = drawX + x;
                     if (sx < 0 || sx >= frame.width) continue;
-                    uint32_t px = pixels[y * box + x];
+                    uint32_t px = pixels[y * stride + x];
                     uint8_t* dst = frame.pixels.data() + (static_cast<size_t>(sy) * frame.stride) + static_cast<size_t>(
                         sx) * 4;
                     if (frame.isHdr10Pq)
                     {
-                        if (px == beforePatch[y * box + x]) continue;
+                        if (px == beforePatch[static_cast<size_t>(y) * curW + x]) continue;
                         double r709 = srgbToLin(static_cast<uint8_t>((px >> 16) & 0xFF)) * whiteNits;
                         double g709 = srgbToLin(static_cast<uint8_t>((px >> 8) & 0xFF)) * whiteNits;
                         double b709 = srgbToLin(static_cast<uint8_t>(px & 0xFF)) * whiteNits;

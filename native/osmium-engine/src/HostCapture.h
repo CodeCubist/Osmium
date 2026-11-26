@@ -57,13 +57,18 @@ namespace osmium
         float GetSdrWhiteScale() const { return m_SdrWhiteScale; }
 
     private:
-        static constexpr int kCursorBoxSize = 64;
+        static constexpr int kMinCursorBoxSize = 64;
+        static constexpr int kMaxCursorBoxSize = 512;
 
         bool InitDuplication();
         void ReleaseD3DResources();
-        bool EnsureCursorScratch();
+        bool EnsureCursorScratch(int minSize);
         void ReleaseCursorScratch();
+        bool QueryGdiCursorMetrics(HCURSOR hCursor, int& outHotX, int& outHotY, int& outW, int& outH) const;
+        UINT ResolveGdiAniStep(HCURSOR hCursor, int curW, int curH, uint64_t nowMs);
+        void UpdateDxgiPointer(const DXGI_OUTDUPL_FRAME_INFO& frameInfo);
         bool EnsureGpuCursorPipeline();
+        bool EnsureGpuCursorTextures(int minWidth, int minHeight);
         bool DrawGpuCursorOntoInput(bool freshFrame, bool& outChanged);
         bool RefreshCachedNv12Cursor(bool keepOnGpu, bool captureCursor);
         bool RefreshMonitorBoundsForGdi();
@@ -133,10 +138,18 @@ namespace osmium
             int lastBoxTop = 0;
             int lastBoxRight = 0;
             int lastBoxBottom = 0;
+            int cursorTexWidth = 0;
+            int cursorTexHeight = 0;
+            int activeCursorW = 0;
+            int activeCursorH = 0;
+            bool uploadedFromDxgi = false;
+            uint64_t uploadedDxgiShapeGen = 0;
             HCURSOR uploadedCursorHandle = nullptr;
             uint64_t uploadedCursorMs = 0;
             int uploadedHotX = 0;
             int uploadedHotY = 0;
+            int uploadedGdiW = 0;
+            int uploadedGdiH = 0;
             Microsoft::WRL::ComPtr<ID3D11VideoContext1> context;
             Microsoft::WRL::ComPtr<ID3D11VideoProcessor> processor;
             Microsoft::WRL::ComPtr<ID3D11VideoProcessorInputView> inputView;
@@ -165,8 +178,30 @@ namespace osmium
         HBITMAP m_CursorWhiteBmp = nullptr;
         HGDIOBJ m_CursorWhiteOld = nullptr;
         uint32_t* m_CursorWhiteBits = nullptr;
+        int m_CursorScratchSize = 0;
         std::vector<uint32_t> m_CursorPrevBlack;
         std::vector<uint32_t> m_CursorPrevWhite;
+
+        // Animated (.ani) cursor stepping state for GDI / fallback path
+        HCURSOR m_GdiAniHandle = nullptr;
+        UINT m_GdiAniStep = 0;
+        uint64_t m_GdiAniLastStepMs = 0;
+        bool m_GdiAniProbedStatic = false;
+        std::vector<uint32_t> m_GdiAniStep0Snapshot;
+
+        // Native DXGI Desktop Duplication hardware pointer shape cache
+        // (natively supports .ani frames at exact DWM timing + Accessibility oversized cursors)
+        bool m_DxgiPointerSeen = false;
+        bool m_DxgiPointerVisible = false;
+        bool m_DxgiPointerHasShape = false;
+        int m_DxgiPointerX = 0;
+        int m_DxgiPointerY = 0;
+        int m_DxgiPointerW = 0;
+        int m_DxgiPointerH = 0;
+        uint64_t m_DxgiPointerShapeGen = 0;
+        std::vector<uint8_t> m_DxgiPointerRawBuf;
+        std::vector<uint32_t> m_DxgiPointerBlack;
+        std::vector<uint32_t> m_DxgiPointerWhite;
 
         std::vector<uint8_t> m_LastFramePixels;
         uint64_t m_LastFrameRevision = 0;
