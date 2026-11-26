@@ -235,6 +235,7 @@
   <data name="Dialog_Deny" xml:space="preserve"><value>拒绝</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>确定</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>取消</value></data>
+  <data name="Dialog_Close" xml:space="preserve"><value>关闭</value></data>
   <data name="Conn_InvalidId" xml:space="preserve"><value>请输入有效的对方设备ID</value></data>
   <data name="Conn_EmptyCode" xml:space="preserve"><value>请输入远控代码</value></data>
   <data name="Conn_Offline" xml:space="preserve"><value>本机尚未连接到服务，请检查网络或服务器地址</value></data>

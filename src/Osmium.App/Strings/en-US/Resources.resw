@@ -235,6 +235,7 @@
   <data name="Dialog_Deny" xml:space="preserve"><value>Deny</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Dialog_Close" xml:space="preserve"><value>Close</value></data>
   <data name="Conn_InvalidId" xml:space="preserve"><value>Please enter a valid target Device ID</value></data>
   <data name="Conn_EmptyCode" xml:space="preserve"><value>Please enter an access code</value></data>
   <data name="Conn_Offline" xml:space="preserve"><value>Device is offline; please check network or server URL</value></data>
