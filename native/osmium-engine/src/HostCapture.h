@@ -57,15 +57,22 @@ namespace osmium
         float GetSdrWhiteScale() const { return m_SdrWhiteScale; }
 
     private:
+        static constexpr int kCursorBoxSize = 64;
+
         bool InitDuplication();
         void ReleaseD3DResources();
+        bool EnsureCursorScratch();
+        void ReleaseCursorScratch();
+        bool EnsureGpuCursorPipeline();
+        bool DrawGpuCursorOntoInput(bool freshFrame, bool& outChanged);
+        bool RefreshCachedNv12Cursor(bool keepOnGpu, bool captureCursor);
         bool RefreshMonitorBoundsForGdi();
         bool CaptureViaGdi(CapturedFrame& outFrame, bool captureCursor);
         void OverlayCursor(CapturedFrame& frame);
         bool EnsureHdrTonemapPipeline(UINT width, UINT height, DXGI_FORMAT srcFmt, DXGI_FORMAT dstFmt);
         bool ConvertAcquiredTexture(ID3D11Texture2D* srcTex, const D3D11_TEXTURE2D_DESC& srcDesc, bool outputPqHdr);
         bool PrepareNv12Conversion(int sourceWidth, int sourceHeight);
-        bool CaptureNv12(ID3D11Texture2D* source, bool keepOnGpu);
+        bool CaptureNv12(ID3D11Texture2D* source, bool keepOnGpu, bool captureCursor);
         bool ReadStagingPixels(ID3D11Texture2D* texture, size_t rowBytes, size_t rows);
         void QueryOutputHdrStateAndWhite(const wchar_t* gdiDeviceName, DXGI_COLOR_SPACE_TYPE dxgiColorSpace,
                                          bool& outIsHdr, float& outSdrScale) const;
@@ -117,14 +124,49 @@ namespace osmium
             int sourceHeight = 0;
             int outputWidth = 0;
             int outputHeight = 0;
+            bool gpuCursorSupported = false;
+            bool hasCleanInput = false;
+            bool hasDrawnCursor = false;
+            int lastCursorX = 0;
+            int lastCursorY = 0;
+            int lastBoxLeft = 0;
+            int lastBoxTop = 0;
+            int lastBoxRight = 0;
+            int lastBoxBottom = 0;
+            HCURSOR uploadedCursorHandle = nullptr;
+            uint64_t uploadedCursorMs = 0;
+            int uploadedHotX = 0;
+            int uploadedHotY = 0;
             Microsoft::WRL::ComPtr<ID3D11VideoContext1> context;
             Microsoft::WRL::ComPtr<ID3D11VideoProcessor> processor;
             Microsoft::WRL::ComPtr<ID3D11VideoProcessorInputView> inputView;
             Microsoft::WRL::ComPtr<ID3D11VideoProcessorOutputView> outputView;
             Microsoft::WRL::ComPtr<ID3D11Texture2D> input;
+            Microsoft::WRL::ComPtr<ID3D11RenderTargetView> inputRtv;
+            Microsoft::WRL::ComPtr<ID3D11Texture2D> cleanInput;
+            Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cleanInputSrv;
+            Microsoft::WRL::ComPtr<ID3D11Texture2D> cursorBlackTex;
+            Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cursorBlackSrv;
+            Microsoft::WRL::ComPtr<ID3D11Texture2D> cursorWhiteTex;
+            Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cursorWhiteSrv;
+            Microsoft::WRL::ComPtr<ID3D11VertexShader> cursorVs;
+            Microsoft::WRL::ComPtr<ID3D11PixelShader> cursorPs;
+            Microsoft::WRL::ComPtr<ID3D11Buffer> cursorCb;
             Microsoft::WRL::ComPtr<ID3D11Texture2D> output;
             Microsoft::WRL::ComPtr<ID3D11Texture2D> readback;
         } m_Nv12;
+
+        HDC m_CursorScreenDc = nullptr;
+        HDC m_CursorBlackDc = nullptr;
+        HBITMAP m_CursorBlackBmp = nullptr;
+        HGDIOBJ m_CursorBlackOld = nullptr;
+        uint32_t* m_CursorBlackBits = nullptr;
+        HDC m_CursorWhiteDc = nullptr;
+        HBITMAP m_CursorWhiteBmp = nullptr;
+        HGDIOBJ m_CursorWhiteOld = nullptr;
+        uint32_t* m_CursorWhiteBits = nullptr;
+        std::vector<uint32_t> m_CursorPrevBlack;
+        std::vector<uint32_t> m_CursorPrevWhite;
 
         std::vector<uint8_t> m_LastFramePixels;
         uint64_t m_LastFrameRevision = 0;

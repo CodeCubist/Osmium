@@ -16,7 +16,7 @@ namespace Osmium.Core.Network;
 public sealed class CloudRelayTransport : IDisposable
 {
     private const int MaxPacketBytes = 32768;
-    private const int MaxBatchPayloadBytes = 24576;
+    private const int MaxBatchPayloadBytes = 36864;
     private const int MaxQueuedVideoBytes = 256 * 1024;
     private const int MaxQueuedAudioPackets = 8;
     private const int MaxIncomingFrameBytes = 131072;

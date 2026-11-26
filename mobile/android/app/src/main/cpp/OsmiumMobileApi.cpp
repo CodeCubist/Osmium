@@ -258,99 +258,124 @@ namespace
             }
 
             if (r == 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) continue;
-            lastRxMs = nowMs;
-            ctx->bytesRecvWindow.fetch_add(plain.size(), std::memory_order_relaxed);
 
-            auto type = static_cast<osmium::proto::AppPacketType>(plain[0]);
+            // Drain up to 32 immediately available packets per burst with zero poll()/clock syscalls.
+            bool ended = false;
+            for (int burst = 0; burst < 32 && !ctx->stopFlag.load(std::memory_order_acquire); ++burst)
+            {
+                if (burst > 0)
+                {
+                    if (ctx->resetReassembler.exchange(false, std::memory_order_acq_rel))
+                    {
+                        ctx->reassembler.Reset();
+                    }
+                    r = ctx->transport->ReceiveEncrypted(plain, 0);
+                    if (r < 0)
+                    {
+                        ctx->sessionActive.store(false, std::memory_order_release);
+                        ctx->PushStringEvent(4, "Transport closed");
+                        ended = true;
+                        break;
+                    }
+                    if (r == 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) break;
+                }
 
-            if (type == osmium::proto::AppPacketType::VideoChunk &&
-                plain.size() > sizeof(osmium::proto::VideoChunkHeader))
-            {
-                ctx->lastVideoChunkMs.store(nowMs, std::memory_order_relaxed);
-                const auto* hdr = reinterpret_cast<const osmium::proto::VideoChunkHeader*>(plain.data());
-                AssembledVideoFrame frame;
-                if (ctx->reassembler.PushChunk(
-                        hdr,
-                        plain.data() + sizeof(osmium::proto::VideoChunkHeader),
-                        plain.size() - sizeof(osmium::proto::VideoChunkHeader),
-                        nowMs,
-                        frame))
+                lastRxMs = nowMs;
+                ctx->bytesRecvWindow.fetch_add(plain.size(), std::memory_order_relaxed);
+
+                auto type = static_cast<osmium::proto::AppPacketType>(plain[0]);
+
+                if (type == osmium::proto::AppPacketType::VideoChunk &&
+                    plain.size() > sizeof(osmium::proto::VideoChunkHeader))
                 {
-                    ctx->receivedFrames.fetch_add(1, std::memory_order_relaxed);
-                    ctx->colorFlags.store(frame.colorFlags, std::memory_order_relaxed);
-                    uint32_t queueDropped;
+                    ctx->lastVideoChunkMs.store(nowMs, std::memory_order_relaxed);
+                    const auto* hdr = reinterpret_cast<const osmium::proto::VideoChunkHeader*>(plain.data());
+                    AssembledVideoFrame frame;
+                    if (ctx->reassembler.PushChunk(
+                            hdr,
+                            plain.data() + sizeof(osmium::proto::VideoChunkHeader),
+                            plain.size() - sizeof(osmium::proto::VideoChunkHeader),
+                            nowMs,
+                            frame))
                     {
-                        std::lock_guard<std::mutex> ql(ctx->frameQueueMutex);
-                        queueDropped = ctx->decodeGate.Enqueue(ctx->frameQueue, std::move(frame));
-                    }
-                    if (queueDropped)
-                    {
-                        ctx->droppedFrames.fetch_add(queueDropped, std::memory_order_relaxed);
-                    }
-                    ctx->frameQueueCv.notify_one();
-                }
-            }
-            else if (type == osmium::proto::AppPacketType::AudioFrame &&
-                     plain.size() >= sizeof(osmium::proto::AudioFrameHeader))
-            {
-                if (ctx->config.enableAudio != 0)
-                {
-                    const auto* hdr = reinterpret_cast<const osmium::proto::AudioFrameHeader*>(plain.data());
-                    if (plain.size() >= sizeof(osmium::proto::AudioFrameHeader) + hdr->payloadBytes)
-                    {
-                        ctx->audio.PushOpusFrame(
-                            plain.data() + sizeof(osmium::proto::AudioFrameHeader),
-                            hdr->payloadBytes,
-                            hdr->sampleRate,
-                            hdr->channels,
-                            hdr->sampleCount,
-                            hdr->sequence);
+                        ctx->receivedFrames.fetch_add(1, std::memory_order_relaxed);
+                        ctx->colorFlags.store(frame.colorFlags, std::memory_order_relaxed);
+                        uint32_t queueDropped;
+                        {
+                            std::lock_guard<std::mutex> ql(ctx->frameQueueMutex);
+                            queueDropped = ctx->decodeGate.Enqueue(ctx->frameQueue, std::move(frame));
+                        }
+                        if (queueDropped)
+                        {
+                            ctx->droppedFrames.fetch_add(queueDropped, std::memory_order_relaxed);
+                        }
+                        ctx->frameQueueCv.notify_one();
                     }
                 }
-            }
-            else if (type == osmium::proto::AppPacketType::HostStatusJson &&
-                     plain.size() > sizeof(osmium::proto::AppPacketHeader))
-            {
-                ctx->PushEvent(
-                    2,
-                    0,
-                    plain.data() + sizeof(osmium::proto::AppPacketHeader),
-                    plain.size() - sizeof(osmium::proto::AppPacketHeader));
-            }
-            else if (type == osmium::proto::AppPacketType::HostTextFocus &&
-                     plain.size() >= sizeof(osmium::proto::HostTextFocusPayload))
-            {
-                ctx->PushEvent(
-                    6,
-                    0,
-                    plain.data() + sizeof(osmium::proto::AppPacketHeader),
-                    sizeof(osmium::proto::HostTextFocusPayload) - sizeof(osmium::proto::AppPacketHeader));
-            }
-            else if (type == osmium::proto::AppPacketType::Pong &&
-                     plain.size() >= sizeof(osmium::proto::PingPongPayload))
-            {
-                const auto* pong = reinterpret_cast<const osmium::proto::PingPongPayload*>(plain.data());
-                uint64_t nowUs = MobileTransport::NowMicros();
-                if (nowUs >= pong->timestampUs)
+                else if (type == osmium::proto::AppPacketType::AudioFrame &&
+                         plain.size() >= sizeof(osmium::proto::AudioFrameHeader))
                 {
-                    ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                    if (ctx->config.enableAudio != 0)
+                    {
+                        const auto* hdr = reinterpret_cast<const osmium::proto::AudioFrameHeader*>(plain.data());
+                        if (plain.size() >= sizeof(osmium::proto::AudioFrameHeader) + hdr->payloadBytes)
+                        {
+                            ctx->audio.PushOpusFrame(
+                                plain.data() + sizeof(osmium::proto::AudioFrameHeader),
+                                hdr->payloadBytes,
+                                hdr->sampleRate,
+                                hdr->channels,
+                                hdr->sampleCount,
+                                hdr->sequence);
+                        }
+                    }
+                }
+                else if (type == osmium::proto::AppPacketType::HostStatusJson &&
+                         plain.size() > sizeof(osmium::proto::AppPacketHeader))
+                {
+                    ctx->PushEvent(
+                        2,
+                        0,
+                        plain.data() + sizeof(osmium::proto::AppPacketHeader),
+                        plain.size() - sizeof(osmium::proto::AppPacketHeader));
+                }
+                else if (type == osmium::proto::AppPacketType::HostTextFocus &&
+                         plain.size() >= sizeof(osmium::proto::HostTextFocusPayload))
+                {
+                    ctx->PushEvent(
+                        6,
+                        0,
+                        plain.data() + sizeof(osmium::proto::AppPacketHeader),
+                        sizeof(osmium::proto::HostTextFocusPayload) - sizeof(osmium::proto::AppPacketHeader));
+                }
+                else if (type == osmium::proto::AppPacketType::Pong &&
+                         plain.size() >= sizeof(osmium::proto::PingPongPayload))
+                {
+                    const auto* pong = reinterpret_cast<const osmium::proto::PingPongPayload*>(plain.data());
+                    uint64_t nowUs = MobileTransport::NowMicros();
+                    if (nowUs >= pong->timestampUs)
+                    {
+                        ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                    }
+                }
+                else if (type == osmium::proto::AppPacketType::AuxData &&
+                         plain.size() > sizeof(osmium::proto::AppPacketHeader))
+                {
+                    ctx->PushEvent(
+                        3,
+                        0,
+                        plain.data() + sizeof(osmium::proto::AppPacketHeader),
+                        plain.size() - sizeof(osmium::proto::AppPacketHeader));
+                }
+                else if (type == osmium::proto::AppPacketType::Disconnect)
+                {
+                    ctx->sessionActive.store(false, std::memory_order_release);
+                    ctx->PushStringEvent(4, "Host disconnected");
+                    ended = true;
+                    break;
                 }
             }
-            else if (type == osmium::proto::AppPacketType::AuxData &&
-                     plain.size() > sizeof(osmium::proto::AppPacketHeader))
-            {
-                ctx->PushEvent(
-                    3,
-                    0,
-                    plain.data() + sizeof(osmium::proto::AppPacketHeader),
-                    plain.size() - sizeof(osmium::proto::AppPacketHeader));
-            }
-            else if (type == osmium::proto::AppPacketType::Disconnect)
-            {
-                ctx->sessionActive.store(false, std::memory_order_release);
-                ctx->PushStringEvent(4, "Host disconnected");
-                break;
-            }
+            if (ended) break;
         }
     }
 

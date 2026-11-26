@@ -1489,9 +1489,10 @@ namespace osmium::mobile
                 std::unique_lock<std::mutex> lock(m_RelayRecvMutex);
                 if (m_RelayRecvQueue.empty())
                 {
+                    if (timeoutMs <= 0) return 0;
                     m_RelayRecvCv.wait_for(
                         lock,
-                        std::chrono::milliseconds(std::max(1, timeoutMs)),
+                        std::chrono::milliseconds(timeoutMs),
                         [this] { return !m_RelayRecvQueue.empty() || m_Closed.load(std::memory_order_acquire); });
                 }
                 if (m_Closed.load(std::memory_order_acquire)) return -1;
@@ -1508,7 +1509,8 @@ namespace osmium::mobile
         const int activeSock = m_ActiveSock.load(std::memory_order_acquire);
         if (activeSock < 0) return -1;
         const bool udpConn = m_UdpConnected.load(std::memory_order_acquire);
-        const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1, timeoutMs));
+        const bool nonBlocking = (timeoutMs <= 0);
+        uint64_t deadline = 0;
         while (!m_Closed.load(std::memory_order_acquire))
         {
             uint8_t wireBuf[32768];
@@ -1524,7 +1526,9 @@ namespace osmium::mobile
                 {
                     return m_Closed.load(std::memory_order_acquire) ? -1 : 0;
                 }
-                uint64_t now = NowMillis();
+                if (nonBlocking) return 0;
+                const uint64_t now = NowMillis();
+                if (deadline == 0) deadline = now + static_cast<uint64_t>(timeoutMs);
                 if (now >= deadline) return 0;
                 int rem = static_cast<int>(deadline - now);
                 pollfd pfd{activeSock, POLLIN, 0};

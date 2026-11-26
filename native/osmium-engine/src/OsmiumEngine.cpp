@@ -675,7 +675,9 @@ namespace
             int codecPref = ctx->clientProfile.codecPreference != 0
                                 ? ctx->clientProfile.codecPreference
                                 : ctx->config.codecPreference;
-            auto* captureDevice = allowGpuEncoderInput && !capCursor && !hostHdr ? ctx->capture.GetDevice() : nullptr;
+            // HostCapture composites the cursor on GPU into the NV12 pipeline with zero
+            // CPU readback, so zero-copy D3D11 encoding stays active even when captureCursor=true.
+            auto* captureDevice = allowGpuEncoderInput && !hostHdr ? ctx->capture.GetDevice() : nullptr;
             if (!ctx->encoder.Initialize(capW, capH, outW, outH, settings.fps, settings.bitrateKbps, codecPref,
                                          ctx->config.encoderPreference, effectiveHdr, settings.yuv444, captureDevice))
             {
@@ -937,8 +939,8 @@ namespace
                             ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
                         const int passCount = sendKeyRedundantPass ? 2 : 1;
                         // Smooth per-frame UDP pacing prevents 600+ Mbps Wi-Fi/router microburst drops
-                        // on both LAN (especially Mobile Wi-Fi) and P2P while keeping frame span tight.
-                        const uint64_t perChunkUs = isLanRoute ? 45ULL : 75ULL;
+                        // on both LAN (especially Mobile Wi-Fi) and P2P while keeping high-FPS frame span tight.
+                        const uint64_t perChunkUs = isLanRoute ? 35ULL : 65ULL;
                         const uint64_t maxSpanUs = ep.isKeyFrame
                                                        ? std::min<uint64_t>((frameIntervalUs * 60ULL) / 100ULL, 9000ULL)
                                                        : std::min<uint64_t>((frameIntervalUs * 45ULL) / 100ULL, 5500ULL);
@@ -1138,9 +1140,10 @@ namespace
                 }
                 break;
             }
+            const uint64_t nowMs = NowMillis();
             if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader))
             {
-                if (NowMillis() - lastPeerRxMs >= kClientKeepaliveTimeoutMs)
+                if (nowMs - lastPeerRxMs >= kClientKeepaliveTimeoutMs)
                 {
                     OSM_LOG_WARN("Client keepalive timeout (%llu ms); ending host session", kClientKeepaliveTimeoutMs);
                     ctx->stopFlag.store(true);
@@ -1153,183 +1156,205 @@ namespace
                 continue;
             }
 
-            lastPeerRxMs = NowMillis();
-            const auto* appHdr = reinterpret_cast<const proto::AppPacketHeader*>(plain.data());
-            if ((appHdr->flags & proto::kAppFlagHasActionSeq) != 0 && appHdr->reserved != 0)
+            // Drain up to 32 immediately available input/control packets per burst
+            // without extra select()/NowMillis() overhead.
+            bool closed = false;
+            for (int burst = 0; burst < 32 && !ctx->stopFlag.load(); ++burst)
             {
-                if (!ctx->actionDedup.Accept(appHdr->reserved))
+                if (burst > 0)
                 {
-                    continue;
-                }
-            }
-
-            auto type = static_cast<proto::AppPacketType>(plain[0]);
-            if (type == proto::AppPacketType::VideoIdrRequest)
-            {
-                // Cooldown prevents duplicate UDP IDR requests or rapid client retries from
-                // triggering back-to-back giant keyframes that self-congest Wi-Fi/P2P/Relay.
-                const uint64_t nowMs = NowMillis();
-                const uint64_t lastKeyMs = ctx->lastKeyFrameEmitMs.load(std::memory_order_relaxed);
-                if (lastKeyMs == 0 || (nowMs - lastKeyMs) >= 250ULL)
-                {
-                    ctx->idrRecoveryPending.store(true, std::memory_order_release);
-                    ctx->encoder.ForceKeyFrame();
-                }
-            }
-            else if (type == proto::AppPacketType::Ping && plain.size() >= sizeof(proto::PingPongPayload))
-            {
-                auto pong = *reinterpret_cast<const proto::PingPongPayload*>(plain.data());
-                ctx->transport->SendEncrypted(proto::AppPacketType::Pong, &pong, sizeof(pong));
-            }
-            else if (type == proto::AppPacketType::AuthRequest)
-            {
-                proto::AuthResponsePayload resp{};
-                resp.accepted = 1;
-                resp.errorCode = 0;
-                CopyStringSafe(resp.message, sizeof(resp.message), "Authenticated");
-                ctx->transport->SendEncrypted(proto::AppPacketType::AuthResponse, &resp, sizeof(resp));
-            }
-            else if (type == proto::AppPacketType::ClientMicAudioFrame && plain.size() >= sizeof(
-                proto::AudioFrameHeader))
-            {
-                const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
-                if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
-                {
-                    ctx->audio.PushClientMicOpus(
-                        plain.data() + sizeof(proto::AudioFrameHeader),
-                        hdr->payloadBytes,
-                        hdr->sampleRate,
-                        hdr->channels,
-                        hdr->sampleCount);
-                }
-            }
-            else if (type == proto::AppPacketType::ControlSwitchDisplay && plain.size() >= sizeof(
-                proto::ControlSwitchDisplayPayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlSwitchDisplayPayload*>(plain.data());
-                bool changed = false;
-                {
-                    std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                    if (ctx->activeDisplayIndex != p->displayIndex)
+                    r = ctx->transport->ReceiveEncrypted(plain, 0);
+                    if (r < 0)
                     {
-                        ctx->activeDisplayIndex = p->displayIndex;
-                        changed = true;
+                        if (!ctx->stopFlag.load() && ctx->callbacks.onEnded)
+                        {
+                            ctx->callbacks.onEnded(-1, "Transport closed");
+                        }
+                        closed = true;
+                        break;
+                    }
+                    if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) break;
+                }
+
+                lastPeerRxMs = nowMs;
+                const auto* appHdr = reinterpret_cast<const proto::AppPacketHeader*>(plain.data());
+                if ((appHdr->flags & proto::kAppFlagHasActionSeq) != 0 && appHdr->reserved != 0)
+                {
+                    if (!ctx->actionDedup.Accept(appHdr->reserved))
+                    {
+                        continue;
                     }
                 }
-                if (changed)
-                {
-                    ctx->reconfigNeeded.store(true);
-                }
-                NotifyHostStatusDirty(ctx, changed, false);
-            }
-            else if (type == proto::AppPacketType::ControlVideoParams && plain.size() >= sizeof(
-                proto::ControlVideoParamsPayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlVideoParamsPayload*>(plain.data());
-                std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                HostVideoSettings settings = ctx->videoSettings;
-                if (p->targetWidth >= 0) settings.width = p->targetWidth;
-                if (p->targetHeight >= 0) settings.height = p->targetHeight;
-                if (p->fps > 0) settings.fps = p->fps;
-                if (p->bitrateKbps > 0) settings.bitrateKbps = p->bitrateKbps;
-                settings.hdr = (p->enableHdr != 0);
-                settings.yuv444 = (p->enableYuv444 != 0);
-                settings = ApplyHostVideoLimits(ctx->config, settings);
 
-                if (settings != ctx->videoSettings)
+                auto type = static_cast<proto::AppPacketType>(plain[0]);
+                if (type == proto::AppPacketType::VideoIdrRequest)
                 {
-                    ctx->videoSettings = settings;
-                    ctx->reconfigNeeded.store(true);
-                }
-            }
-            else if (type == proto::AppPacketType::ControlMouseMode && plain.size() >= sizeof(
-                proto::ControlMouseModePayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlMouseModePayload*>(plain.data());
-                {
-                    std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                    ctx->mouseMode = std::clamp(p->mouseMode, 0, 2);
-                    ctx->hideHostCursorInHostMode = (p->hideHostCursor != 0);
-                    ApplyHostMouseModeLocked(ctx);
-                }
-                NotifyHostStatusDirty(ctx);
-            }
-            else if (type == proto::AppPacketType::ControlVirtualAudio && plain.size() >= sizeof(
-                proto::ControlVirtualAudioPayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlVirtualAudioPayload*>(plain.data());
-                bool spkOk = ctx->virtualUsb.SetVirtualSpeakerEnabled(p->virtualSpeakerEnabled != 0);
-                bool micOk = ctx->virtualUsb.SetVirtualMicEnabled(p->virtualMicEnabled != 0);
-                {
-                    std::lock_guard<std::mutex> lock(ctx->cfgMutex);
-                    if ((p->virtualSpeakerEnabled && !spkOk) || (p->virtualMicEnabled && !micOk))
+                    // Cooldown prevents duplicate UDP IDR requests or rapid client retries from
+                    // triggering back-to-back giant keyframes that self-congest Wi-Fi/P2P/Relay.
+                    const uint64_t lastKeyMs = ctx->lastKeyFrameEmitMs.load(std::memory_order_relaxed);
+                    if (lastKeyMs == 0 || (nowMs - lastKeyMs) >= 250ULL)
                     {
-                        ctx->lastActionMsg = "AUDIO_DRIVER_UNAVAILABLE";
+                        ctx->idrRecoveryPending.store(true, std::memory_order_release);
+                        ctx->encoder.ForceKeyFrame();
+                    }
+                }
+                else if (type == proto::AppPacketType::Ping && plain.size() >= sizeof(proto::PingPongPayload))
+                {
+                    auto pong = *reinterpret_cast<const proto::PingPongPayload*>(plain.data());
+                    ctx->transport->SendEncrypted(proto::AppPacketType::Pong, &pong, sizeof(pong));
+                }
+                else if (type == proto::AppPacketType::AuthRequest)
+                {
+                    proto::AuthResponsePayload resp{};
+                    resp.accepted = 1;
+                    resp.errorCode = 0;
+                    CopyStringSafe(resp.message, sizeof(resp.message), "Authenticated");
+                    ctx->transport->SendEncrypted(proto::AppPacketType::AuthResponse, &resp, sizeof(resp));
+                }
+                else if (type == proto::AppPacketType::ClientMicAudioFrame && plain.size() >= sizeof(
+                    proto::AudioFrameHeader))
+                {
+                    const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
+                    if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
+                    {
+                        ctx->audio.PushClientMicOpus(
+                            plain.data() + sizeof(proto::AudioFrameHeader),
+                            hdr->payloadBytes,
+                            hdr->sampleRate,
+                            hdr->channels,
+                            hdr->sampleCount);
+                    }
+                }
+                else if (type == proto::AppPacketType::ControlSwitchDisplay && plain.size() >= sizeof(
+                    proto::ControlSwitchDisplayPayload))
+                {
+                    const auto* p = reinterpret_cast<const proto::ControlSwitchDisplayPayload*>(plain.data());
+                    bool changed = false;
+                    {
+                        std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                        if (ctx->activeDisplayIndex != p->displayIndex)
+                        {
+                            ctx->activeDisplayIndex = p->displayIndex;
+                            changed = true;
+                        }
+                    }
+                    if (changed)
+                    {
+                        ctx->reconfigNeeded.store(true);
+                    }
+                    NotifyHostStatusDirty(ctx, changed, false);
+                }
+                else if (type == proto::AppPacketType::ControlVideoParams && plain.size() >= sizeof(
+                    proto::ControlVideoParamsPayload))
+                {
+                    const auto* p = reinterpret_cast<const proto::ControlVideoParamsPayload*>(plain.data());
+                    std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                    HostVideoSettings settings = ctx->videoSettings;
+                    if (p->targetWidth >= 0) settings.width = p->targetWidth;
+                    if (p->targetHeight >= 0) settings.height = p->targetHeight;
+                    if (p->fps > 0) settings.fps = p->fps;
+                    if (p->bitrateKbps > 0) settings.bitrateKbps = p->bitrateKbps;
+                    settings.hdr = (p->enableHdr != 0);
+                    settings.yuv444 = (p->enableYuv444 != 0);
+                    settings = ApplyHostVideoLimits(ctx->config, settings);
+
+                    if (settings != ctx->videoSettings)
+                    {
+                        ctx->videoSettings = settings;
+                        ctx->reconfigNeeded.store(true);
+                    }
+                }
+                else if (type == proto::AppPacketType::ControlMouseMode && plain.size() >= sizeof(
+                    proto::ControlMouseModePayload))
+                {
+                    const auto* p = reinterpret_cast<const proto::ControlMouseModePayload*>(plain.data());
+                    {
+                        std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                        ctx->mouseMode = std::clamp(p->mouseMode, 0, 2);
+                        ctx->hideHostCursorInHostMode = (p->hideHostCursor != 0);
+                        ApplyHostMouseModeLocked(ctx);
+                    }
+                    NotifyHostStatusDirty(ctx);
+                }
+                else if (type == proto::AppPacketType::ControlVirtualAudio && plain.size() >= sizeof(
+                    proto::ControlVirtualAudioPayload))
+                {
+                    const auto* p = reinterpret_cast<const proto::ControlVirtualAudioPayload*>(plain.data());
+                    bool spkOk = ctx->virtualUsb.SetVirtualSpeakerEnabled(p->virtualSpeakerEnabled != 0);
+                    bool micOk = ctx->virtualUsb.SetVirtualMicEnabled(p->virtualMicEnabled != 0);
+                    {
+                        std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                        if ((p->virtualSpeakerEnabled && !spkOk) || (p->virtualMicEnabled && !micOk))
+                        {
+                            ctx->lastActionMsg = "AUDIO_DRIVER_UNAVAILABLE";
+                        }
+                        else
+                        {
+                            ctx->lastActionMsg = "AUDIO_UPDATED";
+                        }
+                    }
+                    NotifyHostStatusDirty(ctx);
+                }
+                else if (type == proto::AppPacketType::ControlSystemAction && plain.size() >= sizeof(
+                    proto::ControlSystemActionPayload))
+                {
+                    const auto* p = reinterpret_cast<const proto::ControlSystemActionPayload*>(plain.data());
+                    {
+                        std::lock_guard<std::mutex> sl(ctx->sysActionMutex);
+                        ctx->sysActionQueue.push_back(p->action);
+                    }
+                    ctx->sysActionCv.notify_one();
+                }
+                else if (type == proto::AppPacketType::ControlTextFocus && plain.size() >= sizeof(
+                    proto::ControlTextFocusPayload))
+                {
+                    const auto* p = reinterpret_cast<const proto::ControlTextFocusPayload*>(plain.data());
+                    if (p->enabled != 0)
+                    {
+                        ctx->textFocus.Start([ctx](const HostTextFocus::State& s)
+                        {
+                            if (ctx->stopFlag.load() || !ctx->transport) return;
+                            proto::HostTextFocusPayload pkt{};
+                            pkt.active = s.active ? 1 : 0;
+                            pkt.hasRect = s.hasRect ? 1 : 0;
+                            pkt.serial = s.serial;
+                            pkt.x = s.x;
+                            pkt.y = s.y;
+                            pkt.w = s.w;
+                            pkt.h = s.h;
+                            ctx->transport->SendEncrypted(proto::AppPacketType::HostTextFocus, &pkt, sizeof(pkt));
+                        });
                     }
                     else
                     {
-                        ctx->lastActionMsg = "AUDIO_UPDATED";
+                        ctx->textFocus.Stop();
                     }
                 }
-                NotifyHostStatusDirty(ctx);
-            }
-            else if (type == proto::AppPacketType::ControlSystemAction && plain.size() >= sizeof(
-                proto::ControlSystemActionPayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlSystemActionPayload*>(plain.data());
+                else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
                 {
-                    std::lock_guard<std::mutex> sl(ctx->sysActionMutex);
-                    ctx->sysActionQueue.push_back(p->action);
-                }
-                ctx->sysActionCv.notify_one();
-            }
-            else if (type == proto::AppPacketType::ControlTextFocus && plain.size() >= sizeof(
-                proto::ControlTextFocusPayload))
-            {
-                const auto* p = reinterpret_cast<const proto::ControlTextFocusPayload*>(plain.data());
-                if (p->enabled != 0)
-                {
-                    ctx->textFocus.Start([ctx](const HostTextFocus::State& s)
+                    if (ctx->callbacks.onAuxData)
                     {
-                        if (ctx->stopFlag.load() || !ctx->transport) return;
-                        proto::HostTextFocusPayload pkt{};
-                        pkt.active = s.active ? 1 : 0;
-                        pkt.hasRect = s.hasRect ? 1 : 0;
-                        pkt.serial = s.serial;
-                        pkt.x = s.x;
-                        pkt.y = s.y;
-                        pkt.w = s.w;
-                        pkt.h = s.h;
-                        ctx->transport->SendEncrypted(proto::AppPacketType::HostTextFocus, &pkt, sizeof(pkt));
-                    });
+                        ctx->callbacks.onAuxData(
+                            plain.data() + sizeof(proto::AppPacketHeader),
+                            static_cast<int32_t>(plain.size() - sizeof(proto::AppPacketHeader)));
+                    }
+                }
+                else if (type == proto::AppPacketType::Disconnect)
+                {
+                    ctx->stopFlag.store(true);
+                    if (ctx->callbacks.onEnded)
+                    {
+                        ctx->callbacks.onEnded(0, "Peer disconnected");
+                    }
+                    closed = true;
+                    break;
                 }
                 else
                 {
-                    ctx->textFocus.Stop();
+                    ctx->injector.InjectPacket(plain.data(), plain.size());
                 }
             }
-            else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
-            {
-                if (ctx->callbacks.onAuxData)
-                {
-                    ctx->callbacks.onAuxData(
-                        plain.data() + sizeof(proto::AppPacketHeader),
-                        static_cast<int32_t>(plain.size() - sizeof(proto::AppPacketHeader)));
-                }
-            }
-            else if (type == proto::AppPacketType::Disconnect)
-            {
-                ctx->stopFlag.store(true);
-                if (ctx->callbacks.onEnded)
-                {
-                    ctx->callbacks.onEnded(0, "Peer disconnected");
-                }
-                break;
-            }
-            else
-            {
-                ctx->injector.InjectPacket(plain.data(), plain.size());
-            }
+            if (closed) break;
         }
     }
 
@@ -1721,94 +1746,114 @@ namespace
             }
             if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
 
-            ctx->bytesRecvWindow.fetch_add(plain.size());
-            auto type = static_cast<proto::AppPacketType>(plain[0]);
+            // Drain up to 32 immediately available packets per burst with zero select()/clock syscalls.
+            bool ended = false;
+            for (int burst = 0; burst < 32 && !ctx->stopFlag.load(); ++burst)
+            {
+                if (burst > 0)
+                {
+                    r = ctx->transport->ReceiveEncrypted(plain, 0);
+                    if (r < 0)
+                    {
+                        ctx->remoteEnded.store(true);
+                        ctx->queueCv.notify_all();
+                        ended = true;
+                        break;
+                    }
+                    if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) break;
+                }
 
-            if (type == proto::AppPacketType::VideoChunk && plain.size() > sizeof(proto::VideoChunkHeader))
-            {
-                const auto* hdr = reinterpret_cast<const proto::VideoChunkHeader*>(plain.data());
-                AssembledVideoFrame frame;
-                if (TryAssembleVideoChunk(
-                        pending,
-                        lastCompletedKeyFrameId,
-                        hdr,
-                        plain.data() + sizeof(proto::VideoChunkHeader),
-                        plain.size() - sizeof(proto::VideoChunkHeader),
-                        nowMs,
-                        frame))
+                ctx->bytesRecvWindow.fetch_add(plain.size());
+                auto type = static_cast<proto::AppPacketType>(plain[0]);
+
+                if (type == proto::AppPacketType::VideoChunk && plain.size() > sizeof(proto::VideoChunkHeader))
                 {
-                    ctx->receivedFrames.fetch_add(1);
-                    uint32_t queueDropped;
+                    const auto* hdr = reinterpret_cast<const proto::VideoChunkHeader*>(plain.data());
+                    AssembledVideoFrame frame;
+                    if (TryAssembleVideoChunk(
+                            pending,
+                            lastCompletedKeyFrameId,
+                            hdr,
+                            plain.data() + sizeof(proto::VideoChunkHeader),
+                            plain.size() - sizeof(proto::VideoChunkHeader),
+                            nowMs,
+                            frame))
                     {
-                        std::lock_guard<std::mutex> ql(ctx->queueMutex);
-                        queueDropped = ctx->decodeGate.Enqueue(ctx->frameQueue, std::move(frame));
-                    }
-                    if (queueDropped) ctx->droppedFrames.fetch_add(queueDropped);
-                    ctx->queueCv.notify_one();
-                }
-            }
-            else if (type == proto::AppPacketType::AudioFrame && plain.size() >= sizeof(proto::AudioFrameHeader))
-            {
-                const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
-                if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
-                {
-                    ctx->audioPlayer.PushOpusFrame(
-                        plain.data() + sizeof(proto::AudioFrameHeader),
-                        hdr->payloadBytes,
-                        hdr->sampleRate,
-                        hdr->channels,
-                        hdr->sampleCount,
-                        hdr->sequence);
-                }
-            }
-            else if (type == proto::AppPacketType::HostStatusJson && plain.size() > sizeof(proto::AppPacketHeader))
-            {
-                std::string json(
-                    reinterpret_cast<const char*>(plain.data() + sizeof(proto::AppPacketHeader)),
-                    plain.size() - sizeof(proto::AppPacketHeader));
-                ParseStatusHintFields(ctx, json);
-                if (ctx->callbacks.onStatusJson)
-                {
-                    {
-                        std::lock_guard<std::mutex> lock(ctx->callbackMutex);
-                        ctx->pendingStatusJson = std::move(json);
-                        ctx->hasPendingStatusJson = true;
-                    }
-                    ctx->callbackCv.notify_one();
-                }
-            }
-            else if (type == proto::AppPacketType::Pong && plain.size() >= sizeof(proto::PingPongPayload))
-            {
-                const auto* pong = reinterpret_cast<const proto::PingPongPayload*>(plain.data());
-                const uint64_t nowUs = NowMicros();
-                if (nowUs >= pong->timestampUs)
-                {
-                    ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
-                }
-            }
-            else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
-            {
-                if (ctx->callbacks.onAuxData)
-                {
-                    {
-                        std::lock_guard<std::mutex> lock(ctx->callbackMutex);
-                        if (ctx->pendingAuxData.size() >= 128)
+                        ctx->receivedFrames.fetch_add(1);
+                        uint32_t queueDropped;
                         {
-                            ctx->pendingAuxData.pop_front();
+                            std::lock_guard<std::mutex> ql(ctx->queueMutex);
+                            queueDropped = ctx->decodeGate.Enqueue(ctx->frameQueue, std::move(frame));
                         }
-                        ctx->pendingAuxData.emplace_back(
-                            plain.data() + sizeof(proto::AppPacketHeader),
-                            plain.data() + plain.size());
+                        if (queueDropped) ctx->droppedFrames.fetch_add(queueDropped);
+                        ctx->queueCv.notify_one();
                     }
-                    ctx->callbackCv.notify_one();
+                }
+                else if (type == proto::AppPacketType::AudioFrame && plain.size() >= sizeof(proto::AudioFrameHeader))
+                {
+                    const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
+                    if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
+                    {
+                        ctx->audioPlayer.PushOpusFrame(
+                            plain.data() + sizeof(proto::AudioFrameHeader),
+                            hdr->payloadBytes,
+                            hdr->sampleRate,
+                            hdr->channels,
+                            hdr->sampleCount,
+                            hdr->sequence);
+                    }
+                }
+                else if (type == proto::AppPacketType::HostStatusJson && plain.size() > sizeof(proto::AppPacketHeader))
+                {
+                    std::string json(
+                        reinterpret_cast<const char*>(plain.data() + sizeof(proto::AppPacketHeader)),
+                        plain.size() - sizeof(proto::AppPacketHeader));
+                    ParseStatusHintFields(ctx, json);
+                    if (ctx->callbacks.onStatusJson)
+                    {
+                        {
+                            std::lock_guard<std::mutex> lock(ctx->callbackMutex);
+                            ctx->pendingStatusJson = std::move(json);
+                            ctx->hasPendingStatusJson = true;
+                        }
+                        ctx->callbackCv.notify_one();
+                    }
+                }
+                else if (type == proto::AppPacketType::Pong && plain.size() >= sizeof(proto::PingPongPayload))
+                {
+                    const auto* pong = reinterpret_cast<const proto::PingPongPayload*>(plain.data());
+                    const uint64_t nowUs = NowMicros();
+                    if (nowUs >= pong->timestampUs)
+                    {
+                        ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                    }
+                }
+                else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
+                {
+                    if (ctx->callbacks.onAuxData)
+                    {
+                        {
+                            std::lock_guard<std::mutex> lock(ctx->callbackMutex);
+                            if (ctx->pendingAuxData.size() >= 128)
+                            {
+                                ctx->pendingAuxData.pop_front();
+                            }
+                            ctx->pendingAuxData.emplace_back(
+                                plain.data() + sizeof(proto::AppPacketHeader),
+                                plain.data() + plain.size());
+                        }
+                        ctx->callbackCv.notify_one();
+                    }
+                }
+                else if (type == proto::AppPacketType::Disconnect)
+                {
+                    ctx->remoteEnded.store(true);
+                    ctx->queueCv.notify_all();
+                    ended = true;
+                    break;
                 }
             }
-            else if (type == proto::AppPacketType::Disconnect)
-            {
-                ctx->remoteEnded.store(true);
-                ctx->queueCv.notify_all();
-                break;
-            }
+            if (ended) break;
         }
     }
 

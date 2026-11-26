@@ -133,6 +133,37 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             float pad;
         };
 
+        // Composites any Win32 cursor (opaque, 32-bit alpha, monochrome mask, or XOR I-beam)
+        // directly on GPU with zero GPU->CPU readback using the exact dual-background identity:
+        //   out = B + dst * (W - B)
+        // where B is the cursor drawn on black (0) and W is the cursor drawn on white (1).
+        const char* kCursorCompositePsSource = R"(
+cbuffer CbCursor : register(b0) {
+    int2 cursorOrigin;
+    int2 pad;
+};
+Texture2D<float4> cleanTex : register(t0);
+Texture2D<float4> curBlack : register(t1);
+Texture2D<float4> curWhite : register(t2);
+
+float4 main(float4 pos : SV_POSITION) : SV_TARGET {
+    int2 p = int2(pos.xy);
+    int2 c = p - cursorOrigin;
+    float3 dst = cleanTex.Load(int3(p, 0)).rgb;
+    float3 b = curBlack.Load(int3(c, 0)).rgb;
+    float3 w = curWhite.Load(int3(c, 0)).rgb;
+    return float4(saturate(b + dst * (w - b)), 1.0);
+}
+)";
+
+        struct CbCursorData
+        {
+            int32_t originX;
+            int32_t originY;
+            int32_t pad0;
+            int32_t pad1;
+        };
+
         std::wstring ResolveMonitorDeviceName(const wchar_t* gdiDeviceName)
         {
             if (!gdiDeviceName || !*gdiDeviceName) return L"";
@@ -317,6 +348,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
     void HostCapture::Shutdown()
     {
         ReleaseD3DResources();
+        ReleaseCursorScratch();
         m_LastFramePixels.clear();
         m_LastFrameIsHdr10Pq = false;
         m_HasLastFrame = false;
@@ -324,6 +356,71 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_InitialHdrTimeouts = 0;
         m_ConsecutiveDuplFailures = 0;
         m_GdiFallbackUntilMs = 0;
+    }
+
+    bool HostCapture::EnsureCursorScratch()
+    {
+        if (m_CursorBlackDc && m_CursorBlackBits && m_CursorWhiteDc && m_CursorWhiteBits)
+        {
+            return true;
+        }
+        ReleaseCursorScratch();
+
+        m_CursorScreenDc = GetDC(nullptr);
+        if (!m_CursorScreenDc) return false;
+
+        BITMAPINFO bmi{};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = kCursorBoxSize;
+        bmi.bmiHeader.biHeight = -kCursorBoxSize;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        m_CursorBlackDc = CreateCompatibleDC(m_CursorScreenDc);
+        m_CursorWhiteDc = CreateCompatibleDC(m_CursorScreenDc);
+        if (!m_CursorBlackDc || !m_CursorWhiteDc)
+        {
+            ReleaseCursorScratch();
+            return false;
+        }
+
+        m_CursorBlackBmp = CreateDIBSection(m_CursorScreenDc, &bmi, DIB_RGB_COLORS,
+                                            reinterpret_cast<void**>(&m_CursorBlackBits), nullptr, 0);
+        m_CursorWhiteBmp = CreateDIBSection(m_CursorScreenDc, &bmi, DIB_RGB_COLORS,
+                                            reinterpret_cast<void**>(&m_CursorWhiteBits), nullptr, 0);
+        if (!m_CursorBlackBmp || !m_CursorBlackBits || !m_CursorWhiteBmp || !m_CursorWhiteBits)
+        {
+            ReleaseCursorScratch();
+            return false;
+        }
+
+        m_CursorBlackOld = SelectObject(m_CursorBlackDc, m_CursorBlackBmp);
+        m_CursorWhiteOld = SelectObject(m_CursorWhiteDc, m_CursorWhiteBmp);
+        return true;
+    }
+
+    void HostCapture::ReleaseCursorScratch()
+    {
+        if (m_CursorBlackDc && m_CursorBlackOld) SelectObject(m_CursorBlackDc, m_CursorBlackOld);
+        if (m_CursorBlackBmp) DeleteObject(m_CursorBlackBmp);
+        if (m_CursorBlackDc) DeleteDC(m_CursorBlackDc);
+        if (m_CursorWhiteDc && m_CursorWhiteOld) SelectObject(m_CursorWhiteDc, m_CursorWhiteOld);
+        if (m_CursorWhiteBmp) DeleteObject(m_CursorWhiteBmp);
+        if (m_CursorWhiteDc) DeleteDC(m_CursorWhiteDc);
+        if (m_CursorScreenDc) ReleaseDC(nullptr, m_CursorScreenDc);
+
+        m_CursorScreenDc = nullptr;
+        m_CursorBlackDc = nullptr;
+        m_CursorBlackBmp = nullptr;
+        m_CursorBlackOld = nullptr;
+        m_CursorBlackBits = nullptr;
+        m_CursorWhiteDc = nullptr;
+        m_CursorWhiteBmp = nullptr;
+        m_CursorWhiteOld = nullptr;
+        m_CursorWhiteBits = nullptr;
+        m_CursorPrevBlack.clear();
+        m_CursorPrevWhite.clear();
     }
 
     bool HostCapture::RefreshMonitorBoundsForGdi()
@@ -815,7 +912,51 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.Usage = D3D11_USAGE_DEFAULT;
-        if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.input))) return false;
+        desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+
+        D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC inView{};
+        inView.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+        D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC outView{};
+        outView.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+
+        bool inputSupportsRtv = false;
+        if (SUCCEEDED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.input)) &&
+            SUCCEEDED(m_Device->CreateRenderTargetView(nv12.input.Get(), nullptr, &nv12.inputRtv)) &&
+            SUCCEEDED(videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)))
+        {
+            inputSupportsRtv = true;
+        }
+        else
+        {
+            nv12.inputView.Reset();
+            nv12.inputRtv.Reset();
+            nv12.input.Reset();
+            desc.BindFlags = 0;
+            if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.input)) ||
+                FAILED(videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)))
+            {
+                return false;
+            }
+        }
+
+        if (inputSupportsRtv)
+        {
+            D3D11_TEXTURE2D_DESC cleanDesc = desc;
+            cleanDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            if (SUCCEEDED(m_Device->CreateTexture2D(&cleanDesc, nullptr, &nv12.cleanInput)) &&
+                SUCCEEDED(m_Device->CreateShaderResourceView(nv12.cleanInput.Get(), nullptr, &nv12.cleanInputSrv)) &&
+                EnsureGpuCursorPipeline())
+            {
+                nv12.gpuCursorSupported = true;
+            }
+            else
+            {
+                nv12.cleanInputSrv.Reset();
+                nv12.cleanInput.Reset();
+                nv12.gpuCursorSupported = false;
+            }
+        }
+
         desc.Width = nv12.outputWidth;
         desc.Height = nv12.outputHeight;
         desc.Format = DXGI_FORMAT_NV12;
@@ -826,12 +967,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
         if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.readback))) return false;
 
-        D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC inView{};
-        inView.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
-        D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC outView{};
-        outView.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
-        if (FAILED(videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)) ||
-            FAILED(videoDevice->CreateVideoProcessorOutputView(nv12.output.Get(), formats.Get(), &outView, &nv12.outputView)) ||
+        if (FAILED(videoDevice->CreateVideoProcessorOutputView(nv12.output.Get(), formats.Get(), &outView, &nv12.outputView)) ||
             FAILED(videoDevice->CreateVideoProcessor(formats.Get(), 0, &nv12.processor)))
         {
             return false;
@@ -847,16 +983,327 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         nv12.context->VideoProcessorSetOutputTargetRect(processor, TRUE, &dstRect);
         nv12.context->VideoProcessorSetStreamColorSpace1(processor, 0, inputColor);
         nv12.context->VideoProcessorSetOutputColorSpace1(processor, outputColor);
-        OSM_LOG_INFO("HostCapture GPU NV12 conversion ready (%dx%d -> %dx%d)",
-                     sourceWidth, sourceHeight, nv12.outputWidth, nv12.outputHeight);
+        OSM_LOG_INFO("HostCapture GPU NV12 conversion ready (%dx%d -> %dx%d, gpuCursor=%d)",
+                     sourceWidth, sourceHeight, nv12.outputWidth, nv12.outputHeight,
+                     nv12.gpuCursorSupported ? 1 : 0);
         return true;
     }
 
-    bool HostCapture::CaptureNv12(ID3D11Texture2D* source, bool keepOnGpu)
+    bool HostCapture::EnsureGpuCursorPipeline()
+    {
+        auto& nv12 = m_Nv12;
+        if (!m_Device || !m_Context) return false;
+        if (nv12.cursorVs && nv12.cursorPs && nv12.cursorCb &&
+            nv12.cursorBlackTex && nv12.cursorBlackSrv &&
+            nv12.cursorWhiteTex && nv12.cursorWhiteSrv)
+        {
+            return true;
+        }
+
+        ComPtr<ID3DBlob> vsBlob, psBlob, errBlob;
+        if (FAILED(D3DCompile(kHdrTonemapVsSource, strlen(kHdrTonemapVsSource), nullptr, nullptr, nullptr,
+                              "main", "vs_5_0", 0, 0, &vsBlob, &errBlob)) ||
+            FAILED(D3DCompile(kCursorCompositePsSource, strlen(kCursorCompositePsSource), nullptr, nullptr, nullptr,
+                              "main", "ps_5_0", 0, 0, &psBlob, &errBlob)))
+        {
+            OSM_LOG_WARN("HostCapture GPU cursor shader compile failed: %s",
+                         errBlob ? static_cast<const char*>(errBlob->GetBufferPointer()) : "unknown");
+            return false;
+        }
+        if (FAILED(m_Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &nv12.cursorVs)) ||
+            FAILED(m_Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &nv12.cursorPs)))
+        {
+            return false;
+        }
+
+        D3D11_BUFFER_DESC cbd{};
+        cbd.ByteWidth = sizeof(CbCursorData);
+        cbd.Usage = D3D11_USAGE_DYNAMIC;
+        cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        if (FAILED(m_Device->CreateBuffer(&cbd, nullptr, &nv12.cursorCb))) return false;
+
+        D3D11_TEXTURE2D_DESC ctd{};
+        ctd.Width = kCursorBoxSize;
+        ctd.Height = kCursorBoxSize;
+        ctd.MipLevels = 1;
+        ctd.ArraySize = 1;
+        ctd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        ctd.SampleDesc.Count = 1;
+        ctd.Usage = D3D11_USAGE_DEFAULT;
+        ctd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        if (FAILED(m_Device->CreateTexture2D(&ctd, nullptr, &nv12.cursorBlackTex)) ||
+            FAILED(m_Device->CreateShaderResourceView(nv12.cursorBlackTex.Get(), nullptr, &nv12.cursorBlackSrv)) ||
+            FAILED(m_Device->CreateTexture2D(&ctd, nullptr, &nv12.cursorWhiteTex)) ||
+            FAILED(m_Device->CreateShaderResourceView(nv12.cursorWhiteTex.Get(), nullptr, &nv12.cursorWhiteSrv)))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    bool HostCapture::DrawGpuCursorOntoInput(bool freshFrame, bool& outChanged)
+    {
+        outChanged = false;
+        auto& nv12 = m_Nv12;
+        if (!nv12.gpuCursorSupported || !nv12.hasCleanInput || !nv12.inputRtv || !nv12.cleanInputSrv)
+        {
+            return false;
+        }
+
+        auto restoreOldBox = [&]()
+        {
+            if (!freshFrame && nv12.hasDrawnCursor &&
+                nv12.lastBoxRight > nv12.lastBoxLeft && nv12.lastBoxBottom > nv12.lastBoxTop)
+            {
+                D3D11_BOX oldBox{};
+                oldBox.left = static_cast<UINT>(nv12.lastBoxLeft);
+                oldBox.top = static_cast<UINT>(nv12.lastBoxTop);
+                oldBox.front = 0;
+                oldBox.right = static_cast<UINT>(nv12.lastBoxRight);
+                oldBox.bottom = static_cast<UINT>(nv12.lastBoxBottom);
+                oldBox.back = 1;
+                m_Context->CopySubresourceRegion(
+                    nv12.input.Get(), 0, oldBox.left, oldBox.top, 0,
+                    nv12.cleanInput.Get(), 0, &oldBox);
+                nv12.hasDrawnCursor = false;
+            }
+        };
+
+        CURSORINFO ci{};
+        ci.cbSize = sizeof(ci);
+        const bool cursorShowing = GetCursorInfo(&ci) && ((ci.flags & CURSOR_SHOWING) != 0) && (ci.hCursor != nullptr);
+        if (!cursorShowing)
+        {
+            if (!freshFrame && nv12.hasDrawnCursor)
+            {
+                restoreOldBox();
+                outChanged = true;
+            }
+            return true;
+        }
+
+        const int cx = ci.ptScreenPos.x - m_DesktopRect.left;
+        const int cy = ci.ptScreenPos.y - m_DesktopRect.top;
+        if (cx < -kCursorBoxSize || cy < -kCursorBoxSize ||
+            cx >= nv12.sourceWidth + kCursorBoxSize || cy >= nv12.sourceHeight + kCursorBoxSize)
+        {
+            if (!freshFrame && nv12.hasDrawnCursor)
+            {
+                restoreOldBox();
+                outChanged = true;
+            }
+            return true;
+        }
+
+        const uint64_t nowMs = NowMillis();
+        bool shapeUpdated = false;
+        const bool handleChanged = (ci.hCursor != nv12.uploadedCursorHandle);
+        const bool animCheckDue = (!handleChanged && (nowMs - nv12.uploadedCursorMs) >= 120ULL);
+        if (handleChanged || animCheckDue)
+        {
+            if (!EnsureCursorScratch()) return false;
+            if (handleChanged)
+            {
+                ICONINFO ii{};
+                if (!GetIconInfo(ci.hCursor, &ii))
+                {
+                    if (!freshFrame && nv12.hasDrawnCursor)
+                    {
+                        restoreOldBox();
+                        outChanged = true;
+                    }
+                    return true;
+                }
+                nv12.uploadedHotX = static_cast<int>(ii.xHotspot);
+                nv12.uploadedHotY = static_cast<int>(ii.yHotspot);
+                if (ii.hbmMask) DeleteObject(ii.hbmMask);
+                if (ii.hbmColor) DeleteObject(ii.hbmColor);
+            }
+
+            constexpr size_t kBoxPixels = static_cast<size_t>(kCursorBoxSize) * static_cast<size_t>(kCursorBoxSize);
+            constexpr size_t kBoxBytes = kBoxPixels * 4;
+            std::memset(m_CursorBlackBits, 0x00, kBoxBytes);
+            std::memset(m_CursorWhiteBits, 0xFF, kBoxBytes);
+            DrawIconEx(m_CursorBlackDc, 0, 0, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
+            DrawIconEx(m_CursorWhiteDc, 0, 0, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
+            GdiFlush();
+
+            const bool pixelsChanged = handleChanged ||
+                m_CursorPrevBlack.size() != kBoxPixels ||
+                m_CursorPrevWhite.size() != kBoxPixels ||
+                std::memcmp(m_CursorPrevBlack.data(), m_CursorBlackBits, kBoxBytes) != 0 ||
+                std::memcmp(m_CursorPrevWhite.data(), m_CursorWhiteBits, kBoxBytes) != 0;
+
+            nv12.uploadedCursorHandle = ci.hCursor;
+            nv12.uploadedCursorMs = nowMs;
+            if (pixelsChanged)
+            {
+                m_CursorPrevBlack.assign(m_CursorBlackBits, m_CursorBlackBits + kBoxPixels);
+                m_CursorPrevWhite.assign(m_CursorWhiteBits, m_CursorWhiteBits + kBoxPixels);
+                m_Context->UpdateSubresource(nv12.cursorBlackTex.Get(), 0, nullptr, m_CursorBlackBits, kCursorBoxSize * 4, 0);
+                m_Context->UpdateSubresource(nv12.cursorWhiteTex.Get(), 0, nullptr, m_CursorWhiteBits, kCursorBoxSize * 4, 0);
+                shapeUpdated = true;
+            }
+        }
+
+        const int drawX = cx - nv12.uploadedHotX;
+        const int drawY = cy - nv12.uploadedHotY;
+        const int x0 = std::clamp(drawX, 0, nv12.sourceWidth);
+        const int y0 = std::clamp(drawY, 0, nv12.sourceHeight);
+        const int x1 = std::clamp(drawX + kCursorBoxSize, 0, nv12.sourceWidth);
+        const int y1 = std::clamp(drawY + kCursorBoxSize, 0, nv12.sourceHeight);
+        const bool inBounds = (x1 > x0 && y1 > y0);
+
+        if (!freshFrame)
+        {
+            if (!inBounds)
+            {
+                if (nv12.hasDrawnCursor)
+                {
+                    restoreOldBox();
+                    outChanged = true;
+                }
+                return true;
+            }
+            if (nv12.hasDrawnCursor && !shapeUpdated &&
+                drawX == nv12.lastCursorX && drawY == nv12.lastCursorY)
+            {
+                return true;
+            }
+        }
+
+        restoreOldBox();
+        if (!inBounds) return true;
+
+        D3D11_MAPPED_SUBRESOURCE cbMap{};
+        if (SUCCEEDED(m_Context->Map(nv12.cursorCb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &cbMap)))
+        {
+            auto* cb = static_cast<CbCursorData*>(cbMap.pData);
+            cb->originX = drawX;
+            cb->originY = drawY;
+            cb->pad0 = 0;
+            cb->pad1 = 0;
+            m_Context->Unmap(nv12.cursorCb.Get(), 0);
+        }
+
+        m_Context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+        m_Context->OMSetDepthStencilState(nullptr, 0);
+        m_Context->RSSetState(nullptr);
+
+        ID3D11RenderTargetView* rtv = nv12.inputRtv.Get();
+        m_Context->OMSetRenderTargets(1, &rtv, nullptr);
+
+        D3D11_VIEWPORT vp{};
+        vp.TopLeftX = static_cast<float>(x0);
+        vp.TopLeftY = static_cast<float>(y0);
+        vp.Width = static_cast<float>(x1 - x0);
+        vp.Height = static_cast<float>(y1 - y0);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        m_Context->RSSetViewports(1, &vp);
+
+        m_Context->IASetInputLayout(nullptr);
+        m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        m_Context->VSSetShader(nv12.cursorVs.Get(), nullptr, 0);
+        m_Context->PSSetShader(nv12.cursorPs.Get(), nullptr, 0);
+        ID3D11Buffer* cbPtr = nv12.cursorCb.Get();
+        m_Context->PSSetConstantBuffers(0, 1, &cbPtr);
+        ID3D11ShaderResourceView* srvs[3] = {
+            nv12.cleanInputSrv.Get(), nv12.cursorBlackSrv.Get(), nv12.cursorWhiteSrv.Get()
+        };
+        m_Context->PSSetShaderResources(0, 3, srvs);
+        m_Context->Draw(4, 0);
+
+        ID3D11ShaderResourceView* nullSrvs[3] = {nullptr, nullptr, nullptr};
+        ID3D11RenderTargetView* nullRtv = nullptr;
+        m_Context->PSSetShaderResources(0, 3, nullSrvs);
+        m_Context->OMSetRenderTargets(1, &nullRtv, nullptr);
+
+        nv12.hasDrawnCursor = true;
+        nv12.lastCursorX = drawX;
+        nv12.lastCursorY = drawY;
+        nv12.lastBoxLeft = x0;
+        nv12.lastBoxTop = y0;
+        nv12.lastBoxRight = x1;
+        nv12.lastBoxBottom = y1;
+        outChanged = true;
+        return true;
+    }
+
+    bool HostCapture::RefreshCachedNv12Cursor(bool keepOnGpu, bool captureCursor)
+    {
+        auto& nv12 = m_Nv12;
+        if (!nv12.processor || !nv12.gpuCursorSupported || !nv12.hasCleanInput) return false;
+
+        bool changed = false;
+        if (captureCursor)
+        {
+            if (!DrawGpuCursorOntoInput(false, changed)) return false;
+        }
+        else if (nv12.hasDrawnCursor &&
+                 nv12.lastBoxRight > nv12.lastBoxLeft && nv12.lastBoxBottom > nv12.lastBoxTop)
+        {
+            D3D11_BOX oldBox{};
+            oldBox.left = static_cast<UINT>(nv12.lastBoxLeft);
+            oldBox.top = static_cast<UINT>(nv12.lastBoxTop);
+            oldBox.front = 0;
+            oldBox.right = static_cast<UINT>(nv12.lastBoxRight);
+            oldBox.bottom = static_cast<UINT>(nv12.lastBoxBottom);
+            oldBox.back = 1;
+            m_Context->CopySubresourceRegion(
+                nv12.input.Get(), 0, oldBox.left, oldBox.top, 0,
+                nv12.cleanInput.Get(), 0, &oldBox);
+            nv12.hasDrawnCursor = false;
+            changed = true;
+        }
+
+        if (!changed) return true;
+
+        D3D11_VIDEO_PROCESSOR_STREAM stream{};
+        stream.Enable = TRUE;
+        stream.pInputSurface = nv12.inputView.Get();
+        if (FAILED(nv12.context->VideoProcessorBlt(nv12.processor.Get(), nv12.outputView.Get(), 0, 1, &stream)))
+        {
+            return false;
+        }
+        if (!keepOnGpu)
+        {
+            m_Context->CopyResource(nv12.readback.Get(), nv12.output.Get());
+            if (!ReadStagingPixels(nv12.readback.Get(), nv12.outputWidth,
+                                   static_cast<size_t>(nv12.outputHeight) * 3 / 2))
+            {
+                return false;
+            }
+            ++m_LastFrameRevision;
+        }
+        return true;
+    }
+
+    bool HostCapture::CaptureNv12(ID3D11Texture2D* source, bool keepOnGpu, bool captureCursor)
     {
         if (!PrepareNv12Conversion(m_Width, m_Height)) return false;
         auto& nv12 = m_Nv12;
+        if (captureCursor && !nv12.gpuCursorSupported) return false;
+
         m_Context->CopyResource(nv12.input.Get(), source);
+        if (captureCursor)
+        {
+            m_Context->CopyResource(nv12.cleanInput.Get(), source);
+            nv12.hasCleanInput = true;
+            nv12.hasDrawnCursor = false;
+            bool cursorChanged = false;
+            if (!DrawGpuCursorOntoInput(true, cursorChanged))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            nv12.hasCleanInput = false;
+            nv12.hasDrawnCursor = false;
+        }
+
         D3D11_VIDEO_PROCESSOR_STREAM stream{};
         stream.Enable = TRUE;
         stream.pInputSurface = nv12.inputView.Get();
@@ -939,15 +1386,20 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         }
 
         const bool wantPq = preferPqHdr && m_OutputIsHdr;
-        const bool wantNv12 = !captureCursor && !m_OutputIsHdr &&
+        const bool wantNv12 = !m_OutputIsHdr &&
             m_Nv12Width > 0 && m_Nv12Height > 0 && (m_Nv12Width % 2 == 0) && (m_Nv12Height % 2 == 0);
         const bool wantGpuFrame = wantNv12 && m_EncoderDevice && m_EncoderDevice == m_Device.Get();
         const bool hasUsableCache = m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPq &&
             (!m_LastFrameInGpu || wantGpuFrame) &&
-            (!m_LastFrameIsNv12 || (wantNv12 && m_LastFrameWidth == m_Nv12Width && m_LastFrameHeight == m_Nv12Height));
+            (!m_LastFrameIsNv12 || (wantNv12 && m_LastFrameWidth == m_Nv12Width && m_LastFrameHeight == m_Nv12Height &&
+                                    (!captureCursor || m_Nv12.hasCleanInput)));
         auto copyCachedFrame = [&](bool updated)
         {
-            const uint64_t revision = captureCursor ? 0 : m_LastFrameRevision;
+            if (m_LastFrameIsNv12 && !updated)
+            {
+                RefreshCachedNv12Cursor(m_LastFrameInGpu, captureCursor);
+            }
+            const uint64_t revision = (captureCursor && !m_LastFrameIsNv12) ? 0 : m_LastFrameRevision;
             if (m_LastFrameInGpu)
             {
                 outFrame.nv12Texture = m_Nv12.output;
@@ -963,7 +1415,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             outFrame.updated = updated;
             outFrame.isHdr10Pq = m_LastFrameIsHdr10Pq;
             outFrame.isNv12 = m_LastFrameIsNv12;
-            if (captureCursor) OverlayCursor(outFrame);
+            if (captureCursor && !m_LastFrameIsNv12) OverlayCursor(outFrame);
             return true;
         };
 
@@ -1079,7 +1531,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             }
 
             const bool outputNv12 = wantNv12 && acqDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM &&
-                CaptureNv12(acquiredTex.Get(), wantGpuFrame);
+                CaptureNv12(acquiredTex.Get(), wantGpuFrame, captureCursor);
             bool copied = false;
             bool outputPq = false;
             if (outputNv12)
@@ -1248,25 +1700,14 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         if (ii.hbmMask) DeleteObject(ii.hbmMask);
         if (ii.hbmColor) DeleteObject(ii.hbmColor);
 
-        const int box = 48;
+        const int box = kCursorBoxSize;
         int drawX = cx - hotX;
         int drawY = cy - hotY;
 
-        HDC hScreen = GetDC(nullptr);
-        HDC hMem = CreateCompatibleDC(hScreen);
-        BITMAPINFO bmi{};
-        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = box;
-        bmi.bmiHeader.biHeight = -box;
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = BI_RGB;
-
-        uint32_t* pixels = nullptr;
-        HBITMAP hBmp = CreateDIBSection(hScreen, &bmi, DIB_RGB_COLORS, reinterpret_cast<void**>(&pixels), nullptr, 0);
-        if (hBmp && pixels)
+        if (!EnsureCursorScratch()) return;
+        HDC hMem = m_CursorBlackDc;
+        uint32_t* pixels = m_CursorBlackBits;
         {
-            HGDIOBJ oldObj = SelectObject(hMem, hBmp);
             std::vector<uint32_t> beforePatch;
             if (frame.isHdr10Pq)
             {
@@ -1350,6 +1791,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             }
 
             DrawIconEx(hMem, 0, 0, ci.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
+            GdiFlush();
 
             for (int y = 0; y < box; ++y)
             {
@@ -1384,11 +1826,6 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                     }
                 }
             }
-
-            SelectObject(hMem, oldObj);
-            DeleteObject(hBmp);
         }
-        DeleteDC(hMem);
-        ReleaseDC(nullptr, hScreen);
     }
 }

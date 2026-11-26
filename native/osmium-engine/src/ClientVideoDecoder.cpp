@@ -239,6 +239,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         m_LastClientHdrQueryMs = 0;
         m_AnchorHwnd = nullptr;
 
+        m_BackbufferVpOutView.Reset();
         m_Vp.Reset();
         m_VpEnum.Reset();
         m_VideoContext.Reset();
@@ -682,6 +683,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             return true;
         }
 
+        m_BackbufferVpOutView.Reset();
         m_Vp.Reset();
         m_VpEnum.Reset();
 
@@ -691,7 +693,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         content.InputHeight = static_cast<UINT>(srcH);
         content.OutputWidth = static_cast<UINT>(std::max(1, m_WindowWidth));
         content.OutputHeight = static_cast<UINT>(std::max(1, m_WindowHeight));
-        content.Usage = D3D11_VIDEO_USAGE_PLAYBACK_NORMAL;
+        content.Usage = D3D11_VIDEO_USAGE_OPTIMAL_SPEED;
 
         if (FAILED(m_VideoDevice->CreateVideoProcessorEnumerator(&content, &m_VpEnum)) ||
             FAILED(m_VideoDevice->CreateVideoProcessor(m_VpEnum.Get(), 0, &m_Vp)))
@@ -804,6 +806,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         m_BgBrush.Reset();
         m_TextBrush.Reset();
         m_D2DRenderTarget.Reset();
+        m_BackbufferVpOutView.Reset();
         m_BackbufferRtv.Reset();
 
         DXGI_FORMAT targetFmt = wantHdr ? DXGI_FORMAT_R10G10B10A2_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -1138,9 +1141,6 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             return false;
         }
 
-        ComPtr<ID3D11Texture2D> backbuffer;
-        if (FAILED(m_SwapChain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)))) return false;
-
         D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC ivDesc{};
         ivDesc.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
         ivDesc.Texture2D.ArraySlice = subresource;
@@ -1148,6 +1148,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         ComPtr<ID3D11VideoProcessorInputView> inputView;
         if (FAILED(m_VideoDevice->CreateVideoProcessorInputView(srcTex, m_VpEnum.Get(), &ivDesc, &inputView)))
         {
+            m_BackbufferVpOutView.Reset();
             m_Vp.Reset();
             m_VpEnum.Reset();
             if (!InitVideoProcessor(static_cast<int>(srcDesc.Width), static_cast<int>(srcDesc.Height), srcDesc.Format,
@@ -1158,20 +1159,26 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             }
         }
 
-        D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC ovDesc{};
-        ovDesc.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
-        ComPtr<ID3D11VideoProcessorOutputView> outputView;
-        if (FAILED(
-            m_VideoDevice->CreateVideoProcessorOutputView(backbuffer.Get(), m_VpEnum.Get(), &ovDesc, &outputView)))
+        auto ensureOutputView = [&]() -> bool
         {
+            if (m_BackbufferVpOutView) return true;
+            ComPtr<ID3D11Texture2D> backbuffer;
+            if (FAILED(m_SwapChain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)))) return false;
+            D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC ovDesc{};
+            ovDesc.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+            return SUCCEEDED(m_VideoDevice->CreateVideoProcessorOutputView(
+                backbuffer.Get(), m_VpEnum.Get(), &ovDesc, &m_BackbufferVpOutView));
+        };
+
+        if (!ensureOutputView())
+        {
+            m_BackbufferVpOutView.Reset();
             m_Vp.Reset();
             m_VpEnum.Reset();
             if (!InitVideoProcessor(static_cast<int>(srcDesc.Width), static_cast<int>(srcDesc.Height), srcDesc.Format,
                                     srcHdr) ||
                 FAILED(m_VideoDevice->CreateVideoProcessorInputView(srcTex, m_VpEnum.Get(), &ivDesc, &inputView)) ||
-                FAILED(
-                    m_VideoDevice->CreateVideoProcessorOutputView(backbuffer.Get(), m_VpEnum.Get(), &ovDesc, &outputView
-                    )))
+                !ensureOutputView())
             {
                 return false;
             }
@@ -1206,16 +1213,15 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         stream.Enable = TRUE;
         stream.pInputSurface = inputView.Get();
 
-        if (FAILED(m_VideoContext->VideoProcessorBlt(m_Vp.Get(), outputView.Get(), 0, 1, &stream)))
+        if (FAILED(m_VideoContext->VideoProcessorBlt(m_Vp.Get(), m_BackbufferVpOutView.Get(), 0, 1, &stream)))
         {
+            m_BackbufferVpOutView.Reset();
             m_Vp.Reset();
             m_VpEnum.Reset();
             if (!InitVideoProcessor(static_cast<int>(srcDesc.Width), static_cast<int>(srcDesc.Height), srcDesc.Format,
                                     srcHdr) ||
                 FAILED(m_VideoDevice->CreateVideoProcessorInputView(srcTex, m_VpEnum.Get(), &ivDesc, &inputView)) ||
-                FAILED(
-                    m_VideoDevice->CreateVideoProcessorOutputView(backbuffer.Get(), m_VpEnum.Get(), &ovDesc, &outputView
-                    )))
+                !ensureOutputView())
             {
                 return false;
             }
@@ -1223,8 +1229,9 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             m_VideoContext->VideoProcessorSetStreamDestRect(m_Vp.Get(), 0, TRUE, &dstRect);
             m_VideoContext->VideoProcessorSetOutputTargetRect(m_Vp.Get(), TRUE, &dstRect);
             stream.pInputSurface = inputView.Get();
-            if (FAILED(m_VideoContext->VideoProcessorBlt(m_Vp.Get(), outputView.Get(), 0, 1, &stream)))
+            if (FAILED(m_VideoContext->VideoProcessorBlt(m_Vp.Get(), m_BackbufferVpOutView.Get(), 0, 1, &stream)))
             {
+                m_BackbufferVpOutView.Reset();
                 return false;
             }
         }
@@ -1375,7 +1382,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             m_SwsSrcRange != srcRange || m_SwsSrcHdr != srcHdrInt)
         {
             if (m_SwsCtx) sws_freeContext(m_SwsCtx);
-            m_SwsCtx = sws_getContext(fw, fh, fmt, fw, fh, dstSwsFmt, SWS_BILINEAR, nullptr, nullptr, nullptr);
+            m_SwsCtx = sws_getContext(fw, fh, fmt, fw, fh, dstSwsFmt, SWS_POINT, nullptr, nullptr, nullptr);
             if (m_SwsCtx)
             {
                 const int* coeff = sws_getCoefficients(srcHdr ? SWS_CS_BT2020 : SWS_CS_ITU709);

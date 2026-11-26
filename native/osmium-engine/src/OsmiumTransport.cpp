@@ -1915,7 +1915,10 @@ namespace osmium
 
         if (m_RelayMode.load(std::memory_order_acquire))
         {
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(std::max(1, timeoutMs));
+            const bool nonBlocking = (timeoutMs <= 0);
+            const auto deadline = nonBlocking
+                                      ? std::chrono::steady_clock::time_point{}
+                                      : (std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs));
             while (!m_Closed.load())
             {
                 std::vector<uint8_t> pkt;
@@ -1923,6 +1926,7 @@ namespace osmium
                     std::unique_lock<std::mutex> ql(m_RelayRecvMutex);
                     if (m_RelayRecvQueue.empty())
                     {
+                        if (nonBlocking) return 0;
                         if (!m_RelayRecvCv.wait_until(ql, deadline, [this]
                             {
                                 return m_Closed.load() || !m_RelayRecvQueue.empty();
@@ -1983,7 +1987,8 @@ namespace osmium
         const SOCKET activeSock = m_ActiveSock.load(std::memory_order_acquire);
         if (activeSock == INVALID_SOCKET) return -1;
 
-        const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1, timeoutMs));
+        const bool nonBlocking = (timeoutMs <= 0);
+        uint64_t deadline = 0;
         const bool udpConn = m_UdpConnected.load(std::memory_order_acquire);
         while (!m_Closed.load())
         {
@@ -2002,8 +2007,10 @@ namespace osmium
                 {
                     return m_Closed.load() ? -1 : 0;
                 }
+                if (nonBlocking) return 0;
 
-                uint64_t now = NowMillis();
+                const uint64_t now = NowMillis();
+                if (deadline == 0) deadline = now + static_cast<uint64_t>(timeoutMs);
                 if (now >= deadline) return 0;
 
                 uint64_t remMs = deadline - now;

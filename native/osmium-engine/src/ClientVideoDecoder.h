@@ -114,6 +114,7 @@ namespace osmium
         Microsoft::WRL::ComPtr<ID3D11VideoContext> m_VideoContext;
         Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator> m_VpEnum;
         Microsoft::WRL::ComPtr<ID3D11VideoProcessor> m_Vp;
+        Microsoft::WRL::ComPtr<ID3D11VideoProcessorOutputView> m_BackbufferVpOutView;
         int m_VpSrcW = 0;
         int m_VpSrcH = 0;
         DXGI_FORMAT m_VpSrcFmt = DXGI_FORMAT_UNKNOWN;
