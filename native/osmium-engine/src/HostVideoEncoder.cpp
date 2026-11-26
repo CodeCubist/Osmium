@@ -4,12 +4,49 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <d3d11_4.h>
 #include <mutex>
+
+extern "C" {
+#include <libavutil/hwcontext.h>
+#include <libavutil/hwcontext_d3d11va.h>
+}
 
 namespace osmium
 {
     namespace
     {
+        AVBufferRef* CreateD3D11Nv12Frames(ID3D11Device* device, int width, int height)
+        {
+            ID3D11Multithread* multithread = nullptr;
+            ID3D11DeviceContext* immediate = nullptr;
+            device->GetImmediateContext(&immediate);
+            const HRESULT threadingSupport = immediate->QueryInterface(IID_PPV_ARGS(&multithread));
+            immediate->Release();
+            if (FAILED(threadingSupport)) return nullptr;
+            multithread->SetMultithreadProtected(TRUE);
+            multithread->Release();
+
+            AVBufferRef* deviceRef = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_D3D11VA);
+            if (!deviceRef) return nullptr;
+            auto* deviceCtx = reinterpret_cast<AVHWDeviceContext*>(deviceRef->data);
+            auto* d3d = static_cast<AVD3D11VADeviceContext*>(deviceCtx->hwctx);
+            device->AddRef();
+            d3d->device = device;
+            AVBufferRef* frames = nullptr;
+            if (av_hwdevice_ctx_init(deviceRef) >= 0) frames = av_hwframe_ctx_alloc(deviceRef);
+            av_buffer_unref(&deviceRef);
+            if (!frames) return nullptr;
+
+            auto* ctx = reinterpret_cast<AVHWFramesContext*>(frames->data);
+            ctx->format = AV_PIX_FMT_D3D11;
+            ctx->sw_format = AV_PIX_FMT_NV12;
+            ctx->width = width;
+            ctx->height = height;
+            if (av_hwframe_ctx_init(frames) < 0) av_buffer_unref(&frames);
+            return frames;
+        }
+
         struct Bt2020Lut
         {
             std::array<int32_t, 1024> yr{}, yg{}, yb{};
@@ -78,6 +115,7 @@ namespace osmium
         {
             av_frame_free(&m_YuvFrame);
         }
+        av_frame_free(&m_HardwareFrame);
         if (m_CodecCtx)
         {
             avcodec_free_context(&m_CodecCtx);
@@ -97,7 +135,8 @@ namespace osmium
         int codecPreference,
         int encoderPreference,
         bool enableHdr,
-        bool enableYuv444)
+        bool enableYuv444,
+        ID3D11Device* captureDevice)
     {
         Shutdown();
 
@@ -174,10 +213,16 @@ namespace osmium
         {
             for (const auto& cand : candidatePasses[pass])
             {
-                if (TryOpenCandidate(cand, fps, bitrateKbps, enableHdr, enableYuv444))
+                if (TryOpenCandidate(cand, fps, bitrateKbps, enableHdr, enableYuv444, captureDevice))
                 {
                     m_YuvFrame = av_frame_alloc();
-                    m_YuvFrame->format = m_CodecCtx->pix_fmt;
+                    if (m_CodecCtx->hw_frames_ctx) m_HardwareFrame = av_frame_alloc();
+                    if (!m_YuvFrame || (m_CodecCtx->hw_frames_ctx && !m_HardwareFrame))
+                    {
+                        Shutdown();
+                        return false;
+                    }
+                    m_YuvFrame->format = m_HardwareFrame ? AV_PIX_FMT_NV12 : m_CodecCtx->pix_fmt;
                     m_YuvFrame->width = m_OutWidth;
                     m_YuvFrame->height = m_OutHeight;
                     m_YuvFrame->color_primaries = m_CodecCtx->color_primaries;
@@ -192,6 +237,12 @@ namespace osmium
 
                     if (m_PqHdrActive)
                     {
+                        m_HdrColumns.resize(m_OutWidth);
+                        m_HdrRows.resize(m_OutHeight);
+                        for (int x = 0; x < m_OutWidth; ++x)
+                            m_HdrColumns[x] = static_cast<int>(static_cast<int64_t>(x) * m_SrcWidth / m_OutWidth);
+                        for (int y = 0; y < m_OutHeight; ++y)
+                            m_HdrRows[y] = static_cast<int>(static_cast<int64_t>(y) * m_SrcHeight / m_OutHeight);
                         if (AVMasteringDisplayMetadata* mdm = av_mastering_display_metadata_create_side_data(m_YuvFrame))
                         {
                             mdm->display_primaries[0][0] = av_make_q(708, 1000);
@@ -221,9 +272,9 @@ namespace osmium
                         return false;
                     }
 
-                    OSM_LOG_INFO("HostVideoEncoder initialized: %s (%s, %dx%d @ %dfps, %d kbps, hdr=%d, pq=%d, yuv444=%d)",
+                    OSM_LOG_INFO("HostVideoEncoder initialized: %s (%s, %dx%d @ %dfps, %d kbps, hdr=%d, pq=%d, yuv444=%d, D3D11 input=%d)",
                                  m_EncoderName.c_str(), m_CodecName.c_str(), m_OutWidth, m_OutHeight, fps, bitrateKbps,
-                                 m_HdrActive ? 1 : 0, m_PqHdrActive ? 1 : 0, m_Yuv444Active ? 1 : 0);
+                                 m_HdrActive ? 1 : 0, m_PqHdrActive ? 1 : 0, m_Yuv444Active ? 1 : 0, m_HardwareFrame ? 1 : 0);
                     return true;
                 }
             }
@@ -234,7 +285,7 @@ namespace osmium
     }
 
     bool HostVideoEncoder::TryOpenCandidate(const EncoderCandidate& cand, int fps, int bitrateKbps, bool wantHdr,
-                                            bool wantYuv444)
+                                            bool wantYuv444, ID3D11Device* captureDevice)
     {
         const AVCodec* codec = avcodec_find_encoder_by_name(cand.ffmpegName);
         if (!codec) return false;
@@ -248,7 +299,8 @@ namespace osmium
         ctx->framerate = AVRational{std::max(1, fps), 1};
         ctx->bit_rate = static_cast<int64_t>(std::max(500, bitrateKbps)) * 1000LL;
         ctx->rc_max_rate = ctx->bit_rate;
-        ctx->rc_buffer_size = static_cast<int>(ctx->bit_rate / 2);
+        // Limit bursts from scene changes without making every frame fit a one-frame VBV.
+        ctx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, ctx->bit_rate * 2 / ctx->framerate.num));
         ctx->gop_size = std::max(1, fps * 2);
         ctx->max_b_frames = 0;
         ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
@@ -256,8 +308,8 @@ namespace osmium
         AVPixelFormat chosenFmt = AV_PIX_FMT_NV12;
         const enum AVPixelFormat* supportedFmts = nullptr;
         int numFmts = 0;
-        bool supportsP010 = false, supportsYuv444 = false, supportsYuv444p10 = false, hasNv12 = false, hasYuv420p =
-                 false;
+        bool supportsP010 = false, supportsYuv444 = false, supportsYuv444p10 = false;
+        bool hasNv12 = false, hasYuv420p = false, supportsD3D11 = false;
         if (avcodec_get_supported_config(ctx, codec, AV_CODEC_CONFIG_PIX_FORMAT, 0,
                                          reinterpret_cast<const void**>(&supportedFmts), &numFmts) >= 0 &&
             supportedFmts && numFmts > 0)
@@ -265,6 +317,7 @@ namespace osmium
             for (int i = 0; i < numFmts; ++i)
             {
                 if (supportedFmts[i] == AV_PIX_FMT_NV12) hasNv12 = true;
+                if (supportedFmts[i] == AV_PIX_FMT_D3D11) supportsD3D11 = true;
                 if (supportedFmts[i] == AV_PIX_FMT_YUV420P) hasYuv420p = true;
                 if (supportedFmts[i] == AV_PIX_FMT_P010LE) supportsP010 = true;
                 if (supportedFmts[i] == AV_PIX_FMT_YUV444P) supportsYuv444 = true;
@@ -347,9 +400,17 @@ namespace osmium
             av_opt_set_int(ctx->priv_data, "preset", 11, 0);
         }
 
+        if (captureDevice && supportsD3D11 && chosenFmt == AV_PIX_FMT_NV12 && !wantHdr && !wantYuv444 &&
+            (name.find("amf") != std::string::npos || name.find("nvenc") != std::string::npos))
+        {
+            ctx->hw_frames_ctx = CreateD3D11Nv12Frames(captureDevice, m_OutWidth, m_OutHeight);
+            if (ctx->hw_frames_ctx) ctx->pix_fmt = AV_PIX_FMT_D3D11;
+        }
         if (avcodec_open2(ctx, codec, nullptr) < 0)
         {
+            const bool retryWithCpuFrames = captureDevice && ctx->pix_fmt == AV_PIX_FMT_D3D11;
             avcodec_free_context(&ctx);
+            if (retryWithCpuFrames) return TryOpenCandidate(cand, fps, bitrateKbps, wantHdr, wantYuv444, nullptr);
             return false;
         }
 
@@ -375,7 +436,7 @@ namespace osmium
         }
         m_SwsCtx = sws_getContext(
             m_SrcWidth, m_SrcHeight, srcFmt,
-            m_OutWidth, m_OutHeight, m_CodecCtx->pix_fmt,
+            m_OutWidth, m_OutHeight, static_cast<AVPixelFormat>(m_YuvFrame->format),
             SWS_BILINEAR, nullptr, nullptr, nullptr);
         if (!m_SwsCtx)
         {
@@ -393,7 +454,6 @@ namespace osmium
         if (!m_CodecCtx || !m_YuvFrame || !rgb10) return false;
 
         const auto& lut = GetBt2020Lut();
-        const bool sameSize = (m_SrcWidth == m_OutWidth && m_SrcHeight == m_OutHeight);
 
         auto sampleRgb10 = [rgb10, srcStride](int sx, int sy, int& r, int& g, int& b)
         {
@@ -408,20 +468,13 @@ namespace osmium
         {
             for (int y = 0; y < m_OutHeight; ++y)
             {
-                int sy = sameSize
-                             ? y
-                             : std::min(m_SrcHeight - 1,
-                                        static_cast<int>((static_cast<int64_t>(y) * m_SrcHeight) / m_OutHeight));
+                const int sy = m_HdrRows[y];
                 const uint32_t* srcRow = reinterpret_cast<const uint32_t*>(rgb10 + static_cast<size_t>(sy) * srcStride);
                 auto* dstY = reinterpret_cast<uint16_t*>(m_YuvFrame->data[0] + static_cast<size_t>(y) * m_YuvFrame->
                     linesize[0]);
                 for (int x = 0; x < m_OutWidth; ++x)
                 {
-                    int sx = sameSize
-                                 ? x
-                                 : std::min(m_SrcWidth - 1,
-                                            static_cast<int>((static_cast<int64_t>(x) * m_SrcWidth) / m_OutWidth));
-                    uint32_t px = srcRow[sx];
+                    uint32_t px = srcRow[m_HdrColumns[x]];
                     int r = static_cast<int>(px & 0x3FFU);
                     int g = static_cast<int>((px >> 10) & 0x3FFU);
                     int b = static_cast<int>((px >> 20) & 0x3FFU);
@@ -434,29 +487,14 @@ namespace osmium
             const int uvW = m_OutWidth / 2;
             for (int cy = 0; cy < uvH; ++cy)
             {
-                int sy0 = sameSize
-                              ? (cy * 2)
-                              : std::min(m_SrcHeight - 1,
-                                         static_cast<int>((static_cast<int64_t>(cy * 2) * m_SrcHeight) / m_OutHeight));
-                int sy1 = sameSize
-                              ? std::min(m_SrcHeight - 1, cy * 2 + 1)
-                              : std::min(m_SrcHeight - 1,
-                                         static_cast<int>((static_cast<int64_t>(cy * 2 + 1) * m_SrcHeight) /
-                                             m_OutHeight));
+                const int sy0 = m_HdrRows[cy * 2];
+                const int sy1 = m_HdrRows[cy * 2 + 1];
                 auto* dstUv = reinterpret_cast<uint16_t*>(m_YuvFrame->data[1] + static_cast<size_t>(cy) * m_YuvFrame->
                     linesize[1]);
                 for (int cx = 0; cx < uvW; ++cx)
                 {
-                    int sx0 = sameSize
-                                  ? (cx * 2)
-                                  : std::min(m_SrcWidth - 1,
-                                             static_cast<int>((static_cast<int64_t>(cx * 2) * m_SrcWidth) /
-                                                 m_OutWidth));
-                    int sx1 = sameSize
-                                  ? std::min(m_SrcWidth - 1, cx * 2 + 1)
-                                  : std::min(m_SrcWidth - 1,
-                                             static_cast<int>((static_cast<int64_t>(cx * 2 + 1) * m_SrcWidth) /
-                                                 m_OutWidth));
+                    const int sx0 = m_HdrColumns[cx * 2];
+                    const int sx1 = m_HdrColumns[cx * 2 + 1];
                     int r0, g0, b0, r1, g1, b1, r2, g2, b2, r3, g3, b3;
                     sampleRgb10(sx0, sy0, r0, g0, b0);
                     sampleRgb10(sx1, sy0, r1, g1, b1);
@@ -478,10 +516,7 @@ namespace osmium
         {
             for (int y = 0; y < m_OutHeight; ++y)
             {
-                int sy = sameSize
-                             ? y
-                             : std::min(m_SrcHeight - 1,
-                                        static_cast<int>((static_cast<int64_t>(y) * m_SrcHeight) / m_OutHeight));
+                const int sy = m_HdrRows[y];
                 const uint32_t* srcRow = reinterpret_cast<const uint32_t*>(rgb10 + static_cast<size_t>(sy) * srcStride);
                 auto* dstY = reinterpret_cast<uint16_t*>(m_YuvFrame->data[0] + static_cast<size_t>(y) * m_YuvFrame->
                     linesize[0]);
@@ -491,11 +526,7 @@ namespace osmium
                     linesize[2]);
                 for (int x = 0; x < m_OutWidth; ++x)
                 {
-                    int sx = sameSize
-                                 ? x
-                                 : std::min(m_SrcWidth - 1,
-                                            static_cast<int>((static_cast<int64_t>(x) * m_SrcWidth) / m_OutWidth));
-                    uint32_t px = srcRow[sx];
+                    uint32_t px = srcRow[m_HdrColumns[x]];
                     int r = static_cast<int>(px & 0x3FFU);
                     int g = static_cast<int>((px >> 10) & 0x3FFU);
                     int b = static_cast<int>((px >> 20) & 0x3FFU);
@@ -517,28 +548,82 @@ namespace osmium
         return true;
     }
 
+    ID3D11Device* HostVideoEncoder::GetD3dInputDevice() const
+    {
+        if (!m_HardwareFrame) return nullptr;
+        auto* frames = reinterpret_cast<AVHWFramesContext*>(m_CodecCtx->hw_frames_ctx->data);
+        return static_cast<AVD3D11VADeviceContext*>(frames->device_ctx->hwctx)->device;
+    }
+
+    bool HostVideoEncoder::PrepareHardwareFrame(ID3D11Texture2D* nv12Texture)
+    {
+        av_frame_unref(m_HardwareFrame);
+        if (av_hwframe_get_buffer(m_CodecCtx->hw_frames_ctx, m_HardwareFrame, 0) < 0) return false;
+        if (nv12Texture)
+        {
+            auto* frames = reinterpret_cast<AVHWFramesContext*>(m_CodecCtx->hw_frames_ctx->data);
+            auto* d3d = static_cast<AVD3D11VADeviceContext*>(frames->device_ctx->hwctx);
+            ID3D11Device* textureDevice = nullptr;
+            nv12Texture->GetDevice(&textureDevice);
+            const bool sameDevice = textureDevice == d3d->device;
+            textureDevice->Release();
+            if (!sameDevice) return false;
+            auto* target = reinterpret_cast<ID3D11Texture2D*>(m_HardwareFrame->data[0]);
+            const auto slice = static_cast<UINT>(reinterpret_cast<intptr_t>(m_HardwareFrame->data[1]));
+            // The encoder retains its own pooled texture while capture reuses its converter output.
+            d3d->lock(d3d->lock_ctx);
+            d3d->device_context->CopySubresourceRegion(target, slice, 0, 0, 0, nv12Texture, 0, nullptr);
+            d3d->unlock(d3d->lock_ctx);
+        }
+        else if (av_hwframe_transfer_data(m_HardwareFrame, m_YuvFrame, 0) < 0)
+        {
+            return false;
+        }
+        return av_frame_copy_props(m_HardwareFrame, m_YuvFrame) >= 0;
+    }
+
     bool HostVideoEncoder::EncodeFrame(
         const uint8_t* pixels,
         int srcStride,
-        bool isRgb10Pq,
+        AVPixelFormat inputFormat,
         std::vector<EncodedPacket>& outPackets,
-        uint64_t pixelRevision)
+        uint64_t pixelRevision,
+        ID3D11Texture2D* nv12Texture)
     {
         outPackets.clear();
-        if (!m_CodecCtx || !m_YuvFrame || !pixels) return false;
+        if (!m_CodecCtx || !m_YuvFrame || (nv12Texture ? !m_HardwareFrame : !pixels)) return false;
 
         if (pixelRevision == 0 || pixelRevision != m_ConvertedPixelRevision)
         {
             m_ConvertedPixelRevision = 0;
-            if (av_frame_make_writable(m_YuvFrame) < 0) return false;
+            if (!nv12Texture && av_frame_make_writable(m_YuvFrame) < 0) return false;
 
-            if (isRgb10Pq)
+            if (nv12Texture)
+            {
+                if (!PrepareHardwareFrame(nv12Texture)) return false;
+            }
+            else if (inputFormat == AV_PIX_FMT_NV12)
+            {
+                if (!AcceptsNv12()) return false;
+                const uint8_t* plane = pixels;
+                for (int p = 0; p < 2; ++p)
+                {
+                    const int rows = p == 0 ? m_OutHeight : m_OutHeight / 2;
+                    for (int y = 0; y < rows; ++y)
+                    {
+                        std::memcpy(m_YuvFrame->data[p] + static_cast<size_t>(y) * m_YuvFrame->linesize[p],
+                                    plane, m_OutWidth);
+                        plane += srcStride;
+                    }
+                }
+            }
+            else if (inputFormat == AV_PIX_FMT_X2BGR10LE)
             {
                 if (!FillYuvFromRgb10Pq(pixels, srcStride)) return false;
             }
             else
             {
-                if (!EnsureSwsContext(AV_PIX_FMT_BGRA)) return false;
+                if (!EnsureSwsContext(inputFormat)) return false;
                 const uint8_t* srcSlices[4] = {pixels, nullptr, nullptr, nullptr};
                 int srcLinesizes[4] = {srcStride, 0, 0, 0};
                 if (sws_scale(m_SwsCtx, srcSlices, srcLinesizes, 0, m_SrcHeight,
@@ -547,20 +632,22 @@ namespace osmium
                     return false;
                 }
             }
+            if (m_HardwareFrame && !nv12Texture && !PrepareHardwareFrame(nullptr)) return false;
             m_ConvertedPixelRevision = pixelRevision;
         }
 
         const bool forcedIdr = m_ForceIdr.exchange(false);
-        m_YuvFrame->pts = m_Pts++;
+        AVFrame* submitFrame = m_HardwareFrame ? m_HardwareFrame : m_YuvFrame;
+        submitFrame->pts = m_Pts++;
         if (forcedIdr)
         {
-            m_YuvFrame->pict_type = AV_PICTURE_TYPE_I;
-            m_YuvFrame->flags |= AV_FRAME_FLAG_KEY;
+            submitFrame->pict_type = AV_PICTURE_TYPE_I;
+            submitFrame->flags |= AV_FRAME_FLAG_KEY;
         }
         else
         {
-            m_YuvFrame->pict_type = AV_PICTURE_TYPE_NONE;
-            m_YuvFrame->flags &= ~AV_FRAME_FLAG_KEY;
+            submitFrame->pict_type = AV_PICTURE_TYPE_NONE;
+            submitFrame->flags &= ~AV_FRAME_FLAG_KEY;
         }
 
         auto drainPackets = [&]() -> bool
@@ -587,7 +674,7 @@ namespace osmium
             }
         };
 
-        int err = avcodec_send_frame(m_CodecCtx, m_YuvFrame);
+        int err = avcodec_send_frame(m_CodecCtx, submitFrame);
         if (err == AVERROR(EAGAIN))
         {
             if (!drainPackets())
@@ -595,7 +682,7 @@ namespace osmium
                 if (forcedIdr) m_ForceIdr.store(true);
                 return false;
             }
-            err = avcodec_send_frame(m_CodecCtx, m_YuvFrame);
+            err = avcodec_send_frame(m_CodecCtx, submitFrame);
         }
         if (err < 0)
         {

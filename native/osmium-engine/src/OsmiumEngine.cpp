@@ -1,6 +1,7 @@
 #include "OsmiumNative.h"
 #include "OsmiumCommon.h"
 #include "OsmiumProtocol.h"
+#include "VideoDecodeGate.h"
 #include "OsmiumTransport.h"
 #include "DriverSetupHelper.h"
 #include "UsbIpVirtualDevices.h"
@@ -239,16 +240,17 @@ namespace
             if (limit <= 0) return std::max(0, value);
             return value > 0 ? std::min(value, limit) : limit;
         };
-        const int32_t maxFps = std::clamp(config.maxFps > 0 ? config.maxFps : 60, 10, 240);
+        constexpr int32_t supportedMaxFps = 240;
+        constexpr int32_t supportedMaxBitrateKbps = 500000;
+        const int32_t maxFps = std::clamp(config.maxFps > 0 ? config.maxFps : supportedMaxFps, 10, supportedMaxFps);
         const int32_t maxBitrateKbps = std::clamp(
-            config.maxBitrateKbps > 0 ? config.maxBitrateKbps : 20000, 500, 500000);
+            config.maxBitrateKbps > 0 ? config.maxBitrateKbps : supportedMaxBitrateKbps, 500, supportedMaxBitrateKbps);
 
         settings.width = limitDimension(settings.width, config.maxWidth);
         settings.height = limitDimension(settings.height, config.maxHeight);
-        settings.fps = settings.fps > 0 ? std::clamp(settings.fps, 10, maxFps) : maxFps;
-        settings.bitrateKbps = settings.bitrateKbps > 0
-                                  ? std::clamp(settings.bitrateKbps, 500, maxBitrateKbps)
-                                  : maxBitrateKbps;
+        settings.fps = std::clamp(settings.fps > 0 ? settings.fps : HostVideoSettings{}.fps, 10, maxFps);
+        settings.bitrateKbps = std::clamp(settings.bitrateKbps > 0 ? settings.bitrateKbps : HostVideoSettings{}.bitrateKbps,
+                                          500, maxBitrateKbps);
         return settings;
     }
 
@@ -312,7 +314,7 @@ namespace
         int32_t nativeH = ctx->capture.GetHeight();
         int32_t streamW = ctx->encoder.GetOutWidth();
         int32_t streamH = ctx->encoder.GetOutHeight();
-        int32_t fps = 60;
+        HostVideoSettings video;
         bool hostHdrEnabled = ctx->capture.IsOutputHdr();
         bool hdr = ctx->encoder.IsPqHdrActive();
         bool yuv444 = ctx->encoder.IsYuv444Active();
@@ -328,7 +330,7 @@ namespace
         {
             std::lock_guard<std::mutex> lock(ctx->cfgMutex);
             activeIdx = ctx->activeDisplayIndex;
-            fps = ctx->videoSettings.fps;
+            video = ctx->videoSettings;
             mMode = ctx->mouseMode;
             smartEng = ctx->smartEngaged;
             lastAct = ctx->lastActionMsg;
@@ -350,7 +352,8 @@ namespace
             << ",\"nativeHeight\":" << nativeH
             << ",\"streamWidth\":" << streamW
             << ",\"streamHeight\":" << streamH
-            << ",\"fps\":" << fps
+            << ",\"fps\":" << video.fps
+            << ",\"bitrateKbps\":" << video.bitrateKbps
             << ",\"hostHdrEnabled\":" << (hostHdrEnabled ? "true" : "false")
             << ",\"hdr\":" << (hdr ? "true" : "false")
             << ",\"yuv444\":" << (yuv444 ? "true" : "false")
@@ -507,6 +510,7 @@ namespace
         ctx->audio.SetVirtualDevices(&ctx->virtualUsb);
 
         int32_t activeFps = 60;
+        bool allowGpuEncoderInput = true;
         auto reconfigurePipeline = [&](bool forceInitCapture) -> bool
         {
             int dispIdx = 0;
@@ -560,11 +564,16 @@ namespace
             int codecPref = ctx->clientProfile.codecPreference != 0
                                 ? ctx->clientProfile.codecPreference
                                 : ctx->config.codecPreference;
+            auto* captureDevice = allowGpuEncoderInput && !capCursor && !hostHdr ? ctx->capture.GetDevice() : nullptr;
             if (!ctx->encoder.Initialize(capW, capH, outW, outH, settings.fps, settings.bitrateKbps, codecPref,
-                                         ctx->config.encoderPreference, effectiveHdr, settings.yuv444))
+                                         ctx->config.encoderPreference, effectiveHdr, settings.yuv444, captureDevice))
             {
                 return false;
             }
+            const bool acceptsNv12 = ctx->encoder.AcceptsNv12();
+            ctx->capture.SetNv12OutputSize(acceptsNv12 ? ctx->encoder.GetOutWidth() : 0,
+                                           acceptsNv12 ? ctx->encoder.GetOutHeight() : 0,
+                                           ctx->encoder.GetD3dInputDevice());
             activeFps = settings.fps;
             ctx->statusDirty.store(true);
             return true;
@@ -611,6 +620,25 @@ namespace
         uint32_t consecutiveEncodeErrors = 0;
         uint32_t consecutiveEmptyEncodes = 0;
         double avgEncodeMs = 0.0;
+        struct StageTiming
+        {
+            uint64_t sumUs = 0;
+            uint64_t maxUs = 0;
+            uint32_t samples = 0;
+
+            void Record(uint64_t elapsedUs)
+            {
+                sumUs += elapsedUs;
+                maxUs = std::max(maxUs, elapsedUs);
+                ++samples;
+            }
+
+            double MeanMs() const { return samples ? sumUs / (1000.0 * samples) : 0.0; }
+            double MaxMs() const { return maxUs / 1000.0; }
+        } captureTiming, encodeTiming, sendTiming;
+        uint32_t freshCaptureCount = 0;
+        uint64_t lastTimingMs = lastStatsMs;
+        uint32_t lastTimingEncodedFrames = 0;
         CapturedFrame capFrame;
         std::vector<EncodedPacket> encodedPackets;
         std::vector<uint8_t> chunkBuf;
@@ -690,7 +718,11 @@ namespace
             const bool wantPqCapture = ctx->encoder.IsPqHdrActive();
             const int initialCaptureWaitMs = std::clamp<int>(static_cast<int>(frameIntervalUs / 1000ULL), 4, 16);
 
-            if (ctx->capture.CaptureNextFrame(capFrame, initialCaptureWaitMs, wantPqCapture))
+            const uint64_t captureStartUs = NowMicros();
+            const bool captured = ctx->capture.CaptureNextFrame(capFrame, initialCaptureWaitMs, wantPqCapture);
+            captureTiming.Record(NowMicros() - captureStartUs);
+            if (captured && capFrame.updated) ++freshCaptureCount;
+            if (captured)
             {
                 bool curHostHdr = ctx->capture.IsOutputHdr();
                 if (curHostHdr != ctx->lastHostHdr)
@@ -706,34 +738,45 @@ namespace
 
                 ctx->injector.SetTargetDisplayRect(ctx->capture.GetDesktopRect());
                 ctx->textFocus.SetDisplayRect(ctx->capture.GetDesktopRect());
+                const int planeRows = capFrame.height + (capFrame.isNv12 ? capFrame.height / 2 : 0);
                 if (capFrame.width <= 0 || capFrame.height <= 0 || capFrame.stride <= 0 ||
-                    capFrame.bgra.size() < static_cast<size_t>(capFrame.stride) * static_cast<size_t>(capFrame.height))
+                    (!capFrame.nv12Texture && capFrame.pixels.size() < static_cast<size_t>(capFrame.stride) * planeRows))
                 {
                     continue;
                 }
-                if (capFrame.width != ctx->encoder.GetSrcWidth() || capFrame.height != ctx->encoder.GetSrcHeight())
+                const int captureWidth = ctx->capture.GetWidth();
+                const int captureHeight = ctx->capture.GetHeight();
+                if (captureWidth != ctx->encoder.GetSrcWidth() || captureHeight != ctx->encoder.GetSrcHeight())
                 {
                     OSM_LOG_INFO("Host capture geometry changed (%dx%d -> %dx%d); reconfiguring encoder",
-                                 ctx->encoder.GetSrcWidth(), ctx->encoder.GetSrcHeight(), capFrame.width,
-                                 capFrame.height);
+                                 ctx->encoder.GetSrcWidth(), ctx->encoder.GetSrcHeight(), captureWidth, captureHeight);
                     if (!reconfigurePipeline(false))
                     {
                         Sleep(50);
                         continue;
                     }
                 }
-                if (capFrame.width != ctx->encoder.GetSrcWidth() || capFrame.height != ctx->encoder.GetSrcHeight() ||
-                    (ctx->encoder.IsPqHdrActive() != capFrame.isHdr10Pq))
+                const int expectedWidth = capFrame.isNv12 ? ctx->encoder.GetOutWidth() : ctx->encoder.GetSrcWidth();
+                const int expectedHeight = capFrame.isNv12 ? ctx->encoder.GetOutHeight() : ctx->encoder.GetSrcHeight();
+                if (capFrame.width != expectedWidth || capFrame.height != expectedHeight ||
+                    (ctx->encoder.IsPqHdrActive() != capFrame.isHdr10Pq) ||
+                    (capFrame.isNv12 && !ctx->encoder.AcceptsNv12()) ||
+                    (capFrame.nv12Texture && !ctx->encoder.GetD3dInputDevice()))
                 {
                     continue;
                 }
 
                 uint64_t encStartUs = NowMicros();
-                if (ctx->encoder.EncodeFrame(capFrame.bgra.data(), capFrame.stride, capFrame.isHdr10Pq,
-                                             encodedPackets, capFrame.pixelRevision))
+                const auto inputFormat = capFrame.isNv12 ? AV_PIX_FMT_NV12 :
+                    (capFrame.isHdr10Pq ? AV_PIX_FMT_X2BGR10LE : AV_PIX_FMT_BGRA);
+                const bool encoded = ctx->encoder.EncodeFrame(capFrame.pixels.data(), capFrame.stride,
+                    inputFormat, encodedPackets, capFrame.pixelRevision, capFrame.nv12Texture.Get());
+                const uint64_t sendStartUs = NowMicros();
+                encodeTiming.Record(sendStartUs - encStartUs);
+                if (encoded)
                 {
                     consecutiveEncodeErrors = 0;
-                    double encMs = static_cast<double>(NowMicros() - encStartUs) / 1000.0;
+                    double encMs = static_cast<double>(sendStartUs - encStartUs) / 1000.0;
                     avgEncodeMs = (avgEncodeMs * 0.85) + (encMs * 0.15);
 
                     uint8_t cFlags = 0;
@@ -747,7 +790,7 @@ namespace
                                                        ? proto::kMaxRelayVideoChunkPayload
                                                        : (isLanRoute
                                                               ? proto::kMaxLanVideoChunkPayload
-                                                              : proto::kMaxVideoChunkPayload);
+                                                              : proto::kMaxWanVideoChunkPayload);
 
                     bool sentAnyPacket = false;
                     for (const auto& ep : encodedPackets)
@@ -814,6 +857,7 @@ namespace
 
                     if (sentAnyPacket)
                     {
+                        sendTiming.Record(NowMicros() - sendStartUs);
                         consecutiveEmptyEncodes = 0;
                         lastEncodedPacketMs = NowMillis();
                     }
@@ -838,7 +882,11 @@ namespace
                     OSM_LOG_WARN(
                         "Host video encoder %s stalled/failed (errors=%u, empty=%u); recovering pipeline",
                         stalledEnc.c_str(), consecutiveEncodeErrors, consecutiveEmptyEncodes);
-                    if (ctx->encoder.IsHardwareEncoder() && ctx->config.encoderPreference != 1 && !stalledEnc.empty())
+                    if (ctx->encoder.GetD3dInputDevice())
+                    {
+                        allowGpuEncoderInput = false;
+                    }
+                    else if (ctx->encoder.IsHardwareEncoder() && ctx->config.encoderPreference != 1 && !stalledEnc.empty())
                     {
                         ctx->encoder.ExcludeEncoderForSession(stalledEnc);
                     }
@@ -850,6 +898,23 @@ namespace
             }
 
             nowMs = NowMillis();
+            if (nowMs - lastTimingMs >= 5000)
+            {
+                const double seconds = (nowMs - lastTimingMs) / 1000.0;
+                const uint32_t encoded = ctx->totalEncodedFrames.load();
+                OSM_LOG_INFO("Host video timing (%s): target=%d fps, fresh=%.1f fps, encoded=%.1f fps, "
+                             "capture=%.2f/%.2f ms, convert+encode=%.2f/%.2f ms, send=%.2f/%.2f ms (avg/max)",
+                             ctx->encoder.GetEncoderName().c_str(), activeFps, freshCaptureCount / seconds,
+                             (encoded - lastTimingEncodedFrames) / seconds, captureTiming.MeanMs(),
+                             captureTiming.MaxMs(), encodeTiming.MeanMs(), encodeTiming.MaxMs(),
+                             sendTiming.MeanMs(), sendTiming.MaxMs());
+                lastTimingMs = nowMs;
+                lastTimingEncodedFrames = encoded;
+                freshCaptureCount = 0;
+                captureTiming = {};
+                encodeTiming = {};
+                sendTiming = {};
+            }
             if (nowMs - lastStatsMs >= 1000)
             {
                 double elapsedSec = static_cast<double>(nowMs - lastStatsMs) / 1000.0;
@@ -1122,24 +1187,27 @@ namespace
         std::vector<uint8_t> lastChunkBuf;
     };
 
+    using SessionVideoDecodeGate = osmium::VideoDecodeGate<AssembledVideoFrame>;
+
     bool TryAssembleVideoChunk(
         std::map<uint32_t, PendingFrameChunks>& pending,
-        uint32_t& lastCompletedFrameId,
         uint32_t& lastCompletedKeyFrameId,
         const proto::VideoChunkHeader* hdr,
         const uint8_t* dataPtr,
         size_t dataBytes,
         uint64_t nowMs,
-        AssembledVideoFrame& outFrame,
-        bool& outHadDrop)
+        AssembledVideoFrame& outFrame)
     {
-        outHadDrop = false;
         if (hdr->totalChunks == 0 || hdr->chunkIndex >= hdr->totalChunks)
         {
             return false;
         }
         const bool isKey = hdr->isKeyFrame != 0;
-        if (hdr->frameId <= lastCompletedFrameId && (!isKey || hdr->frameId <= lastCompletedKeyFrameId))
+        // Only keyframes are sent twice (redundant IDR pass). Suppress an
+        // already-completed keyframe; keep inter frames that finish behind a
+        // higher id so the decode gate can put them back in order instead of
+        // turning packet reordering into a permanent gap.
+        if (isKey && hdr->frameId <= lastCompletedKeyFrameId)
         {
             return false;
         }
@@ -1154,26 +1222,7 @@ namespace
             outFrame.colorFlags = hdr->colorFlags;
             outFrame.payload.assign(dataPtr, dataPtr + dataBytes);
 
-            if (hdr->frameId > lastCompletedFrameId)
-            {
-                lastCompletedFrameId = hdr->frameId;
-            }
-            if (isKey && hdr->frameId > lastCompletedKeyFrameId)
-            {
-                lastCompletedKeyFrameId = hdr->frameId;
-            }
-            for (auto it = pending.begin(); it != pending.end();)
-            {
-                if (it->first < lastCompletedFrameId && (isKey || !it->second.isKeyFrame))
-                {
-                    it = pending.erase(it);
-                    outHadDrop = true;
-                }
-                else
-                {
-                    ++it;
-                }
-            }
+            if (isKey) lastCompletedKeyFrameId = hdr->frameId;
             return true;
         }
 
@@ -1262,28 +1311,8 @@ namespace
         outFrame.colorFlags = pf.colorFlags;
         outFrame.payload = std::move(pf.flatBuf);
 
-        if (hdr->frameId > lastCompletedFrameId)
-        {
-            lastCompletedFrameId = hdr->frameId;
-        }
-        if (outFrame.isKeyFrame && hdr->frameId > lastCompletedKeyFrameId)
-        {
-            lastCompletedKeyFrameId = hdr->frameId;
-        }
+        if (outFrame.isKeyFrame) lastCompletedKeyFrameId = hdr->frameId;
         pending.erase(hdr->frameId);
-
-        for (auto it = pending.begin(); it != pending.end();)
-        {
-            if (it->first < lastCompletedFrameId && (outFrame.isKeyFrame || !it->second.isKeyFrame))
-            {
-                it = pending.erase(it);
-                outHadDrop = true;
-            }
-            else
-            {
-                ++it;
-            }
-        }
         return true;
     }
 
@@ -1311,6 +1340,7 @@ namespace
         std::mutex queueMutex;
         std::condition_variable queueCv;
         std::deque<AssembledVideoFrame> frameQueue;
+        SessionVideoDecodeGate decodeGate;
 
         std::atomic<uint32_t> actionSeqCounter{1};
         std::mutex retxMutex;
@@ -1392,10 +1422,8 @@ namespace
     {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         std::map<uint32_t, PendingFrameChunks> pending;
-        uint32_t lastCompletedFrameId = 0;
         uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
-        uint64_t lastRecvIdrReqMs = 0;
         std::vector<uint8_t> plain;
 
         while (!ctx->stopFlag.load())
@@ -1418,14 +1446,6 @@ namespace
                 {
                     if (nowMs - it->second.createdMs > staleTimeoutMs)
                     {
-                        if (it->first > lastCompletedFrameId)
-                        {
-                            lastCompletedFrameId = it->first;
-                        }
-                        if (it->second.isKeyFrame && it->first > lastCompletedKeyFrameId)
-                        {
-                            lastCompletedKeyFrameId = it->first;
-                        }
                         it = pending.erase(it);
                         purged = true;
                     }
@@ -1437,11 +1457,6 @@ namespace
                 if (purged)
                 {
                     ctx->droppedFrames.fetch_add(1);
-                    if (nowMs - lastRecvIdrReqMs >= 150)
-                    {
-                        lastRecvIdrReqMs = nowMs;
-                        SendReliableIdrRequest(ctx->transport);
-                    }
                 }
             }
             if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
@@ -1453,37 +1468,22 @@ namespace
             {
                 const auto* hdr = reinterpret_cast<const proto::VideoChunkHeader*>(plain.data());
                 AssembledVideoFrame frame;
-                bool hadDrop = false;
                 if (TryAssembleVideoChunk(
                         pending,
-                        lastCompletedFrameId,
                         lastCompletedKeyFrameId,
                         hdr,
                         plain.data() + sizeof(proto::VideoChunkHeader),
                         plain.size() - sizeof(proto::VideoChunkHeader),
                         nowMs,
-                        frame,
-                        hadDrop))
+                        frame))
                 {
                     ctx->receivedFrames.fetch_add(1);
-                    if (hadDrop)
-                    {
-                        ctx->droppedFrames.fetch_add(1);
-                        if (nowMs - lastRecvIdrReqMs >= 150)
-                        {
-                            lastRecvIdrReqMs = nowMs;
-                            SendReliableIdrRequest(ctx->transport);
-                        }
-                    }
-
+                    uint32_t queueDropped;
                     {
                         std::lock_guard<std::mutex> ql(ctx->queueMutex);
-                        if (frame.isKeyFrame)
-                        {
-                            ctx->frameQueue.clear();
-                        }
-                        ctx->frameQueue.push_back(std::move(frame));
+                        queueDropped = ctx->decodeGate.Enqueue(ctx->frameQueue, std::move(frame));
                     }
+                    if (queueDropped) ctx->droppedFrames.fetch_add(queueDropped);
                     ctx->queueCv.notify_one();
                 }
             }
@@ -1650,6 +1650,7 @@ namespace
 
             AssembledVideoFrame nextFrame;
             bool hasFrame = false;
+            bool gateWaiting = false;
             size_t queuedAfterPop = 0;
             {
                 std::unique_lock<std::mutex> ql(ctx->queueMutex);
@@ -1657,49 +1658,30 @@ namespace
                 {
                     ctx->queueCv.wait_for(ql, std::chrono::milliseconds(hasPendingRetx ? 3 : 8));
                 }
-                if (ctx->frameQueue.size() > 1)
+                uint32_t gateDropped = 0;
+                hasFrame = ctx->decodeGate.SelectNext(
+                    ctx->frameQueue, NowMillis(), gateDropped, nextFrame);
+                queuedAfterPop = ctx->frameQueue.size();
+                gateWaiting = ctx->decodeGate.waitingForKeyframe;
+                if (gateDropped != 0)
                 {
-                    size_t latestKeyIdx = 0;
-                    for (size_t i = ctx->frameQueue.size(); i > 0; --i)
-                    {
-                        if (ctx->frameQueue[i - 1].isKeyFrame)
-                        {
-                            latestKeyIdx = i - 1;
-                            break;
-                        }
-                    }
-                    if (latestKeyIdx > 0)
-                    {
-                        ctx->frameQueue.erase(ctx->frameQueue.begin(),
-                                              ctx->frameQueue.begin() + static_cast<std::ptrdiff_t>(latestKeyIdx));
-                        ctx->droppedFrames.fetch_add(static_cast<uint32_t>(latestKeyIdx));
-                    }
-                }
-                if (!ctx->frameQueue.empty())
-                {
-                    nextFrame = std::move(ctx->frameQueue.front());
-                    ctx->frameQueue.pop_front();
-                    queuedAfterPop = ctx->frameQueue.size();
-                    hasFrame = true;
+                    ctx->droppedFrames.fetch_add(gateDropped);
                 }
             }
 
             FlushPendingUdpActions(ctx);
 
-            if (queuedAfterPop >= 6 && (nowMs - lastIdrReqMs >= 250))
-            {
-                lastIdrReqMs = nowMs;
-                SendReliableIdrRequest(ctx->transport);
-            }
-
             if (!hasFrame)
             {
                 ctx->decoder.RepaintIfResized();
-                if (!hasRenderedFirstFrame && (nowMs - lastIdrReqMs >= 150))
+                if ((!hasRenderedFirstFrame || gateWaiting) && (nowMs - lastIdrReqMs >= 150))
                 {
                     lastIdrReqMs = nowMs;
                     SendReliableIdrRequest(ctx->transport);
                 }
+                // Reorder grace leaves frames queued but nothing decodable;
+                // yield instead of spinning the render thread.
+                if (queuedAfterPop > 0) Sleep(1);
             }
             else
             {
@@ -2950,6 +2932,7 @@ OSMIUM_API int32_t Osmium_RunClientSession(
     std::mutex queueMutex;
     std::condition_variable queueCv;
     std::deque<AssembledVideoFrame> frameQueue;
+    SessionVideoDecodeGate decodeGate;
     std::atomic<uint32_t> receivedFrames{0};
     std::atomic<uint32_t> droppedFrames{0};
     std::atomic<uint64_t> bytesRecvWindow{0};
@@ -2959,10 +2942,8 @@ OSMIUM_API int32_t Osmium_RunClientSession(
     {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         std::map<uint32_t, PendingFrameChunks> pending;
-        uint32_t lastCompletedFrameId = 0;
         uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
-        uint64_t lastRecvIdrReqMs = 0;
         std::vector<uint8_t> plain;
 
         while (!recvStop.load() && !g_ClientStopRequested.load())
@@ -2984,11 +2965,6 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 {
                     if (nowMs - it->second.createdMs > staleTimeoutMs)
                     {
-                        if (it->first > lastCompletedFrameId) lastCompletedFrameId = it->first;
-                        if (it->second.isKeyFrame && it->first > lastCompletedKeyFrameId)
-                        {
-                            lastCompletedKeyFrameId = it->first;
-                        }
                         it = pending.erase(it);
                         purged = true;
                     }
@@ -3000,11 +2976,6 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 if (purged)
                 {
                     droppedFrames.fetch_add(1);
-                    if (nowMs - lastRecvIdrReqMs >= 150)
-                    {
-                        lastRecvIdrReqMs = nowMs;
-                        SendReliableIdrRequest(t);
-                    }
                 }
             }
             if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
@@ -3016,34 +2987,22 @@ OSMIUM_API int32_t Osmium_RunClientSession(
             {
                 const auto* hdr = reinterpret_cast<const proto::VideoChunkHeader*>(plain.data());
                 AssembledVideoFrame frame;
-                bool hadDrop = false;
                 if (TryAssembleVideoChunk(
                         pending,
-                        lastCompletedFrameId,
                         lastCompletedKeyFrameId,
                         hdr,
                         plain.data() + sizeof(proto::VideoChunkHeader),
                         plain.size() - sizeof(proto::VideoChunkHeader),
                         nowMs,
-                        frame,
-                        hadDrop))
+                        frame))
                 {
                     receivedFrames.fetch_add(1);
-                    if (hadDrop)
-                    {
-                        droppedFrames.fetch_add(1);
-                        if (nowMs - lastRecvIdrReqMs >= 150)
-                        {
-                            lastRecvIdrReqMs = nowMs;
-                            SendReliableIdrRequest(t);
-                        }
-                    }
-
+                    uint32_t queueDropped;
                     {
                         std::lock_guard<std::mutex> ql(queueMutex);
-                        if (frame.isKeyFrame) frameQueue.clear();
-                        frameQueue.push_back(std::move(frame));
+                        queueDropped = decodeGate.Enqueue(frameQueue, std::move(frame));
                     }
+                    if (queueDropped) droppedFrames.fetch_add(queueDropped);
                     queueCv.notify_one();
                 }
             }
@@ -3127,41 +3086,24 @@ OSMIUM_API int32_t Osmium_RunClientSession(
         {
             std::unique_lock<std::mutex> ql(queueMutex);
             if (frameQueue.empty()) queueCv.wait_for(ql, std::chrono::milliseconds(4));
-            if (frameQueue.size() > 1)
-            {
-                size_t latestKeyIdx = 0;
-                for (size_t i = frameQueue.size(); i > 0; --i)
-                {
-                    if (frameQueue[i - 1].isKeyFrame)
-                    {
-                        latestKeyIdx = i - 1;
-                        break;
-                    }
-                }
-                if (latestKeyIdx > 0)
-                {
-                    frameQueue.erase(frameQueue.begin(),
-                                     frameQueue.begin() + static_cast<std::ptrdiff_t>(latestKeyIdx));
-                    droppedFrames.fetch_add(static_cast<uint32_t>(latestKeyIdx));
-                }
-            }
-            if (!frameQueue.empty())
-            {
-                nextFrame = std::move(frameQueue.front());
-                frameQueue.pop_front();
-                queuedAfterPop = frameQueue.size();
-                hasFrame = true;
-            }
+            uint32_t gateDropped = 0;
+            hasFrame = decodeGate.SelectNext(
+                frameQueue, NowMillis(), gateDropped, nextFrame);
+            queuedAfterPop = frameQueue.size();
+            if (gateDropped != 0) droppedFrames.fetch_add(gateDropped);
         }
 
         if (!hasFrame)
         {
             decoder.RepaintIfResized();
-            if (!hasRenderedFirstFrame && (nowMs - lastIdrReqMs >= 150))
+            if ((!hasRenderedFirstFrame || decodeGate.waitingForKeyframe) && (nowMs - lastIdrReqMs >= 150))
             {
                 lastIdrReqMs = nowMs;
                 SendReliableIdrRequest(t);
             }
+            // Reorder grace leaves frames queued but nothing decodable; yield
+            // instead of spinning the render loop.
+            if (queuedAfterPop > 0) Sleep(1);
         }
         else
         {

@@ -99,6 +99,8 @@ public sealed class RecentSessionRecord
 public sealed class OsmiumSettings
 {
     public const string FixedSignalingServerUrl = "wss://osmium.fufu.skin";
+    public const int MinStreamFps = 10;
+    public const int MaxStreamFps = 240;
 
     [JsonIgnore] public string SignalingServerUrl => FixedSignalingServerUrl;
 
@@ -145,6 +147,12 @@ public sealed class OsmiumSettings
         get;
         set;
     } = 0;
+
+    public bool HostLimitVideoRates
+    {
+        get;
+        set;
+    }
 
     public int HostMaxFps
     {

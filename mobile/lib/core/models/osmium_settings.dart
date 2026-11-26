@@ -1,3 +1,5 @@
+import '../constants/osmium_constants.dart';
+
 enum ControlMode {
   /// Default: direct screen tap-to-click with precision drag/long-press right-click
   directTouch,
@@ -171,7 +173,10 @@ class OsmiumSettings {
       enableHaptics: json['enableHaptics'] != false,
       desiredWidth: (json['desiredWidth'] as num?)?.toInt() ?? 1920,
       desiredHeight: (json['desiredHeight'] as num?)?.toInt() ?? 1080,
-      desiredFps: (json['desiredFps'] as num?)?.toInt() ?? 60,
+      desiredFps: ((json['desiredFps'] as num?)?.toInt() ?? 60).clamp(
+        OsmiumConstants.minStreamFps,
+        OsmiumConstants.maxStreamFps,
+      ),
       desiredBitrateKbps:
           (json['desiredBitrateKbps'] as num?)?.toInt() ?? 12000,
       codecPref: enumAt(

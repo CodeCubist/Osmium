@@ -301,9 +301,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_LastWhiteQueryMs = 0;
         m_LastLoggedAcqFmt = DXGI_FORMAT_UNKNOWN;
 
+        if (m_DuplicationFrameHeld)
+        {
+            m_Duplication->ReleaseFrame();
+            m_DuplicationFrameHeld = false;
+        }
         m_Duplication.Reset();
         m_StagingTex.Reset();
         m_StagingFmt = DXGI_FORMAT_UNKNOWN;
+        m_Nv12 = {};
         m_Context.Reset();
         m_Device.Reset();
     }
@@ -311,7 +317,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
     void HostCapture::Shutdown()
     {
         ReleaseD3DResources();
-        m_LastFrameBgra.clear();
+        m_LastFramePixels.clear();
         m_LastFrameIsHdr10Pq = false;
         m_HasLastFrame = false;
         m_LastDxgiFrameOrGdiProbeMs = 0;
@@ -751,7 +757,6 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         }
 
         m_StagingFmt = DXGI_FORMAT_B8G8R8A8_UNORM;
-        m_LastFrameBgra.resize(static_cast<size_t>(m_Width) * static_cast<size_t>(m_Height) * 4);
         m_LastFrameIsHdr10Pq = false;
         m_HasLastFrame = false;
         m_LastDxgiFrameOrGdiProbeMs = 0;
@@ -761,18 +766,156 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         return true;
     }
 
+    bool HostCapture::PrepareNv12Conversion(int sourceWidth, int sourceHeight)
+    {
+        auto& nv12 = m_Nv12;
+        if (nv12.sourceWidth == sourceWidth && nv12.sourceHeight == sourceHeight &&
+            nv12.outputWidth == m_Nv12Width && nv12.outputHeight == m_Nv12Height)
+        {
+            return nv12.processor != nullptr;
+        }
+
+        if (m_LastFrameInGpu) m_HasLastFrame = false;
+        nv12 = {};
+        nv12.sourceWidth = sourceWidth;
+        nv12.sourceHeight = sourceHeight;
+        nv12.outputWidth = m_Nv12Width;
+        nv12.outputHeight = m_Nv12Height;
+
+        ComPtr<ID3D11VideoDevice> videoDevice;
+        ComPtr<ID3D11VideoProcessorEnumerator> formats;
+        ComPtr<ID3D11VideoProcessorEnumerator1> conversions;
+        D3D11_VIDEO_PROCESSOR_CONTENT_DESC content{};
+        content.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+        content.InputFrameRate = {60, 1};
+        content.OutputFrameRate = content.InputFrameRate;
+        content.InputWidth = sourceWidth;
+        content.InputHeight = sourceHeight;
+        content.OutputWidth = nv12.outputWidth;
+        content.OutputHeight = nv12.outputHeight;
+        content.Usage = D3D11_VIDEO_USAGE_OPTIMAL_SPEED;
+        constexpr auto inputColor = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+        constexpr auto outputColor = DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709;
+        BOOL supportsConversion = FALSE;
+        if (FAILED(m_Device.As(&videoDevice)) || FAILED(m_Context.As(&nv12.context)) ||
+            FAILED(videoDevice->CreateVideoProcessorEnumerator(&content, &formats)) ||
+            FAILED(formats.As(&conversions)) ||
+            FAILED(conversions->CheckVideoProcessorFormatConversion(
+                DXGI_FORMAT_B8G8R8A8_UNORM, inputColor, DXGI_FORMAT_NV12, outputColor, &supportsConversion)) ||
+            !supportsConversion)
+        {
+            return false;
+        }
+
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = sourceWidth;
+        desc.Height = sourceHeight;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.input))) return false;
+        desc.Width = nv12.outputWidth;
+        desc.Height = nv12.outputHeight;
+        desc.Format = DXGI_FORMAT_NV12;
+        desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+        if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.output))) return false;
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.BindFlags = 0;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.readback))) return false;
+
+        D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC inView{};
+        inView.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+        D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC outView{};
+        outView.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+        if (FAILED(videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)) ||
+            FAILED(videoDevice->CreateVideoProcessorOutputView(nv12.output.Get(), formats.Get(), &outView, &nv12.outputView)) ||
+            FAILED(videoDevice->CreateVideoProcessor(formats.Get(), 0, &nv12.processor)))
+        {
+            return false;
+        }
+
+        auto* processor = nv12.processor.Get();
+        const RECT srcRect{0, 0, sourceWidth, sourceHeight};
+        const RECT dstRect{0, 0, nv12.outputWidth, nv12.outputHeight};
+        nv12.context->VideoProcessorSetStreamFrameFormat(processor, 0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
+        nv12.context->VideoProcessorSetStreamAutoProcessingMode(processor, 0, FALSE);
+        nv12.context->VideoProcessorSetStreamSourceRect(processor, 0, TRUE, &srcRect);
+        nv12.context->VideoProcessorSetStreamDestRect(processor, 0, TRUE, &dstRect);
+        nv12.context->VideoProcessorSetOutputTargetRect(processor, TRUE, &dstRect);
+        nv12.context->VideoProcessorSetStreamColorSpace1(processor, 0, inputColor);
+        nv12.context->VideoProcessorSetOutputColorSpace1(processor, outputColor);
+        OSM_LOG_INFO("HostCapture GPU NV12 conversion ready (%dx%d -> %dx%d)",
+                     sourceWidth, sourceHeight, nv12.outputWidth, nv12.outputHeight);
+        return true;
+    }
+
+    bool HostCapture::CaptureNv12(ID3D11Texture2D* source, bool keepOnGpu)
+    {
+        if (!PrepareNv12Conversion(m_Width, m_Height)) return false;
+        auto& nv12 = m_Nv12;
+        m_Context->CopyResource(nv12.input.Get(), source);
+        D3D11_VIDEO_PROCESSOR_STREAM stream{};
+        stream.Enable = TRUE;
+        stream.pInputSurface = nv12.inputView.Get();
+        const HRESULT hr = nv12.context->VideoProcessorBlt(nv12.processor.Get(), nv12.outputView.Get(), 0, 1, &stream);
+        if (SUCCEEDED(hr))
+        {
+            if (keepOnGpu) return true;
+            m_Context->CopyResource(nv12.readback.Get(), nv12.output.Get());
+            if (ReadStagingPixels(nv12.readback.Get(), nv12.outputWidth,
+                                  static_cast<size_t>(nv12.outputHeight) * 3 / 2))
+            {
+                return true;
+            }
+        }
+        OSM_LOG_WARN("HostCapture GPU NV12 readback failed; using BGRA capture");
+        if (m_LastFrameInGpu) m_HasLastFrame = false;
+        nv12.processor.Reset();
+        return false;
+    }
+
+    bool HostCapture::ReadStagingPixels(ID3D11Texture2D* texture, size_t rowBytes, size_t rows)
+    {
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (FAILED(m_Context->Map(texture, 0, D3D11_MAP_READ, 0, &mapped))) return false;
+        const auto* source = static_cast<const uint8_t*>(mapped.pData);
+        m_LastFramePixels.resize(rowBytes * rows);
+        if (mapped.RowPitch == rowBytes)
+        {
+            std::memcpy(m_LastFramePixels.data(), source, m_LastFramePixels.size());
+        }
+        else
+        {
+            for (size_t y = 0; y < rows; ++y)
+            {
+                std::memcpy(m_LastFramePixels.data() + y * rowBytes, source + y * mapped.RowPitch, rowBytes);
+            }
+        }
+        m_Context->Unmap(texture, 0);
+        return true;
+    }
+
     bool HostCapture::CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr)
     {
         const bool captureCursor = m_CaptureCursor.load(std::memory_order_relaxed);
+        const auto captureGdi = [&](bool refreshBounds)
+        {
+            if (refreshBounds) RefreshMonitorBoundsForGdi();
+            return CaptureViaGdi(outFrame, captureCursor);
+        };
         outFrame.captureTimeUs = NowMicros();
         outFrame.isHdr10Pq = false;
+        outFrame.isNv12 = false;
+        outFrame.nv12Texture.Reset();
         RefreshOutputHdrState();
 
         const uint64_t nowMs = NowMillis();
         if (m_GdiFallbackUntilMs != 0 && nowMs < m_GdiFallbackUntilMs)
         {
-            RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame, captureCursor);
+            return captureGdi(true);
         }
 
         if (!m_Duplication)
@@ -784,26 +927,35 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             }
             if (!m_Duplication)
             {
-                RefreshMonitorBoundsForGdi();
-                return CaptureViaGdi(outFrame, captureCursor);
+                return captureGdi(true);
             }
         }
 
         const bool wantPq = preferPqHdr && m_OutputIsHdr;
-        const bool hasUsableCache = m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPq;
+        const bool wantNv12 = !captureCursor && !m_OutputIsHdr &&
+            m_Nv12Width > 0 && m_Nv12Height > 0 && (m_Nv12Width % 2 == 0) && (m_Nv12Height % 2 == 0);
+        const bool wantGpuFrame = wantNv12 && m_EncoderDevice && m_EncoderDevice == m_Device.Get();
+        const bool hasUsableCache = m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPq &&
+            (!m_LastFrameInGpu || wantGpuFrame) &&
+            (!m_LastFrameIsNv12 || (wantNv12 && m_LastFrameWidth == m_Nv12Width && m_LastFrameHeight == m_Nv12Height));
         auto copyCachedFrame = [&](bool updated)
         {
             const uint64_t revision = captureCursor ? 0 : m_LastFrameRevision;
-            if (revision == 0 || revision != outFrame.pixelRevision)
+            if (m_LastFrameInGpu)
             {
-                outFrame.bgra = m_LastFrameBgra;
+                outFrame.nv12Texture = m_Nv12.output;
             }
-            outFrame.width = m_Width;
-            outFrame.height = m_Height;
-            outFrame.stride = m_Width * 4;
+            else if (revision == 0 || revision != outFrame.pixelRevision)
+            {
+                outFrame.pixels = m_LastFramePixels;
+            }
+            outFrame.width = m_LastFrameWidth;
+            outFrame.height = m_LastFrameHeight;
+            outFrame.stride = m_LastFrameIsNv12 ? m_LastFrameWidth : m_LastFrameWidth * 4;
             outFrame.pixelRevision = revision;
             outFrame.updated = updated;
             outFrame.isHdr10Pq = m_LastFrameIsHdr10Pq;
+            outFrame.isNv12 = m_LastFrameIsNv12;
             if (captureCursor) OverlayCursor(outFrame);
             return true;
         };
@@ -814,6 +966,12 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         DXGI_OUTDUPL_FRAME_INFO frameInfo{};
         ComPtr<IDXGIResource> desktopRes;
+        // Let DXGI coalesce desktop updates while encoding and pacing the last frame.
+        if (m_DuplicationFrameHeld)
+        {
+            m_Duplication->ReleaseFrame();
+            m_DuplicationFrameHeld = false;
+        }
         HRESULT hr = m_Duplication->AcquireNextFrame(effectiveTimeout, &frameInfo, &desktopRes);
 
         if (hr == DXGI_ERROR_WAIT_TIMEOUT)
@@ -824,12 +982,12 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 if (!wantPq && nowMs - m_LastDxgiFrameOrGdiProbeMs >= 500)
                 {
                     m_LastDxgiFrameOrGdiProbeMs = nowMs;
-                    if (CaptureViaGdi(outFrame, captureCursor))
+                    if (captureGdi(false))
                     {
-                        if (!captureCursor && outFrame.width == m_Width && outFrame.height == m_Height &&
-                            outFrame.bgra.size() == static_cast<size_t>(m_Width) * static_cast<size_t>(m_Height) * 4)
+                        if (!captureCursor && !m_LastFrameIsNv12 &&
+                            outFrame.width == m_LastFrameWidth && outFrame.height == m_LastFrameHeight)
                         {
-                            m_LastFrameBgra = outFrame.bgra;
+                            m_LastFramePixels = outFrame.pixels;
                             outFrame.pixelRevision = ++m_LastFrameRevision;
                         }
                         return true;
@@ -837,7 +995,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 }
                 return copyCachedFrame(false);
             }
-            if (m_HasLastFrame)
+            if (m_HasLastFrame && !m_LastFrameIsNv12)
             {
                 return false;
             }
@@ -845,8 +1003,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             {
                 return false;
             }
-            RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame, captureCursor);
+            return captureGdi(true);
         }
 
         if (FAILED(hr))
@@ -861,32 +1018,28 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 ReleaseD3DResources();
                 m_GdiFallbackUntilMs = m_LastDuplRetryMs + 5000;
                 m_ConsecutiveDuplFailures = 0;
-                RefreshMonitorBoundsForGdi();
-                return CaptureViaGdi(outFrame, captureCursor);
+                return captureGdi(true);
             }
             InitDuplication();
             if (!m_Duplication || !m_HasLastFrame)
             {
-                RefreshMonitorBoundsForGdi();
-                return CaptureViaGdi(outFrame, captureCursor);
+                return captureGdi(true);
             }
             return false;
         }
 
+        m_DuplicationFrameHeld = true;
         m_LastDxgiFrameOrGdiProbeMs = NowMillis();
         m_InitialHdrTimeouts = 0;
 
         // A pointer-only update can reuse the desktop unless a previous readback failed.
         if (frameInfo.LastPresentTime.QuadPart == 0 && hasUsableCache && m_ConsecutiveDuplFailures == 0)
         {
-            m_Duplication->ReleaseFrame();
             return copyCachedFrame(false);
         }
         if (frameInfo.LastPresentTime.QuadPart == 0 && !m_HasLastFrame)
         {
-            m_Duplication->ReleaseFrame();
-            RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame, captureCursor);
+            return captureGdi(true);
         }
 
         bool mapSucceeded = false;
@@ -917,9 +1070,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 m_StagingFmt = DXGI_FORMAT_UNKNOWN;
             }
 
+            const bool outputNv12 = wantNv12 && acqDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM &&
+                CaptureNv12(acquiredTex.Get(), wantGpuFrame);
             bool copied = false;
             bool outputPq = false;
-            if (acqDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
+            if (outputNv12)
+            {
+                mapSucceeded = true;
+            }
+            else if (acqDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
                 acqDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
             {
                 outputPq = preferPqHdr && m_OutputIsHdr;
@@ -952,27 +1111,21 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 outputPq = false;
             }
 
-            D3D11_MAPPED_SUBRESOURCE mapped{};
-            if (copied && SUCCEEDED(m_Context->Map(m_StagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+            if (copied)
             {
-                const size_t rowBytes = static_cast<size_t>(m_Width) * 4;
-                m_LastFrameBgra.resize(rowBytes * static_cast<size_t>(m_Height));
-                for (int y = 0; y < m_Height; ++y)
-                {
-                    memcpy(
-                        m_LastFrameBgra.data() + static_cast<size_t>(y) * rowBytes,
-                        static_cast<const uint8_t*>(mapped.pData) + static_cast<size_t>(y) * mapped.RowPitch,
-                        rowBytes);
-                }
-                m_Context->Unmap(m_StagingTex.Get(), 0);
+                mapSucceeded = ReadStagingPixels(m_StagingTex.Get(), static_cast<size_t>(m_Width) * 4, m_Height);
+            }
+            if (mapSucceeded)
+            {
                 ++m_LastFrameRevision;
                 m_LastFrameIsHdr10Pq = outputPq;
+                m_LastFrameIsNv12 = outputNv12;
+                m_LastFrameInGpu = outputNv12 && wantGpuFrame;
+                m_LastFrameWidth = outputNv12 ? m_Nv12Width : m_Width;
+                m_LastFrameHeight = outputNv12 ? m_Nv12Height : m_Height;
                 m_HasLastFrame = true;
-                mapSucceeded = true;
             }
         }
-
-        m_Duplication->ReleaseFrame();
 
         if (!mapSucceeded)
         {
@@ -985,8 +1138,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 m_GdiFallbackUntilMs = NowMillis() + 5000;
                 m_ConsecutiveDuplFailures = 0;
             }
-            RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame, captureCursor);
+            return captureGdi(true);
         }
 
         m_ConsecutiveDuplFailures = 0;
@@ -1002,6 +1154,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         outFrame.height = m_Height;
         outFrame.stride = m_Width * 4;
         outFrame.isHdr10Pq = false;
+        outFrame.isNv12 = false;
         HostSystemAgent::SyncThreadDesktopToInput();
         HDC hScreen = GetDC(nullptr);
         if (!hScreen) return false;
@@ -1031,7 +1184,14 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         }
 
         HGDIOBJ oldObj = SelectObject(hMem, hBmp);
-        BitBlt(hMem, 0, 0, m_Width, m_Height, hScreen, m_DesktopRect.left, m_DesktopRect.top, SRCCOPY | CAPTUREBLT);
+        if (!BitBlt(hMem, 0, 0, m_Width, m_Height, hScreen, m_DesktopRect.left, m_DesktopRect.top, SRCCOPY | CAPTUREBLT))
+        {
+            SelectObject(hMem, oldObj);
+            DeleteObject(hBmp);
+            DeleteDC(hMem);
+            ReleaseDC(nullptr, hScreen);
+            return false;
+        }
 
         if (captureCursor)
         {
@@ -1052,8 +1212,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         }
 
         const size_t totalBytes = static_cast<size_t>(m_Width) * static_cast<size_t>(m_Height) * 4;
-        outFrame.bgra.resize(totalBytes);
-        memcpy(outFrame.bgra.data(), bits, totalBytes);
+        outFrame.pixels.resize(totalBytes);
+        memcpy(outFrame.pixels.data(), bits, totalBytes);
         outFrame.updated = true;
 
         SelectObject(hMem, oldObj);
@@ -1154,7 +1314,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 {
                     int sx = drawX + x;
                     if (sx < 0 || sx >= frame.width) continue;
-                    const uint8_t* src = frame.bgra.data() + (static_cast<size_t>(sy) * frame.stride) + static_cast<
+                    const uint8_t* src = frame.pixels.data() + (static_cast<size_t>(sy) * frame.stride) + static_cast<
                         size_t>(sx) * 4;
                     if (frame.isHdr10Pq)
                     {
@@ -1192,7 +1352,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                     int sx = drawX + x;
                     if (sx < 0 || sx >= frame.width) continue;
                     uint32_t px = pixels[y * box + x];
-                    uint8_t* dst = frame.bgra.data() + (static_cast<size_t>(sy) * frame.stride) + static_cast<size_t>(
+                    uint8_t* dst = frame.pixels.data() + (static_cast<size_t>(sy) * frame.stride) + static_cast<size_t>(
                         sx) * 4;
                     if (frame.isHdr10Pq)
                     {

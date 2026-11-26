@@ -8,7 +8,6 @@ namespace osmium::mobile
     void VideoReassembler::Reset()
     {
         m_Pending.clear();
-        m_LastCompletedFrameId = 0;
         m_LastCompletedKeyFrameId = 0;
     }
 
@@ -17,15 +16,16 @@ namespace osmium::mobile
         const uint8_t* dataPtr,
         size_t dataBytes,
         uint64_t nowMs,
-        AssembledVideoFrame& outFrame,
-        bool& outHadDrop)
+        AssembledVideoFrame& outFrame)
     {
-        outHadDrop = false;
         if (!hdr || hdr->totalChunks == 0 || hdr->chunkIndex >= hdr->totalChunks || dataBytes == 0)
             return false;
         const bool isKey = hdr->isKeyFrame != 0;
-        if (m_LastCompletedFrameId != 0 && hdr->frameId <= m_LastCompletedFrameId &&
-            (!isKey || hdr->frameId <= m_LastCompletedKeyFrameId))
+        // Only keyframes are sent twice (redundant IDR pass). Suppress an
+        // already-completed keyframe; keep inter frames that finish behind a
+        // higher id so the decode gate can put them back in order instead of
+        // turning packet reordering into a permanent gap.
+        if (isKey && hdr->frameId <= m_LastCompletedKeyFrameId)
         {
             return false;
         }
@@ -41,26 +41,7 @@ namespace osmium::mobile
             outFrame.captureTimeUs = hdr->captureTimeUs;
             outFrame.payload.assign(dataPtr, dataPtr + dataBytes);
 
-            if (hdr->frameId > m_LastCompletedFrameId)
-            {
-                m_LastCompletedFrameId = hdr->frameId;
-            }
-            if (isKey && hdr->frameId > m_LastCompletedKeyFrameId)
-            {
-                m_LastCompletedKeyFrameId = hdr->frameId;
-            }
-            for (auto it = m_Pending.begin(); it != m_Pending.end();)
-            {
-                if (it->first < m_LastCompletedFrameId && (isKey || !it->second.isKeyFrame))
-                {
-                    it = m_Pending.erase(it);
-                    outHadDrop = true;
-                }
-                else
-                {
-                    ++it;
-                }
-            }
+            if (isKey) m_LastCompletedKeyFrameId = hdr->frameId;
             return true;
         }
 
@@ -146,28 +127,8 @@ namespace osmium::mobile
         outFrame.captureTimeUs = pf.captureTimeUs;
         outFrame.payload = std::move(pf.flatBuf);
 
-        if (hdr->frameId > m_LastCompletedFrameId)
-        {
-            m_LastCompletedFrameId = hdr->frameId;
-        }
-        if (outFrame.isKeyFrame && hdr->frameId > m_LastCompletedKeyFrameId)
-        {
-            m_LastCompletedKeyFrameId = hdr->frameId;
-        }
+        if (outFrame.isKeyFrame) m_LastCompletedKeyFrameId = hdr->frameId;
         m_Pending.erase(hdr->frameId);
-
-        for (auto it = m_Pending.begin(); it != m_Pending.end();)
-        {
-            if (it->first < m_LastCompletedFrameId && (outFrame.isKeyFrame || !it->second.isKeyFrame))
-            {
-                it = m_Pending.erase(it);
-                outHadDrop = true;
-            }
-            else
-            {
-                ++it;
-            }
-        }
         return true;
     }
 
@@ -179,14 +140,6 @@ namespace osmium::mobile
         {
             if (nowMs > it->second.firstSeenMs && (nowMs - it->second.firstSeenMs) > timeoutMs)
             {
-                if (it->first > m_LastCompletedFrameId)
-                {
-                    m_LastCompletedFrameId = it->first;
-                }
-                if (it->second.isKeyFrame && it->first > m_LastCompletedKeyFrameId)
-                {
-                    m_LastCompletedKeyFrameId = it->first;
-                }
                 it = m_Pending.erase(it);
                 purged = true;
             }

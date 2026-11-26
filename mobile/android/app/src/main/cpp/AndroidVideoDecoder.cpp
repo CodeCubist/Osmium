@@ -141,20 +141,20 @@ namespace osmium::mobile
         return true;
     }
 
-    bool AndroidVideoDecoder::DecodeAndRender(const AssembledVideoFrame& frame, uint32_t& outDecodeTimeUs)
+    uint32_t AndroidVideoDecoder::DecodeAndRender(const AssembledVideoFrame& frame, uint32_t& outDecodeTimeUs)
     {
         outDecodeTimeUs = 0;
-        if (frame.payload.empty()) return false;
+        if (frame.payload.empty()) return 0;
 
         std::lock_guard<std::mutex> lock(m_Mutex);
         if (!EnsureConfiguredLocked(frame.codecId, frame.width, frame.height))
         {
-            return false;
+            return 0;
         }
 
         if (m_WaitForKeyFrame)
         {
-            if (!frame.isKeyFrame) return false;
+            if (!frame.isKeyFrame) return 0;
             m_WaitForKeyFrame = false;
         }
 
@@ -163,7 +163,7 @@ namespace osmium::mobile
         ssize_t inIdx = AMediaCodec_dequeueInputBuffer(m_Codec, 8000);
         if (inIdx < 0)
         {
-            return false;
+            return 0;
         }
 
         size_t inCap = 0;
@@ -171,7 +171,7 @@ namespace osmium::mobile
         if (!inBuf || frame.payload.size() > inCap)
         {
             AMediaCodec_queueInputBuffer(m_Codec, static_cast<size_t>(inIdx), 0, 0, 0, 0);
-            return false;
+            return 0;
         }
 
         std::memcpy(inBuf, frame.payload.data(), frame.payload.size());
@@ -185,15 +185,17 @@ namespace osmium::mobile
             ptsUs,
             flags);
 
-        bool rendered = false;
+        uint32_t rendered = 0;
         AMediaCodecBufferInfo info{};
         for (int spin = 0; spin < 4; ++spin)
         {
             ssize_t outIdx = AMediaCodec_dequeueOutputBuffer(m_Codec, &info, spin == 0 ? 4000 : 0);
             if (outIdx >= 0)
             {
-                AMediaCodec_releaseOutputBuffer(m_Codec, static_cast<size_t>(outIdx), true);
-                rendered = true;
+                if (AMediaCodec_releaseOutputBuffer(m_Codec, static_cast<size_t>(outIdx), true) == AMEDIA_OK)
+                {
+                    ++rendered;
+                }
             }
             else if (outIdx == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED)
             {

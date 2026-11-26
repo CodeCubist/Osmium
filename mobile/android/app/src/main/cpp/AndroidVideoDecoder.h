@@ -23,8 +23,8 @@ namespace osmium::mobile
         void SetSurface(ANativeWindow* window);
         void Release();
 
-        // Returns true if a frame was rendered to the output surface
-        bool DecodeAndRender(const AssembledVideoFrame& frame, uint32_t& outDecodeTimeUs);
+        // Returns the number of decoded frames submitted to the output surface.
+        uint32_t DecodeAndRender(const AssembledVideoFrame& frame, uint32_t& outDecodeTimeUs);
 
         uint32_t GetWidth() const { return m_Width.load(std::memory_order_relaxed); }
         uint32_t GetHeight() const { return m_Height.load(std::memory_order_relaxed); }

@@ -294,7 +294,10 @@ namespace osmium::proto
 
     constexpr size_t kMaxVideoChunkPayload = 1240;
     constexpr size_t kMaxLanVideoChunkPayload = 1380;
+    constexpr size_t kMaxWanVideoChunkPayload = 1152;
     constexpr size_t kMaxRelayVideoChunkPayload = 16384;
+    static_assert(kMaxWanVideoChunkPayload + sizeof(EncryptedFrameHeader) + sizeof(VideoChunkHeader) + 48 <= 1280,
+                  "WAN video datagrams must fit the minimum IPv6 MTU");
     constexpr size_t kMaxAuxDataPayload = 1240;
 
     constexpr uint32_t kKcpConvControl = 1;

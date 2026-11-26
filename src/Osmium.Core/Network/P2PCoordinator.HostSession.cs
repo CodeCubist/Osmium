@@ -529,15 +529,17 @@ public sealed partial class P2PCoordinator : IDisposable
 
                 _ = Task.Run(() => WindowsClipboardHelper.CleanupOldStagingDirs(TimeSpan.FromHours(6)));
 
+                int maxBitrateKbps = s.HostLimitVideoRates ? s.HostMaxBitrateKbps : 0;
+                if (transportRoute == 4 && (maxBitrateKbps <= 0 || maxBitrateKbps > 16000))
+                    maxBitrateKbps = 16000;
+
                 var hostCfg = new OsmiumHostConfig
                 {
                     DisplayIndex = s.HostDisplayIndex,
                     MaxWidth = s.HostMaxWidth,
                     MaxHeight = s.HostMaxHeight,
-                    MaxFps = s.HostMaxFps,
-                    MaxBitrateKbps = transportRoute == 4
-                        ? Math.Min(s.HostMaxBitrateKbps > 0 ? s.HostMaxBitrateKbps : 16000, 16000)
-                        : s.HostMaxBitrateKbps,
+                    MaxFps = s.HostLimitVideoRates ? s.HostMaxFps : 0,
+                    MaxBitrateKbps = maxBitrateKbps,
                     CodecPreference = (int)s.HostCodec,
                     EncoderPreference = (int)s.HostEncoderMode,
                     CaptureAudio = s.HostCaptureAudio ? 1 : 0,

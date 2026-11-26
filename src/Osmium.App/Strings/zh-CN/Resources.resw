@@ -106,6 +106,7 @@
   <data name="Host_RowDisplay" xml:space="preserve"><value>共享显示器</value></data>
   <data name="Host_RowMaxRes" xml:space="preserve"><value>最大输出分辨率</value></data>
   <data name="Host_ResNative" xml:space="preserve"><value>保持显示器原生分辨率</value></data>
+  <data name="Host_LimitVideoRates" xml:space="preserve"><value>限制远程帧率和码率</value></data>
   <data name="Host_RowMaxFps" xml:space="preserve"><value>最高帧率上限</value></data>
   <data name="Host_RowMaxBitrate" xml:space="preserve"><value>最大码率上限</value></data>
   <data name="Host_RowCodec" xml:space="preserve"><value>编码格式偏好</value></data>
@@ -432,8 +433,9 @@
   <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>信令URI      : {0}</value></data>
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>被控端分辨率  : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>当前传输分辨率: {0} × {1}</value></data>
-  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>帧数 / 延迟   : {0} FPS - 网络RTT {1} ms - 解码{2} ms</value></data>
-  <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>传输速率      : {0} Mbps</value></data>
+  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>渲染 / 延迟   : {0} FPS - 网络RTT {1} ms - 解码{2} ms</value></data>
+  <data name="Session_DbgLineFpsPathFmt" xml:space="preserve"><value>帧率          : 请求 {0} / 被控目标 {1} / 接收 {2} FPS · 被控 {3} / 主控 {4} Hz · 垂直同步 {5}</value></data>
+  <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>码率          : 请求 {0} / 被控目标 {1} / 实测传输 {2} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>连接时长      : {0}</value></data>
   <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>丢包 / 丢帧   : {0}% - 丢{1} / 收{2} - 丢帧{3}</value></data>
   <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>编码 / 解码器 : {0} - {1} - {2} - {3}</value></data>

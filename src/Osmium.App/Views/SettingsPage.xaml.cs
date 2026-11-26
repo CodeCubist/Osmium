@@ -401,7 +401,9 @@ public sealed partial class SettingsPage : Page
         SelectByTag(HostDisplayCombo, s.HostDisplayIndex.ToString());
 
         SelectByTag(HostMaxResCombo, $"{s.HostMaxWidth}x{s.HostMaxHeight}");
-        SelectByTag(HostMaxFpsCombo, s.HostMaxFps.ToString());
+        HostLimitVideoRatesSwitch.IsOn = s.HostLimitVideoRates;
+        HostVideoRateLimits.Visibility = s.HostLimitVideoRates ? Visibility.Visible : Visibility.Collapsed;
+        SelectByTag(HostMaxFpsCombo, Math.Min(s.HostMaxFps, OsmiumSettings.MaxStreamFps).ToString());
         HostBitrateSlider.Value = Math.Clamp(s.HostMaxBitrateKbps, 2000, 500000);
         HostBitrateLabel.Text = $"{HostBitrateSlider.Value / 1000.0:F0} Mbps";
 
@@ -435,6 +437,7 @@ public sealed partial class SettingsPage : Page
         EnableEncryptionSwitch.IsOn = s.EnableEncryption;
 
         PopulateResolutionCombo(s.TargetWidth, s.TargetHeight);
+        s.Fps = Math.Clamp(s.Fps > 0 ? s.Fps : 60, OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps);
         PopulateFpsCombo(s.Fps);
 
         UnlockBitrateSwitch.IsOn = s.UnlockBitrate;
@@ -547,6 +550,7 @@ public sealed partial class SettingsPage : Page
 
         RowHostDisplay.Title = LocalizationService.GetString("Host_RowDisplay");
         RowHostMaxRes.Title = LocalizationService.GetString("Host_RowMaxRes");
+        RowHostLimitVideoRates.Title = LocalizationService.GetString("Host_LimitVideoRates");
         RowHostMaxFps.Title = LocalizationService.GetString("Host_RowMaxFps");
         RowHostMaxBitrate.Title = LocalizationService.GetString("Host_RowMaxBitrate");
         RowHostCodec.Title = LocalizationService.GetString("Host_RowCodec");
@@ -727,11 +731,21 @@ public sealed partial class SettingsPage : Page
         App.Engine.SettingsService.SaveIdentity();
     }
 
+    private void HostLimitVideoRatesSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading || App.Engine.Coordinator.IsHostStreaming) return;
+        var settings = App.Engine.SettingsService;
+        bool enabled = HostLimitVideoRatesSwitch.IsOn;
+        settings.Settings.HostLimitVideoRates = enabled;
+        HostVideoRateLimits.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        settings.SaveSettings();
+    }
+
     private void HostBitrateSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (HostBitrateLabel == null) return;
         HostBitrateLabel.Text = $"{e.NewValue / 1000.0:F0} Mbps";
-        if (_loading) return;
+        if (_loading || App.Engine.Coordinator.IsHostStreaming) return;
         App.Engine.SettingsService.Settings.HostMaxBitrateKbps = (int)e.NewValue;
         App.Engine.SettingsService.SaveSettings();
     }
@@ -833,13 +847,11 @@ public sealed partial class SettingsPage : Page
     private void PopulateFpsCombo(int currentFps)
     {
         ClientFpsCombo.Items.Clear();
-        var rates = new SortedSet<int> { 30, 60, 90, 120, 144, 165, 240, 360 };
+        var rates = new SortedSet<int> { 30, 60, 90, 120, 144, 165, OsmiumSettings.MaxStreamFps, currentFps };
         foreach (var d in App.Engine.Displays)
         {
-            if (d.RefreshRate >= 24) rates.Add(d.RefreshRate);
+            if (d.RefreshRate is >= 24 and <= OsmiumSettings.MaxStreamFps) rates.Add(d.RefreshRate);
         }
-
-        if (currentFps >= 10) rates.Add(currentFps);
 
         int matchedIdx = 0;
         int idx = 0;

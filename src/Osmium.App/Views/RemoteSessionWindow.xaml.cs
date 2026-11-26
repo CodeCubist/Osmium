@@ -217,6 +217,8 @@ public sealed partial class RemoteSessionWindow : Window
     }
 
     private OsmiumClientStats _latestStats;
+    private long _lastStatsSampleTime;
+    private double? _receivedVideoFps;
     private HostSessionStatusDto _hostStatus = new();
     private List<HostStatusDisplayDto> _renderedTabs = [];
     private readonly List<DisplayTabVisual> _tabVisuals = [];
@@ -241,7 +243,10 @@ public sealed partial class RemoteSessionWindow : Window
     private int _targetCustomWidth;
     private int _targetCustomHeight;
     private int _currentFps;
-    private int _baseBitrateKbps;
+    private readonly int _maxBitrateKbps;
+    private int _manualBitrateKbps;
+    private int _requestedBitrateKbps;
+    private bool _autoAdjustBitrate;
     private bool _enableHdr;
     private bool _hasReceivedHostHdrStatus;
     private bool _hostHdrAvailable;
@@ -258,11 +263,14 @@ public sealed partial class RemoteSessionWindow : Window
         InitializeComponent();
 
         var s = App.Engine.SettingsService.Settings;
-        _currentFps = Math.Clamp(launchArgs.InitialConfig.Fps > 0 ? launchArgs.InitialConfig.Fps : 60, 15, 240);
+        _currentFps = Math.Clamp(launchArgs.InitialConfig.Fps > 0 ? launchArgs.InitialConfig.Fps : 60,
+            OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps);
         RefreshTargetMouseSamplingHz();
-        _baseBitrateKbps =
-            Math.Clamp(launchArgs.InitialConfig.BitrateKbps > 0 ? launchArgs.InitialConfig.BitrateKbps : 20000, 1500,
-                500000);
+        _maxBitrateKbps = s.UnlockBitrate ? 500000 : 150000;
+        _manualBitrateKbps = Math.Clamp(launchArgs.InitialConfig.BitrateKbps > 0 ? launchArgs.InitialConfig.BitrateKbps : 20000,
+            500, GetSessionBitrateLimitKbps());
+        _requestedBitrateKbps = _manualBitrateKbps;
+        _autoAdjustBitrate = s.AutoAdjustBitrate;
         _enableHdr = launchArgs.InitialConfig.EnableHdr != 0;
         _enableYuv444 = launchArgs.InitialConfig.EnableYuv444 != 0;
         _enableVsync = launchArgs.InitialConfig.EnableVsync != 0;
@@ -521,6 +529,7 @@ public sealed partial class RemoteSessionWindow : Window
             MenuSubQuality.Text = LocalizationService.GetString("Session_MenuQuality");
             MenuSubResolution.Text = LocalizationService.GetString("Session_MenuResolution");
             MenuSubFps.Text = LocalizationService.GetString("Session_MenuFps");
+            SessionBitrateMenuItem.Text = LocalizationService.GetString("Set_BitrateTitle") + "…";
             HostNativeResMenuItem.Text = _hostStatus.NativeWidth > 0 && _hostStatus.NativeHeight > 0
                 ? LocalizationService.Format("Session_NativeResFmt", _hostStatus.NativeWidth, _hostStatus.NativeHeight)
                 : LocalizationService.GetString("Session_NativeResUnknown");
@@ -648,9 +657,16 @@ public sealed partial class RemoteSessionWindow : Window
         {
             if (_isClosed || _remoteSessionEnded) return;
             OsmiumClientStats copy = stats;
+            long sampleTime = Stopwatch.GetTimestamp();
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (_isClosed || _remoteSessionEnded) return;
+                if (_lastStatsSampleTime != 0 && sampleTime > _lastStatsSampleTime)
+                {
+                    uint received = unchecked(copy.ReceivedFrames - _latestStats.ReceivedFrames);
+                    _receivedVideoFps = received / Stopwatch.GetElapsedTime(_lastStatsSampleTime, sampleTime).TotalSeconds;
+                }
+                _lastStatsSampleTime = sampleTime;
                 _latestStats = copy;
                 if (copy.VideoWidth > 0 && copy.VideoHeight > 0)
                 {

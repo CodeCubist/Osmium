@@ -738,6 +738,12 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
+    private int GetSessionBitrateLimitKbps()
+    {
+        int route = _latestStats.TransportRoute > 0 ? _latestStats.TransportRoute : _launchArgs.TransportRoute;
+        return route == 4 ? Math.Min(_maxBitrateKbps, 16000) : _maxBitrateKbps;
+    }
+
     private void SendUpdatedVideoParams()
     {
         if (_clientHandle == IntPtr.Zero) return;
@@ -752,22 +758,17 @@ public sealed partial class RemoteSessionWindow : Window
         int sendW = useNative ? 0 : effW;
         int sendH = useNative ? 0 : effH;
 
-        double pixelRatio = Math.Clamp((double)(effW * (long)effH) / Math.Max(1L, (long)nativeW * nativeH), 0.12, 1.0);
-        int defaultAtRes = OsmiumSettings.GetDefaultBitrateKbps(effW, effH, _currentFps, _enableYuv444);
-        int scaledMax = Math.Max(1500, (int)Math.Round(_baseBitrateKbps * pixelRatio * (_enableYuv444 ? 1.5 : 1.0)));
-        int bitrate = Math.Clamp(Math.Min(scaledMax, defaultAtRes), 1500, 500000);
-        int activeRoute = _latestStats.TransportRoute > 0 ? _latestStats.TransportRoute : _launchArgs.TransportRoute;
-        if (activeRoute == 4)
-        {
-            bitrate = Math.Min(bitrate, 16000);
-        }
+        int bitrate = _autoAdjustBitrate
+            ? OsmiumSettings.GetDefaultBitrateKbps(effW, effH, _currentFps, _enableYuv444)
+            : _manualBitrateKbps;
+        _requestedBitrateKbps = Math.Clamp(bitrate, 500, GetSessionBitrateLimitKbps());
 
         NativeMethods.Osmium_ClientUpdateVideoParams(
             _clientHandle,
             sendW,
             sendH,
             _currentFps,
-            bitrate,
+            _requestedBitrateKbps,
             (_hostStatus.HostHdrEnabled && _enableHdr) ? 1 : 0,
             _enableYuv444 ? 1 : 0);
     }

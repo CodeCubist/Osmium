@@ -6,9 +6,10 @@ class OsmiumConstants {
   static const String protocolVersion = '1.0.0';
   static const String userAgent = 'Osmium-Mobile/1.0';
 
-  /// Frame-rate choices; the Windows client's list
-  /// (`SettingsPage.PopulateFpsCombo`).
-  static const List<int> fpsPresets = [30, 60, 90, 120, 144, 165, 240, 360];
+  /// Frame-rate choices supported by the Windows host.
+  static const int minStreamFps = 10;
+  static const int maxStreamFps = 240;
+  static const List<int> fpsPresets = [30, 60, 90, 120, 144, 165, maxStreamFps];
 }
 
 /// Mirrors Windows `Osmium.Core.Models.OsmiumErrorCode`.

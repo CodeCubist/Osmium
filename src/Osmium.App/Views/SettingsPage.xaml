@@ -246,40 +246,48 @@
 
                                     <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
 
-                                    <controls:SettingsRowCard x:Name="RowHostMaxFps" IsGrouped="True" ShowIcon="False">
-                                        <ComboBox x:Name="HostMaxFpsCombo"
-                                                  Style="{StaticResource OsmiumRowComboBoxStyle}"
-                                                  SelectionChanged="HostSettingChanged">
-                                            <ComboBoxItem Content="30 FPS" Tag="30" />
-                                            <ComboBoxItem Content="60 FPS" Tag="60" />
-                                            <ComboBoxItem Content="90 FPS" Tag="90" />
-                                            <ComboBoxItem Content="120 FPS" Tag="120" />
-                                            <ComboBoxItem Content="144 FPS" Tag="144" />
-                                            <ComboBoxItem Content="165 FPS" Tag="165" />
-                                            <ComboBoxItem Content="240 FPS" Tag="240" />
-                                            <ComboBoxItem Content="360 FPS" Tag="360" />
-                                        </ComboBox>
+                                    <controls:SettingsRowCard x:Name="RowHostLimitVideoRates" IsGrouped="True" ShowIcon="False">
+                                        <ToggleSwitch x:Name="HostLimitVideoRatesSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostLimitVideoRatesSwitch_Toggled" />
                                     </controls:SettingsRowCard>
 
-                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+                                    <StackPanel x:Name="HostVideoRateLimits" Visibility="Collapsed">
+                                        <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
 
-                                    <controls:SettingsRowCard x:Name="RowHostMaxBitrate" IsGrouped="True"
-                                                              ShowIcon="False">
-                                        <controls:SettingsRowCard.ActionContent>
-                                            <Border Background="{ThemeResource OsmiumSubtlePillBrush}" CornerRadius="6"
-                                                    Padding="10,4">
-                                                <TextBlock x:Name="HostBitrateLabel" Text="60 Mbps"
-                                                           FontWeight="SemiBold" />
-                                            </Border>
-                                        </controls:SettingsRowCard.ActionContent>
-                                        <controls:SettingsRowCard.FooterContent>
-                                            <Slider x:Name="HostBitrateSlider"
-                                                    Minimum="2000"
-                                                    Maximum="500000"
-                                                    StepFrequency="1000"
-                                                    ValueChanged="HostBitrateSlider_ValueChanged" />
-                                        </controls:SettingsRowCard.FooterContent>
-                                    </controls:SettingsRowCard>
+                                        <controls:SettingsRowCard x:Name="RowHostMaxFps" IsGrouped="True" ShowIcon="False">
+                                            <ComboBox x:Name="HostMaxFpsCombo"
+                                                      Style="{StaticResource OsmiumRowComboBoxStyle}"
+                                                      SelectionChanged="HostSettingChanged">
+                                                <ComboBoxItem Content="30 FPS" Tag="30" />
+                                                <ComboBoxItem Content="60 FPS" Tag="60" />
+                                                <ComboBoxItem Content="90 FPS" Tag="90" />
+                                                <ComboBoxItem Content="120 FPS" Tag="120" />
+                                                <ComboBoxItem Content="144 FPS" Tag="144" />
+                                                <ComboBoxItem Content="165 FPS" Tag="165" />
+                                                <ComboBoxItem Content="240 FPS" Tag="240" />
+                                            </ComboBox>
+                                        </controls:SettingsRowCard>
+
+                                        <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                        <controls:SettingsRowCard x:Name="RowHostMaxBitrate" IsGrouped="True" ShowIcon="False">
+                                            <controls:SettingsRowCard.ActionContent>
+                                                <Border Background="{ThemeResource OsmiumSubtlePillBrush}" CornerRadius="6"
+                                                        Padding="10,4">
+                                                    <TextBlock x:Name="HostBitrateLabel" Text="60 Mbps"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </controls:SettingsRowCard.ActionContent>
+                                            <controls:SettingsRowCard.FooterContent>
+                                                <Slider x:Name="HostBitrateSlider"
+                                                        Minimum="2000"
+                                                        Maximum="500000"
+                                                        StepFrequency="1000"
+                                                        ValueChanged="HostBitrateSlider_ValueChanged" />
+                                            </controls:SettingsRowCard.FooterContent>
+                                        </controls:SettingsRowCard>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
 

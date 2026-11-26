@@ -30,8 +30,7 @@ namespace osmium::mobile
             const uint8_t* dataPtr,
             size_t dataBytes,
             uint64_t nowMs,
-            AssembledVideoFrame& outFrame,
-            bool& outHadDrop);
+            AssembledVideoFrame& outFrame);
 
         bool PurgeStale(uint64_t nowMs, uint32_t rttMs);
 
@@ -56,7 +55,6 @@ namespace osmium::mobile
         };
 
         std::map<uint32_t, PendingFrame> m_Pending;
-        uint32_t m_LastCompletedFrameId = 0;
         uint32_t m_LastCompletedKeyFrameId = 0;
     };
 }

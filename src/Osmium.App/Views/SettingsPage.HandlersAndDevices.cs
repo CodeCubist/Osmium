@@ -99,7 +99,13 @@ public sealed partial class SettingsPage : Page
     private async void CustomFps_Click(object sender, RoutedEventArgs e)
     {
         var s = App.Engine.SettingsService.Settings;
-        var fpsBox = new NumberBox { Header = "FPS - 10 - 480", Value = s.Fps, Minimum = 10, Maximum = 480 };
+        var fpsBox = new NumberBox
+        {
+            Header = $"FPS ({OsmiumSettings.MinStreamFps}–{OsmiumSettings.MaxStreamFps})",
+            Value = s.Fps,
+            Minimum = OsmiumSettings.MinStreamFps,
+            Maximum = OsmiumSettings.MaxStreamFps
+        };
 
         var dlg = new ContentDialog
         {
@@ -114,7 +120,8 @@ public sealed partial class SettingsPage : Page
 
         if (await dlg.ShowAsync() == ContentDialogResult.Primary)
         {
-            int fps = double.IsNaN(fpsBox.Value) ? s.Fps : Math.Clamp((int)fpsBox.Value, 10, 480);
+            int fps = double.IsNaN(fpsBox.Value) ? s.Fps : Math.Clamp((int)fpsBox.Value,
+                OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps);
             s.Fps = fps;
             _loading = true;
             PopulateFpsCombo(fps);
@@ -141,7 +148,11 @@ public sealed partial class SettingsPage : Page
         if (ClientBitrateLabel == null || _loading) return;
         var s = App.Engine.SettingsService.Settings;
         s.BitrateKbps = (int)e.NewValue;
+        s.AutoAdjustBitrate = false;
+        _loading = true;
+        AutoAdjustBitrateSwitch.IsOn = false;
         UpdateBitrateSliderBoundsAndValue();
+        _loading = false;
         App.Engine.SettingsService.SaveSettings();
     }
 

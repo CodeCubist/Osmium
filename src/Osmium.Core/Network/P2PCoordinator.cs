@@ -105,6 +105,13 @@ public sealed class HostSessionStatusDto
         set;
     }
 
+    [JsonPropertyName("bitrateKbps")]
+    public int BitrateKbps
+    {
+        get;
+        set;
+    }
+
     [JsonPropertyName("hostHdrEnabled")]
     public bool HostHdrEnabled
     {
@@ -1119,7 +1126,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     WindowTitle = $"Osmium - {challenge.HostName} ({DeviceIdentity.FormatDeviceId(normalizedTarget)})",
                     TargetWidth = s.TargetWidth,
                     TargetHeight = s.TargetHeight,
-                    Fps = s.Fps,
+                    Fps = Math.Clamp(s.Fps > 0 ? s.Fps : 60, OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps),
                     BitrateKbps = transportRoute == 4 ? Math.Min(s.BitrateKbps, 16000) : s.BitrateKbps,
                     WindowMode = (int)s.WindowMode,
                     CodecPreference = (int)s.VideoCodec,

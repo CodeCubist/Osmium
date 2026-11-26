@@ -106,6 +106,7 @@
   <data name="Host_RowDisplay" xml:space="preserve"><value>Captured Display</value></data>
   <data name="Host_RowMaxRes" xml:space="preserve"><value>Max Output Resolution</value></data>
   <data name="Host_ResNative" xml:space="preserve"><value>Native Display Resolution</value></data>
+  <data name="Host_LimitVideoRates" xml:space="preserve"><value>Limit Remote Frame Rate and Bitrate</value></data>
   <data name="Host_RowMaxFps" xml:space="preserve"><value>Max Frame Rate Cap</value></data>
   <data name="Host_RowMaxBitrate" xml:space="preserve"><value>Max Bitrate Cap</value></data>
   <data name="Host_RowCodec" xml:space="preserve"><value>Preferred Video Codec</value></data>
@@ -432,8 +433,9 @@
   <data name="Session_DbgLineSigUriFmt" xml:space="preserve"><value>Server URI : {0}</value></data>
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>Host Res   : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>Stream Res : {0} × {1}</value></data>
-  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>Rate/Delay : {0} FPS - RTT {1} ms - Decode {2} ms</value></data>
-  <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>Bitrate    : {0} Mbps</value></data>
+  <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>Render/Delay : {0} FPS - RTT {1} ms - Decode {2} ms</value></data>
+  <data name="Session_DbgLineFpsPathFmt" xml:space="preserve"><value>Frame rate : Request {0} / Host target {1} / Receive {2} FPS · Host {3} / Client {4} Hz · VSync {5}</value></data>
+  <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>Bitrate    : requested {0} / host target {1} / measured {2} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>Duration   : {0}</value></data>
   <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>Loss/Drop  : {0}% - Lost {1} / Recv {2} - Drops {3}</value></data>
   <data name="Session_DbgLineCodecFmt" xml:space="preserve"><value>Codecs     : {0} - {1} - {2} - {3}</value></data>

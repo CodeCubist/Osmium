@@ -312,6 +312,7 @@
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutSubItem x:Name="MenuSubResolution" />
                                 <MenuFlyoutSubItem x:Name="MenuSubFps" />
+                                <MenuFlyoutItem x:Name="SessionBitrateMenuItem" Click="SessionBitrateMenuItem_Click" />
                                 <MenuFlyoutSeparator />
                                 <ToggleMenuFlyoutItem x:Name="HdrMenuItem" Click="HdrMenuItem_Click" />
                                 <ToggleMenuFlyoutItem x:Name="Yuv444MenuItem" Click="Yuv444MenuItem_Click" />

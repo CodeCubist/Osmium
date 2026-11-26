@@ -7,6 +7,9 @@
 #include <string>
 #include <vector>
 
+struct ID3D11Device;
+struct ID3D11Texture2D;
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/mastering_display_metadata.h>
@@ -39,7 +42,8 @@ namespace osmium
             int codecPreference,
             int encoderPreference,
             bool enableHdr = false,
-            bool enableYuv444 = false);
+            bool enableYuv444 = false,
+            ID3D11Device* captureDevice = nullptr);
 
         void Shutdown();
         void ForceKeyFrame() { m_ForceIdr.store(true); }
@@ -49,16 +53,17 @@ namespace osmium
         bool EncodeFrame(
             const uint8_t* pixels,
             int srcStride,
-            bool isRgb10Pq,
+            AVPixelFormat inputFormat,
             std::vector<EncodedPacket>& outPackets,
-            uint64_t pixelRevision = 0);
+            uint64_t pixelRevision = 0,
+            ID3D11Texture2D* nv12Texture = nullptr);
 
         bool EncodeBgra(
             const uint8_t* bgra,
             int srcStride,
             std::vector<EncodedPacket>& outPackets)
         {
-            return EncodeFrame(bgra, srcStride, false, outPackets);
+            return EncodeFrame(bgra, srcStride, AV_PIX_FMT_BGRA, outPackets);
         }
 
         std::string GetEncoderName() const { return m_EncoderName; }
@@ -72,6 +77,8 @@ namespace osmium
         bool IsHdrActive() const { return m_HdrActive; }
         bool IsPqHdrActive() const { return m_PqHdrActive; }
         bool IsYuv444Active() const { return m_Yuv444Active; }
+        bool AcceptsNv12() const { return m_YuvFrame && m_YuvFrame->format == AV_PIX_FMT_NV12; }
+        ID3D11Device* GetD3dInputDevice() const;
 
     private:
         struct EncoderCandidate
@@ -82,12 +89,15 @@ namespace osmium
             bool isHardware;
         };
 
-        bool TryOpenCandidate(const EncoderCandidate& cand, int fps, int bitrateKbps, bool wantHdr, bool wantYuv444);
+        bool TryOpenCandidate(const EncoderCandidate& cand, int fps, int bitrateKbps, bool wantHdr, bool wantYuv444,
+                              ID3D11Device* captureDevice);
+        bool PrepareHardwareFrame(ID3D11Texture2D* nv12Texture);
         bool EnsureSwsContext(AVPixelFormat srcFmt);
         bool FillYuvFromRgb10Pq(const uint8_t* rgb10, int srcStride);
 
         AVCodecContext* m_CodecCtx = nullptr;
         AVFrame* m_YuvFrame = nullptr;
+        AVFrame* m_HardwareFrame = nullptr;
         AVPacket* m_Pkt = nullptr;
         SwsContext* m_SwsCtx = nullptr;
         AVPixelFormat m_SwsSrcFmt = AV_PIX_FMT_NONE;
@@ -98,6 +108,8 @@ namespace osmium
         int m_OutHeight = 0;
         int64_t m_Pts = 0;
         uint64_t m_ConvertedPixelRevision = 0;
+        std::vector<int> m_HdrColumns;
+        std::vector<int> m_HdrRows;
 
         std::string m_EncoderName;
         std::string m_CodecName;

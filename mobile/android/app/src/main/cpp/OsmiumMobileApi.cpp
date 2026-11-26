@@ -4,6 +4,7 @@
 #include "MobileCrypto.h"
 #include "MobileTransport.h"
 #include "OsmiumProtocol.h"
+#include "VideoDecodeGate.h"
 #include "VideoReassembler.h"
 
 #include <android/log.h>
@@ -67,6 +68,7 @@ namespace
         std::mutex frameQueueMutex;
         std::condition_variable frameQueueCv;
         std::deque<AssembledVideoFrame> frameQueue;
+        osmium::VideoDecodeGate<AssembledVideoFrame> decodeGate;
 
         std::mutex eventMutex;
         std::deque<QueuedEvent> eventQueue;
@@ -209,7 +211,6 @@ namespace
             if (ctx->reassembler.PurgeStale(nowMs, ctx->transport->GetRttMs()))
             {
                 ctx->droppedFrames.fetch_add(1, std::memory_order_relaxed);
-                ctx->RequestIdr(150);
             }
 
             if (r == 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) continue;
@@ -223,38 +224,23 @@ namespace
             {
                 const auto* hdr = reinterpret_cast<const osmium::proto::VideoChunkHeader*>(plain.data());
                 AssembledVideoFrame frame;
-                bool hadDrop = false;
                 if (ctx->reassembler.PushChunk(
                         hdr,
                         plain.data() + sizeof(osmium::proto::VideoChunkHeader),
                         plain.size() - sizeof(osmium::proto::VideoChunkHeader),
                         nowMs,
-                        frame,
-                        hadDrop))
+                        frame))
                 {
                     ctx->receivedFrames.fetch_add(1, std::memory_order_relaxed);
                     ctx->colorFlags.store(frame.colorFlags, std::memory_order_relaxed);
-                    if (hadDrop)
-                    {
-                        ctx->droppedFrames.fetch_add(1, std::memory_order_relaxed);
-                        ctx->RequestIdr(150);
-                    }
-                    bool congested = false;
+                    uint32_t queueDropped;
                     {
                         std::lock_guard<std::mutex> ql(ctx->frameQueueMutex);
-                        if (frame.isKeyFrame)
-                        {
-                            ctx->frameQueue.clear();
-                        }
-                        else if (ctx->frameQueue.size() >= 6)
-                        {
-                            congested = true;
-                        }
-                        ctx->frameQueue.push_back(std::move(frame));
+                        queueDropped = ctx->decodeGate.Enqueue(ctx->frameQueue, std::move(frame));
                     }
-                    if (congested)
+                    if (queueDropped)
                     {
-                        ctx->RequestIdr(250);
+                        ctx->droppedFrames.fetch_add(queueDropped, std::memory_order_relaxed);
                     }
                     ctx->frameQueueCv.notify_one();
                 }
@@ -327,6 +313,10 @@ namespace
         while (!ctx->stopFlag.load(std::memory_order_acquire))
         {
             AssembledVideoFrame frame;
+            bool hasFrame = false;
+            bool gateWaiting = false;
+            bool hasQueuedFrames = false;
+            uint32_t gateDropped = 0;
             {
                 std::unique_lock<std::mutex> lock(ctx->frameQueueMutex);
                 ctx->frameQueueCv.wait_for(
@@ -334,42 +324,28 @@ namespace
                     std::chrono::milliseconds(50),
                     [ctx] { return !ctx->frameQueue.empty() || ctx->stopFlag.load(std::memory_order_acquire); });
                 if (ctx->stopFlag.load(std::memory_order_acquire)) break;
-                if (ctx->frameQueue.empty())
-                {
-                    if (!ctx->firstFrameRendered.load(std::memory_order_relaxed))
-                    {
-                        ctx->RequestIdr(150);
-                    }
-                    continue;
-                }
-                if (ctx->frameQueue.size() > 1)
-                {
-                    size_t latestKeyIdx = 0;
-                    for (size_t i = ctx->frameQueue.size(); i > 0; --i)
-                    {
-                        if (ctx->frameQueue[i - 1].isKeyFrame)
-                        {
-                            latestKeyIdx = i - 1;
-                            break;
-                        }
-                    }
-                    if (latestKeyIdx > 0)
-                    {
-                        ctx->frameQueue.erase(
-                            ctx->frameQueue.begin(),
-                            ctx->frameQueue.begin() + static_cast<std::ptrdiff_t>(latestKeyIdx));
-                        ctx->droppedFrames.fetch_add(static_cast<uint32_t>(latestKeyIdx), std::memory_order_relaxed);
-                    }
-                }
-                frame = std::move(ctx->frameQueue.front());
-                ctx->frameQueue.pop_front();
+                hasFrame = ctx->decodeGate.SelectNext(
+                    ctx->frameQueue, MobileTransport::NowMillis(), gateDropped, frame);
+                gateWaiting = ctx->decodeGate.waitingForKeyframe;
+                hasQueuedFrames = !ctx->frameQueue.empty();
+            }
+            if (gateDropped != 0)
+            {
+                ctx->droppedFrames.fetch_add(gateDropped, std::memory_order_relaxed);
+            }
+            if (!hasFrame)
+            {
+                if (gateWaiting || !ctx->firstFrameRendered.load(std::memory_order_relaxed)) ctx->RequestIdr(150);
+                if (hasQueuedFrames) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                continue;
             }
 
             uint32_t decUs = 0;
-            if (ctx->decoder.DecodeAndRender(frame, decUs))
+            const uint32_t rendered = ctx->decoder.DecodeAndRender(frame, decUs);
+            if (rendered != 0)
             {
                 ctx->decodeTimeUs.store(decUs, std::memory_order_relaxed);
-                ctx->renderedFramesWindow.fetch_add(1, std::memory_order_relaxed);
+                ctx->renderedFramesWindow.fetch_add(rendered, std::memory_order_relaxed);
                 if (!ctx->firstFrameRendered.exchange(true, std::memory_order_acq_rel))
                 {
                     ctx->PushEvent(1, 0, nullptr, 0);

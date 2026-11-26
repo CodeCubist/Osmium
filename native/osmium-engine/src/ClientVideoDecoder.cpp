@@ -1014,6 +1014,14 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             return false;
         }
 
+        // After a decoder flush (or a stream change) the reference pictures
+        // are gone. Feeding dependent frames here is exactly what logs the
+        // repeating "Could not find ref with POC" warnings; wait for the IDR.
+        if (m_NeedsKeyframe && !isKeyFrame)
+        {
+            return false;
+        }
+
         uint64_t t0 = NowMicros();
         av_packet_unref(m_Pkt);
         m_Pkt->data = const_cast<uint8_t*>(data);
@@ -1027,8 +1035,17 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             {
                 avcodec_flush_buffers(m_CodecCtx);
                 m_ConsecutiveNoOutput = 0;
+                m_NeedsKeyframe = true;
             }
             return false;
+        }
+        // The IDR is in the decoder now; dependent frames may follow even if
+        // this call returns without an output frame (EAGAIN / delayed output).
+        // Without this the decoder would keep rejecting P frames after a
+        // same-config recovery and only resume on the next keyframe.
+        if (isKeyFrame)
+        {
+            m_NeedsKeyframe = false;
         }
 
         bool renderedAny = false;
@@ -1046,6 +1063,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
                 {
                     avcodec_flush_buffers(m_CodecCtx);
                     m_ConsecutiveNoOutput = 0;
+                    m_NeedsKeyframe = true;
                 }
                 return renderedAny;
             }
@@ -1089,6 +1107,7 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             {
                 avcodec_flush_buffers(m_CodecCtx);
                 m_ConsecutiveNoOutput = 0;
+                m_NeedsKeyframe = true;
                 return false;
             }
             return true;

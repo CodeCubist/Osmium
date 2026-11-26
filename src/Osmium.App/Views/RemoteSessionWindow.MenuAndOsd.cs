@@ -411,7 +411,15 @@ public sealed partial class RemoteSessionWindow : Window
         sb.AppendLine(LocalizationService.Format("Session_DbgLineStreamFmt", s.VideoWidth, s.VideoHeight));
         sb.AppendLine(LocalizationService.Format("Session_DbgLinePerfFmt", $"{s.Fps:F1}", s.RttMs,
             $"{s.DecodeLatencyMs:F2}"));
-        sb.AppendLine(LocalizationService.Format("Session_DbgLineBitrateFmt", $"{s.BitrateMbps:F2}"));
+        int hostHz = _hostStatus.Displays.FirstOrDefault(d => d.Index == _hostStatus.ActiveDisplayIndex)?.RefreshRate ?? 0;
+        int clientHz = GetSessionMonitorRefreshRate();
+        sb.AppendLine(LocalizationService.Format("Session_DbgLineFpsPathFmt",
+            _currentFps, _hostStatus.Fps > 0 ? _hostStatus.Fps.ToString() : "—",
+            _receivedVideoFps?.ToString("F1") ?? "—",
+            hostHz > 0 ? hostHz.ToString() : "—", clientHz > 0 ? clientHz.ToString() : "—",
+            LocalizationService.GetString(_enableVsync ? "Common_On" : "Common_Off")));
+        sb.AppendLine(LocalizationService.Format("Session_DbgLineBitrateFmt", $"{_requestedBitrateKbps / 1000.0:F1}",
+            _hostStatus.BitrateKbps > 0 ? $"{_hostStatus.BitrateKbps / 1000.0:F1}" : "—", $"{s.BitrateMbps:F2}"));
         sb.AppendLine(LocalizationService.Format("Session_DbgLineDurationFmt", elapsedStr));
         sb.AppendLine(LocalizationService.Format("Session_DbgLineLossFmt", $"{s.PacketLossPercent:F2}", s.LostPackets,
             s.ReceivedPackets, s.DroppedFrames));
@@ -420,6 +428,24 @@ public sealed partial class RemoteSessionWindow : Window
         sb.AppendLine(LocalizationService.Format("Session_DbgLinePeripheralFmt", _mouseMode, _isCursorCaptured,
             _hostStatus.VirtualSpeakerActive, _hostStatus.VirtualMicActive));
         return sb.ToString().TrimEnd();
+    }
+
+    private int GetSessionMonitorRefreshRate()
+    {
+        if (_appWindow == null) return 0;
+        var area = DisplayArea.GetFromWindowId(_appWindow.Id, DisplayAreaFallback.Nearest);
+        if (area == null) return 0;
+
+        var bounds = area.OuterBounds;
+        var displays = new OsmiumDisplayInfo[16];
+        int count = NativeMethods.Osmium_EnumDisplays(displays, displays.Length);
+        for (int i = 0; i < count; i++)
+        {
+            var d = displays[i];
+            if (d.Left == bounds.X && d.Top == bounds.Y && d.Width == bounds.Width && d.Height == bounds.Height)
+                return d.RefreshRate;
+        }
+        return 0;
     }
 
     private void ApplyOsdVisibilityAndDetailLayout()
@@ -543,6 +569,70 @@ public sealed partial class RemoteSessionWindow : Window
         if (_isUpdatingUi) return;
         _enableYuv444 = Yuv444MenuItem.IsChecked;
         SendUpdatedVideoParams();
+    }
+
+    private async void SessionBitrateMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isClosed || _remoteSessionEnded || _clientHandle == IntPtr.Zero || RootSessionGrid.XamlRoot == null) return;
+
+        int maxKbps = GetSessionBitrateLimitKbps();
+        var autoBitrate = new CheckBox
+        {
+            Content = LocalizationService.GetString("Set_AutoBitrate"),
+            IsChecked = _autoAdjustBitrate
+        };
+        var bitrateBox = new NumberBox
+        {
+            Header = "Mbps",
+            Minimum = 0.5,
+            Maximum = maxKbps / 1000.0,
+            Value = Math.Min(_requestedBitrateKbps, maxKbps) / 1000.0,
+            IsEnabled = !_autoAdjustBitrate
+        };
+        autoBitrate.Checked += (_, _) => bitrateBox.IsEnabled = false;
+        autoBitrate.Unchecked += (_, _) => bitrateBox.IsEnabled = true;
+        var content = new StackPanel { Spacing = 8 };
+        content.Children.Add(autoBitrate);
+        content.Children.Add(bitrateBox);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootSessionGrid.XamlRoot,
+            RequestedTheme = RootSessionGrid.ActualTheme,
+            Title = LocalizationService.GetString("Set_BitrateTitle"),
+            Content = content,
+            PrimaryButtonText = LocalizationService.GetString("Dialog_Ok"),
+            CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        _openFlyoutCount++;
+        ReleaseCursorCapture(manualPause: false);
+        SyncKeyboardHookAndCursorCapture();
+        try
+        {
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary || _isClosed || _remoteSessionEnded) return;
+            bool automatic = autoBitrate.IsChecked == true;
+            if (!automatic)
+            {
+                if (!double.IsFinite(bitrateBox.Value)) return;
+                _manualBitrateKbps = Math.Clamp((int)Math.Round(bitrateBox.Value * 1000.0), 500, maxKbps);
+            }
+            _autoAdjustBitrate = automatic;
+            SendUpdatedVideoParams();
+        }
+        catch (Exception ex)
+        {
+            App.Engine.Logging.Warn($"Could not show session bitrate settings: {ex.Message}");
+        }
+        finally
+        {
+            if (_openFlyoutCount > 0) _openFlyoutCount--;
+            if (!_isClosed && !_remoteSessionEnded && _openFlyoutCount == 0)
+            {
+                VideoInputSurface.Focus(FocusState.Programmatic);
+                SyncKeyboardHookAndCursorCapture();
+            }
+        }
     }
 
     private void VsyncMenuItem_Click(object sender, RoutedEventArgs e)
