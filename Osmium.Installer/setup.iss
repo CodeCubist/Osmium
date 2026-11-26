@@ -1,6 +1,6 @@
 ﻿#define AppName       "Osmium"
-#define AppVersion    "1.0.0"
-#define AppVersionNum "1.0.0"
+#define AppVersion    "1.0.1"
+#define AppVersionNum "1.0.1"
 #define AppPublisher  "Osmium"
 #define AppExe        "Osmium.exe"
 #define AppId         "{{D84B93F2-6C1E-4A95-8B27-5E3C1094F6A2}"

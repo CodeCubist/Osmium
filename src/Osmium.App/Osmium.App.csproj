@@ -82,6 +82,54 @@
         </Content>
     </ItemGroup>
 
+    <Target Name="GenerateGitBuildInfo" BeforeTargets="BeforeCompile;CoreCompile">
+        <Exec Command="git -C &quot;$(MSBuildProjectDirectory)\..\..&quot; rev-parse --abbrev-ref HEAD"
+              ConsoleToMSBuild="true"
+              IgnoreExitCode="true"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="Low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_OsmiumGitBranchRaw"/>
+            <Output TaskParameter="ExitCode" PropertyName="_OsmiumGitBranchExit"/>
+        </Exec>
+        <Exec Command="git -C &quot;$(MSBuildProjectDirectory)\..\..&quot; rev-parse HEAD"
+              ConsoleToMSBuild="true"
+              IgnoreExitCode="true"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="Low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_OsmiumGitHashRaw"/>
+            <Output TaskParameter="ExitCode" PropertyName="_OsmiumGitHashExit"/>
+        </Exec>
+        <PropertyGroup>
+            <_OsmiumGitBranch Condition="'$(_OsmiumGitBranchExit)' == '0' and '$(_OsmiumGitBranchRaw)' != ''">$(_OsmiumGitBranchRaw.Trim())</_OsmiumGitBranch>
+            <_OsmiumGitBranch Condition="('$(_OsmiumGitBranch)' == '' or '$(_OsmiumGitBranch)' == 'HEAD') and '$(GITHUB_HEAD_REF)' != ''">$(GITHUB_HEAD_REF.Trim())</_OsmiumGitBranch>
+            <_OsmiumGitBranch Condition="('$(_OsmiumGitBranch)' == '' or '$(_OsmiumGitBranch)' == 'HEAD') and '$(GITHUB_REF_NAME)' != ''">$(GITHUB_REF_NAME.Trim())</_OsmiumGitBranch>
+            <_OsmiumGitBranch Condition="'$(_OsmiumGitBranch)' == '' or '$(_OsmiumGitBranch)' == 'HEAD'">unknown</_OsmiumGitBranch>
+
+            <_OsmiumGitHash Condition="'$(_OsmiumGitHashExit)' == '0' and '$(_OsmiumGitHashRaw)' != ''">$(_OsmiumGitHashRaw.Trim())</_OsmiumGitHash>
+            <_OsmiumGitHash Condition="'$(_OsmiumGitHash)' == '' and '$(GITHUB_SHA)' != ''">$(GITHUB_SHA.Trim())</_OsmiumGitHash>
+            <_OsmiumGitHash Condition="'$(_OsmiumGitHash)' == ''">unknown</_OsmiumGitHash>
+
+            <_OsmiumGitBranchEsc>$(_OsmiumGitBranch.Replace('\', '\\').Replace('&quot;', '\&quot;'))</_OsmiumGitBranchEsc>
+            <_OsmiumGitHashEsc>$(_OsmiumGitHash.Replace('\', '\\').Replace('&quot;', '\&quot;'))</_OsmiumGitHashEsc>
+            <_OsmiumGitInfoFile>$(IntermediateOutputPath)OsmiumGitInfo.g.cs</_OsmiumGitInfoFile>
+        </PropertyGroup>
+        <ItemGroup>
+            <_OsmiumGitInfoLine Include="// Auto-generated at build time"/>
+            <_OsmiumGitInfoLine Include="[assembly: global::System.Reflection.AssemblyMetadataAttribute(&quot;GitBranch&quot;, &quot;$(_OsmiumGitBranchEsc)&quot;)]"/>
+            <_OsmiumGitInfoLine Include="[assembly: global::System.Reflection.AssemblyMetadataAttribute(&quot;GitCommitHash&quot;, &quot;$(_OsmiumGitHashEsc)&quot;)]"/>
+        </ItemGroup>
+        <WriteLinesToFile File="$(_OsmiumGitInfoFile)"
+                          Lines="@(_OsmiumGitInfoLine)"
+                          Overwrite="true"
+                          WriteOnlyWhenDifferent="true"
+                          Encoding="UTF-8"/>
+        <ItemGroup>
+            <Compile Remove="$(_OsmiumGitInfoFile)"/>
+            <Compile Include="$(_OsmiumGitInfoFile)"/>
+            <FileWrites Include="$(_OsmiumGitInfoFile)"/>
+        </ItemGroup>
+    </Target>
+
     <Target Name="ResolveNativeRuntimeFiles" BeforeTargets="AssignTargetPaths">
         <PropertyGroup>
             <OsmiumNativeBinDir Condition="Exists('..\..\native\bin\x64\$(Configuration)\OsmiumEngine.dll')">..\..\native\bin\x64\$(Configuration)</OsmiumNativeBinDir>

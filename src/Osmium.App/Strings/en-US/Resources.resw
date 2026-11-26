@@ -904,4 +904,9 @@
   <data name="Acc_ErrLoginKeyInvalid" xml:space="preserve"><value>Invalid or revoked login key.</value></data>
   <data name="Acc_ErrLoginKeyLimit" xml:space="preserve"><value>Maximum limit of 10 login keys reached.</value></data>
   <data name="Acc_ErrVersionUnsupported" xml:space="preserve"><value>This client version is no longer supported. Please update Osmium.</value></data>
+  <data name="About_RowVersion" xml:space="preserve"><value>Version</value></data>
+  <data name="About_RowBuild" xml:space="preserve"><value>Build</value></data>
+  <data name="About_PlatformsSupported" xml:space="preserve"><value>Available Now</value></data>
+  <data name="About_PlatformsUpcoming" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="About_PlatformLinuxLabel" xml:space="preserve"><value>Linux (Ubuntu, Debian, etc.)</value></data>
 </root>

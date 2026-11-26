@@ -492,6 +492,8 @@ public sealed partial class SettingsPage : Page
         ServiceAutoStartSwitch.IsOn = StartupHelper.IsServiceAutoStartEnabled();
         UpdateServiceAutoStartRowVisibility();
         RenderDeviceManagementPanel();
+        AboutVersionText.Text = $"Version {AppVersionInfo.Current}";
+        AboutBuildText.Text = AppVersionInfo.BuildIdentifier;
 
         _loading = prev;
     }
@@ -700,6 +702,11 @@ public sealed partial class SettingsPage : Page
         RowDevicesLoginPrompt.Title = LocalizationService.GetString("Set_DevicesLoginPromptTitle");
         RowDevicesLoginPrompt.Description = LocalizationService.GetString("Set_DevicesLoginPromptDesc");
         BtnDevicesGoLogin.Content = LocalizationService.GetString("Assist_GoLoginBtn");
+        RowAboutVersion.Title = LocalizationService.GetString("About_RowVersion");
+        RowAboutBuild.Title = LocalizationService.GetString("About_RowBuild");
+        AboutPlatformsSupportedText.Text = LocalizationService.GetString("About_PlatformsSupported");
+        AboutPlatformsUpcomingText.Text = LocalizationService.GetString("About_PlatformsUpcoming");
+        AboutPlatformLinuxText.Text = LocalizationService.GetString("About_PlatformLinuxLabel");
         RenderDeviceManagementPanel();
 
         _loading = prev;
@@ -929,5 +936,27 @@ public sealed partial class SettingsPage : Page
         }
 
         if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+    }
+
+    private void AboutRepoOsmiumLink_Click(object sender, RoutedEventArgs e)
+        => OpenExternalUrl("https://github.com/OsmiumRemote/Osmium");
+
+    private void AboutRepoWebLink_Click(object sender, RoutedEventArgs e)
+        => OpenExternalUrl("https://github.com/OsmiumRemote/OsmiumWeb");
+
+    private static void OpenExternalUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+        }
     }
 }

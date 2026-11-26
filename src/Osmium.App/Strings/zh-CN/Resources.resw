@@ -904,4 +904,9 @@
   <data name="Acc_ErrLoginKeyInvalid" xml:space="preserve"><value>登录密钥无效或已移除</value></data>
   <data name="Acc_ErrLoginKeyLimit" xml:space="preserve"><value>登录密钥数量已达上限（最多10个）</value></data>
   <data name="Acc_ErrVersionUnsupported" xml:space="preserve"><value>当前客户端版本已停用，请更新到最新版本后重试</value></data>
+  <data name="About_RowVersion" xml:space="preserve"><value>软件版本</value></data>
+  <data name="About_RowBuild" xml:space="preserve"><value>构建信息</value></data>
+  <data name="About_PlatformsSupported" xml:space="preserve"><value>现已支持</value></data>
+  <data name="About_PlatformsUpcoming" xml:space="preserve"><value>即将支持</value></data>
+  <data name="About_PlatformLinuxLabel" xml:space="preserve"><value>Linux（Ubuntu、Debian等）</value></data>
 </root>

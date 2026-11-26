@@ -12,6 +12,31 @@ public static class AppVersionInfo
         get;
     } = ResolveVersion();
 
+    public static string GitBranch
+    {
+        get;
+    } = ResolveAssemblyMetadata("GitBranch") ?? "unknown";
+
+    public static string GitCommitHash
+    {
+        get;
+    } = ResolveAssemblyMetadata("GitCommitHash") ?? "unknown";
+
+    public static string BuildIdentifier
+    {
+        get
+        {
+            bool hasBranch = !string.IsNullOrWhiteSpace(GitBranch) &&
+                             !string.Equals(GitBranch, "unknown", StringComparison.OrdinalIgnoreCase);
+            bool hasHash = !string.IsNullOrWhiteSpace(GitCommitHash) &&
+                           !string.Equals(GitCommitHash, "unknown", StringComparison.OrdinalIgnoreCase);
+            if (hasBranch && hasHash) return $"{GitBranch}@{GitCommitHash}";
+            if (hasBranch) return GitBranch;
+            if (hasHash) return GitCommitHash;
+            return "unknown";
+        }
+    }
+
     public static bool IsVersionSupported(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return false;
@@ -42,5 +67,24 @@ public static class AppVersionInfo
         }
 
         return "1.0.1";
+    }
+
+    private static string? ResolveAssemblyMetadata(string key)
+    {
+        Assembly?[] candidates = [Assembly.GetEntryAssembly(), typeof(AppVersionInfo).Assembly];
+        foreach (var asm in candidates)
+        {
+            if (asm == null) continue;
+            foreach (var attr in asm.GetCustomAttributes<AssemblyMetadataAttribute>())
+            {
+                if (string.Equals(attr.Key, key, StringComparison.Ordinal) &&
+                    !string.IsNullOrWhiteSpace(attr.Value))
+                {
+                    return attr.Value.Trim();
+                }
+            }
+        }
+
+        return null;
     }
 }
