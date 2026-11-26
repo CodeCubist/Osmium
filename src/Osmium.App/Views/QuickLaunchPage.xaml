@@ -1,0 +1,550 @@
+<Page
+    x:Class="Osmium.App.Views.QuickLaunchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <Grid x:Name="RootSlideHost" SizeChanged="SlideHost_SizeChanged">
+
+        <Grid x:Name="LauncherMainView" RowSpacing="16">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="LauncherMainTransform" />
+            </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="PageTitleText"
+                           Grid.Column="0"
+                           Style="{StaticResource OsmiumPageTitleStyle}"
+                           VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center">
+                    <ComboBox x:Name="DeviceFilterCombo"
+                              MinWidth="148"
+                              CornerRadius="6"
+                              SelectionChanged="DeviceFilterCombo_SelectionChanged" />
+                    <Button x:Name="RefreshBtn"
+                            CornerRadius="6"
+                            Click="RefreshBtn_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xF13E;"
+                                      FontFamily="{StaticResource FluentIconsFont}"
+                                      FontSize="13" />
+                            <TextBlock x:Name="RefreshBtnText" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="AddAppBtn"
+                            Style="{StaticResource AccentButtonStyle}"
+                            CornerRadius="6"
+                            Click="AddAppBtn_Click">
+                        <TextBlock x:Name="AddAppBtnText" VerticalAlignment="Center" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <Border x:Name="HostEnableBanner"
+                    Grid.Row="1"
+                    Style="{StaticResource OsmiumGroupedCardContainerStyle}"
+                    Padding="16,12">
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock x:Name="HostToggleTitleText"
+                                   FontSize="13.5"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap" />
+                        <TextBlock x:Name="HostToggleDescText"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch x:Name="LocalQuickLaunchToggle"
+                                  Grid.Column="1"
+                                  Style="{StaticResource OsmiumCompactToggleStyle}"
+                                  VerticalAlignment="Center"
+                                  Toggled="LocalQuickLaunchToggle_Toggled" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <StackPanel x:Name="LoggedOutStatePanel"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12"
+                            MaxWidth="380"
+                            Visibility="Collapsed">
+                    <TextBlock x:Name="LoggedOutTitleText"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+                    <TextBlock x:Name="LoggedOutDescText"
+                               FontSize="12.5"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center" />
+                    <Button x:Name="GoLoginBtn"
+                            Style="{StaticResource AccentButtonStyle}"
+                            HorizontalAlignment="Center"
+                            CornerRadius="6"
+                            Padding="20,7"
+                            Click="GoLoginBtn_Click" />
+                </StackPanel>
+
+                <StackPanel x:Name="LoadingPanel"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="10"
+                            Visibility="Collapsed">
+                    <ProgressRing IsActive="True" Width="30" Height="30" />
+                    <TextBlock x:Name="LoadingText"
+                               FontSize="12.5"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel x:Name="EmptyStatePanel"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12"
+                            MaxWidth="420"
+                            Visibility="Collapsed">
+                    <TextBlock x:Name="EmptyTitleText"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+                    <TextBlock x:Name="EmptyDescText"
+                               FontSize="12.5"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center" />
+                    <Button x:Name="EmptyAddBtn"
+                            Style="{StaticResource AccentButtonStyle}"
+                            HorizontalAlignment="Center"
+                            CornerRadius="6"
+                            Padding="20,7"
+                            Click="AddAppBtn_Click" />
+                </StackPanel>
+
+                <ScrollViewer x:Name="AppsScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Visibility="Collapsed">
+                    <GridView x:Name="AppsGridView"
+                              SelectionMode="None"
+                              IsItemClickEnabled="False"
+                              Padding="2,6,2,20">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal"
+                                               HorizontalAlignment="Left" />
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.ItemContainerStyle>
+                            <Style TargetType="GridViewItem">
+                                <Setter Property="Margin" Value="0,0,14,18" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                                <Setter Property="VerticalContentAlignment" Value="Top" />
+                                <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                        </GridView.ItemContainerStyle>
+                    </GridView>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="AddWizardView"
+              RowSpacing="12"
+              Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="AddWizardTransform" />
+            </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="WizardPageTitleText"
+                       Grid.Row="0"
+                       Style="{StaticResource OsmiumPageTitleStyle}" />
+
+            <ScrollViewer Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="0,0,4,12">
+                <StackPanel Spacing="10" VerticalAlignment="Top">
+
+                    <Border x:Name="WizardStepperCard"
+                            Style="{StaticResource OsmiumGroupedCardContainerStyle}"
+                            Padding="16,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Border x:Name="QlStepBadge1"
+                                            Width="22"
+                                            Height="22"
+                                            CornerRadius="11"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                                        <Grid>
+                                            <TextBlock x:Name="QlStepNum1"
+                                                       Text="1"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                            <FontIcon x:Name="QlStepCheck1"
+                                                      FontFamily="{StaticResource FluentIconsFont}"
+                                                      Glyph="&#xE305;"
+                                                      FontSize="11"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                                      Visibility="Collapsed" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock x:Name="QlStepLabel1"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Border x:Name="QlStepConnector1"
+                                        Width="28"
+                                        Height="2"
+                                        CornerRadius="1"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource OsmiumDividerBrush}" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Border x:Name="QlStepBadge2"
+                                            Width="22"
+                                            Height="22"
+                                            CornerRadius="11"
+                                            Background="{ThemeResource OsmiumSubtlePillBrush}">
+                                        <Grid>
+                                            <TextBlock x:Name="QlStepNum2"
+                                                       Text="2"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <FontIcon x:Name="QlStepCheck2"
+                                                      FontFamily="{StaticResource FluentIconsFont}"
+                                                      Glyph="&#xE305;"
+                                                      FontSize="11"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                                      Visibility="Collapsed" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock x:Name="QlStepLabel2"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Border x:Name="QlStepConnector2"
+                                        Width="28"
+                                        Height="2"
+                                        CornerRadius="1"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource OsmiumDividerBrush}" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Border x:Name="QlStepBadge3"
+                                            Width="22"
+                                            Height="22"
+                                            CornerRadius="11"
+                                            Background="{ThemeResource OsmiumSubtlePillBrush}">
+                                        <Grid>
+                                            <TextBlock x:Name="QlStepNum3"
+                                                       Text="3"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <FontIcon x:Name="QlStepCheck3"
+                                                      FontFamily="{StaticResource FluentIconsFont}"
+                                                      Glyph="&#xE305;"
+                                                      FontSize="11"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                                      Visibility="Collapsed" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock x:Name="QlStepLabel3"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock x:Name="QlStepProgressText"
+                                       Grid.Column="1"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <InfoBar x:Name="WizardErrorBar"
+                             Severity="Error"
+                             IsOpen="False"
+                             IsClosable="True"
+                             Visibility="Collapsed"
+                             Closed="WizardErrorBar_Closed" />
+
+                    <Border Style="{StaticResource OsmiumGroupedCardContainerStyle}">
+                        <StackPanel>
+                            <Grid x:Name="WizardSlideHost" SizeChanged="SlideHost_SizeChanged">
+
+                                <StackPanel x:Name="StepPanelSelectHost" Visibility="Collapsed">
+                                    <StackPanel.RenderTransform>
+                                        <TranslateTransform x:Name="StepSelectHostTransform" />
+                                    </StackPanel.RenderTransform>
+
+                                    <StackPanel x:Name="WizardHostListPanel" />
+
+                                    <StackPanel x:Name="WizardNoHostPanel"
+                                                Padding="20,24"
+                                                Spacing="8"
+                                                Visibility="Collapsed">
+                                        <TextBlock x:Name="WizardNoHostText"
+                                                   FontSize="13"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel x:Name="StepPanelSelectPath"
+                                            Padding="18,16"
+                                            Spacing="10"
+                                            Visibility="Collapsed">
+                                    <StackPanel.RenderTransform>
+                                        <TranslateTransform x:Name="StepSelectPathTransform" />
+                                    </StackPanel.RenderTransform>
+
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="WizardSelectedHostCaption"
+                                                   Grid.Column="0"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                            <Button x:Name="WizardDrivesBtn"
+                                                    CornerRadius="6"
+                                                    Click="WizardDrivesBtn_Click" />
+                                            <Button x:Name="WizardUpBtn"
+                                                    CornerRadius="6"
+                                                    IsEnabled="False"
+                                                    Click="WizardUpBtn_Click" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="WizardPathBox"
+                                                 Grid.Column="0"
+                                                 MaxLength="520"
+                                                 CornerRadius="6"
+                                                 KeyDown="WizardPathBox_KeyDown" />
+                                        <Button x:Name="WizardOpenPathBtn"
+                                                Grid.Column="1"
+                                                CornerRadius="6"
+                                                Click="WizardOpenPathBtn_Click" />
+                                    </Grid>
+
+                                    <TextBlock x:Name="WizardCandidateHintText"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap"
+                                               Visibility="Collapsed" />
+
+                                    <Grid>
+                                        <ListView x:Name="WizardBrowserList"
+                                                  Height="260"
+                                                  SelectionMode="None"
+                                                  IsItemClickEnabled="True"
+                                                  BorderThickness="1"
+                                                  BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                                                  CornerRadius="8"
+                                                  Padding="4"
+                                                  ItemClick="WizardBrowserList_ItemClick" />
+                                        <ProgressRing x:Name="WizardBrowserRing"
+                                                      Width="24"
+                                                      Height="24"
+                                                      IsActive="False"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="Collapsed" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel x:Name="StepPanelConfirmAdd" Visibility="Collapsed">
+                                    <StackPanel.RenderTransform>
+                                        <TranslateTransform x:Name="StepConfirmAddTransform" />
+                                    </StackPanel.RenderTransform>
+
+                                    <Grid Padding="18,16" ColumnSpacing="14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border x:Name="WizardPreviewIconBox"
+                                                Grid.Column="0"
+                                                Width="60"
+                                                Height="60"
+                                                CornerRadius="16"
+                                                Background="{ThemeResource OsmiumCardBrush}"
+                                                BorderBrush="{ThemeResource OsmiumCardBorderBrush}"
+                                                BorderThickness="1"
+                                                VerticalAlignment="Center">
+                                            <Grid>
+                                                <Viewbox x:Name="WizardPreviewFallback"
+                                                         Width="26"
+                                                         Height="26"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center">
+                                                    <PathIcon Width="20"
+                                                              Height="20"
+                                                              Opacity="0.72"
+                                                              Data="M2,4.5 A1.5,1.5 0 0 1 3.5,3 H16.5 A1.5,1.5 0 0 1 18,4.5 V15.5 A1.5,1.5 0 0 1 16.5,17 H3.5 A1.5,1.5 0 0 1 2,15.5 Z M3.5,7 V15.5 H16.5 V7 Z" />
+                                                </Viewbox>
+                                                <Image x:Name="WizardPreviewIcon"
+                                                       Width="44"
+                                                       Height="44"
+                                                       Stretch="Uniform"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock x:Name="WizardConfirmHostText"
+                                                       FontSize="13.5"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock x:Name="WizardConfirmPathText"
+                                                       FontSize="12"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       IsTextSelectionEnabled="True" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                    <Grid Padding="18,14" ColumnSpacing="14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="WizardAppNameLabel"
+                                                   Grid.Column="0"
+                                                   FontSize="14"
+                                                   FontWeight="Medium"
+                                                   VerticalAlignment="Center" />
+                                        <TextBox x:Name="WizardAppNameBox"
+                                                 Grid.Column="1"
+                                                 Width="280"
+                                                 MaxLength="80"
+                                                 CornerRadius="6"
+                                                 TextChanged="WizardAppNameBox_TextChanged"
+                                                 KeyDown="WizardAppNameBox_KeyDown" />
+                                    </Grid>
+                                </StackPanel>
+
+                            </Grid>
+
+                            <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                            <Grid Padding="16,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="BtnQlWizardBack"
+                                        Grid.Column="0"
+                                        CornerRadius="6"
+                                        Click="BtnQlWizardBack_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon FontFamily="{StaticResource FluentIconsFont}"
+                                                  Glyph="&#xF2A9;"
+                                                  FontSize="11"
+                                                  VerticalAlignment="Center" />
+                                        <TextBlock x:Name="BtnQlWizardBackText" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <StackPanel Grid.Column="2"
+                                            Orientation="Horizontal"
+                                            Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <ProgressRing x:Name="WizardBusyRing"
+                                                  Width="18"
+                                                  Height="18"
+                                                  IsActive="False"
+                                                  Visibility="Collapsed" />
+                                    <Button x:Name="BtnQlWizardPrimary"
+                                            Style="{StaticResource AccentButtonStyle}"
+                                            MinWidth="124"
+                                            CornerRadius="6"
+                                            Visibility="Collapsed"
+                                            Click="BtnQlWizardPrimary_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock x:Name="BtnQlWizardPrimaryText" VerticalAlignment="Center" />
+                                            <FontIcon x:Name="BtnQlWizardPrimaryIcon"
+                                                      FontFamily="{StaticResource FluentIconsFont}"
+                                                      Glyph="&#xF2AF;"
+                                                      FontSize="11"
+                                                      VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+    </Grid>
+</Page>

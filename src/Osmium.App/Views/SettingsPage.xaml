@@ -437,6 +437,15 @@
                                                       Style="{StaticResource OsmiumCompactToggleStyle}"
                                                       Toggled="HostPermissionSwitch_Toggled" />
                                     </controls:SettingsRowCard>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                    <controls:SettingsRowCard x:Name="RowHostAllowQuickLaunch" IsGrouped="True"
+                                                              Glyph="&#xEABB;">
+                                        <ToggleSwitch x:Name="HostAllowQuickLaunchSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostPermissionSwitch_Toggled" />
+                                    </controls:SettingsRowCard>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

@@ -40,6 +40,8 @@ class _MeTabState extends ConsumerState<MeTab> {
   final TextEditingController _setPwdCodeCtrl = TextEditingController();
   final TextEditingController _setPwdNewCtrl = TextEditingController();
   final TextEditingController _setPwdConfirmCtrl = TextEditingController();
+  final TextEditingController _keyNameCtrl = TextEditingController();
+  final TextEditingController _keyOtpCtrl = TextEditingController();
 
   bool _scrolled = false;
   bool _accountMenuExpanded = false;
@@ -84,6 +86,24 @@ class _MeTabState extends ConsumerState<MeTab> {
   Timer? _setPwdCooldownTimer;
   String? _setPwdError;
 
+  bool _loginKeysVisible = false;
+  bool _loginKeysLoading = false;
+  List<LoginKeyItemDto> _loginKeys = const [];
+  int _loginKeysMax = 10;
+  String? _loginKeysError;
+  final Set<String> _deletingKeyIds = <String>{};
+
+  bool _createKeyVisible = false;
+  bool _createKeySubmitting = false;
+  bool _createKeySendingCode = false;
+  int _createKeyCooldown = 0;
+  Timer? _createKeyCooldownTimer;
+  String? _createKeyError;
+
+  bool _createdKeyVisible = false;
+  String _createdKeyValue = '';
+  bool _createdKeyCopied = false;
+
   bool _copied = false;
   Timer? _copiedTimer;
   ValueNotifier<bool>? _dockHidden;
@@ -112,6 +132,7 @@ class _MeTabState extends ConsumerState<MeTab> {
     _copiedTimer?.cancel();
     _emailCooldownTimer?.cancel();
     _setPwdCooldownTimer?.cancel();
+    _createKeyCooldownTimer?.cancel();
     _nameCtrl.dispose();
     _nicknameCtrl.dispose();
     _emailPasswordCtrl.dispose();
@@ -120,6 +141,8 @@ class _MeTabState extends ConsumerState<MeTab> {
     _setPwdCodeCtrl.dispose();
     _setPwdNewCtrl.dispose();
     _setPwdConfirmCtrl.dispose();
+    _keyNameCtrl.dispose();
+    _keyOtpCtrl.dispose();
     super.dispose();
   }
 
@@ -130,6 +153,9 @@ class _MeTabState extends ConsumerState<MeTab> {
         _nicknameVisible ||
         _emailVisible ||
         _setPwdVisible ||
+        _loginKeysVisible ||
+        _createKeyVisible ||
+        _createdKeyVisible ||
         _oauthBindDialogVisible ||
         _oauthUnbindVisible;
   }
@@ -805,6 +831,236 @@ class _MeTabState extends ConsumerState<MeTab> {
     }
   }
 
+  String _formatKeyTime(int rawTs) {
+    if (rawTs <= 0) return '';
+    final ms = rawTs > 100000000000 ? rawTs : rawTs * 1000;
+    final dt = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
+    String pad2(int v) => v.toString().padLeft(2, '0');
+    return '${dt.year}-${pad2(dt.month)}-${pad2(dt.day)}';
+  }
+
+  void _openLoginKeysDialog() {
+    final app = ref.read(appControllerProvider);
+    final acct = app.account;
+    if (!app.isLoggedIn || acct == null || acct.locked) return;
+    OsmiumHaptics.selection();
+    setState(() {
+      _accountMenuExpanded = false;
+      _loginKeysError = null;
+      _loginKeysVisible = true;
+    });
+    _syncDock();
+    unawaited(_reloadLoginKeys());
+  }
+
+  void _dismissLoginKeysDialog() {
+    if (!_loginKeysVisible) return;
+    setState(() {
+      _loginKeysVisible = false;
+      _loginKeysError = null;
+    });
+    _syncDock();
+  }
+
+  Future<void> _reloadLoginKeys() async {
+    if (!mounted) return;
+    setState(() {
+      _loginKeysLoading = true;
+      _loginKeysError = null;
+    });
+    try {
+      final res = await ref.read(accountServiceProvider).fetchLoginKeys();
+      if (!mounted) return;
+      if (res.ok && res.data != null) {
+        setState(() {
+          _loginKeys = res.data!.keys;
+          _loginKeysMax = res.data!.maxKeys;
+        });
+      } else {
+        setState(
+          () => _loginKeysError = res.message.isNotEmpty
+              ? res.message
+              : '获取登录密钥失败',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loginKeysLoading = false);
+    }
+  }
+
+  Future<void> _deleteLoginKey(String id) async {
+    if (_deletingKeyIds.contains(id)) return;
+    OsmiumHaptics.confirm();
+    setState(() {
+      _deletingKeyIds.add(id);
+      _loginKeysError = null;
+    });
+    try {
+      final res = await ref.read(accountServiceProvider).deleteLoginKey(id);
+      if (!mounted) return;
+      if (res.ok) {
+        setState(() {
+          _loginKeys = _loginKeys.where((k) => k.id != id).toList();
+        });
+      } else {
+        setState(
+          () => _loginKeysError = res.message.isNotEmpty
+              ? res.message
+              : '移除登录密钥失败',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _deletingKeyIds.remove(id));
+      }
+    }
+  }
+
+  void _openCreateLoginKeyDialog() {
+    final acct = ref.read(appControllerProvider).account;
+    if (acct == null || !acct.hasEmail) {
+      setState(() => _loginKeysError = '请先绑定邮箱后再创建登录密钥');
+      return;
+    }
+    OsmiumHaptics.selection();
+    _keyNameCtrl.clear();
+    _keyOtpCtrl.clear();
+    setState(() {
+      _loginKeysVisible = false;
+      _createKeyError = null;
+      _createKeySubmitting = false;
+      _createKeyVisible = true;
+    });
+    _syncDock();
+  }
+
+  void _dismissCreateLoginKeyDialog() {
+    if (!_createKeyVisible || _createKeySubmitting) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _createKeyVisible = false;
+      _createKeyError = null;
+      _loginKeysVisible = true;
+    });
+    _syncDock();
+  }
+
+  void _startCreateKeyCooldown() {
+    _createKeyCooldownTimer?.cancel();
+    setState(() => _createKeyCooldown = 60);
+    _createKeyCooldownTimer = Timer.periodic(const Duration(seconds: 1), (
+      timer,
+    ) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_createKeyCooldown <= 1) {
+        timer.cancel();
+        setState(() => _createKeyCooldown = 0);
+      } else {
+        setState(() => _createKeyCooldown -= 1);
+      }
+    });
+  }
+
+  Future<void> _sendCreateLoginKeyCode() async {
+    if (_createKeySendingCode || _createKeyCooldown > 0) return;
+    setState(() {
+      _createKeySendingCode = true;
+      _createKeyError = null;
+    });
+    try {
+      final accountSvc = ref.read(accountServiceProvider);
+      final res = await accountSvc.startCreateLoginKeySendCode();
+      if (!mounted) return;
+      if (res.needsCaptcha && res.challenge != null) {
+        final verified = await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (_) => CaptchaWebViewPage(
+              challenge: res.challenge!,
+              accountService: accountSvc,
+            ),
+          ),
+        );
+        if (!mounted) return;
+        if (verified != null) {
+          _startCreateKeyCooldown();
+        }
+        return;
+      }
+      if (res.ok) {
+        _startCreateKeyCooldown();
+      } else {
+        setState(
+          () => _createKeyError = res.message.isNotEmpty
+              ? res.message
+              : '发送验证码失败',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _createKeySendingCode = false);
+    }
+  }
+
+  Future<void> _confirmCreateLoginKey() async {
+    if (_createKeySubmitting) return;
+    final code = _keyOtpCtrl.text.trim();
+    if (code.length != 6) {
+      setState(() => _createKeyError = '请输入6位邮箱验证码');
+      return;
+    }
+    final name = _keyNameCtrl.text.trim();
+    OsmiumHaptics.confirm();
+    setState(() {
+      _createKeySubmitting = true;
+      _createKeyError = null;
+    });
+    try {
+      final res = await ref
+          .read(accountServiceProvider)
+          .createLoginKey(code: code, name: name.isEmpty ? '登录密钥' : name);
+      if (!mounted) return;
+      if (res.ok && res.data != null && res.data!.loginKey.isNotEmpty) {
+        FocusScope.of(context).unfocus();
+        setState(() {
+          _createKeyVisible = false;
+          _createdKeyValue = res.data!.loginKey;
+          _createdKeyCopied = false;
+          _createdKeyVisible = true;
+        });
+        _syncDock();
+        unawaited(_reloadLoginKeys());
+      } else {
+        setState(
+          () => _createKeyError = res.message.isNotEmpty
+              ? res.message
+              : '创建登录密钥失败',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _createKeySubmitting = false);
+    }
+  }
+
+  void _copyCreatedLoginKey() {
+    if (_createdKeyValue.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: _createdKeyValue));
+    OsmiumHaptics.selection();
+    setState(() => _createdKeyCopied = true);
+  }
+
+  void _dismissCreatedLoginKeyDialog() {
+    if (!_createdKeyVisible) return;
+    setState(() {
+      _createdKeyVisible = false;
+      _createdKeyValue = '';
+      _createdKeyCopied = false;
+      _loginKeysVisible = true;
+    });
+    _syncDock();
+  }
+
   void _editSelfName(String currentName) {
     _nameCtrl.text = currentName;
     _nameCtrl.selection = TextSelection(
@@ -850,6 +1106,8 @@ class _MeTabState extends ConsumerState<MeTab> {
       _accountMenuExpanded = false;
       _accountError = null;
       _accountSuccess = null;
+      _loginKeys = const [];
+      _loginKeysError = null;
     });
     await ref.read(appControllerProvider).logout();
   }
@@ -931,6 +1189,7 @@ class _MeTabState extends ConsumerState<MeTab> {
                             ),
                             onChangeEmail: _openChangeEmailDialog,
                             onSetPassword: _openSetPasswordDialog,
+                            onManageLoginKeys: _openLoginKeysDialog,
                             onTapOAuthBinding: _handleOAuthBindingTap,
                           ),
                           const OsmiumSectionHeader('本机'),
@@ -1290,6 +1549,9 @@ class _MeTabState extends ConsumerState<MeTab> {
             _buildNicknameDialog(context),
             _buildChangeEmailDialog(context, app.account),
             _buildSetPasswordDialog(context, app.account),
+            _buildLoginKeysDialog(context, app.account),
+            _buildCreateLoginKeyDialog(context, app.account),
+            _buildCreatedLoginKeyDialog(context),
             _buildLogoutDialog(context),
             _buildOAuthBindDialog(context),
             _buildOAuthUnbindDialog(context),
@@ -1837,6 +2099,340 @@ class _MeTabState extends ConsumerState<MeTab> {
       ),
     );
   }
+
+  Widget _buildLoginKeysDialog(BuildContext context, AccountSessionData? acct) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+    final canCreate =
+        acct != null &&
+        acct.hasEmail &&
+        !_loginKeysLoading &&
+        _loginKeys.length < _loginKeysMax;
+
+    return MiuixOverlayDialog(
+      show: _loginKeysVisible,
+      title: '登录密钥',
+      onDismissRequest: _dismissLoginKeysDialog,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MiuixText(
+            '使用登录密钥可免密码与两步验证快捷登录Osmium。',
+            style: theme.textStyles.body2,
+            color: colors.onSurfaceVariantSummary,
+          ),
+          const SizedBox(height: 12),
+          if (_loginKeysLoading && _loginKeys.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: colors.primary,
+                  ),
+                ),
+              ),
+            )
+          else if (_loginKeys.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: MiuixText(
+                '暂未创建登录密钥',
+                style: theme.textStyles.body2,
+                color: colors.onSurfaceVariantSummary,
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < _loginKeys.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 8),
+                      _buildLoginKeyRow(context, _loginKeys[i]),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          OsmiumAnimatedReveal(
+            visible: _loginKeysError != null,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: OsmiumColors.dangerBg(isDark),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: MiuixText(
+                  _loginKeysError ?? '',
+                  style: theme.textStyles.body2,
+                  color: OsmiumColors.dangerFg(isDark),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: MiuixTextButton(
+                  '关闭',
+                  onPressed: _dismissLoginKeysDialog,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: MiuixTextButton(
+                  '新建密钥',
+                  enabled: canCreate,
+                  onPressed: _openCreateLoginKeyDialog,
+                  colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginKeyRow(BuildContext context, LoginKeyItemDto item) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+    final deleting = _deletingKeyIds.contains(item.id);
+    final created = _formatKeyTime(item.createdAt);
+    final lastUsed = item.lastUsedAt > 0
+        ? ' · 最近使用${_formatKeyTime(item.lastUsedAt)}'
+        : '';
+    final meta = created.isNotEmpty
+        ? '${item.keyPrefix} · $created$lastUsed'
+        : item.keyPrefix;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.onSurface.withValues(alpha: isDark ? 0.06 : 0.04),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MiuixText(
+                  item.name,
+                  style: theme.textStyles.body1,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                MiuixText(
+                  meta,
+                  style: theme.textStyles.footnote1,
+                  color: colors.onSurfaceVariantSummary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          MiuixTextButton(
+            deleting ? '…' : '移除',
+            enabled: !deleting,
+            onPressed: () => _deleteLoginKey(item.id),
+            minHeight: 32,
+            colors: MiuixButtonColors(
+              color: OsmiumColors.dangerBg(isDark),
+              disabledColor: colors.disabledSecondaryVariant,
+              contentColor: OsmiumColors.dangerFg(isDark),
+              disabledContentColor: colors.disabledOnSecondaryVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreateLoginKeyDialog(
+    BuildContext context,
+    AccountSessionData? acct,
+  ) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+    final boundEmail = acct?.email ?? '';
+
+    return MiuixOverlayDialog(
+      show: _createKeyVisible,
+      title: '创建登录密钥',
+      onDismissRequest: _dismissCreateLoginKeyDialog,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (boundEmail.isNotEmpty) ...[
+              MiuixText(
+                '将向$boundEmail发送6位验证码',
+                style: theme.textStyles.body2,
+                color: colors.onSurfaceVariantSummary,
+              ),
+              const SizedBox(height: 12),
+            ],
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _keyNameCtrl,
+              label: '密钥名称（可选）',
+              singleLine: true,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextField(
+                    cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                    insideMargin: OsmiumFieldDefaults.floatingMargin,
+                    controller: _keyOtpCtrl,
+                    label: '邮箱验证码',
+                    singleLine: true,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _confirmCreateLoginKey(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                MiuixTextButton(
+                  _createKeyCooldown > 0
+                      ? '${_createKeyCooldown}s'
+                      : (_createKeySendingCode ? '…' : '获取'),
+                  enabled: !_createKeySendingCode && _createKeyCooldown == 0,
+                  onPressed: _sendCreateLoginKeyCode,
+                  minHeight: 44,
+                ),
+              ],
+            ),
+            OsmiumAnimatedReveal(
+              visible: _createKeyError != null,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: OsmiumColors.dangerBg(isDark),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: MiuixText(
+                    _createKeyError ?? '',
+                    style: theme.textStyles.body2,
+                    color: OsmiumColors.dangerFg(isDark),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextButton(
+                    '取消',
+                    enabled: !_createKeySubmitting,
+                    onPressed: _dismissCreateLoginKeyDialog,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MiuixTextButton(
+                    _createKeySubmitting ? '创建中…' : '创建',
+                    enabled: !_createKeySubmitting,
+                    onPressed: _confirmCreateLoginKey,
+                    colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreatedLoginKeyDialog(BuildContext context) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return MiuixOverlayDialog(
+      show: _createdKeyVisible,
+      title: '登录密钥已创建',
+      onDismissRequest: _dismissCreatedLoginKeyDialog,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MiuixText(
+            '密钥仅展示这一次，关闭后将无法再次查看，请立即复制并妥善保存。',
+            style: theme.textStyles.body2,
+            color: colors.onSurfaceVariantSummary,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.onSurface.withValues(alpha: isDark ? 0.08 : 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SelectableText(
+              _createdKeyValue,
+              style: OsmiumTheme.monoStyle(
+                fontSize: 13,
+                color: colors.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: MiuixTextButton(
+                  _createdKeyCopied ? '已复制' : '复制密钥',
+                  onPressed: _copyCreatedLoginKey,
+                  colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: MiuixTextButton(
+                  '我已保存',
+                  onPressed: _dismissCreatedLoginKeyDialog,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AccountHeroCard extends StatelessWidget {
@@ -1854,6 +2450,7 @@ class _AccountHeroCard extends StatelessWidget {
     required this.onEditNickname,
     required this.onChangeEmail,
     required this.onSetPassword,
+    required this.onManageLoginKeys,
     required this.onTapOAuthBinding,
   });
 
@@ -1870,6 +2467,7 @@ class _AccountHeroCard extends StatelessWidget {
   final VoidCallback onEditNickname;
   final VoidCallback onChangeEmail;
   final VoidCallback onSetPassword;
+  final VoidCallback onManageLoginKeys;
   final ValueChanged<String> onTapOAuthBinding;
 
   @override
@@ -1966,6 +2564,7 @@ class _AccountHeroCard extends StatelessWidget {
       onEditNickname: onEditNickname,
       onChangeEmail: onChangeEmail,
       onSetPassword: onSetPassword,
+      onManageLoginKeys: onManageLoginKeys,
       onTapOAuthBinding: onTapOAuthBinding,
       onRetryOAuthBindings: () => app.refreshOAuthBindings(),
     );
@@ -1990,6 +2589,7 @@ class _LoggedInAccountCard extends StatelessWidget {
     required this.onEditNickname,
     required this.onChangeEmail,
     required this.onSetPassword,
+    required this.onManageLoginKeys,
     required this.onTapOAuthBinding,
     required this.onRetryOAuthBindings,
   });
@@ -2010,6 +2610,7 @@ class _LoggedInAccountCard extends StatelessWidget {
   final VoidCallback onEditNickname;
   final VoidCallback onChangeEmail;
   final VoidCallback onSetPassword;
+  final VoidCallback onManageLoginKeys;
   final ValueChanged<String> onTapOAuthBinding;
   final VoidCallback onRetryOAuthBindings;
 
@@ -2254,6 +2855,13 @@ class _LoggedInAccountCard extends StatelessWidget {
                           onTap: onSetPassword,
                         ),
                       ],
+                      const OsmiumCardDivider(),
+                      _AccountDropdownItem(
+                        icon: Icons.vpn_key_outlined,
+                        title: '登录密钥',
+                        enabled: !acct.locked,
+                        onTap: onManageLoginKeys,
+                      ),
                       if (oauthBindings == null &&
                           (oauthBindingsLoading || oauthBindingsFailed)) ...[
                         const OsmiumCardDivider(),

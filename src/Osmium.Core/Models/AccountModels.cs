@@ -36,6 +36,7 @@ public static class OsmiumErrorCode
     public const int Ok = 0;
     public const int CaptchaRequired = 100;
     public const int ChallengePending = 101;
+    public const int TwoFaRequired = 102;
 
     public const int InvalidInput = 1001;
     public const int UnsupportedMediaType = 1002;
@@ -68,6 +69,9 @@ public static class OsmiumErrorCode
     public const int PasswordAlreadySet = 2014;
     public const int OAuthAlreadyBound = 2015;
     public const int OAuthProviderAlreadyBound = 2016;
+    public const int TwoFaAlreadyEnabled = 2017;
+    public const int TwoFaNotEnabled = 2018;
+    public const int LoginKeyInvalid = 2019;
 
     public const int ChallengeExpired = 3001;
     public const int ChallengeNotFound = 3002;
@@ -87,6 +91,8 @@ public static class OsmiumErrorCode
     public const int QrCancelled = 3016;
     public const int OAuthExpired = 3017;
     public const int OAuthFailed = 3018;
+    public const int TwoFaInvalid = 3019;
+    public const int TwoFaExpired = 3020;
 
     public const int RateLimited = 4001;
     public const int UserDailyOpsExceeded = 4002;
@@ -105,6 +111,12 @@ public static class OsmiumErrorCode
     public const int AvatarChangeCooldown = 4015;
     public const int EmailChangeCooldown = 4016;
     public const int PasswordResetCooldown = 4017;
+    public const int QuickLaunchDisabled = 4018;
+    public const int QuickLaunchNotFound = 4019;
+    public const int QuickLaunchLimitExceeded = 4020;
+    public const int QuickLaunchUnsupported = 4021;
+    public const int LoginKeyLimitExceeded = 4022;
+    public const int VersionUnsupported = 4023;
 
     public const int InternalError = 5001;
     public const int ServerMisconfigured = 5002;
@@ -177,8 +189,17 @@ public sealed class AccountApiResult<T>
         init;
     }
 
+    public TwoFaRequiredData? TwoFaChallenge
+    {
+        get;
+        init;
+    }
+
     public bool RequiresCaptcha =>
         Challenge != null && Code == OsmiumErrorCode.CaptchaRequired;
+
+    public bool RequiresTwoFa =>
+        TwoFaChallenge != null && Code == OsmiumErrorCode.TwoFaRequired;
 
     public bool IsPending =>
         Code == OsmiumErrorCode.ChallengePending;
@@ -318,6 +339,13 @@ public sealed class AccountLoginSessionData
         get;
         set;
     } = true;
+
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class AccountLtokenIssueData
@@ -399,6 +427,13 @@ public sealed class AccountLtokenIssueData
         get;
         set;
     } = true;
+
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class AccountStatusData
@@ -480,6 +515,13 @@ public sealed class AccountStatusData
         get;
         set;
     } = true;
+
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class AccountProfileUpdateData
@@ -617,6 +659,13 @@ public sealed class AccountDeviceDto
 
     [JsonPropertyName("allow_remote_power")]
     public bool AllowRemotePower
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_quick_launch")]
+    public bool AllowQuickLaunch
     {
         get;
         set;
@@ -887,6 +936,125 @@ public sealed class AccountLoginHistoryData
     } = [];
 }
 
+public sealed class AccountRemoteHistoryRecordDto
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("session_id")]
+    public string SessionId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("role")]
+    public string Role
+    {
+        get;
+        set;
+    } = "controller";
+
+    [JsonPropertyName("same_account")]
+    public bool SameAccount
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("view_only")]
+    public bool ViewOnly
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("in_progress")]
+    public bool InProgress
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("local_device_id")]
+    public string LocalDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("local_device_name")]
+    public string LocalDeviceName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("peer_device_id")]
+    public string PeerDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("peer_device_name")]
+    public string PeerDeviceName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("peer_user_name")]
+    public string PeerUserName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("started_at")]
+    public string StartedAt
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ended_at")]
+    public string? EndedAt
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("duration_sec")]
+    public long DurationSec
+    {
+        get;
+        set;
+    }
+
+    [JsonIgnore] public string FormattedLocalDeviceId => DeviceIdentity.FormatDeviceId(LocalDeviceId);
+    [JsonIgnore] public string FormattedPeerDeviceId => DeviceIdentity.FormatDeviceId(PeerDeviceId);
+
+    [JsonIgnore]
+    public string LocalStartedTimeText => DateTimeOffset.TryParse(StartedAt, out var dt)
+        ? dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        : StartedAt;
+}
+
+public sealed class AccountRemoteHistoryData
+{
+    [JsonPropertyName("records")]
+    public List<AccountRemoteHistoryRecordDto> Records
+    {
+        get;
+        set;
+    } = [];
+}
+
 public sealed class AccountBlacklistItemDto
 {
     [JsonPropertyName("blocked_user_id")]
@@ -971,6 +1139,12 @@ public sealed class AccountPersistedSession
     }
 
     public bool? HasPassword
+    {
+        get;
+        set;
+    }
+
+    public bool? TwoFaEnabled
     {
         get;
         set;
@@ -1224,4 +1398,487 @@ public sealed class OAuthBindingsData
         get;
         set;
     } = new();
+}
+
+public sealed class QuickLaunchAppDto
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("device_id")]
+    public string DeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("device_name")]
+    public string DeviceName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("device_cached")]
+    public bool DeviceCached
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("device_online")]
+    public bool DeviceOnline
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_remote")]
+    public bool AllowRemote
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("allow_quick_launch")]
+    public bool AllowQuickLaunch
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("exe_path")]
+    public string ExePath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("icon_data")]
+    public string? IconData
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("created_at")]
+    public string CreatedAt
+    {
+        get;
+        set;
+    } = string.Empty;
+}
+
+public sealed class QuickLaunchAppsListData
+{
+    [JsonPropertyName("apps")]
+    public List<QuickLaunchAppDto> Apps
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("max_apps")]
+    public int MaxApps
+    {
+        get;
+        set;
+    } = 100;
+}
+
+public sealed class QuickLaunchAddResultData
+{
+    [JsonPropertyName("app")]
+    public QuickLaunchAppDto? App
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class QuickLaunchBrowseEntry
+{
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("path")]
+    public string Path
+    {
+        get;
+        set;
+    } = string.Empty;
+}
+
+public sealed class QuickLaunchBrowseResult
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ok")]
+    public bool Ok
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("code")]
+    public int Code
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("reason")]
+    public string Reason
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("currentPath")]
+    public string CurrentPath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("parentPath")]
+    public string ParentPath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("directories")]
+    public List<QuickLaunchBrowseEntry> Directories
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("executables")]
+    public List<QuickLaunchBrowseEntry> Executables
+    {
+        get;
+        set;
+    } = [];
+}
+
+public sealed class QuickLaunchValidateResult
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ok")]
+    public bool Ok
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("code")]
+    public int Code
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("reason")]
+    public string Reason
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("needsExeSelection")]
+    public bool NeedsExeSelection
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("directoryPath")]
+    public string DirectoryPath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("resolvedExePath")]
+    public string ResolvedExePath
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("suggestedName")]
+    public string SuggestedName
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("iconData")]
+    public string? IconData
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("candidates")]
+    public List<QuickLaunchBrowseEntry> Candidates
+    {
+        get;
+        set;
+    } = [];
+}
+
+public sealed class QuickLaunchStartResponse
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("ok")]
+    public bool Ok
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("code")]
+    public int Code
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("reason")]
+    public string Reason
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("pid")]
+    public int Pid
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class TwoFaRequiredData
+{
+    [JsonPropertyName("two_fa_token")]
+    public string TwoFaToken
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    } = 300;
+}
+
+public sealed class TwoFaSetupStartData
+{
+    [JsonPropertyName("setup_token")]
+    public string SetupToken
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("secret")]
+    public string Secret
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("otpauth_uri")]
+    public string OtpAuthUri
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    } = 600;
+}
+
+public sealed class TwoFaToggleResultData
+{
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class LoginKeyItemDto
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("key_prefix")]
+    public string KeyPrefix
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("created_at")]
+    public long CreatedAt
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("last_used_at")]
+    public long LastUsedAt
+    {
+        get;
+        set;
+    }
+
+    [JsonIgnore]
+    public string CreatedAtText => CreatedAt > 0
+        ? DateTimeOffset.FromUnixTimeMilliseconds(CreatedAt).ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+        : "-";
+
+    [JsonIgnore]
+    public string LastUsedAtText => LastUsedAt > 0
+        ? DateTimeOffset.FromUnixTimeMilliseconds(LastUsedAt).ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+        : "-";
+}
+
+public sealed class LoginKeysListData
+{
+    [JsonPropertyName("keys")]
+    public List<LoginKeyItemDto> Keys
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("max_keys")]
+    public int MaxKeys
+    {
+        get;
+        set;
+    } = 10;
+}
+
+public sealed class LoginKeyCreateData
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("key_prefix")]
+    public string KeyPrefix
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("login_key")]
+    public string LoginKey
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("created_at")]
+    public long CreatedAt
+    {
+        get;
+        set;
+    }
 }

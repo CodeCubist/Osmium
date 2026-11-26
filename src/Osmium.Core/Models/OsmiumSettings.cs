@@ -478,6 +478,12 @@ public sealed class OsmiumSettings
         set;
     } = false;
 
+    public bool HostAllowQuickLaunch
+    {
+        get;
+        set;
+    } = false;
+
     public bool EnableSharedClipboard
     {
         get;

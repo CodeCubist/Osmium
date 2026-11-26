@@ -125,6 +125,20 @@ public sealed partial class AccountService : IDisposable
                 => Tr("Acc_ErrOAuthFailed", "Sign-in was not completed; please try again"),
             OsmiumErrorCode.OAuthNotConfigured
                 => Tr("Acc_ErrOAuthNotConfigured", "This sign-in method is currently unavailable; please try again later or sign in with email"),
+            OsmiumErrorCode.TwoFaInvalid
+                => Tr("Acc_ErrTwoFaInvalid", "Incorrect 2FA verification code"),
+            OsmiumErrorCode.TwoFaExpired
+                => Tr("Acc_ErrTwoFaExpired", "2FA session has expired; please sign in again"),
+            OsmiumErrorCode.TwoFaAlreadyEnabled
+                => Tr("Acc_ErrTwoFaAlreadyEnabled", "Two-factor authentication is already enabled"),
+            OsmiumErrorCode.TwoFaNotEnabled
+                => Tr("Acc_ErrTwoFaNotEnabled", "Two-factor authentication is not enabled"),
+            OsmiumErrorCode.LoginKeyInvalid
+                => Tr("Acc_ErrLoginKeyInvalid", "Invalid or revoked login key"),
+            OsmiumErrorCode.LoginKeyLimitExceeded
+                => Tr("Acc_ErrLoginKeyLimit", "Maximum number of login keys reached"),
+            OsmiumErrorCode.VersionUnsupported
+                => Tr("Acc_ErrVersionUnsupported", "This client version is no longer supported; please update Osmium"),
             OsmiumErrorCode.RateLimited or OsmiumErrorCode.UserDailyOpsExceeded or OsmiumErrorCode.ConcurrentOperation
                 => Tr("Acc_ErrRateLimited", "Too many requests; please try again shortly"),
             OsmiumErrorCode.DeviceOffline
@@ -356,6 +370,7 @@ public sealed partial class AccountService : IDisposable
 
             T? data = default;
             AccountChallengeInfo? challenge = null;
+            TwoFaRequiredData? twoFaChallenge = null;
 
             if (env.Data.HasValue && env.Data.Value.ValueKind == JsonValueKind.Object)
             {
@@ -376,6 +391,14 @@ public sealed partial class AccountService : IDisposable
                         data = (T?)(object?)challenge;
                     }
                 }
+                else if (env.Code == OsmiumErrorCode.TwoFaRequired)
+                {
+                    twoFaChallenge = env.Data.Value.Deserialize<TwoFaRequiredData>(JsonOptions);
+                    if (typeof(T) == typeof(TwoFaRequiredData))
+                    {
+                        data = (T?)(object?)twoFaChallenge;
+                    }
+                }
                 else if (env.Ok && env.Code != OsmiumErrorCode.ChallengePending)
                 {
                     data = env.Data.Value.Deserialize<T>(JsonOptions);
@@ -389,7 +412,8 @@ public sealed partial class AccountService : IDisposable
                 RetryAfter = retryAfter,
                 Code = env.Code,
                 Data = data,
-                Challenge = challenge
+                Challenge = challenge,
+                TwoFaChallenge = twoFaChallenge
             };
         }
         catch
@@ -429,6 +453,7 @@ public sealed partial class AccountService : IDisposable
         _lockedAt = null;
         _hasEmail = true;
         _hasPassword = true;
+        _twoFaEnabled = false;
 
         lock (_devicesLock)
         {
@@ -469,6 +494,7 @@ public sealed partial class AccountService : IDisposable
             _userId = session.UserId ?? string.Empty;
             _hasEmail = session.HasEmail ?? true;
             _hasPassword = session.HasPassword ?? true;
+            _twoFaEnabled = session.TwoFaEnabled ?? false;
             _email = _hasEmail ? (session.Email ?? string.Empty) : string.Empty;
             _username = session.Username ?? string.Empty;
             _avatarData = session.AvatarData;
@@ -512,7 +538,8 @@ public sealed partial class AccountService : IDisposable
                 Stoken = _stoken,
                 StokenExpiresAtUnix = _stokenExpiresAtUnix,
                 HasEmail = _hasEmail,
-                HasPassword = _hasPassword
+                HasPassword = _hasPassword,
+                TwoFaEnabled = _twoFaEnabled
             };
 
             byte[] plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(session));
@@ -588,7 +615,8 @@ public sealed partial class AccountService : IDisposable
             Stoken = _stoken,
             StokenExpiresAtUnix = _stokenExpiresAtUnix,
             HasEmail = _hasEmail,
-            HasPassword = _hasPassword
+            HasPassword = _hasPassword,
+            TwoFaEnabled = _twoFaEnabled
         };
 
         byte[] plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(session));

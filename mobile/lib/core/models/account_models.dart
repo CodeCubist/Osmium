@@ -63,6 +63,7 @@ class AccountSessionData {
     this.locked = false,
     this.hasEmail = true,
     this.hasPassword = true,
+    this.twoFaEnabled = false,
   });
 
   final String userId;
@@ -77,6 +78,7 @@ class AccountSessionData {
   final bool locked;
   final bool hasEmail;
   final bool hasPassword;
+  final bool twoFaEnabled;
 
   bool get isProfileComplete => hasEmail && hasPassword;
 
@@ -108,6 +110,7 @@ class AccountSessionData {
     bool? locked,
     bool? hasEmail,
     bool? hasPassword,
+    bool? twoFaEnabled,
   }) {
     return AccountSessionData(
       userId: userId ?? this.userId,
@@ -122,6 +125,7 @@ class AccountSessionData {
       locked: locked ?? this.locked,
       hasEmail: hasEmail ?? this.hasEmail,
       hasPassword: hasPassword ?? this.hasPassword,
+      twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
     );
   }
 
@@ -138,6 +142,7 @@ class AccountSessionData {
     'locked': locked,
     'has_email': hasEmail,
     'has_password': hasPassword,
+    'two_fa_enabled': twoFaEnabled,
   };
 
   factory AccountSessionData.fromStoredJson(Map<String, dynamic> json) {
@@ -156,6 +161,7 @@ class AccountSessionData {
       locked: json['locked'] == true,
       hasEmail: hasEmail,
       hasPassword: hasPassword,
+      twoFaEnabled: json['two_fa_enabled'] == true,
     );
   }
 
@@ -180,6 +186,7 @@ class AccountSessionData {
       locked: locked,
       hasEmail: hasEmail,
       hasPassword: hasPassword,
+      twoFaEnabled: json['two_fa_enabled'] == true,
     );
   }
 }
@@ -326,6 +333,7 @@ class AccountDeviceDto {
     this.isOnline = false,
     this.allowRemote = true,
     this.allowRemotePower = false,
+    this.allowQuickLaunch = false,
     this.wolMacs = const [],
     this.wolBroadcasts = const [],
     this.wolReady = false,
@@ -345,6 +353,7 @@ class AccountDeviceDto {
   final bool isOnline;
   final bool allowRemote;
   final bool allowRemotePower;
+  final bool allowQuickLaunch;
   final List<String> wolMacs;
   final List<String> wolBroadcasts;
   final bool wolReady;
@@ -410,6 +419,9 @@ class AccountDeviceDto {
       allowRemotePower:
           json['allow_remote_power'] == true ||
           json['allowRemotePower'] == true,
+      allowQuickLaunch:
+          json['allow_quick_launch'] == true ||
+          json['allowQuickLaunch'] == true,
       wolMacs: parseStringList(json['wol_macs'] ?? json['wolMacs']),
       wolBroadcasts: parseStringList(
         json['wol_broadcasts'] ?? json['wolBroadcasts'],
@@ -429,6 +441,57 @@ class AccountDeviceDto {
       lastActiveAt: parseTimestamp(
         json['last_active_at'] ?? json['lastActiveAt'],
       ),
+    );
+  }
+}
+
+class QuickLaunchAppDto {
+  const QuickLaunchAppDto({
+    required this.id,
+    required this.deviceId,
+    required this.deviceName,
+    required this.name,
+    required this.exePath,
+    this.iconData,
+    this.deviceCached = true,
+    this.deviceOnline = false,
+    this.allowRemote = false,
+    this.allowQuickLaunch = false,
+    this.createdAt = '',
+  });
+
+  final String id;
+  final String deviceId;
+  final String deviceName;
+  final String name;
+  final String exePath;
+  final String? iconData;
+  final bool deviceCached;
+  final bool deviceOnline;
+  final bool allowRemote;
+  final bool allowQuickLaunch;
+  final String createdAt;
+
+  factory QuickLaunchAppDto.fromJson(Map<String, dynamic> json) {
+    final hasCached =
+        json.containsKey('device_cached') || json.containsKey('deviceCached');
+    return QuickLaunchAppDto(
+      id: (json['id'] ?? '').toString(),
+      deviceId: (json['device_id'] ?? json['deviceId'] ?? '').toString(),
+      deviceName: (json['device_name'] ?? json['deviceName'] ?? '').toString(),
+      name: (json['name'] ?? 'App').toString(),
+      exePath: (json['exe_path'] ?? json['exePath'] ?? '').toString(),
+      iconData: (json['icon_data'] ?? json['iconData']) as String?,
+      deviceCached: hasCached
+          ? (json['device_cached'] == true || json['deviceCached'] == true)
+          : true,
+      deviceOnline:
+          json['device_online'] == true || json['deviceOnline'] == true,
+      allowRemote: json['allow_remote'] == true || json['allowRemote'] == true,
+      allowQuickLaunch:
+          json['allow_quick_launch'] == true ||
+          json['allowQuickLaunch'] == true,
+      createdAt: (json['created_at'] ?? json['createdAt'] ?? '').toString(),
     );
   }
 }
@@ -797,6 +860,82 @@ class QrConfirmTicket {
       confirmUnlockAtMs: (json['confirm_unlock_at'] as num?)?.toInt() ?? 0,
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 180,
       pcInfo: QrPcLoginInfo.fromJson(pcMap),
+    );
+  }
+}
+
+class LoginKeyItemDto {
+  const LoginKeyItemDto({
+    required this.id,
+    required this.name,
+    required this.keyPrefix,
+    this.createdAt = 0,
+    this.lastUsedAt = 0,
+  });
+
+  final String id;
+  final String name;
+  final String keyPrefix;
+  final int createdAt;
+  final int lastUsedAt;
+
+  factory LoginKeyItemDto.fromJson(Map<String, dynamic> json) {
+    return LoginKeyItemDto(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '登录密钥').toString(),
+      keyPrefix: (json['key_prefix'] ?? '').toString(),
+      createdAt: (json['created_at'] as num?)?.toInt() ?? 0,
+      lastUsedAt: (json['last_used_at'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class LoginKeysListData {
+  const LoginKeysListData({
+    required this.keys,
+    this.maxKeys = 10,
+  });
+
+  final List<LoginKeyItemDto> keys;
+  final int maxKeys;
+
+  factory LoginKeysListData.fromJson(Map<String, dynamic> json) {
+    final raw = json['keys'];
+    final items = raw is List
+        ? raw
+              .whereType<Map<String, dynamic>>()
+              .map(LoginKeyItemDto.fromJson)
+              .toList(growable: false)
+        : const <LoginKeyItemDto>[];
+    return LoginKeysListData(
+      keys: items,
+      maxKeys: (json['max_keys'] as num?)?.toInt() ?? 10,
+    );
+  }
+}
+
+class LoginKeyCreateData {
+  const LoginKeyCreateData({
+    required this.id,
+    required this.name,
+    required this.keyPrefix,
+    required this.loginKey,
+    this.createdAt = 0,
+  });
+
+  final String id;
+  final String name;
+  final String keyPrefix;
+  final String loginKey;
+  final int createdAt;
+
+  factory LoginKeyCreateData.fromJson(Map<String, dynamic> json) {
+    return LoginKeyCreateData(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '登录密钥').toString(),
+      keyPrefix: (json['key_prefix'] ?? '').toString(),
+      loginKey: (json['login_key'] ?? '').toString(),
+      createdAt: (json['created_at'] as num?)?.toInt() ?? 0,
     );
   }
 }

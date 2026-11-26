@@ -229,6 +229,115 @@ public sealed partial class SignalingClient : IDisposable
                     PowerWolRelayReceived?.Invoke(args);
                     break;
                 }
+                case "quick_launch_apps_sync":
+                {
+                    QuickLaunchAppsSyncReceived?.Invoke();
+                    break;
+                }
+                case "quick_launch_browse_req":
+                {
+                    var args = new QuickLaunchBrowseRequestEventArgs
+                    {
+                        RequestId = root.TryGetProperty("requestId", out var rid) && rid.ValueKind == JsonValueKind.String
+                            ? rid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                            ? rdid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                            ? ruid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Path = root.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String
+                            ? p.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    QuickLaunchBrowseRequestReceived?.Invoke(args);
+                    break;
+                }
+                case "quick_launch_browse_res":
+                {
+                    var res = root.Deserialize<QuickLaunchBrowseResult>(JsonOpts);
+                    if (res != null)
+                    {
+                        QuickLaunchBrowseResponseReceived?.Invoke(res);
+                    }
+                    break;
+                }
+                case "quick_launch_validate_req":
+                {
+                    var args = new QuickLaunchValidateRequestEventArgs
+                    {
+                        RequestId = root.TryGetProperty("requestId", out var rid) && rid.ValueKind == JsonValueKind.String
+                            ? rid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                            ? rdid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                            ? ruid.GetString() ?? string.Empty
+                            : string.Empty,
+                        Path = root.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String
+                            ? p.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    QuickLaunchValidateRequestReceived?.Invoke(args);
+                    break;
+                }
+                case "quick_launch_validate_res":
+                {
+                    var res = root.Deserialize<QuickLaunchValidateResult>(JsonOpts);
+                    if (res != null)
+                    {
+                        QuickLaunchValidateResponseReceived?.Invoke(res);
+                    }
+                    break;
+                }
+                case "quick_launch_start_req":
+                {
+                    var args = new QuickLaunchStartRequestEventArgs
+                    {
+                        RequestId = root.TryGetProperty("requestId", out var rid) && rid.ValueKind == JsonValueKind.String
+                            ? rid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                            ? rdid.GetString() ?? string.Empty
+                            : string.Empty,
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                            ? ruid.GetString() ?? string.Empty
+                            : string.Empty,
+                        AppId = root.TryGetProperty("appId", out var aid) && aid.ValueKind == JsonValueKind.String
+                            ? aid.GetString() ?? string.Empty
+                            : string.Empty,
+                        ExePath = root.TryGetProperty("exePath", out var ep) && ep.ValueKind == JsonValueKind.String
+                            ? ep.GetString() ?? string.Empty
+                            : string.Empty,
+                        AppName = root.TryGetProperty("appName", out var an) && an.ValueKind == JsonValueKind.String
+                            ? an.GetString() ?? string.Empty
+                            : string.Empty
+                    };
+                    QuickLaunchStartRequestReceived?.Invoke(args);
+                    break;
+                }
+                case "quick_launch_start_res":
+                {
+                    var res = root.Deserialize<QuickLaunchStartResponse>(JsonOpts);
+                    if (res != null)
+                    {
+                        QuickLaunchStartResponseReceived?.Invoke(res);
+                    }
+                    break;
+                }
+                case "quick_launch_cancel":
+                {
+                    string rid = root.TryGetProperty("requestId", out var r) && r.ValueKind == JsonValueKind.String
+                        ? r.GetString() ?? string.Empty
+                        : string.Empty;
+                    string rdid = root.TryGetProperty("requesterDeviceId", out var d) && d.ValueKind == JsonValueKind.String
+                        ? d.GetString() ?? string.Empty
+                        : string.Empty;
+                    QuickLaunchCancelReceived?.Invoke(rid, rdid);
+                    break;
+                }
                 case "incoming_connect":
                 {
                     var args = new IncomingConnectEventArgs
@@ -1010,6 +1119,8 @@ public sealed partial class SignalingClient : IDisposable
                     deviceId = _deviceId,
                     deviceName = _deviceName,
                     allowRemote = _allowRemote,
+                    allowQuickLaunch = _allowQuickLaunch,
+                    clientVersion = AppVersionInfo.Current,
                     osVersion = Environment.OSVersion.VersionString,
                     ltoken = _ltoken,
                     powerProfile = profile == null

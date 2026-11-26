@@ -224,7 +224,9 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
                 }
 
-                if (!versionRes.Compatible)
+                if (!versionRes.Compatible ||
+                    !AppVersionInfo.IsVersionSupported(versionRes.ClientVersion) ||
+                    !AppVersionInfo.IsVersionSupported(versionRes.HostVersion))
                 {
                     _log.Warn(
                         $"Blocked incoming session {args.SessionId} due to incompatible versions (client={versionRes.ClientVersion}, host={versionRes.HostVersion}): {versionRes.Reason}");
@@ -953,6 +955,9 @@ public sealed partial class P2PCoordinator : IDisposable
     }
 
     public void StopHostSession() => StopHostSession(notifyPeer: true, notifyEndedReason: "Host stopped session");
+
+    public void StopHostSession(string reason) => StopHostSession(notifyPeer: true,
+        notifyEndedReason: string.IsNullOrWhiteSpace(reason) ? "Host stopped session" : reason);
 
     private void SendHostDesktopWallpaper(AuxTransferChannel channel)
     {

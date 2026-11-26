@@ -149,6 +149,7 @@ public sealed partial class SettingsPage : Page
         HostAllowDriverMgmtSwitch.IsEnabled = !locked;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && HostAllowDriverMgmtSwitch.IsOn;
         HostAllowFileTransferSwitch.IsEnabled = !locked;
+        HostAllowQuickLaunchSwitch.IsEnabled = !locked;
         bool powerProfileBlocked = App.Engine.AccountService.IsLoggedIn && !App.Engine.AccountService.IsProfileComplete;
         HostAllowRemotePowerSwitch.IsEnabled = !locked && !powerProfileBlocked;
         ConfigureWolBtn.IsEnabled = !locked && !powerProfileBlocked;
@@ -428,6 +429,7 @@ public sealed partial class SettingsPage : Page
         HostRequireDriverConfirmSwitch.IsOn = s.HostRequireDriverConfirm;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && s.HostAllowRemoteDriverMgmt;
         HostAllowFileTransferSwitch.IsOn = s.HostAllowFileTransfer;
+        HostAllowQuickLaunchSwitch.IsOn = s.HostAllowQuickLaunch;
         HostAllowRemotePowerSwitch.IsOn = s.HostAllowRemotePower;
         HostNotifyOnConnectSwitch.IsOn = s.HostNotifyOnConnect;
         HostFlashTaskbarOnConnectSwitch.IsOn = s.HostFlashTaskbarOnConnect;
@@ -581,6 +583,8 @@ public sealed partial class SettingsPage : Page
         RowHostRequireDriverConfirm.Description = LocalizationService.GetString("Host_RowRequireDriverConfirmDesc");
         RowHostAllowFileTransfer.Title = LocalizationService.GetString("Host_RowAllowFileTransfer");
         RowHostAllowFileTransfer.Description = LocalizationService.GetString("Host_RowAllowFileTransferDesc");
+        RowHostAllowQuickLaunch.Title = LocalizationService.GetString("Host_RowAllowQuickLaunch");
+        RowHostAllowQuickLaunch.Description = LocalizationService.GetString("Host_RowAllowQuickLaunchDesc");
         SecRemotePowerLocalTitle.Text = LocalizationService.GetString("Power_SecLocalTitle");
         SecRemotePowerEnvTitle.Text = LocalizationService.GetString("Power_SecEnvTitle");
         RowHostAllowRemotePower.Title = LocalizationService.GetString("Host_RowAllowRemotePower");
@@ -798,10 +802,16 @@ public sealed partial class SettingsPage : Page
         s.HostAllowRemoteDriverMgmt = HostAllowDriverMgmtSwitch.IsOn;
         s.HostRequireDriverConfirm = HostRequireDriverConfirmSwitch.IsOn;
         s.HostAllowFileTransfer = HostAllowFileTransferSwitch.IsOn;
+        bool quickLaunchChanged = s.HostAllowQuickLaunch != HostAllowQuickLaunchSwitch.IsOn;
+        s.HostAllowQuickLaunch = HostAllowQuickLaunchSwitch.IsOn;
         s.HostNotifyOnConnect = HostNotifyOnConnectSwitch.IsOn;
         s.HostFlashTaskbarOnConnect = HostFlashTaskbarOnConnectSwitch.IsOn;
         HostRequireDriverConfirmSwitch.IsEnabled = s.HostAllowRemoteDriverMgmt;
         App.Engine.SettingsService.SaveSettings();
+        if (quickLaunchChanged)
+        {
+            _ = App.Engine.SyncSignalingStatusAsync();
+        }
     }
 
     private void PopulateResolutionCombo(int currentW, int currentH)

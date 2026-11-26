@@ -105,6 +105,7 @@ public sealed partial class AccountPage : Page
         bool canAuth = CanAttemptAuth;
         BtnChooseLogin.IsEnabled = canAuth;
         BtnChooseQrLogin.IsEnabled = canAuth;
+        BtnChooseLoginKey.IsEnabled = canAuth;
         BtnChooseRegister.IsEnabled = canAuth;
         BtnChooseReset.IsEnabled = canAuth;
 

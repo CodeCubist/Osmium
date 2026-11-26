@@ -1261,6 +1261,119 @@ public sealed partial class AccountPage : Page
         }
     }
 
+    private async void BtnRefreshRemoteHistory_Click(object sender, RoutedEventArgs e)
+        => await LoadRemoteHistoryTabAsync();
+
+    private async Task LoadRemoteHistoryTabAsync()
+    {
+        if (RemoteHistoryListPanel == null) return;
+        var res = await App.Engine.AccountService.GetRemoteHistoryAsync();
+        var records = res.Data?.Records ?? [];
+        _cachedRemoteHistory = records;
+        RenderRemoteHistoryList(records);
+    }
+
+    private void RenderRemoteHistoryList(IReadOnlyList<AccountRemoteHistoryRecordDto> records)
+    {
+        if (RemoteHistoryListPanel == null) return;
+        RemoteHistoryListPanel.Children.Clear();
+
+        if (records.Count == 0)
+        {
+            RemoteHistoryListPanel.Children.Add(new TextBlock
+            {
+                Text = LocalizationService.GetString("Acc_RemoteHistoryEmpty"),
+                FontSize = 13,
+                Margin = new Thickness(8, 8, 0, 0),
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+            });
+            return;
+        }
+
+        var accentBrush = Application.Current.Resources["AccentTextFillColorPrimaryBrush"] as Brush;
+        var secondaryBrush = Application.Current.Resources["TextFillColorSecondaryBrush"] as Brush;
+
+        foreach (var rec in records)
+        {
+            bool isHost = string.Equals(rec.Role, "host", StringComparison.OrdinalIgnoreCase);
+            string localName = App.Engine.AccountService.ResolveAccountDeviceName(rec.LocalDeviceId, rec.LocalDeviceName);
+            string peerBaseName = rec.SameAccount
+                ? App.Engine.AccountService.ResolveAccountDeviceName(rec.PeerDeviceId, rec.PeerDeviceName)
+                : rec.PeerDeviceName;
+            string peerDisplay = !rec.SameAccount && !string.IsNullOrWhiteSpace(rec.PeerUserName)
+                ? $"{rec.PeerUserName} · {peerBaseName}"
+                : peerBaseName;
+
+            string title = isHost
+                ? $"{peerDisplay} → {localName}"
+                : $"{localName} → {peerDisplay}";
+
+            string roleTag = rec.SameAccount
+                ? LocalizationService.GetString("Acc_RemoteRoleSameAccount")
+                : LocalizationService.GetString(isHost ? "Acc_RemoteRoleHost" : "Acc_RemoteRoleController");
+            string viewOnlyPart = rec.ViewOnly
+                ? $" · {LocalizationService.GetString("Acc_RemoteViewOnlyTag")}"
+                : string.Empty;
+            string idPair = isHost
+                ? $"{rec.FormattedPeerDeviceId} → {rec.FormattedLocalDeviceId}"
+                : $"{rec.FormattedLocalDeviceId} → {rec.FormattedPeerDeviceId}";
+
+            string rightText;
+            Brush? rightBrush;
+            if (rec.InProgress)
+            {
+                rightText = $"{rec.LocalStartedTimeText} · {LocalizationService.GetString("Acc_RemoteInProgress")}";
+                rightBrush = accentBrush ?? secondaryBrush;
+            }
+            else if (!string.IsNullOrWhiteSpace(rec.EndedAt))
+            {
+                rightText = $"{rec.LocalStartedTimeText} · {FormatRemoteDuration(rec.DurationSec)}";
+                rightBrush = secondaryBrush;
+            }
+            else
+            {
+                rightText = rec.LocalStartedTimeText;
+                rightBrush = secondaryBrush;
+            }
+
+            var card = new Controls.SettingsRowCard
+            {
+                Title = title,
+                Description = $"{roleTag}{viewOnlyPart} · {idPair}",
+                ShowIcon = false,
+                ActionContent = new TextBlock
+                {
+                    Text = rightText,
+                    FontSize = 12,
+                    Foreground = rightBrush,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            RemoteHistoryListPanel.Children.Add(card);
+        }
+    }
+
+    private static string FormatRemoteDuration(long totalSeconds)
+    {
+        if (totalSeconds < 0) totalSeconds = 0;
+        long hours = totalSeconds / 3600;
+        long mins = (totalSeconds % 3600) / 60;
+        long secs = totalSeconds % 60;
+        if (hours > 0)
+        {
+            return mins > 0
+                ? LocalizationService.Format("Acc_WaitHoursMinsFmt", hours, mins)
+                : LocalizationService.Format("Acc_WaitHoursFmt", hours);
+        }
+        if (mins > 0)
+        {
+            return secs > 0
+                ? LocalizationService.Format("Acc_DurationMinsSecsFmt", mins, secs)
+                : LocalizationService.Format("Acc_WaitMinsFmt", mins);
+        }
+        return LocalizationService.Format("Acc_WaitSecsFmt", secs);
+    }
+
     private void SetBusy(bool busy)
     {
         _isBusy = busy;

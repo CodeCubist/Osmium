@@ -32,6 +32,7 @@ public sealed partial class AccountPage : Page
     private int _tabAnimGen;
     private string? _appliedAvatarDataUri;
     private Storyboard? _avatarFadeStoryboard;
+    private IReadOnlyList<AccountRemoteHistoryRecordDto>? _cachedRemoteHistory;
     private readonly Dictionary<string, DateTimeOffset> _otpCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _otpTimer = new();
 
@@ -59,6 +60,7 @@ public sealed partial class AccountPage : Page
             {
                 "Devices" => 1,
                 "History" => 2,
+                "RemoteHistory" => 3,
                 _ => 0
             };
         }
@@ -199,6 +201,8 @@ public sealed partial class AccountPage : Page
         ModeLoginDescText.Text = LocalizationService.GetString("Acc_ModeLoginDesc");
         ModeQrLoginTitleText.Text = LocalizationService.GetString("Acc_ModeQrLogin");
         ModeQrLoginDescText.Text = LocalizationService.GetString("Acc_ModeQrLoginDesc");
+        ModeLoginKeyTitleText.Text = LocalizationService.GetString("Acc_ModeLoginKey");
+        ModeLoginKeyDescText.Text = LocalizationService.GetString("Acc_ModeLoginKeyDesc");
         ModeRegisterTitleText.Text = LocalizationService.GetString("Acc_ModeRegister");
         ModeRegisterDescText.Text = LocalizationService.GetString("Acc_ModeRegisterDesc");
         ModeResetTitleText.Text = LocalizationService.GetString("Acc_ModeReset");
@@ -239,6 +243,7 @@ public sealed partial class AccountPage : Page
         NavTabProfile.Content = LocalizationService.GetString("Acc_TabProfile");
         NavTabDevices.Content = LocalizationService.GetString("Acc_TabDevices");
         NavTabHistory.Content = LocalizationService.GetString("Acc_TabHistory");
+        NavTabRemoteHistory.Content = LocalizationService.GetString("Acc_TabRemoteHistory");
 
         RowProfileAvatar.Title = LocalizationService.GetString("Acc_RowAvatar");
         BtnChangeAvatar.Content = LocalizationService.GetString("Acc_ChangeAvatarBtn");
@@ -255,6 +260,12 @@ public sealed partial class AccountPage : Page
         RowAccountLock.Title = LocalizationService.GetString("Acc_RowAccountLock");
         BtnRefreshStatus.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
 
+        RowAccountTwoFa.Title = LocalizationService.GetString("Acc_RowTwoFa");
+        RowAccountTwoFa.Description = LocalizationService.GetString("Acc_RowTwoFaDesc");
+        RowAccountLoginKeys.Title = LocalizationService.GetString("Acc_RowLoginKeys");
+        RowAccountLoginKeys.Description = LocalizationService.GetString("Acc_RowLoginKeysDesc");
+        BtnManageLoginKeys.Content = LocalizationService.GetString("Acc_ManageLoginKeysBtn");
+
         RowAccountBlacklist.Title = LocalizationService.GetString("Acc_RowBlacklist");
         BtnManageBlacklist.Content = LocalizationService.GetString("Acc_ManageBlacklistBtn");
 
@@ -267,6 +278,13 @@ public sealed partial class AccountPage : Page
 
         RowHistoryHeader.Title = LocalizationService.GetString("Acc_TabHistory");
         BtnRefreshHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
+
+        RowRemoteHistoryHeader.Title = LocalizationService.GetString("Acc_TabRemoteHistory");
+        BtnRefreshRemoteHistory.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
+        if (_cachedRemoteHistory != null)
+        {
+            RenderRemoteHistoryList(_cachedRemoteHistory);
+        }
 
         UpdateWizardUiState(snapPanels: true);
         ApplyAuthAvailabilityUi();
@@ -283,6 +301,7 @@ public sealed partial class AccountPage : Page
 
         if (!loggedIn)
         {
+            _cachedRemoteHistory = null;
             _oauthBindings = null;
             _oauthBindingsLoading = false;
             _oauthBindingsFailed = false;
@@ -357,6 +376,10 @@ public sealed partial class AccountPage : Page
         AccountLockStatusText.Text = LocalizationService.GetString(locked ? "Acc_StatusLocked" : "Acc_StatusNormal");
         BtnToggleLock.Content = LocalizationService.GetString(locked ? "Acc_UnlockBtn" : "Acc_LockBtn");
 
+        bool twoFa = acc.TwoFaEnabled;
+        TwoFaStatusText.Text = LocalizationService.GetString(twoFa ? "Acc_TwoFaEnabled" : "Acc_TwoFaDisabled");
+        BtnManageTwoFa.Content = LocalizationService.GetString(twoFa ? "Acc_RemoveTwoFaBtn" : "Acc_EnableTwoFaBtn");
+
         _ = ApplyAvatarPreviewAsync(acc.CurrentAvatarData);
         RenderDevicesList(acc.SameAccountDevices);
         ApplyHostSecurityLockdown();
@@ -382,6 +405,8 @@ public sealed partial class AccountPage : Page
         BtnChangeEmail.IsEnabled = !hostControlled && !accountLocked && (!hasEmail || profileComplete) && !_isBusy;
         BtnSetPassword.IsEnabled = !hostControlled && !accountLocked && hasEmail && !hasPassword && !_isBusy;
         BtnToggleLock.IsEnabled = !hostControlled && hasEmail && !_isBusy;
+        BtnManageTwoFa.IsEnabled = !hostControlled && !accountLocked && hasPassword && !_isBusy;
+        BtnManageLoginKeys.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
         BtnManageBlacklist.IsEnabled = !hostControlled && !_isBusy;
         BtnLogout.IsEnabled = !hostControlled && !_isBusy;
         BtnDeleteAccount.IsEnabled = !hostControlled && !accountLocked && hasPassword && !_isBusy;
@@ -469,6 +494,13 @@ public sealed partial class AccountPage : Page
         {
             StatusInfoBar.IsOpen = false;
             EnterQrLoginFlow();
+            return;
+        }
+
+        if (mode == 4)
+        {
+            StatusInfoBar.IsOpen = false;
+            _ = ShowLoginKeyLoginDialogAsync();
             return;
         }
 

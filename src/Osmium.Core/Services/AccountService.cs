@@ -44,6 +44,7 @@ public sealed partial class AccountService : IDisposable
     private string? _lockedAt;
     private bool _hasEmail = true;
     private bool _hasPassword = true;
+    private bool _twoFaEnabled;
     private List<AccountDeviceDto> _sameAccountDevices = [];
 
     public Func<string, object[], string>? Localizer
@@ -73,7 +74,8 @@ public sealed partial class AccountService : IDisposable
         {
             Timeout = TimeSpan.FromSeconds(25)
         };
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Osmium-AccountSecurity/1.0");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"Osmium-AccountSecurity/{AppVersionInfo.Current}");
+        _httpClient.DefaultRequestHeaders.Add("X-Client-Version", AppVersionInfo.Current);
 
         LoadPersistedSession();
     }
@@ -90,6 +92,7 @@ public sealed partial class AccountService : IDisposable
     public string? LockedAt => _lockedAt;
     public bool HasEmail => _hasEmail;
     public bool HasPassword => _hasPassword;
+    public bool TwoFaEnabled => _twoFaEnabled;
     public bool IsProfileComplete => _hasEmail && _hasPassword;
 
     public IReadOnlyList<AccountDeviceDto> SameAccountDevices
@@ -419,6 +422,7 @@ public sealed partial class AccountService : IDisposable
         _userId = loginData.UserId;
         _hasEmail = loginData.HasEmail;
         _hasPassword = loginData.HasPassword;
+        _twoFaEnabled = loginData.TwoFaEnabled;
         _email = _hasEmail
             ? (!string.IsNullOrWhiteSpace(loginData.Email) ? loginData.Email : email.Trim())
             : string.Empty;
@@ -468,7 +472,8 @@ public sealed partial class AccountService : IDisposable
                         Locked = _isLocked,
                         LockedAt = _lockedAt,
                         HasEmail = _hasEmail,
-                        HasPassword = _hasPassword
+                        HasPassword = _hasPassword,
+                        TwoFaEnabled = _twoFaEnabled
                     }
                 };
             }
@@ -499,6 +504,7 @@ public sealed partial class AccountService : IDisposable
                 if (!string.IsNullOrWhiteSpace(parsed.Data.UserId)) _userId = parsed.Data.UserId;
                 _hasEmail = parsed.Data.HasEmail;
                 _hasPassword = parsed.Data.HasPassword;
+                _twoFaEnabled = parsed.Data.TwoFaEnabled;
                 _email = _hasEmail
                     ? (!string.IsNullOrWhiteSpace(parsed.Data.Email) ? parsed.Data.Email : _email)
                     : string.Empty;
@@ -561,6 +567,7 @@ public sealed partial class AccountService : IDisposable
             if (!string.IsNullOrWhiteSpace(result.Data.UserId)) _userId = result.Data.UserId;
             _hasEmail = result.Data.HasEmail;
             _hasPassword = result.Data.HasPassword;
+            _twoFaEnabled = result.Data.TwoFaEnabled;
             _email = _hasEmail
                 ? (!string.IsNullOrWhiteSpace(result.Data.Email) ? result.Data.Email : _email)
                 : string.Empty;
@@ -791,6 +798,31 @@ public sealed partial class AccountService : IDisposable
     public Task<AccountApiResult<AccountLoginHistoryData>> GetLoginHistoryAsync()
         => SendAuthenticatedJsonAsync<AccountLoginHistoryData>(HttpMethod.Get, "/api/account/login-history");
 
+    public Task<AccountApiResult<AccountRemoteHistoryData>> GetRemoteHistoryAsync()
+        => SendAuthenticatedJsonAsync<AccountRemoteHistoryData>(HttpMethod.Get, "/api/account/remote-history");
+
+    public Task<AccountApiResult<QuickLaunchAppsListData>> GetQuickLaunchAppsAsync()
+        => SendAuthenticatedJsonAsync<QuickLaunchAppsListData>(HttpMethod.Get, "/api/account/quick-launch/apps");
+
+    public Task<AccountApiResult<QuickLaunchAddResultData>> AddQuickLaunchAppAsync(
+        string deviceId,
+        string name,
+        string exePath,
+        string? iconData)
+        => SendAuthenticatedJsonAsync<QuickLaunchAddResultData>(HttpMethod.Post, "/api/account/quick-launch/apps", new
+        {
+            device_id = DeviceIdentity.NormalizeDeviceId(deviceId),
+            name = name.Trim(),
+            exe_path = exePath.Trim(),
+            icon_data = string.IsNullOrWhiteSpace(iconData) ? null : iconData.Trim()
+        }, retryOnTransient: false);
+
+    public Task<AccountApiResult<object>> DeleteQuickLaunchAppAsync(string appId)
+        => SendAuthenticatedJsonAsync<object>(HttpMethod.Post, "/api/account/quick-launch/apps/delete", new
+        {
+            id = appId.Trim()
+        }, retryOnTransient: false);
+
     public Task<AccountApiResult<AccountBlacklistData>> GetBlacklistAsync()
         => SendAuthenticatedJsonAsync<AccountBlacklistData>(HttpMethod.Get, "/api/account/blacklist");
 
@@ -799,4 +831,94 @@ public sealed partial class AccountService : IDisposable
         {
             blocked_user_id = blockedUserId
         });
+
+    public Task<AccountApiResult<AccountLoginSessionData>> VerifyTwoFaLoginAsync(string twoFaToken, string code)
+        => SendAnonymousJsonAsync<AccountLoginSessionData>(HttpMethod.Post, "/api/auth/login/2fa/verify", new
+        {
+            two_fa_token = twoFaToken.Trim(),
+            code = code.Trim()
+        }, retryOnTransient: false);
+
+    public async Task<AccountApiResult<AccountLoginSessionData>> LoginWithKeyAsync(string loginKey)
+    {
+        var result = await SendAnonymousJsonAsync<AccountLoginSessionData>(HttpMethod.Post, "/api/auth/login/key", new
+        {
+            login_key = loginKey.Trim(),
+            device_id = _settings.Identity.DeviceId,
+            device_name = _settings.Identity.DeviceName,
+            os_version = Environment.OSVersion.VersionString
+        }, retryOnTransient: false);
+        if (result.Ok && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Stoken))
+        {
+            ApplyLoginSession(result.Data.Email, result.Data);
+        }
+
+        return result;
+    }
+
+    public Task<AccountApiResult<TwoFaSetupStartData>> StartTwoFaSetupAsync(string password)
+        => SendAuthenticatedJsonAsync<TwoFaSetupStartData>(HttpMethod.Post, "/api/account/2fa/setup/start", new
+        {
+            password
+        }, retryOnTransient: false);
+
+    public async Task<AccountApiResult<TwoFaToggleResultData>> ConfirmTwoFaSetupAsync(string setupToken, string code)
+    {
+        var result = await SendAuthenticatedJsonAsync<TwoFaToggleResultData>(
+            HttpMethod.Post,
+            "/api/account/2fa/setup/confirm",
+            new
+            {
+                setup_token = setupToken.Trim(),
+                code = code.Trim()
+            },
+            retryOnTransient: false);
+        if (result.Ok)
+        {
+            _twoFaEnabled = true;
+            SavePersistedSession();
+            SessionChanged?.Invoke();
+        }
+
+        return result;
+    }
+
+    public async Task<AccountApiResult<TwoFaToggleResultData>> RemoveTwoFaAsync(string password)
+    {
+        var result = await SendAuthenticatedJsonAsync<TwoFaToggleResultData>(
+            HttpMethod.Post,
+            "/api/account/2fa/remove",
+            new
+            {
+                password
+            },
+            retryOnTransient: false);
+        if (result.Ok)
+        {
+            _twoFaEnabled = false;
+            SavePersistedSession();
+            SessionChanged?.Invoke();
+        }
+
+        return result;
+    }
+
+    public Task<AccountApiResult<LoginKeysListData>> GetLoginKeysAsync()
+        => SendAuthenticatedJsonAsync<LoginKeysListData>(HttpMethod.Get, "/api/account/login-keys");
+
+    public Task<AccountApiResult<AccountChallengeInfo>> StartCreateLoginKeySendCodeAsync()
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/login-keys/send-code", new { });
+
+    public Task<AccountApiResult<LoginKeyCreateData>> CreateLoginKeyAsync(string code, string name)
+        => SendAuthenticatedJsonAsync<LoginKeyCreateData>(HttpMethod.Post, "/api/account/login-keys/create", new
+        {
+            code = code.Trim(),
+            name = name.Trim()
+        }, retryOnTransient: false);
+
+    public Task<AccountApiResult<object>> DeleteLoginKeyAsync(string id)
+        => SendAuthenticatedJsonAsync<object>(HttpMethod.Post, "/api/account/login-keys/delete", new
+        {
+            id = id.Trim()
+        }, retryOnTransient: false);
 }

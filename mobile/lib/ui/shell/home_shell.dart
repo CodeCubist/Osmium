@@ -15,6 +15,7 @@ import '../auth/qr_login_confirm_page.dart';
 import '../connect/connect_tab.dart';
 import '../devices/devices_tab.dart';
 import '../me/me_tab.dart';
+import '../quick_launch/quick_launch_tab.dart';
 import '../session/remote_session_page.dart';
 import '../widgets/osmium_container_route.dart';
 import '../widgets/osmium_dock_scope.dart';
@@ -125,8 +126,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     setState(() => _tabIndex = index);
   }
 
-  void _openConnectTab() => _selectTab(1);
-  void _openMeTab() => _selectTab(2);
+  void _openConnectTab() => _selectTab(2);
+  void _openMeTab() => _selectTab(3);
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +162,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   onOpenMe: _openMeTab,
                   bottomInset: navBarReserve,
                 ),
+                QuickLaunchTab(
+                  onConnect: _openSession,
+                  bottomInset: navBarReserve,
+                ),
                 ConnectTab(onConnect: _openSession, bottomInset: navBarReserve),
                 MeTab(bottomInset: navBarReserve),
               ],
@@ -173,7 +178,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 valueListenable: _dockHidden,
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 380),
+                    constraints: const BoxConstraints(maxWidth: 420),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(_dockHeight / 2),
                       child: BackdropFilter(
@@ -212,6 +217,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                               MiuixGlassNavigationItem(
                                 icon: Icon(Icons.devices_rounded),
                                 label: '设备',
+                              ),
+                              MiuixGlassNavigationItem(
+                                icon: Icon(Icons.apps_rounded),
+                                label: '启动',
                               ),
                               MiuixGlassNavigationItem(
                                 icon: Icon(Icons.bolt_rounded),

@@ -6,6 +6,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter_miuix/miuix.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/osmium_constants.dart';
 import '../../core/models/account_models.dart';
 import '../../core/theme/osmium_motion.dart';
 import '../../core/theme/osmium_theme.dart';
@@ -44,10 +45,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _authApiFailed = false;
   OAuthProvidersData _oauthProviders = const OAuthProvidersData();
 
+  bool _loginKeyVisible = false;
+  bool _loginKeySubmitting = false;
+  bool _obscureLoginKey = true;
+  String? _loginKeyError;
+
+  bool _twoFaVisible = false;
+  bool _twoFaSubmitting = false;
+  String _twoFaToken = '';
+  String? _twoFaError;
+
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
+  final _loginKeyCtrl = TextEditingController();
+  final _twoFaCtrl = TextEditingController();
 
   bool get _canLogin => _authApiReachable && !_checkingAuthApi;
 
@@ -65,6 +78,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     _passwordCtrl.dispose();
     _usernameCtrl.dispose();
     _codeCtrl.dispose();
+    _loginKeyCtrl.dispose();
+    _twoFaCtrl.dispose();
     super.dispose();
   }
 
@@ -265,17 +280,163 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   /// The captcha page only pops with data once the poll endpoint returned a
-  /// terminal success and the account service persisted the session.
+  /// terminal success and the account service persisted the session (or
+  /// returned a 2FA challenge token).
   Future<void> _finishCaptchaSignIn(
     AccountChallengeInfo challenge,
     String fallbackError,
   ) async {
     final verified = await _runCaptcha(challenge);
     if (!mounted || verified == null) return;
+    final twoFaToken = (verified['two_fa_token'] ?? '').toString().trim();
+    if (twoFaToken.isNotEmpty) {
+      _openTwoFaDialog(twoFaToken);
+      return;
+    }
     if (ref.read(accountServiceProvider).isLoggedIn) {
       Navigator.of(context).pop(true);
     } else {
       setState(() => _error = fallbackError);
+    }
+  }
+
+  void _openTwoFaDialog(String token) {
+    _twoFaCtrl.clear();
+    setState(() {
+      _twoFaToken = token;
+      _twoFaError = null;
+      _twoFaSubmitting = false;
+      _twoFaVisible = true;
+    });
+  }
+
+  void _dismissTwoFaDialog() {
+    if (!_twoFaVisible || _twoFaSubmitting) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _twoFaVisible = false;
+      _twoFaToken = '';
+      _twoFaError = null;
+    });
+  }
+
+  Future<void> _submitTwoFa() async {
+    if (_twoFaSubmitting || _twoFaToken.isEmpty) return;
+    final digits = _twoFaCtrl.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 6) {
+      setState(() => _twoFaError = '请输入6位动态验证码');
+      return;
+    }
+    OsmiumHaptics.confirm();
+    setState(() {
+      _twoFaSubmitting = true;
+      _twoFaError = null;
+    });
+    try {
+      final accountSvc = ref.read(accountServiceProvider);
+      final res = await accountSvc.verifyTwoFaLogin(
+        twoFaToken: _twoFaToken,
+        code: digits,
+      );
+      if (!mounted) return;
+      if (res.needsCaptcha && res.challenge != null) {
+        setState(() => _twoFaSubmitting = false);
+        await _runCaptcha(res.challenge!);
+        if (!mounted) return;
+        if (accountSvc.isLoggedIn) {
+          setState(() => _twoFaVisible = false);
+          Navigator.of(context).pop(true);
+        } else {
+          _twoFaCtrl.clear();
+        }
+        return;
+      }
+      if (res.ok && accountSvc.isLoggedIn) {
+        setState(() => _twoFaVisible = false);
+        Navigator.of(context).pop(true);
+        return;
+      }
+      if (res.code == OsmiumErrorCode.twoFaExpired) {
+        FocusScope.of(context).unfocus();
+        setState(() {
+          _twoFaVisible = false;
+          _twoFaToken = '';
+          _twoFaError = null;
+          _error = res.message.isNotEmpty ? res.message : '两步验证已超时，请重新登录';
+        });
+        return;
+      }
+      setState(
+        () => _twoFaError = res.message.isNotEmpty ? res.message : '动态验证码不正确，请重试',
+      );
+    } finally {
+      if (mounted) setState(() => _twoFaSubmitting = false);
+    }
+  }
+
+  void _openLoginKeyDialog() {
+    if (!_canLogin || _submitting || _oauthBusy) return;
+    OsmiumHaptics.selection();
+    _loginKeyCtrl.clear();
+    setState(() {
+      _loginKeyError = null;
+      _obscureLoginKey = true;
+      _loginKeySubmitting = false;
+      _loginKeyVisible = true;
+    });
+  }
+
+  void _dismissLoginKeyDialog() {
+    if (!_loginKeyVisible || _loginKeySubmitting) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _loginKeyVisible = false;
+      _loginKeyError = null;
+    });
+  }
+
+  Future<void> _submitLoginKey() async {
+    if (_loginKeySubmitting) return;
+    final key = _loginKeyCtrl.text.trim();
+    if (key.isEmpty) {
+      setState(() => _loginKeyError = '请输入登录密钥');
+      return;
+    }
+    OsmiumHaptics.confirm();
+    setState(() {
+      _loginKeySubmitting = true;
+      _loginKeyError = null;
+    });
+    try {
+      final app = ref.read(appControllerProvider);
+      final accountSvc = ref.read(accountServiceProvider);
+      final res = await accountSvc.loginWithKey(
+        loginKey: key,
+        identity: app.identity,
+      );
+      if (!mounted) return;
+      if (res.needsCaptcha && res.challenge != null) {
+        setState(() => _loginKeySubmitting = false);
+        await _runCaptcha(res.challenge!);
+        if (!mounted) return;
+        if (accountSvc.isLoggedIn) {
+          setState(() => _loginKeyVisible = false);
+          Navigator.of(context).pop(true);
+        }
+        return;
+      }
+      if (res.ok && accountSvc.isLoggedIn) {
+        setState(() => _loginKeyVisible = false);
+        Navigator.of(context).pop(true);
+        return;
+      }
+      setState(
+        () => _loginKeyError = res.message.isNotEmpty
+            ? res.message
+            : '登录密钥无效或已移除',
+      );
+    } finally {
+      if (mounted) setState(() => _loginKeySubmitting = false);
     }
   }
 
@@ -703,6 +864,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                         ),
                                 ),
                               ),
+                              OsmiumAnimatedReveal(
+                                visible: !_isRegister,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: MiuixTextButton(
+                                    '使用登录密钥登录',
+                                    enabled:
+                                        _canLogin &&
+                                        !_submitting &&
+                                        !_oauthBusy,
+                                    onPressed: _openLoginKeyDialog,
+                                    minHeight: 40,
+                                    colors: MiuixButtonColors(
+                                      color: fieldColors.backgroundColor,
+                                      disabledColor: fieldColors.backgroundColor
+                                          .withValues(alpha: 0.45),
+                                      contentColor: colors.onSurface,
+                                      disabledContentColor:
+                                          colors.disabledOnSecondaryVariant,
+                                    ),
+                                  ),
+                                ),
+                              ),
                               if (_authApiReachable &&
                                   _oauthProviders.hasAny) ...[
                                 const SizedBox(height: 18),
@@ -824,9 +1008,184 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ],
               ),
             ),
+            _buildLoginKeyDialog(context),
+            _buildTwoFaDialog(context),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildLoginKeyDialog(BuildContext context) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return MiuixOverlayDialog(
+      show: _loginKeyVisible,
+      title: '使用登录密钥登录',
+      onDismissRequest: _dismissLoginKeyDialog,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            MiuixText(
+              '输入已创建的登录密钥即可快速登录账号。',
+              style: theme.textStyles.body2,
+              color: colors.onSurfaceVariantSummary,
+            ),
+            const SizedBox(height: 12),
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _loginKeyCtrl,
+              label: '登录密钥',
+              singleLine: true,
+              obscureText: _obscureLoginKey,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submitLoginKey(),
+              trailingIcon: MiuixIconButton(
+                onPressed: () {
+                  OsmiumHaptics.selection();
+                  setState(() => _obscureLoginKey = !_obscureLoginKey);
+                },
+                minWidth: 34,
+                minHeight: 34,
+                child: Icon(
+                  _obscureLoginKey
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 18,
+                  color: colors.onSurfaceVariantSummary,
+                ),
+              ),
+            ),
+            OsmiumAnimatedReveal(
+              visible: _loginKeyError != null,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: OsmiumColors.dangerBg(isDark),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: MiuixText(
+                    _loginKeyError ?? '',
+                    style: theme.textStyles.body2,
+                    color: OsmiumColors.dangerFg(isDark),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextButton(
+                    '取消',
+                    enabled: !_loginKeySubmitting,
+                    onPressed: _dismissLoginKeyDialog,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MiuixTextButton(
+                    _loginKeySubmitting ? '登录中…' : '登录',
+                    enabled: !_loginKeySubmitting,
+                    onPressed: _submitLoginKey,
+                    colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTwoFaDialog(BuildContext context) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return MiuixOverlayDialog(
+      show: _twoFaVisible,
+      title: '两步验证',
+      onDismissRequest: _dismissTwoFaDialog,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            MiuixText(
+              '当前账号已开启2FA，请输入身份验证器中的6位动态验证码。',
+              style: theme.textStyles.body2,
+              color: colors.onSurfaceVariantSummary,
+            ),
+            const SizedBox(height: 12),
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _twoFaCtrl,
+              label: '6位动态验证码',
+              singleLine: true,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submitTwoFa(),
+            ),
+            OsmiumAnimatedReveal(
+              visible: _twoFaError != null,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: OsmiumColors.dangerBg(isDark),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: MiuixText(
+                    _twoFaError ?? '',
+                    style: theme.textStyles.body2,
+                    color: OsmiumColors.dangerFg(isDark),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextButton(
+                    '取消',
+                    enabled: !_twoFaSubmitting,
+                    onPressed: _dismissTwoFaDialog,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MiuixTextButton(
+                    _twoFaSubmitting ? '验证中…' : '验证并登录',
+                    enabled: !_twoFaSubmitting,
+                    onPressed: _submitTwoFa,
+                    colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -132,6 +132,52 @@
 
                         <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
 
+                        <Button x:Name="BtnChooseLoginKey"
+                                Tag="4"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="0"
+                                Padding="18,14"
+                                Click="ModeChoiceButton_Click">
+                            <Grid ColumnSpacing="14" MinHeight="38">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Column="0"
+                                      Width="28"
+                                      Height="28"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center">
+                                    <Viewbox Width="21" Height="21" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Width="24" Height="24"
+                                              Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                              Data="M7,14 A2,2 0 1 1 7,10 A2,2 0 1 1 7,14 Z M12.65,10 A6,6 0 1 0 12.65,14 H17 V18 H21 V14 H23 V10 H12.65 Z" />
+                                    </Viewbox>
+                                </Grid>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock x:Name="ModeLoginKeyTitleText"
+                                               FontSize="14"
+                                               FontWeight="Medium" />
+                                    <TextBlock x:Name="ModeLoginKeyDescText"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <FontIcon Grid.Column="2"
+                                          FontFamily="{StaticResource FluentIconsFont}"
+                                          Glyph="&#xF2AF;"
+                                          FontSize="13"
+                                          VerticalAlignment="Center"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                        </Button>
+
+                        <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
                         <Button x:Name="BtnChooseRegister"
                                 Tag="1"
                                 HorizontalAlignment="Stretch"
@@ -786,6 +832,7 @@
                     <NavigationViewItem x:Name="NavTabProfile" Tag="Profile" IsSelected="True" />
                     <NavigationViewItem x:Name="NavTabDevices" Tag="Devices" />
                     <NavigationViewItem x:Name="NavTabHistory" Tag="History" />
+                    <NavigationViewItem x:Name="NavTabRemoteHistory" Tag="RemoteHistory" />
                 </NavigationView.MenuItems>
             </NavigationView>
 
@@ -1020,6 +1067,25 @@
 
                                 <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
 
+                                <controls:SettingsRowCard x:Name="RowAccountTwoFa" IsGrouped="True" ShowIcon="False">
+                                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <TextBlock x:Name="TwoFaStatusText"
+                                                   FontSize="13"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <Button x:Name="BtnManageTwoFa" CornerRadius="6" Click="BtnManageTwoFa_Click" />
+                                    </StackPanel>
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowAccountLoginKeys" IsGrouped="True" ShowIcon="False">
+                                    <Button x:Name="BtnManageLoginKeys" CornerRadius="6"
+                                            Click="BtnManageLoginKeys_Click" />
+                                </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
                                 <controls:SettingsRowCard x:Name="RowAccountBlacklist" IsGrouped="True"
                                                           ShowIcon="False">
                                     <Button x:Name="BtnManageBlacklist" CornerRadius="6"
@@ -1069,6 +1135,18 @@
                         </controls:SettingsRowCard>
 
                         <StackPanel x:Name="HistoryListPanel" Spacing="8" />
+                    </StackPanel>
+
+
+                    <StackPanel x:Name="PanelRemoteHistory" Spacing="8" Visibility="Collapsed">
+                        <StackPanel.RenderTransform>
+                            <TranslateTransform x:Name="PanelRemoteHistoryTransform" />
+                        </StackPanel.RenderTransform>
+                        <controls:SettingsRowCard x:Name="RowRemoteHistoryHeader" Glyph="&#xEABB;">
+                            <Button x:Name="BtnRefreshRemoteHistory" CornerRadius="6" Click="BtnRefreshRemoteHistory_Click" />
+                        </controls:SettingsRowCard>
+
+                        <StackPanel x:Name="RemoteHistoryListPanel" Spacing="8" />
                     </StackPanel>
                 </Grid>
             </ScrollViewer>

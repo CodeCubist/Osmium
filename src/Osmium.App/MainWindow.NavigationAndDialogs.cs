@@ -126,9 +126,10 @@ public sealed partial class MainWindow : Window
         "DeviceOverview" => 0,
         var t when t.StartsWith("PeerDevice:", StringComparison.Ordinal) => 1,
         "RemoteConnect" => 2,
-        "GamepadMapper" => 3,
-        "Account" => 4,
-        "Settings" => 5,
+        "QuickLaunch" => 3,
+        "GamepadMapper" => 4,
+        "Account" => 5,
+        "Settings" => 6,
         _ => -1
     };
 
@@ -141,6 +142,7 @@ public sealed partial class MainWindow : Window
             "DeviceOverview" => typeof(RemoteHomePage),
             var t when t.StartsWith("PeerDevice:", StringComparison.Ordinal) => typeof(PeerDevicePage),
             "RemoteConnect" => typeof(RemoteConnectPage),
+            "QuickLaunch" => typeof(QuickLaunchPage),
             "GamepadMapper" => typeof(GamepadMapperPage),
             "Account" => typeof(AccountPage),
             "Settings" => typeof(SettingsPage),

@@ -246,6 +246,7 @@
   <data name="Dialog_Deny" xml:space="preserve"><value>Deny</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Dialog_Close" xml:space="preserve"><value>Close</value></data>
   <data name="Conn_InvalidId" xml:space="preserve"><value>Please enter a valid target Device ID</value></data>
   <data name="Conn_EmptyCode" xml:space="preserve"><value>Please enter an access code</value></data>
   <data name="Conn_Offline" xml:space="preserve"><value>Device is offline; please check network or server URL</value></data>
@@ -783,4 +784,124 @@
   <data name="Power_RowNicInfoTitle" xml:space="preserve"><value>Detected Network Adapter</value></data>
   <data name="Power_RowBiosTipTitle" xml:space="preserve"><value>Remote Wake Notes</value></data>
   <data name="Power_RowBiosTipDesc" xml:space="preserve"><value>Remote wake requires Wake-on-LAN or PCIe wake enabled in your motherboard BIOS. Across different networks, another online device signed into the same account on the target LAN is needed to relay the wake signal. Enabling system service auto-start under General is also recommended so you can connect right from the lock screen.</value></data>
+  <data name="Acc_TabRemoteHistory" xml:space="preserve"><value>30-Day Remote History</value></data>
+  <data name="Acc_RemoteHistoryEmpty" xml:space="preserve"><value>No remote control records in the last 30 days</value></data>
+  <data name="Acc_RemoteRoleSameAccount" xml:space="preserve"><value>Same Account</value></data>
+  <data name="Acc_RemoteRoleController" xml:space="preserve"><value>Outgoing</value></data>
+  <data name="Acc_RemoteRoleHost" xml:space="preserve"><value>Incoming</value></data>
+  <data name="Acc_RemoteViewOnlyTag" xml:space="preserve"><value>View Only</value></data>
+  <data name="Acc_RemoteInProgress" xml:space="preserve"><value>In Progress</value></data>
+  <data name="Acc_DurationMinsSecsFmt" xml:space="preserve"><value>{0}m {1}s</value></data>
+  <data name="Nav_QuickLaunch" xml:space="preserve"><value>Quick Launch</value></data>
+  <data name="Host_RowAllowQuickLaunch" xml:space="preserve"><value>Allow Quick Launch</value></data>
+  <data name="Host_RowAllowQuickLaunchDesc" xml:space="preserve"><value>Allow devices signed into the same account to browse folders, add apps, and start remote sessions when launched</value></data>
+  <data name="Host_AlertQuickLaunchTitle" xml:space="preserve"><value>Quick Launch Triggered</value></data>
+  <data name="Host_AlertQuickLaunchLocalBodyFmt" xml:space="preserve"><value>Launched "{0}" locally via Quick Launch</value></data>
+  <data name="Host_AlertQuickLaunchRemoteBodyFmt" xml:space="preserve"><value>{0} launched "{1}" on this computer</value></data>
+  <data name="QL_PageTitle" xml:space="preserve"><value>Quick Launch</value></data>
+  <data name="QL_AddAppBtn" xml:space="preserve"><value>Add App</value></data>
+  <data name="QL_FilterAllDevices" xml:space="preserve"><value>All Computers</value></data>
+  <data name="QL_ThisPcTag" xml:space="preserve"><value>This PC</value></data>
+  <data name="QL_LoggedOutTitle" xml:space="preserve"><value>Sign in required</value></data>
+  <data name="QL_LoggedOutDesc" xml:space="preserve"><value>Quick Launch works across computers signed into the same account. Sign in to add and sync your launcher icons.</value></data>
+  <data name="QL_GoLoginBtn" xml:space="preserve"><value>Sign In</value></data>
+  <data name="QL_Loading" xml:space="preserve"><value>Loading apps...</value></data>
+  <data name="QL_EmptyTitle" xml:space="preserve"><value>No apps added yet</value></data>
+  <data name="QL_EmptyDesc" xml:space="preserve"><value>Click "Add App" above to pick a same-account computer with Quick Launch enabled and select an executable directory.</value></data>
+  <data name="QL_MenuLaunchRemote" xml:space="preserve"><value>Launch &amp; Remote Control</value></data>
+  <data name="QL_MenuLaunchLocal" xml:space="preserve"><value>Launch Locally</value></data>
+  <data name="QL_MenuDelete" xml:space="preserve"><value>Remove</value></data>
+  <data name="QL_DeleteTitle" xml:space="preserve"><value>Remove Quick Launch App</value></data>
+  <data name="QL_DeleteConfirmFmt" xml:space="preserve"><value>Remove "{0}" from Quick Launch? This will not delete any files on the target computer.</value></data>
+  <data name="QL_SelfDevicePrompt" xml:space="preserve"><value>This app is located on the current computer, so remote control cannot connect to itself. Tap this icon from your phone or another PC on the same account to stream it, or launch it locally now.</value></data>
+  <data name="QL_LaunchingTitleFmt" xml:space="preserve"><value>Launching {0}</value></data>
+  <data name="QL_StageChecking" xml:space="preserve"><value>Verifying device status, permissions, and executable...</value></data>
+  <data name="QL_StageWaitingForeground" xml:space="preserve"><value>Verified. Starting app and waiting for foreground window...</value></data>
+  <data name="QL_StageStartingRemote" xml:space="preserve"><value>App window is in the foreground. Starting remote control...</value></data>
+  <data name="QL_AddDialogTitle" xml:space="preserve"><value>Add Quick Launch App</value></data>
+  <data name="QL_NoEligibleHostDesc" xml:space="preserve"><value>No online same-account computers have Quick Launch enabled yet. Enable "Allow Quick Launch" above or in Settings on your target PC first.</value></data>
+  <data name="QL_SelectHostLabel" xml:space="preserve"><value>Target Computer (online same-account PCs with Quick Launch enabled)</value></data>
+  <data name="QL_SelectDirLabel" xml:space="preserve"><value>Select Directory or Executable on Target PC</value></data>
+  <data name="QL_PathPlaceholder" xml:space="preserve"><value>Browse or enter a folder or .exe path</value></data>
+  <data name="QL_DrivesBtn" xml:space="preserve"><value>Drives</value></data>
+  <data name="QL_UpBtn" xml:space="preserve"><value>Up</value></data>
+  <data name="QL_BrowseBtn" xml:space="preserve"><value>Open</value></data>
+  <data name="QL_ValidateBtn" xml:space="preserve"><value>Validate</value></data>
+  <data name="QL_SelectExeCandidateLabel" xml:space="preserve"><value>Multiple executables found in this folder. Pick one to use:</value></data>
+  <data name="QL_MultiExeFoundFmt" xml:space="preserve"><value>Found {0} executables in this folder. Select one below to extract its icon.</value></data>
+  <data name="QL_ValidatingPath" xml:space="preserve"><value>Validating path and reading app icon...</value></data>
+  <data name="QL_ValidateSuccess" xml:space="preserve"><value>Verified. App icon extracted automatically.</value></data>
+  <data name="QL_AppNameLabel" xml:space="preserve"><value>Display Name</value></data>
+  <data name="QL_ConfirmAddBtn" xml:space="preserve"><value>Add</value></data>
+  <data name="QL_StepSelectHost" xml:space="preserve"><value>Select PC</value></data>
+  <data name="QL_StepSelectDir" xml:space="preserve"><value>Choose Folder</value></data>
+  <data name="QL_StepConfirm" xml:space="preserve"><value>Confirm</value></data>
+  <data name="QL_StepNextBtn" xml:space="preserve"><value>Next</value></data>
+  <data name="QL_StepBackBtn" xml:space="preserve"><value>Back</value></data>
+  <data name="QL_ErrEnterPath" xml:space="preserve"><value>Please select or enter a folder or executable path first.</value></data>
+  <data name="QL_ErrLocalHosting" xml:space="preserve"><value>This PC is currently hosting a remote session and cannot start a quick launch.</value></data>
+  <data name="QL_ErrNotOwnDevice" xml:space="preserve"><value>Target computer does not belong to your account.</value></data>
+  <data name="QL_ErrDeviceOffline" xml:space="preserve"><value>Target computer is currently offline.</value></data>
+  <data name="QL_ErrDisabled" xml:space="preserve"><value>Quick Launch is disabled on the target computer.</value></data>
+  <data name="QL_ErrRemoteDisabled" xml:space="preserve"><value>Remote control is disabled on the target computer.</value></data>
+  <data name="QL_ErrHostBusy" xml:space="preserve"><value>Target computer is currently in another remote session.</value></data>
+  <data name="QL_ErrDirNotFound" xml:space="preserve"><value>The specified directory does not exist on the target computer.</value></data>
+  <data name="QL_ErrBinaryNotFound" xml:space="preserve"><value>No valid executable binary (.exe) was found at the target path.</value></data>
+  <data name="QL_ErrExitedEarly" xml:space="preserve"><value>The program exited before its window reached the foreground.</value></data>
+  <data name="QL_ErrForegroundTimeout" xml:space="preserve"><value>Timed out waiting for the program window to reach the foreground.</value></data>
+  <data name="QL_ErrAccessDenied" xml:space="preserve"><value>Access denied while reading the target folder.</value></data>
+  <data name="QL_ErrLimitExceeded" xml:space="preserve"><value>Maximum Quick Launch app limit reached (100 apps).</value></data>
+  <data name="QL_ErrGeneric" xml:space="preserve"><value>Operation failed. Please check the network and target computer status.</value></data>
+  <data name="Acc_ModeLoginKey" xml:space="preserve"><value>Sign in with Login Key</value></data>
+  <data name="Acc_ModeLoginKeyDesc" xml:space="preserve"><value>Use a generated login key to sign in quickly without password or 2FA</value></data>
+  <data name="Acc_LoginKeyDialogDesc" xml:space="preserve"><value>Enter a login key created on your desktop or mobile Osmium app.</value></data>
+  <data name="Acc_LoginKeyInputLabel" xml:space="preserve"><value>Login Key</value></data>
+  <data name="Acc_LoginKeyInputPlaceholder" xml:space="preserve"><value>Enter login key starting with osmk_</value></data>
+  <data name="Acc_RowTwoFa" xml:space="preserve"><value>Two-Factor Authentication (2FA)</value></data>
+  <data name="Acc_RowTwoFaDesc" xml:space="preserve"><value>Require a 6-digit authenticator code when signing in with email and password</value></data>
+  <data name="Acc_TwoFaEnabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="Acc_TwoFaDisabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Acc_EnableTwoFaBtn" xml:space="preserve"><value>Enable 2FA</value></data>
+  <data name="Acc_RemoveTwoFaBtn" xml:space="preserve"><value>Remove 2FA</value></data>
+  <data name="Acc_EnableTwoFaTitle" xml:space="preserve"><value>Enable Two-Factor Authentication</value></data>
+  <data name="Acc_RemoveTwoFaTitle" xml:space="preserve"><value>Remove Two-Factor Authentication</value></data>
+  <data name="Acc_TwoFaVerifyPasswordDesc" xml:space="preserve"><value>Verify your account password before setting up 2FA.</value></data>
+  <data name="Acc_RemoveTwoFaDesc" xml:space="preserve"><value>Verify your account password to disable 2FA on this account.</value></data>
+  <data name="Acc_TwoFaScanQrDesc" xml:space="preserve"><value>Scan the QR code below with your authenticator app or enter the secret manually, then enter the 6-digit code.</value></data>
+  <data name="Acc_TwoFaSecretLabel" xml:space="preserve"><value>Manual Setup Key</value></data>
+  <data name="Acc_TwoFaLoginTitle" xml:space="preserve"><value>Two-Factor Authentication</value></data>
+  <data name="Acc_TwoFaLoginDesc" xml:space="preserve"><value>Enter the 6-digit code from your authenticator app to finish signing in.</value></data>
+  <data name="Acc_TwoFaCodeLabel" xml:space="preserve"><value>6-Digit Code</value></data>
+  <data name="Acc_TwoFaCodePlaceholder" xml:space="preserve"><value>Enter 6-digit code</value></data>
+  <data name="Acc_TwoFaVerifyBtn" xml:space="preserve"><value>Verify &amp; Sign In</value></data>
+  <data name="Acc_ConfirmEnableBtn" xml:space="preserve"><value>Confirm &amp; Enable</value></data>
+  <data name="Acc_CopyBtn" xml:space="preserve"><value>Copy</value></data>
+  <data name="Acc_CopiedBtn" xml:space="preserve"><value>Copied</value></data>
+  <data name="Acc_CopyAndCloseBtn" xml:space="preserve"><value>Copy &amp; Close</value></data>
+  <data name="Acc_RemoveBtn" xml:space="preserve"><value>Remove</value></data>
+  <data name="Acc_Loading" xml:space="preserve"><value>Loading...</value></data>
+  <data name="Acc_RowLoginKeys" xml:space="preserve"><value>Login Keys</value></data>
+  <data name="Acc_RowLoginKeysDesc" xml:space="preserve"><value>Create high-entropy keys for quick passwordless sign-in across devices</value></data>
+  <data name="Acc_ManageLoginKeysBtn" xml:space="preserve"><value>Manage Keys</value></data>
+  <data name="Acc_CreateLoginKeyBtn" xml:space="preserve"><value>Create Key</value></data>
+  <data name="Acc_LoginKeysEmpty" xml:space="preserve"><value>No login keys yet. Click below to create one.</value></data>
+  <data name="Acc_LoginKeyNameLabel" xml:space="preserve"><value>Key Name</value></data>
+  <data name="Acc_LoginKeyNamePlaceholder" xml:space="preserve"><value>e.g. Work PC, Backup Key</value></data>
+  <data name="Acc_LoginKeyDefaultName" xml:space="preserve"><value>Login Key</value></data>
+  <data name="Acc_LoginKeySendOtpDescFmt" xml:space="preserve"><value>Creating a login key requires a 6-digit code sent to your email ({0}).</value></data>
+  <data name="Acc_LoginKeyMetaUsedFmt" xml:space="preserve"><value>Created {0} · Last used {1}</value></data>
+  <data name="Acc_LoginKeyMetaUnusedFmt" xml:space="preserve"><value>Created {0} · Never used</value></data>
+  <data name="Acc_LoginKeyCreatedTitle" xml:space="preserve"><value>Login Key Created</value></data>
+  <data name="Acc_LoginKeyCreatedOnceHint" xml:space="preserve"><value>Copy and store this login key securely now. You will not be able to view the full key again after closing.</value></data>
+  <data name="Acc_MsgTwoFaEnabled" xml:space="preserve"><value>Two-factor authentication enabled.</value></data>
+  <data name="Acc_MsgTwoFaRemoved" xml:space="preserve"><value>Two-factor authentication removed.</value></data>
+  <data name="Acc_MsgLoginKeyCopied" xml:space="preserve"><value>Login key copied to clipboard.</value></data>
+  <data name="Acc_ErrEnterTwoFaCode" xml:space="preserve"><value>Please enter the 6-digit authenticator code.</value></data>
+  <data name="Acc_ErrTwoFaInvalid" xml:space="preserve"><value>Incorrect 2FA code. Please try again.</value></data>
+  <data name="Acc_ErrTwoFaExpired" xml:space="preserve"><value>2FA session expired. Please sign in again.</value></data>
+  <data name="Acc_ErrTwoFaAlreadyEnabled" xml:space="preserve"><value>Two-factor authentication is already enabled.</value></data>
+  <data name="Acc_ErrTwoFaNotEnabled" xml:space="preserve"><value>Two-factor authentication is not enabled.</value></data>
+  <data name="Acc_ErrLoginKeyInvalid" xml:space="preserve"><value>Invalid or revoked login key.</value></data>
+  <data name="Acc_ErrLoginKeyLimit" xml:space="preserve"><value>Maximum limit of 10 login keys reached.</value></data>
+  <data name="Acc_ErrVersionUnsupported" xml:space="preserve"><value>This client version is no longer supported. Please update Osmium.</value></data>
 </root>

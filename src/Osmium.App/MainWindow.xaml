@@ -118,6 +118,19 @@
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="NavQuickLaunchItem" Tag="QuickLaunch">
+                    <NavigationViewItem.Icon>
+                        <PathIcon Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                  Data="M2.5,1 H6.5 A1.5,1.5 0 0 1 8,2.5 V6.5 A1.5,1.5 0 0 1 6.5,8 H2.5 A1.5,1.5 0 0 1 1,6.5 V2.5 A1.5,1.5 0 0 1 2.5,1 Z M11.5,1 H15.5 A1.5,1.5 0 0 1 17,2.5 V6.5 A1.5,1.5 0 0 1 15.5,8 H11.5 A1.5,1.5 0 0 1 10,6.5 V2.5 A1.5,1.5 0 0 1 11.5,1 Z M2.5,10 H6.5 A1.5,1.5 0 0 1 8,11.5 V15.5 A1.5,1.5 0 0 1 6.5,17 H2.5 A1.5,1.5 0 0 1 1,15.5 V11.5 A1.5,1.5 0 0 1 2.5,10 Z M11.5,10 H15.5 A1.5,1.5 0 0 1 17,11.5 V15.5 A1.5,1.5 0 0 1 15.5,17 H11.5 A1.5,1.5 0 0 1 10,15.5 V11.5 A1.5,1.5 0 0 1 11.5,10 Z" />
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="NavQuickLaunchText"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+
                 <NavigationViewItem x:Name="NavGamepadItem" Tag="GamepadMapper">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xEEB9;"
