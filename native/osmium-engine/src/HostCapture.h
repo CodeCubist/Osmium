@@ -44,7 +44,9 @@ namespace osmium
             m_EncoderDevice = encoderDevice;
         }
         ID3D11Device* GetDevice() const { return m_Device.Get(); }
-        bool CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr = false);
+        bool CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr = false,
+                              const std::atomic<bool>* privacyScreenActive = nullptr);
+        bool HasDesktopDuplication() const { return m_Duplication != nullptr; }
         void RefreshOutputHdrState();
 
         int GetDisplayIndex() const { return m_DisplayIndex; }

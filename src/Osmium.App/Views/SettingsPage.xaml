@@ -374,6 +374,23 @@
 
                                     <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
 
+                                    <controls:SettingsRowCard x:Name="RowHostAllowPrivacyScreen" IsGrouped="True" Glyph="&#xE48D;">
+                                        <ToggleSwitch x:Name="HostAllowPrivacyScreenSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostPermissionSwitch_Toggled" />
+                                    </controls:SettingsRowCard>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                    <controls:SettingsRowCard x:Name="RowHostPrivacyWallpaper" IsGrouped="True" ShowIcon="False">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button x:Name="HostPrivacyWallpaperBtn" Click="HostPrivacyWallpaperBtn_Click" />
+                                            <Button x:Name="HostResetPrivacyWallpaperBtn" Click="HostResetPrivacyWallpaperBtn_Click" />
+                                        </StackPanel>
+                                    </controls:SettingsRowCard>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
                                     <controls:SettingsRowCard x:Name="RowHostSystemService" IsGrouped="True" Glyph="&#xF6C5;">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button x:Name="InstallSystemServiceBtn"

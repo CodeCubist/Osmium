@@ -421,6 +421,9 @@ public sealed partial class SettingsPage : Page
         HostCaptureAudioSwitch.IsOn = s.HostCaptureAudio;
         HostAllowInputSwitch.IsOn = s.HostAllowInputControl;
         HostCaptureCursorSwitch.IsOn = s.HostCaptureCursor;
+        HostAllowPrivacyScreenSwitch.IsOn = s.HostAllowPrivacyScreen;
+        HostAllowPrivacyScreenSwitch.IsEnabled = !locked && s.HostAllowInputControl;
+        RefreshPrivacyWallpaperButtons();
         HostAllowDriverMgmtSwitch.IsOn = s.HostAllowRemoteDriverMgmt;
         HostRequireDriverConfirmSwitch.IsOn = s.HostRequireDriverConfirm;
         HostRequireDriverConfirmSwitch.IsEnabled = !locked && s.HostAllowRemoteDriverMgmt;
@@ -565,6 +568,11 @@ public sealed partial class SettingsPage : Page
         RowHostAudio.Title = LocalizationService.GetString("Host_RowAudio");
         RowHostInput.Title = LocalizationService.GetString("Host_RowInput");
         RowHostCursor.Title = LocalizationService.GetString("Host_RowCursor");
+        RowHostAllowPrivacyScreen.Title = LocalizationService.GetString("Host_AllowPrivacyScreen");
+        RowHostAllowPrivacyScreen.Description = LocalizationService.GetString("Host_PrivacyScreenExitHint");
+        RowHostPrivacyWallpaper.Title = LocalizationService.GetString("Host_PrivacyWallpaper");
+        HostResetPrivacyWallpaperBtn.Content = LocalizationService.GetString("Host_PrivacyWallpaperReset");
+        RefreshPrivacyWallpaperButtons();
         RowHostSystemService.Title = LocalizationService.GetString("Host_RowSystemService");
         RowHostDrivers.Title = LocalizationService.GetString("Host_RowDrivers");
         RowHostAllowRemoteDriverMgmt.Title = LocalizationService.GetString("Host_RowAllowDriverMgmt");
@@ -785,6 +793,8 @@ public sealed partial class SettingsPage : Page
         s.HostCaptureAudio = HostCaptureAudioSwitch.IsOn;
         s.HostAllowInputControl = HostAllowInputSwitch.IsOn;
         s.HostCaptureCursor = HostCaptureCursorSwitch.IsOn;
+        s.HostAllowPrivacyScreen = HostAllowPrivacyScreenSwitch.IsOn;
+        HostAllowPrivacyScreenSwitch.IsEnabled = s.HostAllowInputControl;
         s.HostAllowRemoteDriverMgmt = HostAllowDriverMgmtSwitch.IsOn;
         s.HostRequireDriverConfirm = HostRequireDriverConfirmSwitch.IsOn;
         s.HostAllowFileTransfer = HostAllowFileTransferSwitch.IsOn;

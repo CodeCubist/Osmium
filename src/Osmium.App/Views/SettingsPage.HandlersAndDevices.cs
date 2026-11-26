@@ -14,6 +14,88 @@ namespace Osmium.App.Views;
 
 public sealed partial class SettingsPage : Page
 {
+    private bool _selectingPrivacyWallpaper;
+
+    private void RefreshPrivacyWallpaperButtons()
+    {
+        bool custom = App.Engine.SettingsService.Settings.HostUsePrivacyWallpaper;
+        bool canEdit = !_selectingPrivacyWallpaper && !App.Engine.Coordinator.IsHostStreaming;
+        HostPrivacyWallpaperBtn.Content = LocalizationService.GetString(custom
+            ? "Host_PrivacyWallpaperChange" : "Host_PrivacyWallpaperChoose");
+        HostPrivacyWallpaperBtn.IsEnabled = canEdit;
+        HostResetPrivacyWallpaperBtn.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+        HostResetPrivacyWallpaperBtn.IsEnabled = canEdit;
+    }
+
+    private async void HostPrivacyWallpaperBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectingPrivacyWallpaper || App.Engine.Coordinator.IsHostStreaming || App.MainWindowInstance is not { } window)
+            return;
+
+        var settings = App.Engine.SettingsService;
+        _selectingPrivacyWallpaper = true;
+        RefreshPrivacyWallpaperButtons();
+        string? stagingPath = null;
+        try
+        {
+            var picker = new Microsoft.Windows.Storage.Pickers.FileOpenPicker(window.AppWindow.Id);
+            foreach (string ext in new[] { ".jpg", ".jpeg", ".png", ".bmp" }) picker.FileTypeFilter.Add(ext);
+            var picked = await picker.PickSingleFileAsync();
+            if (picked == null || App.Engine.Coordinator.IsHostStreaming) return;
+
+            var jpeg = await WindowsWallpaperHelper.ReadPrivacyWallpaperAsync(picked.Path);
+            if (jpeg == null) throw new InvalidDataException("Invalid privacy wallpaper image");
+            if (App.Engine.Coordinator.IsHostStreaming) return;
+
+            string name = WindowsWallpaperHelper.PrivacyWallpaperFileName;
+            string target = Path.Combine(settings.DataDirectory, name);
+            stagingPath = Path.Combine(settings.DataDirectory, $"{Guid.NewGuid():N}.tmp");
+            await File.WriteAllBytesAsync(stagingPath, jpeg);
+            if (App.Engine.Coordinator.IsHostStreaming) return;
+            File.Move(stagingPath, target, overwrite: true);
+            stagingPath = null;
+            ServiceAutoStartHelper.SyncProfileFileToService(target, name);
+            settings.Settings.HostUsePrivacyWallpaper = true;
+            settings.SaveSettings();
+        }
+        catch (Exception ex)
+        {
+            App.Engine.Logging.Warn($"Could not set privacy screen wallpaper: {ex.Message}");
+            if (XamlRoot != null)
+            {
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = XamlRoot,
+                    RequestedTheme = ActualTheme,
+                    Title = LocalizationService.GetString("Host_PrivacyWallpaper"),
+                    Content = LocalizationService.GetString("Host_PrivacyWallpaperError"),
+                    CloseButtonText = LocalizationService.GetString("Dialog_Ok")
+                };
+                await dialog.ShowAsync();
+            }
+        }
+        finally
+        {
+            if (stagingPath != null)
+            {
+                try { File.Delete(stagingPath); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+            _selectingPrivacyWallpaper = false;
+            RefreshPrivacyWallpaperButtons();
+        }
+    }
+
+    private void HostResetPrivacyWallpaperBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectingPrivacyWallpaper || App.Engine.Coordinator.IsHostStreaming) return;
+        var settings = App.Engine.SettingsService;
+        settings.Settings.HostUsePrivacyWallpaper = false;
+        settings.SaveSettings();
+        RefreshPrivacyWallpaperButtons();
+    }
+
     private void NetworkNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (_loading) return;

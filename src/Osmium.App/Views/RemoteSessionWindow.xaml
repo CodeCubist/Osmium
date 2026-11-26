@@ -371,6 +371,9 @@
                                                 Click="SendCtrlAltDel_Click" />
                                 <MenuFlyoutItem x:Name="TaskManagerMenuItem"
                                                 Click="OpenTaskManager_Click" />
+                                <MenuFlyoutItem x:Name="PrivacyScreenMenuItem"
+                                                Visibility="Collapsed"
+                                                Click="PrivacyScreenMenuItem_Click" />
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutSubItem x:Name="MenuSubDrivers">
                                     <MenuFlyoutItem x:Name="HostDriverStatusMenuItem" IsEnabled="False" />

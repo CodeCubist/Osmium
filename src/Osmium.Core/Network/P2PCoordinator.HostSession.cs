@@ -695,6 +695,21 @@ public sealed partial class P2PCoordinator : IDisposable
                     return;
                 }
 
+                if (s.HostAllowPrivacyScreen && hostCfg.AllowInputControl != 0)
+                {
+                    string? wallpaper = s.HostUsePrivacyWallpaper
+                        ? Path.Combine(_settings.DataDirectory, WindowsWallpaperHelper.PrivacyWallpaperFileName)
+                        : null;
+                    try
+                    {
+                        NativeMethods.Osmium_HostAllowPrivacyScreen(hostHandle, wallpaper);
+                    }
+                    catch (EntryPointNotFoundException)
+                    {
+                        _log.Warn("Privacy screen unavailable in the installed native engine");
+                    }
+                }
+
                 bool isSameAccount = args.SameAccountVerified ||
                                      (_account.IsLoggedIn &&
                                       !string.IsNullOrWhiteSpace(args.ControllerUserId) &&

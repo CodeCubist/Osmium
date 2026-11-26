@@ -705,6 +705,20 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
+    private void SyncPrivacyScreenMenu()
+    {
+        PrivacyScreenMenuItem.Visibility = _hostStatus.AllowPrivacyScreen ? Visibility.Visible : Visibility.Collapsed;
+        PrivacyScreenMenuItem.IsEnabled = !_hostStatus.ScreenLocked || _hostStatus.PrivacyScreenActive;
+        PrivacyScreenMenuItem.Text = LocalizationService.GetString(_hostStatus.PrivacyScreenActive
+            ? "Session_DisablePrivacyScreen" : "Session_EnablePrivacyScreen");
+    }
+
+    private void PrivacyScreenMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_clientHandle == IntPtr.Zero || !_hostStatus.AllowPrivacyScreen || !PrivacyScreenMenuItem.IsEnabled) return;
+        NativeMethods.Osmium_ClientSendSystemAction(_clientHandle, _hostStatus.PrivacyScreenActive ? 7 : 6);
+    }
+
     private void SendCtrlAltDel_Click(object sender, RoutedEventArgs e)
     {
         if (_clientHandle != IntPtr.Zero)

@@ -182,6 +182,20 @@ public sealed class HostSessionStatusDto
         set;
     }
 
+    [JsonPropertyName("allowPrivacyScreen")]
+    public bool AllowPrivacyScreen
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("privacyScreenActive")]
+    public bool PrivacyScreenActive
+    {
+        get;
+        set;
+    }
+
     [JsonPropertyName("hasUsbIpDriver")]
     public bool HasUsbIpDriver
     {

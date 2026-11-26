@@ -279,6 +279,7 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     void** outHostHandle);
 
 OSMIUM_API void Osmium_StopHostSession(void* hostHandle);
+OSMIUM_API void Osmium_HostAllowPrivacyScreen(void* hostHandle, const wchar_t* wallpaperPath);
 OSMIUM_API int32_t Osmium_HostSendAuxData(void* hostHandle, const uint8_t* data, int32_t length);
 
 OSMIUM_API int32_t Osmium_StartClientEmbedded(

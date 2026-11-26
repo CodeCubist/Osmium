@@ -126,6 +126,16 @@
   <data name="Host_RowAudio" xml:space="preserve"><value>Stream System Audio</value></data>
   <data name="Host_RowInput" xml:space="preserve"><value>Allow Remote Input Control</value></data>
   <data name="Host_RowCursor" xml:space="preserve"><value>Capture Local Cursor</value></data>
+  <data name="Host_AllowPrivacyScreen" xml:space="preserve"><value>Allow Remote Privacy Screen</value></data>
+  <data name="Host_PrivacyScreenExitHint" xml:space="preserve"><value>Press Ctrl+Alt+Shift+P on this PC to exit the privacy screen</value></data>
+  <data name="Host_PrivacyWallpaper" xml:space="preserve"><value>Privacy Screen Wallpaper</value></data>
+  <data name="Host_PrivacyWallpaperChoose" xml:space="preserve"><value>Choose Image</value></data>
+  <data name="Host_PrivacyWallpaperChange" xml:space="preserve"><value>Change Image</value></data>
+  <data name="Host_PrivacyWallpaperReset" xml:space="preserve"><value>Reset to Black</value></data>
+  <data name="Host_PrivacyWallpaperError" xml:space="preserve"><value>Couldn't import the image. Choose a JPG, PNG, or BMP file no larger than 64 MB.</value></data>
+  <data name="Session_EnablePrivacyScreen" xml:space="preserve"><value>Enable Privacy Screen</value></data>
+  <data name="Session_DisablePrivacyScreen" xml:space="preserve"><value>Disable Privacy Screen</value></data>
+  <data name="Session_PrivacyScreenUnavailable" xml:space="preserve"><value>The host couldn't enable the privacy screen</value></data>
   <data name="Settings_PageTitle" xml:space="preserve"><value>Settings</value></data>
   <data name="Tab_General" xml:space="preserve"><value>General</value></data>
   <data name="Tab_Video" xml:space="preserve"><value>Video</value></data>

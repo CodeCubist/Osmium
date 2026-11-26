@@ -197,6 +197,8 @@ public static partial class ServiceAutoStartHelper
             {
                 CopyFileAtomicSafe(Path.Combine(sourceDataDir, "settings.json"), Path.Combine(profileDir, "settings.json"));
                 CopyFileAtomicSafe(Path.Combine(sourceDataDir, "identity.json"), Path.Combine(profileDir, "identity.json"));
+                string wallpaper = WindowsWallpaperHelper.PrivacyWallpaperFileName;
+                CopyFileAtomicSafe(Path.Combine(sourceDataDir, wallpaper), Path.Combine(profileDir, wallpaper));
 
                 string stagedSvcSession = Path.Combine(sourceDataDir, ServiceSessionFileName);
                 if (File.Exists(stagedSvcSession))

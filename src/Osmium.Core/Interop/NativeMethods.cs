@@ -457,6 +457,9 @@ public static class NativeMethods
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_StopHostSession(IntPtr hostHandle);
 
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
+    public static extern void Osmium_HostAllowPrivacyScreen(IntPtr hostHandle, string? wallpaperPath);
+
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int Osmium_HostSendAuxData(IntPtr hostHandle, byte[] data, int length);
 

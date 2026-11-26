@@ -898,13 +898,17 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         return true;
     }
 
-    bool HostCapture::CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr)
+    bool HostCapture::CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr,
+                                       const std::atomic<bool>* privacyScreenActive)
     {
         const bool captureCursor = m_CaptureCursor.load(std::memory_order_relaxed);
+        const auto privacyActive = [&] { return privacyScreenActive && privacyScreenActive->load(); };
         const auto captureGdi = [&](bool refreshBounds)
         {
+            // Only the duplication path is used while the excluded overlay is visible.
+            if (privacyActive()) return false;
             if (refreshBounds) RefreshMonitorBoundsForGdi();
-            return CaptureViaGdi(outFrame, captureCursor);
+            return CaptureViaGdi(outFrame, captureCursor) && !privacyActive();
         };
         outFrame.captureTimeUs = NowMicros();
         outFrame.isHdr10Pq = false;

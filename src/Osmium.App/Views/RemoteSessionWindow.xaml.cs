@@ -557,6 +557,7 @@ public sealed partial class RemoteSessionWindow : Window
             UpdateTransferStatusHintUi();
 
             MenuSubTools.Text = LocalizationService.GetString("Session_MenuTools");
+            SyncPrivacyScreenMenu();
             HostLockedPill.Text = LocalizationService.GetString("Session_ScreenLocked");
             TaskManagerMenuItem.Text = LocalizationService.GetString("Session_TaskManagerBtn");
             MenuSubDrivers.Text = LocalizationService.GetString("Session_DriversTitle");
@@ -814,6 +815,7 @@ public sealed partial class RemoteSessionWindow : Window
             }
 
             HostLockedPillBorder.Visibility = dto.ScreenLocked ? Visibility.Visible : Visibility.Collapsed;
+            SyncPrivacyScreenMenu();
             SyncHdrAvailabilityFromHostStatus(dto.HostHdrEnabled);
             UpdateHostDriverStatusUi();
 
@@ -826,6 +828,7 @@ public sealed partial class RemoteSessionWindow : Window
                     "SAS_SENT" => "Session_NoticeSasSent",
                     "SAS_NEEDS_ADMIN" => "Session_NoticeSasNeedsAdmin",
                     "TASKMGR_OPENED" => "Session_NoticeTaskMgrOpened",
+                    "PRIVACY_SCREEN_UNAVAILABLE" => "Session_PrivacyScreenUnavailable",
                     "DRIVER_INSTALLED" => "Session_NoticeDriverInstalled",
                     "DRIVER_INSTALL_FAILED" => "Session_NoticeDriverInstallFailed",
                     "DRIVER_UNINSTALLED" => "Session_NoticeDriverUninstalled",

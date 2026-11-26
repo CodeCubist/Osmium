@@ -7,6 +7,7 @@
 #include "UsbIpVirtualDevices.h"
 #include "HostSystemAgent.h"
 #include "HostCapture.h"
+#include "HostPrivacyScreen.h"
 #include "HostVideoEncoder.h"
 #include "HostAudioCapture.h"
 #include "HostInputInjector.h"
@@ -262,6 +263,7 @@ namespace
         OsmiumHostCallbacks callbacks{};
 
         HostCapture capture;
+        HostPrivacyScreen privacyScreen;
         HostVideoEncoder encoder;
         HostAudioCapture audio;
         HostInputInjector injector;
@@ -281,7 +283,10 @@ namespace
         bool virtualSpeakerRequested = false;
         bool virtualMicRequested = false;
         std::string lastActionMsg;
+        std::wstring privacyWallpaperPath;
 
+        std::atomic<bool> allowPrivacyScreen{false};
+        std::atomic<bool> captureUsesDuplication{false};
         std::atomic<bool> reconfigNeeded{false};
         std::atomic<bool> statusDirty{true};
         std::atomic<bool> idrRecoveryPending{true};
@@ -366,6 +371,8 @@ namespace
             << ",\"screenLocked\":" << (locked ? "true" : "false")
             << ",\"hasUsbIpDriver\":" << (hasUsb ? "true" : "false")
             << ",\"allowRemoteDriverMgmt\":" << (ctx->config.allowRemoteDriverMgmt ? "true" : "false")
+            << ",\"allowPrivacyScreen\":" << (ctx->allowPrivacyScreen.load() ? "true" : "false")
+            << ",\"privacyScreenActive\":" << (ctx->privacyScreen.IsActive() ? "true" : "false")
             << ",\"touchInput\":" << (HostTouchInjector::IsSupported() ? "true" : "false")
             << ",\"lastAction\":\"" << EscapeJson(lastAct.c_str()) << "\""
             << ",\"displays\":[";
@@ -426,7 +433,32 @@ namespace
                 ctx->sysActionQueue.pop_front();
             }
 
-            if (action == static_cast<int32_t>(proto::SystemActionId::SendCtrlAltDel))
+            if (action == static_cast<int32_t>(proto::SystemActionId::EnablePrivacyScreen) ||
+                action == static_cast<int32_t>(proto::SystemActionId::DisablePrivacyScreen))
+            {
+                if (!ctx->allowPrivacyScreen.load()) continue;
+                std::string result;
+                if (action == static_cast<int32_t>(proto::SystemActionId::DisablePrivacyScreen))
+                {
+                    ctx->privacyScreen.Hide();
+                }
+                else if (!ctx->privacyScreen.IsActive())
+                {
+                    std::wstring path;
+                    {
+                        std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                        path = ctx->privacyWallpaperPath;
+                    }
+                    if (!ctx->captureUsesDuplication.load() || !ctx->privacyScreen.Show(std::move(path), &ctx->stopFlag))
+                    {
+                        result = "PRIVACY_SCREEN_UNAVAILABLE";
+                    }
+                }
+                std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+                ctx->lastActionMsg = std::move(result);
+                ctx->statusDirty.store(true);
+            }
+            else if (action == static_cast<int32_t>(proto::SystemActionId::SendCtrlAltDel))
             {
                 bool ok = ctx->systemAgent.SendCtrlAltDel();
                 std::lock_guard<std::mutex> lock(ctx->cfgMutex);
@@ -500,6 +532,7 @@ namespace
                 ctx->statusDirty.store(true);
             }
         }
+        ctx->privacyScreen.Hide();
     }
 
     void HostVideoLoop(HostSessionContext* ctx)
@@ -510,6 +543,7 @@ namespace
         ctx->audio.SetVirtualDevices(&ctx->virtualUsb);
 
         int32_t activeFps = 60;
+        bool lastPrivacyActivity = false;
         bool allowGpuEncoderInput = true;
         auto reconfigurePipeline = [&](bool forceInitCapture) -> bool
         {
@@ -708,8 +742,11 @@ namespace
                 }
             }
 
-            if (ctx->statusDirty.exchange(false) || (nowMs - lastStatusPushMs >= 2000))
+            const bool privacyActive = ctx->privacyScreen.IsActive();
+            if (ctx->statusDirty.exchange(false) || privacyActive != lastPrivacyActivity ||
+                (nowMs - lastStatusPushMs >= 2000))
             {
+                lastPrivacyActivity = privacyActive;
                 lastStatusPushMs = nowMs;
                 PushHostStatusJson(ctx);
             }
@@ -719,9 +756,11 @@ namespace
             const int initialCaptureWaitMs = std::clamp<int>(static_cast<int>(frameIntervalUs / 1000ULL), 4, 16);
 
             const uint64_t captureStartUs = NowMicros();
-            const bool captured = ctx->capture.CaptureNextFrame(capFrame, initialCaptureWaitMs, wantPqCapture);
+            const bool captured = ctx->capture.CaptureNextFrame(capFrame, initialCaptureWaitMs, wantPqCapture,
+                                                                &ctx->privacyScreen.ActiveFlag());
             captureTiming.Record(NowMicros() - captureStartUs);
             if (captured && capFrame.updated) ++freshCaptureCount;
+            ctx->captureUsesDuplication.store(ctx->capture.HasDesktopDuplication());
             if (captured)
             {
                 bool curHostHdr = ctx->capture.IsOutputHdr();
@@ -2458,6 +2497,19 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
         else ctx->sysActionThread.join();
     }
     delete ctx;
+}
+
+OSMIUM_API void Osmium_HostAllowPrivacyScreen(void* hostHandle, const wchar_t* wallpaperPath)
+{
+    if (!hostHandle) return;
+    auto* ctx = static_cast<HostSessionContext*>(hostHandle);
+    if (!ctx->config.allowInputControl) return;
+    {
+        std::lock_guard<std::mutex> lock(ctx->cfgMutex);
+        ctx->privacyWallpaperPath = wallpaperPath ? wallpaperPath : L"";
+    }
+    ctx->allowPrivacyScreen.store(true);
+    ctx->statusDirty.store(true);
 }
 
 OSMIUM_API int32_t Osmium_HostSendAuxData(void* hostHandle, const uint8_t* data, int32_t length)

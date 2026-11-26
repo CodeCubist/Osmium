@@ -126,6 +126,16 @@
   <data name="Host_RowAudio" xml:space="preserve"><value>传输系统声音</value></data>
   <data name="Host_RowInput" xml:space="preserve"><value>允许远端键鼠与手柄操作</value></data>
   <data name="Host_RowCursor" xml:space="preserve"><value>采集本地鼠标指针</value></data>
+  <data name="Host_AllowPrivacyScreen" xml:space="preserve"><value>允许远程开启隐私屏</value></data>
+  <data name="Host_PrivacyScreenExitHint" xml:space="preserve"><value>本机按 Ctrl+Alt+Shift+P 退出隐私屏</value></data>
+  <data name="Host_PrivacyWallpaper" xml:space="preserve"><value>隐私屏壁纸</value></data>
+  <data name="Host_PrivacyWallpaperChoose" xml:space="preserve"><value>选择图片</value></data>
+  <data name="Host_PrivacyWallpaperChange" xml:space="preserve"><value>更换图片</value></data>
+  <data name="Host_PrivacyWallpaperReset" xml:space="preserve"><value>恢复黑屏</value></data>
+  <data name="Host_PrivacyWallpaperError" xml:space="preserve"><value>无法导入图片。请选择不超过 64 MB 的 JPG、PNG 或 BMP 图片。</value></data>
+  <data name="Session_EnablePrivacyScreen" xml:space="preserve"><value>开启隐私屏</value></data>
+  <data name="Session_DisablePrivacyScreen" xml:space="preserve"><value>关闭隐私屏</value></data>
+  <data name="Session_PrivacyScreenUnavailable" xml:space="preserve"><value>被控端无法开启隐私屏</value></data>
   <data name="Settings_PageTitle" xml:space="preserve"><value>设置</value></data>
   <data name="Tab_General" xml:space="preserve"><value>常规</value></data>
   <data name="Tab_Video" xml:space="preserve"><value>画面</value></data>

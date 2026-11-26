@@ -149,6 +149,18 @@ public static class WindowsWallpaperHelper
         }
     }
 
+    public const string PrivacyWallpaperFileName = "privacy-wallpaper.jpg";
+
+    public static async Task<byte[]?> ReadPrivacyWallpaperAsync(string sourcePath)
+    {
+        await using var source = File.OpenRead(sourcePath);
+        if (source.Length <= 0 || source.Length > MaxSourceFileBytes) return null;
+
+        var bytes = new byte[source.Length];
+        await source.ReadExactlyAsync(bytes);
+        return await EncodeScaledJpegAsync(bytes, 4096, 4096, quality: 0.92);
+    }
+
     private static async Task<byte[]?> EncodeScaledJpegAsync(
         byte[] sourceBytes,
         int maxWidth,

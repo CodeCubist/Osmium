@@ -81,7 +81,9 @@ namespace osmium::proto
         SendCtrlAltDel = 1,
         OpenTaskManager = 2,
         InstallVirtualDrivers = 4,
-        UninstallVirtualDrivers = 5
+        UninstallVirtualDrivers = 5,
+        EnablePrivacyScreen = 6,
+        DisablePrivacyScreen = 7
     };
 
 #pragma pack(push, 1)

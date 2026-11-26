@@ -132,6 +132,7 @@
         <ClInclude Include="src\HostAudioCapture.h"/>
         <ClInclude Include="src\HostCapture.h"/>
         <ClInclude Include="src\HostInputInjector.h"/>
+        <ClInclude Include="src\HostPrivacyScreen.h"/>
         <ClInclude Include="src\HostTouchInjector.h"/>
         <ClInclude Include="src\HostTextFocus.h"/>
         <ClInclude Include="src\HostSystemAgent.h"/>
@@ -150,6 +151,7 @@
         <ClCompile Include="src\HostAudioCapture.cpp"/>
         <ClCompile Include="src\HostCapture.cpp"/>
         <ClCompile Include="src\HostInputInjector.cpp"/>
+        <ClCompile Include="src\HostPrivacyScreen.cpp"/>
         <ClCompile Include="src\HostTouchInjector.cpp"/>
         <ClCompile Include="src\HostTextFocus.cpp"/>
         <ClCompile Include="src\HostSystemAgent.cpp"/>

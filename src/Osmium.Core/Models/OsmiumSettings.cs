@@ -196,6 +196,18 @@ public sealed class OsmiumSettings
         set;
     } = true;
 
+    public bool HostAllowPrivacyScreen
+    {
+        get;
+        set;
+    }
+
+    public bool HostUsePrivacyWallpaper
+    {
+        get;
+        set;
+    }
+
     public bool HostAllowRemoteDriverMgmt
     {
         get;
