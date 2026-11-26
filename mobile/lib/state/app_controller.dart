@@ -118,6 +118,7 @@ class AppController extends ChangeNotifier {
   StreamSubscription<List<AccountDeviceDto>>? _sigDevicesSub;
   StreamSubscription<void>? _sigUnreachableSub;
   StreamSubscription<void>? _sigQuickLaunchSyncSub;
+  StreamSubscription<(String, String?)>? _sigDeviceIdSub;
   StreamSubscription<AccountSessionData?>? _acctSub;
 
   // Startup-only alert: once signaling has registered, later drops just show
@@ -171,9 +172,24 @@ class AppController extends ChangeNotifier {
       }
     });
 
+    _sigDeviceIdSub = signaling.deviceIdReassignedStream.listen((evt) {
+      final (newId, newSecret) = evt;
+      unawaited(_adoptAssignedDeviceIdentity(newId, newSecret));
+    });
+
     _acctSub = accountService.sessionStream.listen((session) {
       final prevUserId = _account?.userId;
       _account = session;
+      if (session != null && session.assignedDeviceId != null) {
+        final normAssigned = DeviceIdentity.normalizeDeviceId(
+          session.assignedDeviceId!,
+        );
+        if (normAssigned.length >= 6 &&
+            normAssigned.length <= 12 &&
+            normAssigned != _identity.deviceId) {
+          unawaited(_adoptAssignedDeviceIdentity(normAssigned, null));
+        }
+      }
       signaling.updateAuthToken(accountService.currentLtoken);
       if (session != null) {
         refreshAccountDevices();
@@ -194,6 +210,7 @@ class AppController extends ChangeNotifier {
     signaling.start(
       deviceId: _identity.deviceId,
       deviceName: _identity.deviceName,
+      deviceSecret: _identity.deviceSecret,
       ltoken: accountService.currentLtoken,
     );
 
@@ -767,12 +784,40 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _adoptAssignedDeviceIdentity(
+    String newDeviceId,
+    String? newDeviceSecret,
+  ) async {
+    final normalized = DeviceIdentity.normalizeDeviceId(newDeviceId);
+    if (normalized.length < 6 || normalized.length > 12) return;
+    final secretChanged =
+        newDeviceSecret != null &&
+        newDeviceSecret.trim().length >= 16 &&
+        newDeviceSecret.trim() != _identity.deviceSecret;
+    if (normalized == _identity.deviceId && !secretChanged) return;
+
+    await settingsRepo.saveAssignedDeviceIdentity(
+      deviceId: normalized,
+      deviceSecret: secretChanged ? newDeviceSecret.trim() : null,
+    );
+    _identity = _identity.copyWith(
+      deviceId: normalized,
+      deviceSecret: secretChanged ? newDeviceSecret.trim() : null,
+    );
+    signaling.updateDeviceIdentity(
+      deviceId: _identity.deviceId,
+      deviceSecret: _identity.deviceSecret,
+    );
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _sigStateSub?.cancel();
     _sigDevicesSub?.cancel();
     _sigUnreachableSub?.cancel();
     _sigQuickLaunchSyncSub?.cancel();
+    _sigDeviceIdSub?.cancel();
     _acctSub?.cancel();
     _serverUnreachableCtrl.close();
     super.dispose();

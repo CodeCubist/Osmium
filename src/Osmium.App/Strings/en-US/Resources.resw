@@ -445,7 +445,7 @@
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>Host Res   : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>Stream Res : {0} × {1}</value></data>
   <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>Render/Delay : {0} FPS - RTT {1} ms - Decode {2} ms</value></data>
-  <data name="Session_DbgLineFpsPathFmt" xml:space="preserve"><value>Frame rate : Request {0} / Host target {1} / Receive {2} FPS · Host {3} / Client {4} Hz · VSync {5}</value></data>
+  <data name="Session_DbgLineFpsPathFmt" xml:space="preserve"><value>Frame rate : Request {0} / Host target {1} / Receive {2} FPS - Host {3} / Client {4} Hz - VSync {5}</value></data>
   <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>Bitrate    : requested {0} / host target {1} / measured {2} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>Duration   : {0}</value></data>
   <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>Loss/Drop  : {0}% - Lost {1} / Recv {2} - Drops {3}</value></data>
@@ -889,8 +889,8 @@
   <data name="Acc_LoginKeyNamePlaceholder" xml:space="preserve"><value>e.g. Work PC, Backup Key</value></data>
   <data name="Acc_LoginKeyDefaultName" xml:space="preserve"><value>Login Key</value></data>
   <data name="Acc_LoginKeySendOtpDescFmt" xml:space="preserve"><value>Creating a login key requires a 6-digit code sent to your email ({0}).</value></data>
-  <data name="Acc_LoginKeyMetaUsedFmt" xml:space="preserve"><value>Created {0} · Last used {1}</value></data>
-  <data name="Acc_LoginKeyMetaUnusedFmt" xml:space="preserve"><value>Created {0} · Never used</value></data>
+  <data name="Acc_LoginKeyMetaUsedFmt" xml:space="preserve"><value>Created {0} - Last used {1}</value></data>
+  <data name="Acc_LoginKeyMetaUnusedFmt" xml:space="preserve"><value>Created {0} - Never used</value></data>
   <data name="Acc_LoginKeyCreatedTitle" xml:space="preserve"><value>Login Key Created</value></data>
   <data name="Acc_LoginKeyCreatedOnceHint" xml:space="preserve"><value>Copy and store this login key securely now. You will not be able to view the full key again after closing.</value></data>
   <data name="Acc_MsgTwoFaEnabled" xml:space="preserve"><value>Two-factor authentication enabled.</value></data>

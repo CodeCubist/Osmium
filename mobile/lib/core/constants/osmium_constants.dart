@@ -72,6 +72,7 @@ class OsmiumErrorCode {
   static const int twoFaInvalid = 3019;
   static const int twoFaExpired = 3020;
   static const int rateLimited = 4001;
+  static const int serviceQuotaExceeded = 4004;
   static const int connectCooldown = 4005;
   static const int deviceOffline = 4006;
   static const int remoteDisabled = 4007;
@@ -89,6 +90,7 @@ class OsmiumErrorCode {
   static const int quickLaunchUnsupported = 4021;
   static const int loginKeyLimitExceeded = 4022;
   static const int versionUnsupported = 4023;
+  static const int deviceIdConflict = 4024;
   static const int oauthNotConfigured = 5007;
 }
 

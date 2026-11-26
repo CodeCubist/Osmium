@@ -136,6 +136,9 @@ class SignalingClient {
 
   String _serverUrl = OsmiumConstants.defaultSignalingUrl;
   String _deviceId = '';
+  String _deviceSecret = '';
+  String _pendingFallbackDeviceSecret = '';
+  final String _instanceId = DeviceIdentity.generateDeviceSecret().substring(0, 24);
   String _deviceName = 'Osmium Mobile';
   String _ltoken = '';
   String _registeredLtoken = '';
@@ -163,6 +166,7 @@ class SignalingClient {
   final _quickLaunchSyncCtrl = StreamController<void>.broadcast();
   final _quickLaunchStartResCtrl =
       StreamController<QuickLaunchStartResponseEvent>.broadcast();
+  final _deviceIdReassignedCtrl = StreamController<(String, String?)>.broadcast();
 
   Stream<SignalingConnectionState> get stateStream => _stateCtrl.stream;
   Stream<List<AccountDeviceDto>> get accountDevicesStream =>
@@ -181,6 +185,8 @@ class SignalingClient {
   Stream<void> get quickLaunchSyncStream => _quickLaunchSyncCtrl.stream;
   Stream<QuickLaunchStartResponseEvent> get quickLaunchStartResponseStream =>
       _quickLaunchStartResCtrl.stream;
+  Stream<(String, String?)> get deviceIdReassignedStream =>
+      _deviceIdReassignedCtrl.stream;
 
   /// Fires once per failure streak, when [offlineFailureThreshold]
   /// consecutive attempts have failed without a `registered` reply.
@@ -211,16 +217,48 @@ class SignalingClient {
     String serverUrl = OsmiumConstants.defaultSignalingUrl,
     required String deviceId,
     required String deviceName,
+    String deviceSecret = '',
     String? ltoken,
   }) {
     _serverUrl = normalizeServerUrl(serverUrl);
     _deviceId = DeviceIdentity.normalizeDeviceId(deviceId);
+    _deviceSecret = deviceSecret.trim();
     _deviceName = deviceName;
     _ltoken = ltoken ?? '';
     _running = true;
     _reconnectAttempt = 0;
     _failures = 0;
     _connect();
+  }
+
+  void updateDeviceIdentity({
+    required String deviceId,
+    String? deviceSecret,
+  }) {
+    final normalized = DeviceIdentity.normalizeDeviceId(deviceId);
+    if (normalized.length < 6 || normalized.length > 12) return;
+    final idChanged = normalized != _deviceId;
+    _deviceId = normalized;
+    if (deviceSecret != null && deviceSecret.trim().length >= 16) {
+      _deviceSecret = deviceSecret.trim();
+    }
+    if (idChanged && _registered) {
+      _pendingFallbackDeviceSecret = DeviceIdentity.generateDeviceSecret();
+      _registeredLtoken = _ltoken;
+      sendJson({
+        'type': 'register',
+        'deviceId': _deviceId,
+        'deviceSecret': _deviceSecret,
+        'fallbackDeviceSecret': _pendingFallbackDeviceSecret,
+        'instanceId': _instanceId,
+        'supportsDeviceIdReassign': true,
+        'deviceName': _deviceName,
+        'allowRemote': false,
+        'clientVersion': OsmiumConstants.protocolVersion,
+        'osVersion': Platform.isAndroid ? 'Android' : Platform.operatingSystem,
+        'ltoken': _ltoken,
+      });
+    }
   }
 
   /// Drops the backoff and failure streak and dials again right away.
@@ -288,9 +326,14 @@ class SignalingClient {
       // Register as mobile client (allowRemote=false in v1). Field set matches
       // Windows `SignalingClient.Protocol.cs` register payload.
       _registeredLtoken = _ltoken;
+      _pendingFallbackDeviceSecret = DeviceIdentity.generateDeviceSecret();
       sendJson({
         'type': 'register',
         'deviceId': _deviceId,
+        'deviceSecret': _deviceSecret,
+        'fallbackDeviceSecret': _pendingFallbackDeviceSecret,
+        'instanceId': _instanceId,
+        'supportsDeviceIdReassign': true,
         'deviceName': _deviceName,
         'allowRemote': false,
         'clientVersion': OsmiumConstants.protocolVersion,
@@ -361,6 +404,22 @@ class SignalingClient {
     final type = (root['type'] ?? '').toString();
     switch (type) {
       case 'registered':
+        final assignedId = DeviceIdentity.normalizeDeviceId(
+          (root['deviceId'] ?? '').toString(),
+        );
+        final reassigned = root['deviceIdReassigned'] == true;
+        final useFallbackSecret = root['useFallbackSecret'] == true;
+        if (assignedId.length >= 6 &&
+            assignedId.length <= 12 &&
+            (reassigned || assignedId != _deviceId)) {
+          String? rotatedSecret;
+          _deviceId = assignedId;
+          if (useFallbackSecret && _pendingFallbackDeviceSecret.length >= 16) {
+            _deviceSecret = _pendingFallbackDeviceSecret;
+            rotatedSecret = _deviceSecret;
+          }
+          _deviceIdReassignedCtrl.add((_deviceId, rotatedSecret));
+        }
         _registered = true;
         _failures = 0;
         _registerTimer?.cancel();
@@ -680,5 +739,6 @@ class SignalingClient {
     _unreachableCtrl.close();
     _quickLaunchSyncCtrl.close();
     _quickLaunchStartResCtrl.close();
+    _deviceIdReassignedCtrl.close();
   }
 }

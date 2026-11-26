@@ -175,6 +175,8 @@ class AccountService {
         return '验证码发送过于频繁，请稍后再试';
       case OsmiumErrorCode.rateLimited:
         return '请求过于频繁，请稍后再试';
+      case OsmiumErrorCode.serviceQuotaExceeded:
+        return '服务暂不可用，请稍后重试';
       case OsmiumErrorCode.accountProfileIncomplete:
         return '请先绑定邮箱并设置登录密码后再进行此操作';
       case OsmiumErrorCode.accountEmailRequired:
@@ -203,6 +205,8 @@ class AccountService {
         return '登录密钥数量已达上限（最多10个）';
       case OsmiumErrorCode.versionUnsupported:
         return '当前客户端版本已停用，请更新到最新版本';
+      case OsmiumErrorCode.deviceIdConflict:
+        return '设备 ID 发生冲突，请重试';
       case OsmiumErrorCode.forbidden:
       case OsmiumErrorCode.accountAuthRequired:
         return '登录状态已失效，请重新登录';
@@ -229,6 +233,7 @@ class AccountService {
           'os_version': Platform.isAndroid
               ? 'Android'
               : Platform.operatingSystem,
+          'device_secret': identity.deviceSecret,
         },
       );
       final parsed = _parseEnvelope<AccountSessionData>(
@@ -358,6 +363,7 @@ class AccountService {
           'os_version': Platform.isAndroid
               ? 'Android'
               : Platform.operatingSystem,
+          'device_secret': identity.deviceSecret,
         },
       );
       final parsed = _parseEnvelope<AccountSessionData>(
@@ -417,6 +423,7 @@ class AccountService {
           'os_version': Platform.isAndroid
               ? 'Android'
               : Platform.operatingSystem,
+          'device_secret': identity.deviceSecret,
         },
       );
       final parsed = _parseEnvelope<OAuthStartData>(
@@ -1546,6 +1553,7 @@ class AccountService {
           'os_version': Platform.isAndroid
               ? 'Android'
               : Platform.operatingSystem,
+          'device_secret': identity.deviceSecret,
         },
       );
       final parsed = _parseEnvelope<AccountSessionData>(

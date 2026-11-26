@@ -445,7 +445,7 @@
   <data name="Session_DbgLineNativeFmt" xml:space="preserve"><value>被控端分辨率  : {0} × {1}</value></data>
   <data name="Session_DbgLineStreamFmt" xml:space="preserve"><value>当前传输分辨率: {0} × {1}</value></data>
   <data name="Session_DbgLinePerfFmt" xml:space="preserve"><value>渲染 / 延迟   : {0} FPS - 网络RTT {1} ms - 解码{2} ms</value></data>
-  <data name="Session_DbgLineFpsPathFmt" xml:space="preserve"><value>帧率          : 请求 {0} / 被控目标 {1} / 接收 {2} FPS · 被控 {3} / 主控 {4} Hz · 垂直同步 {5}</value></data>
+  <data name="Session_DbgLineFpsPathFmt" xml:space="preserve"><value>帧率          : 请求 {0} / 被控目标 {1} / 接收 {2} FPS - 被控 {3} / 主控 {4} Hz - 垂直同步 {5}</value></data>
   <data name="Session_DbgLineBitrateFmt" xml:space="preserve"><value>码率          : 请求 {0} / 被控目标 {1} / 实测传输 {2} Mbps</value></data>
   <data name="Session_DbgLineDurationFmt" xml:space="preserve"><value>连接时长      : {0}</value></data>
   <data name="Session_DbgLineLossFmt" xml:space="preserve"><value>丢包 / 丢帧   : {0}% - 丢{1} / 收{2} - 丢帧{3}</value></data>
@@ -889,8 +889,8 @@
   <data name="Acc_LoginKeyNamePlaceholder" xml:space="preserve"><value>例如：常用电脑、备用密钥</value></data>
   <data name="Acc_LoginKeyDefaultName" xml:space="preserve"><value>登录密钥</value></data>
   <data name="Acc_LoginKeySendOtpDescFmt" xml:space="preserve"><value>创建登录密钥需验证绑定邮箱（{0}）收到的6位验证码</value></data>
-  <data name="Acc_LoginKeyMetaUsedFmt" xml:space="preserve"><value>创建于{0} · 最近使用{1}</value></data>
-  <data name="Acc_LoginKeyMetaUnusedFmt" xml:space="preserve"><value>创建于{0} · 尚未使用</value></data>
+  <data name="Acc_LoginKeyMetaUsedFmt" xml:space="preserve"><value>创建于{0} - 最近使用{1}</value></data>
+  <data name="Acc_LoginKeyMetaUnusedFmt" xml:space="preserve"><value>创建于{0} - 尚未使用</value></data>
   <data name="Acc_LoginKeyCreatedTitle" xml:space="preserve"><value>登录密钥已创建</value></data>
   <data name="Acc_LoginKeyCreatedOnceHint" xml:space="preserve"><value>请立即复制并妥善保存以下登录密钥，关闭此窗口后将无法再次查看完整密钥</value></data>
   <data name="Acc_MsgTwoFaEnabled" xml:space="preserve"><value>已开启两步验证（2FA）</value></data>

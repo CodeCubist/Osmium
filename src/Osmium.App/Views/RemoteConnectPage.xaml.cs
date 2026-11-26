@@ -147,6 +147,8 @@ public sealed partial class RemoteConnectPage : Page
         App.Engine.Coordinator.ConnectCooldownChanged += OnConnectCooldownChanged;
         App.Engine.SettingsService.TemporaryAccessCodeChanged -= OnTemporaryAccessCodeChanged;
         App.Engine.SettingsService.TemporaryAccessCodeChanged += OnTemporaryAccessCodeChanged;
+        App.Engine.SettingsService.DeviceIdChanged -= OnTemporaryAccessCodeChanged;
+        App.Engine.SettingsService.DeviceIdChanged += OnTemporaryAccessCodeChanged;
         App.Engine.AccountService.SessionChanged -= OnAccountSessionChanged;
         App.Engine.AccountService.SessionChanged += OnAccountSessionChanged;
 
@@ -162,6 +164,7 @@ public sealed partial class RemoteConnectPage : Page
     {
         App.Engine.Coordinator.ConnectCooldownChanged -= OnConnectCooldownChanged;
         App.Engine.SettingsService.TemporaryAccessCodeChanged -= OnTemporaryAccessCodeChanged;
+        App.Engine.SettingsService.DeviceIdChanged -= OnTemporaryAccessCodeChanged;
         App.Engine.AccountService.SessionChanged -= OnAccountSessionChanged;
         _cooldownTimer.Stop();
     }

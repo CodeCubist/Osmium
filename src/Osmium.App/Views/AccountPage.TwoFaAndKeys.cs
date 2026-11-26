@@ -120,9 +120,19 @@ public sealed partial class AccountPage : Page
         {
             AuthPasswordBox.Password = string.Empty;
             _wizardStep = -1;
-            ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgLoginSuccess"));
+            if (!acc.IsProfileComplete)
+            {
+                ShowStatus(
+                    InfoBarSeverity.Warning,
+                    LocalizationService.GetString(acc.HasEmail ? "Acc_OAuthNeedPwdToast" : "Acc_OAuthNeedEmailPwdToast"));
+            }
+            else
+            {
+                ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgLoginSuccess"));
+            }
             RefreshViewState();
             _ = RefreshAllAccountDataAsync();
+            _ = App.Engine.SyncSignalingStatusAsync();
         }
         else if (expired)
         {

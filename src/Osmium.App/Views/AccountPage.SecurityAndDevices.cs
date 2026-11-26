@@ -1243,11 +1243,11 @@ public sealed partial class AccountPage : Page
             };
             string eventTag = rec.EventType switch
             {
-                "qr_login" => $" · {LocalizationService.GetString("Acc_HistoryQrTag")}",
-                "qr_login_external" => $" · {LocalizationService.GetString("Acc_HistoryQrExtTag")}",
-                "oauth_google" => " · Google",
-                "oauth_qq" => " · QQ",
-                "oauth_wechat" => $" · {LocalizationService.GetString("Acc_OAuthWechatBtn")}",
+                "qr_login" => $" - {LocalizationService.GetString("Acc_HistoryQrTag")}",
+                "qr_login_external" => $" - {LocalizationService.GetString("Acc_HistoryQrExtTag")}",
+                "oauth_google" => " - Google",
+                "oauth_qq" => " - QQ",
+                "oauth_wechat" => $" - {LocalizationService.GetString("Acc_OAuthWechatBtn")}",
                 _ => string.Empty
             };
             card.ActionContent = new TextBlock
@@ -1301,7 +1301,7 @@ public sealed partial class AccountPage : Page
                 ? App.Engine.AccountService.ResolveAccountDeviceName(rec.PeerDeviceId, rec.PeerDeviceName)
                 : rec.PeerDeviceName;
             string peerDisplay = !rec.SameAccount && !string.IsNullOrWhiteSpace(rec.PeerUserName)
-                ? $"{rec.PeerUserName} · {peerBaseName}"
+                ? $"{rec.PeerUserName} - {peerBaseName}"
                 : peerBaseName;
 
             string title = isHost
@@ -1312,7 +1312,7 @@ public sealed partial class AccountPage : Page
                 ? LocalizationService.GetString("Acc_RemoteRoleSameAccount")
                 : LocalizationService.GetString(isHost ? "Acc_RemoteRoleHost" : "Acc_RemoteRoleController");
             string viewOnlyPart = rec.ViewOnly
-                ? $" · {LocalizationService.GetString("Acc_RemoteViewOnlyTag")}"
+                ? $" - {LocalizationService.GetString("Acc_RemoteViewOnlyTag")}"
                 : string.Empty;
             string idPair = isHost
                 ? $"{rec.FormattedPeerDeviceId} → {rec.FormattedLocalDeviceId}"
@@ -1322,12 +1322,12 @@ public sealed partial class AccountPage : Page
             Brush? rightBrush;
             if (rec.InProgress)
             {
-                rightText = $"{rec.LocalStartedTimeText} · {LocalizationService.GetString("Acc_RemoteInProgress")}";
+                rightText = $"{rec.LocalStartedTimeText} - {LocalizationService.GetString("Acc_RemoteInProgress")}";
                 rightBrush = accentBrush ?? secondaryBrush;
             }
             else if (!string.IsNullOrWhiteSpace(rec.EndedAt))
             {
-                rightText = $"{rec.LocalStartedTimeText} · {FormatRemoteDuration(rec.DurationSec)}";
+                rightText = $"{rec.LocalStartedTimeText} - {FormatRemoteDuration(rec.DurationSec)}";
                 rightBrush = secondaryBrush;
             }
             else
@@ -1339,7 +1339,7 @@ public sealed partial class AccountPage : Page
             var card = new Controls.SettingsRowCard
             {
                 Title = title,
-                Description = $"{roleTag}{viewOnlyPart} · {idPair}",
+                Description = $"{roleTag}{viewOnlyPart} - {idPair}",
                 ShowIcon = false,
                 ActionContent = new TextBlock
                 {

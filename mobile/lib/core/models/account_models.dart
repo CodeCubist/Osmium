@@ -64,6 +64,7 @@ class AccountSessionData {
     this.hasEmail = true,
     this.hasPassword = true,
     this.twoFaEnabled = false,
+    this.assignedDeviceId,
   });
 
   final String userId;
@@ -79,6 +80,7 @@ class AccountSessionData {
   final bool hasEmail;
   final bool hasPassword;
   final bool twoFaEnabled;
+  final String? assignedDeviceId;
 
   bool get isProfileComplete => hasEmail && hasPassword;
 
@@ -162,6 +164,7 @@ class AccountSessionData {
       hasEmail: hasEmail,
       hasPassword: hasPassword,
       twoFaEnabled: json['two_fa_enabled'] == true,
+      assignedDeviceId: (json['device_id'] as String?)?.trim(),
     );
   }
 
@@ -187,6 +190,7 @@ class AccountSessionData {
       hasEmail: hasEmail,
       hasPassword: hasPassword,
       twoFaEnabled: json['two_fa_enabled'] == true,
+      assignedDeviceId: (json['device_id'] as String?)?.trim(),
     );
   }
 }
@@ -265,6 +269,7 @@ class OAuthStatusData {
     this.provider,
     this.bound = false,
     this.expiresIn = 0,
+    this.twoFaToken = '',
     this.session,
   });
 
@@ -273,6 +278,7 @@ class OAuthStatusData {
   final String? provider;
   final bool bound;
   final int expiresIn;
+  final String twoFaToken;
   final AccountSessionData? session;
 
   factory OAuthStatusData.fromJson(Map<String, dynamic> json) {
@@ -283,6 +289,7 @@ class OAuthStatusData {
       provider: json['provider'] as String?,
       bound: json['bound'] == true,
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 0,
+      twoFaToken: (json['two_fa_token'] ?? '').toString().trim(),
       session: rawSess is Map<String, dynamic>
           ? AccountSessionData.fromLoginPayload(rawSess)
           : null,

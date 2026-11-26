@@ -65,8 +65,8 @@ public sealed class WebRtcPeerTransport : IDisposable
                 ushort port = stunPort > 0 ? stunPort : (ushort)3478;
                 iceServers.Add(new RTCIceServer { urls = $"stun:{stunHost}:{port}" });
             }
-            iceServers.Add(new RTCIceServer { urls = "stun:stun.cloudflare.com:3478" });
             iceServers.Add(new RTCIceServer { urls = "stun:stun.l.google.com:19302" });
+            iceServers.Add(new RTCIceServer { urls = "stun:stun1.l.google.com:19302" });
 
             var config = new RTCConfiguration
             {

@@ -922,9 +922,8 @@ public sealed partial class P2PCoordinator : IDisposable
         lock (_hostLock)
         {
             matchesHost = _activeHostHandle != IntPtr.Zero &&
-                          (string.IsNullOrEmpty(sessionId) ||
-                           string.Equals(_activeHostSessionId, sessionId, StringComparison.Ordinal) ||
-                           string.Equals(_activeHostPeerId, fromDeviceId, StringComparison.Ordinal));
+                          !string.IsNullOrEmpty(sessionId) &&
+                          string.Equals(_activeHostSessionId, sessionId, StringComparison.Ordinal);
         }
 
         if (matchesHost)
@@ -937,9 +936,8 @@ public sealed partial class P2PCoordinator : IDisposable
         lock (_clientLock)
         {
             matchesClient = !string.IsNullOrEmpty(_activeClientSessionId) &&
-                            (string.IsNullOrEmpty(sessionId) ||
-                             string.Equals(_activeClientSessionId, sessionId, StringComparison.Ordinal) ||
-                             string.Equals(_activeClientTargetId, fromDeviceId, StringComparison.Ordinal));
+                            !string.IsNullOrEmpty(sessionId) &&
+                            string.Equals(_activeClientSessionId, sessionId, StringComparison.Ordinal);
             if (matchesClient)
             {
                 _peerEndedClientSession = true;

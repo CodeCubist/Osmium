@@ -44,6 +44,7 @@ public sealed class SettingsService
     } = new();
 
     public event Action<string>? TemporaryAccessCodeChanged;
+    public event Action<string>? DeviceIdChanged;
 
     public SettingsService(string? overrideDataDirectory = null, bool isServiceHostMode = false)
     {
@@ -263,6 +264,42 @@ public sealed class SettingsService
         {
             return null;
         }
+    }
+
+    public bool AdoptAssignedDeviceId(string newDeviceId, string? newDeviceSecret = null)
+    {
+        string normalized = DeviceIdentity.NormalizeDeviceId(newDeviceId);
+        if (normalized.Length is < 6 or > 12) return false;
+
+        bool changed = false;
+        lock (_lock)
+        {
+            if (!string.Equals(Identity.DeviceId, normalized, StringComparison.Ordinal))
+            {
+                Identity.DeviceId = normalized;
+                changed = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(newDeviceSecret) &&
+                newDeviceSecret.Trim().Length >= 16 &&
+                !string.Equals(Identity.DeviceSecret, newDeviceSecret.Trim(), StringComparison.Ordinal))
+            {
+                Identity.DeviceSecret = newDeviceSecret.Trim();
+                changed = true;
+            }
+
+            if (changed)
+            {
+                SaveIdentity();
+            }
+        }
+
+        if (changed)
+        {
+            DeviceIdChanged?.Invoke(normalized);
+        }
+
+        return changed;
     }
 
     public void RefreshTemporaryAccessCode()

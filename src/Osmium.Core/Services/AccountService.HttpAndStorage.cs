@@ -139,6 +139,8 @@ public sealed partial class AccountService : IDisposable
                 => Tr("Acc_ErrLoginKeyLimit", "Maximum number of login keys reached"),
             OsmiumErrorCode.VersionUnsupported
                 => Tr("Acc_ErrVersionUnsupported", "This client version is no longer supported; please update Osmium"),
+            OsmiumErrorCode.DeviceIdConflict
+                => Tr("Acc_ErrDeviceIdConflict", "Device ID conflict detected; please try again"),
             OsmiumErrorCode.RateLimited or OsmiumErrorCode.UserDailyOpsExceeded or OsmiumErrorCode.ConcurrentOperation
                 => Tr("Acc_ErrRateLimited", "Too many requests; please try again shortly"),
             OsmiumErrorCode.DeviceOffline
@@ -167,7 +169,7 @@ public sealed partial class AccountService : IDisposable
                 => string.IsNullOrEmpty(waitText)
                     ? Tr("Acc_ErrPasswordResetCooldown", "Password can only be reset once every 24 hours; please try again later")
                     : TrFmt("Acc_ErrPasswordResetCooldownFmt", "Password can only be reset once every 24 hours; please try again in {0}", waitText),
-            OsmiumErrorCode.D1QuotaExceeded or OsmiumErrorCode.ServerMisconfigured or OsmiumErrorCode.InternalError
+            OsmiumErrorCode.ServiceQuotaExceeded or OsmiumErrorCode.ServerMisconfigured or OsmiumErrorCode.InternalError
                 => Tr("Acc_ErrServiceBusy", "Service is temporarily unavailable; please try again later"),
             OsmiumErrorCode.NetworkError
                 => Tr("Acc_ErrNetwork", "Network connection failed; please check your connection"),

@@ -276,6 +276,7 @@ public sealed partial class AccountPage : Page
         var ct = cts.Token;
 
         AccountLoginSessionData? completedSession = null;
+        string? pendingTwoFaToken = null;
         string? terminalError = null;
         bool finishedByPoll = false;
         var activeSession = session;
@@ -312,6 +313,15 @@ public sealed partial class AccountPage : Page
 
                     if (pollRes.Ok && pollRes.Data != null)
                     {
+                        if (string.Equals(pollRes.Data.State, "two_fa_required", StringComparison.OrdinalIgnoreCase) &&
+                            !string.IsNullOrWhiteSpace(pollRes.Data.TwoFaToken))
+                        {
+                            pendingTwoFaToken = pollRes.Data.TwoFaToken.Trim();
+                            finishedByPoll = true;
+                            DispatcherQueue.TryEnqueue(() => dlg.Hide());
+                            return;
+                        }
+
                         if (string.Equals(pollRes.Data.State, "completed", StringComparison.OrdinalIgnoreCase) &&
                             pollRes.Data.Session != null)
                         {
@@ -322,6 +332,15 @@ public sealed partial class AccountPage : Page
                         }
 
                         continue;
+                    }
+
+                    if (pollRes.RequiresTwoFa && pollRes.TwoFaChallenge != null &&
+                        !string.IsNullOrWhiteSpace(pollRes.TwoFaChallenge.TwoFaToken))
+                    {
+                        pendingTwoFaToken = pollRes.TwoFaChallenge.TwoFaToken.Trim();
+                        finishedByPoll = true;
+                        DispatcherQueue.TryEnqueue(() => dlg.Hide());
+                        return;
                     }
 
                     terminalError = acc.FormatFriendlyError(pollRes.Code, pollRes.HttpStatusCode, pollRes.RetryAfter);
@@ -344,7 +363,11 @@ public sealed partial class AccountPage : Page
             StopOAuthLoginFlow();
         }
 
-        if (completedSession != null)
+        if (!string.IsNullOrEmpty(pendingTwoFaToken))
+        {
+            await ShowTwoFaVerifyDialogAsync(string.Empty, pendingTwoFaToken);
+        }
+        else if (completedSession != null)
         {
             acc.ApplyLoginSession(completedSession.Email, completedSession);
             _wizardStep = -1;

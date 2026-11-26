@@ -148,7 +148,7 @@ public sealed partial class RemoteSessionWindow : Window
             switchBtn.Resources["ButtonBorderBrushPressed"] = transparentBrush;
             switchBtn.Click += DisplayTabSwitch_Click;
             ToolTipService.SetToolTip(switchBtn,
-                $"{tabLabel}{primarySuffix} · {d.Width}×{d.Height} @ {d.RefreshRate}Hz");
+                $"{tabLabel}{primarySuffix} - {d.Width}×{d.Height} @ {d.RefreshRate}Hz");
 
             tabRoot.Children.Add(fillPath);
             tabRoot.Children.Add(strokePath);

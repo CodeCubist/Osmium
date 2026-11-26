@@ -138,6 +138,12 @@ public sealed class EngineService : IDisposable
         Signaling.AccountRevokedReceived += _ =>
             AccountService.HandleRemoteRevoked();
 
+        Signaling.DeviceIdReassigned += (newDeviceId, newDeviceSecret) =>
+            SettingsService.AdoptAssignedDeviceId(newDeviceId, newDeviceSecret);
+
+        SettingsService.DeviceIdChanged += newDeviceId =>
+            Signaling.UpdateDeviceIdentity(newDeviceId, SettingsService.Identity.DeviceSecret);
+
         Signaling.PowerCommandReceived += RemotePower.HandlePowerCommand;
         Signaling.PowerWolRelayReceived += RemotePower.HandleWolRelay;
         Signaling.NetworkAddressUpdated += () => _ = SyncSignalingStatusAsync();
@@ -254,7 +260,8 @@ public sealed class EngineService : IDisposable
             Coordinator.EffectiveAllowRemoteControl,
             AccountService.CurrentLtoken,
             powerProfile,
-            SettingsService.Settings.HostAllowQuickLaunch);
+            SettingsService.Settings.HostAllowQuickLaunch,
+            id.DeviceSecret);
     }
 
     public Task SyncSignalingStatusAsync()

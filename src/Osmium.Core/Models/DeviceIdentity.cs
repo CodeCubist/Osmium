@@ -19,6 +19,12 @@ public sealed class DeviceIdentity
         set;
     } = string.Empty;
 
+    public string DeviceSecret
+    {
+        get;
+        set;
+    } = string.Empty;
+
     public string DeviceName
     {
         get;
@@ -84,6 +90,12 @@ public sealed class DeviceIdentity
         return val.ToString();
     }
 
+    public static string GenerateDeviceSecret()
+    {
+        byte[] bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
     public static string GenerateAccessCode(int length = 6)
     {
         Span<char> chars = stackalloc char[length];
@@ -101,6 +113,11 @@ public sealed class DeviceIdentity
         if (DeviceId.Length != 9)
         {
             DeviceId = GenerateDeviceId();
+        }
+
+        if (string.IsNullOrWhiteSpace(DeviceSecret) || DeviceSecret.Length < 16)
+        {
+            DeviceSecret = GenerateDeviceSecret();
         }
 
         if (string.IsNullOrWhiteSpace(DeviceName))

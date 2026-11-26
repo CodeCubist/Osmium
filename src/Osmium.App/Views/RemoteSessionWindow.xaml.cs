@@ -915,7 +915,7 @@ public sealed partial class RemoteSessionWindow : Window
             string policyNote = LocalizationService.GetString(dto.AllowRemoteDriverMgmt
                 ? "Session_DriverPolicyEnabled"
                 : "Session_DriverPolicyDisabled");
-            HostDriverStatusMenuItem.Text = $"{usbText} · {policyNote}";
+            HostDriverStatusMenuItem.Text = $"{usbText} - {policyNote}";
         }
 
         RemoteInstallDriversMenuItem.IsEnabled = dto.AllowRemoteDriverMgmt;

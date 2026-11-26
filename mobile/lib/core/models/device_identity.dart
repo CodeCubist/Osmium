@@ -1,16 +1,28 @@
+import 'dart:convert';
 import 'dart:math';
 
 class DeviceIdentity {
-  const DeviceIdentity({required this.deviceId, required this.deviceName});
+  const DeviceIdentity({
+    required this.deviceId,
+    required this.deviceName,
+    this.deviceSecret = '',
+  });
 
   final String deviceId;
   final String deviceName;
+  final String deviceSecret;
 
   static String generateDeviceId() {
     final rng = Random.secure();
     final first = 1 + rng.nextInt(9);
     final rest = List.generate(8, (_) => rng.nextInt(10)).join();
     return '$first$rest';
+  }
+
+  static String generateDeviceSecret() {
+    final rng = Random.secure();
+    final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+    return base64Url.encode(bytes).replaceAll('=', '');
   }
 
   static String normalizeDeviceId(String raw) {
@@ -35,10 +47,15 @@ class DeviceIdentity {
     return raw.trim().toUpperCase();
   }
 
-  DeviceIdentity copyWith({String? deviceId, String? deviceName}) {
+  DeviceIdentity copyWith({
+    String? deviceId,
+    String? deviceName,
+    String? deviceSecret,
+  }) {
     return DeviceIdentity(
       deviceId: deviceId ?? this.deviceId,
       deviceName: deviceName ?? this.deviceName,
+      deviceSecret: deviceSecret ?? this.deviceSecret,
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../core/models/osmium_settings.dart';
 
 class SettingsRepository {
   static const _kDeviceId = 'osmium_device_id';
+  static const _kDeviceSecret = 'osmium_device_secret';
   static const _kDeviceName = 'osmium_device_name';
   static const _kSettings = 'osmium_settings_v1';
   static const _kHistory = 'osmium_conn_history_v1';
@@ -25,12 +26,30 @@ class SettingsRepository {
       id = DeviceIdentity.generateDeviceId();
       await prefs.setString(_kDeviceId, id);
     }
+    var secret = (prefs.getString(_kDeviceSecret) ?? '').trim();
+    if (secret.length < 16) {
+      secret = DeviceIdentity.generateDeviceSecret();
+      await prefs.setString(_kDeviceSecret, secret);
+    }
     var name = prefs.getString(_kDeviceName) ?? '';
     if (name.trim().isEmpty) {
       name = Platform.isAndroid ? 'Android Phone' : 'Osmium Mobile';
       await prefs.setString(_kDeviceName, name);
     }
-    return DeviceIdentity(deviceId: id, deviceName: name);
+    return DeviceIdentity(deviceId: id, deviceName: name, deviceSecret: secret);
+  }
+
+  Future<void> saveAssignedDeviceIdentity({
+    required String deviceId,
+    String? deviceSecret,
+  }) async {
+    final normalized = DeviceIdentity.normalizeDeviceId(deviceId);
+    if (normalized.length < 6 || normalized.length > 12) return;
+    final prefs = await _ensurePrefs();
+    await prefs.setString(_kDeviceId, normalized);
+    if (deviceSecret != null && deviceSecret.trim().length >= 16) {
+      await prefs.setString(_kDeviceSecret, deviceSecret.trim());
+    }
   }
 
   Future<void> saveDeviceName(String name) async {

@@ -817,7 +817,7 @@ public sealed partial class SettingsPage : Page
                             string stateText = LocalizationService.GetString(profile.WolReady
                                 ? "Host_WolStatusReady"
                                 : "Host_WolStatusNeedsConfig");
-                            RowHostWolConfig.Description = $"{stateText} · MAC: {profile.PrimaryMac}";
+                            RowHostWolConfig.Description = $"{stateText} - MAC: {profile.PrimaryMac}";
                         }
                     }
                 });

@@ -97,7 +97,7 @@ public static class OsmiumErrorCode
     public const int RateLimited = 4001;
     public const int UserDailyOpsExceeded = 4002;
     public const int ConcurrentOperation = 4003;
-    public const int D1QuotaExceeded = 4004;
+    public const int ServiceQuotaExceeded = 4004;
     public const int ConnectCooldown = 4005;
     public const int DeviceOffline = 4006;
     public const int RemoteDisabled = 4007;
@@ -117,6 +117,7 @@ public static class OsmiumErrorCode
     public const int QuickLaunchUnsupported = 4021;
     public const int LoginKeyLimitExceeded = 4022;
     public const int VersionUnsupported = 4023;
+    public const int DeviceIdConflict = 4024;
 
     public const int InternalError = 5001;
     public const int ServerMisconfigured = 5002;
@@ -342,6 +343,20 @@ public sealed class AccountLoginSessionData
 
     [JsonPropertyName("two_fa_enabled")]
     public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("device_id")]
+    public string? DeviceId
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("device_id_reassigned")]
+    public bool DeviceIdReassigned
     {
         get;
         set;
@@ -1370,6 +1385,13 @@ public sealed class OAuthStatusData
 
     [JsonPropertyName("expires_in")]
     public int ExpiresIn
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("two_fa_token")]
+    public string? TwoFaToken
     {
         get;
         set;

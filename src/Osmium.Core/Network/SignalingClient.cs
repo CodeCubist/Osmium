@@ -753,6 +753,9 @@ public sealed partial class SignalingClient : IDisposable
 
     private string _serverUrl = "wss://osmium.fufu.skin";
     private string _deviceId = string.Empty;
+    private string _deviceSecret = string.Empty;
+    private string _pendingFallbackDeviceSecret = string.Empty;
+    private readonly string _instanceId = Guid.NewGuid().ToString("N");
     private string _deviceName = Environment.MachineName;
     private bool _allowRemote = true;
     private bool _allowQuickLaunch;
@@ -791,6 +794,7 @@ public sealed partial class SignalingClient : IDisposable
 
     public event Action<SignalingConnectionState, string>? StateChanged;
     public event Action? Registered;
+    public event Action<string, string?>? DeviceIdReassigned;
     public event Action<IncomingConnectEventArgs>? IncomingConnect;
     public event Action<ConnectChallengeEventArgs>? ConnectChallengeReceived;
     public event Action<ConnectAuthEventArgs>? ConnectAuthReceived;
@@ -854,11 +858,12 @@ public sealed partial class SignalingClient : IDisposable
     }
 
     public void Start(string serverUrl, string deviceId, string deviceName, bool allowRemote, string? ltoken = null,
-        LocalPowerProfile? powerProfile = null, bool allowQuickLaunch = false)
+        LocalPowerProfile? powerProfile = null, bool allowQuickLaunch = false, string? deviceSecret = null)
     {
         StopInternal(resetState: false);
         _serverUrl = NormalizeServerUrl(serverUrl);
         _deviceId = deviceId;
+        if (deviceSecret != null) _deviceSecret = deviceSecret;
         _deviceName = deviceName;
         _allowRemote = allowRemote;
         _allowQuickLaunch = allowQuickLaunch;
@@ -868,6 +873,55 @@ public sealed partial class SignalingClient : IDisposable
         var cts = new CancellationTokenSource();
         _loopCts = cts;
         _loopTask = Task.Run(() => RunLoopAsync(cts));
+    }
+
+    public void UpdateDeviceIdentity(string deviceId, string? deviceSecret = null)
+    {
+        string normalized = DeviceIdentity.NormalizeDeviceId(deviceId);
+        if (normalized.Length is < 6 or > 12) return;
+        bool idChanged = !string.Equals(_deviceId, normalized, StringComparison.Ordinal);
+        _deviceId = normalized;
+        if (!string.IsNullOrWhiteSpace(deviceSecret))
+        {
+            _deviceSecret = deviceSecret.Trim();
+        }
+
+        if (idChanged && _isTransportRegistered)
+        {
+            _ = ReRegisterActiveSocketAsync();
+        }
+    }
+
+    private async Task ReRegisterActiveSocketAsync()
+    {
+        var ws = _ws;
+        if (ws == null || ws.State != WebSocketState.Open) return;
+        var profile = _powerProfile;
+        _pendingFallbackDeviceSecret = DeviceIdentity.GenerateDeviceSecret();
+        await SendJsonAsync(ws, new
+        {
+            type = "register",
+            deviceId = _deviceId,
+            deviceSecret = _deviceSecret,
+            fallbackDeviceSecret = _pendingFallbackDeviceSecret,
+            instanceId = _instanceId,
+            supportsDeviceIdReassign = true,
+            deviceName = _deviceName,
+            allowRemote = _allowRemote,
+            allowQuickLaunch = _allowQuickLaunch,
+            clientVersion = AppVersionInfo.Current,
+            osVersion = Environment.OSVersion.VersionString,
+            ltoken = _ltoken,
+            powerProfile = profile == null
+                ? null
+                : new
+                {
+                    allowRemotePower = profile.AllowRemotePower,
+                    wolMacs = profile.AllowRemotePower ? profile.MacAddresses : new List<string>(),
+                    wolBroadcasts = profile.AllowRemotePower ? profile.BroadcastAddresses : new List<string>(),
+                    wolReady = profile.AllowRemotePower && profile.WolReady
+                }
+        }, CancellationToken.None);
     }
 
     public void Stop()

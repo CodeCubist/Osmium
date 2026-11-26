@@ -252,7 +252,8 @@ public sealed partial class AccountService : IDisposable
             password,
             device_id = _settings.Identity.DeviceId,
             device_name = _settings.Identity.DeviceName,
-            os_version = Environment.OSVersion.VersionString
+            os_version = Environment.OSVersion.VersionString,
+            device_secret = _settings.Identity.DeviceSecret
         }, retryOnTransient: true);
 
     public Task<AccountApiResult<AccountChallengeInfo>> StartRegisterSendCodeAsync(string email)
@@ -277,7 +278,8 @@ public sealed partial class AccountService : IDisposable
                 code = code.Trim(),
                 device_id = _settings.Identity.DeviceId,
                 device_name = _settings.Identity.DeviceName,
-                os_version = Environment.OSVersion.VersionString
+                os_version = Environment.OSVersion.VersionString,
+                device_secret = _settings.Identity.DeviceSecret
             });
         if (result.Ok && result.Data != null)
         {
@@ -320,7 +322,8 @@ public sealed partial class AccountService : IDisposable
         {
             device_id = _settings.Identity.DeviceId,
             device_name = _settings.Identity.DeviceName,
-            os_version = Environment.OSVersion.VersionString
+            os_version = Environment.OSVersion.VersionString,
+            device_secret = _settings.Identity.DeviceSecret
         }, retryOnTransient: true);
 
     public async Task<AccountApiResult<QrLoginStatusData>> PollQrLoginStatusAsync(string pollUrl, string pollSecret)
@@ -365,7 +368,8 @@ public sealed partial class AccountService : IDisposable
             platform = "windows",
             device_id = _settings.Identity.DeviceId,
             device_name = _settings.Identity.DeviceName,
-            os_version = Environment.OSVersion.VersionString
+            os_version = Environment.OSVersion.VersionString,
+            device_secret = _settings.Identity.DeviceSecret
         }, retryOnTransient: true);
 
     public async Task<AccountApiResult<OAuthStatusData>> PollOAuthStatusAsync(string pollUrl, string pollSecret)
@@ -418,6 +422,16 @@ public sealed partial class AccountService : IDisposable
 
     public void ApplyLoginSession(string email, AccountLoginSessionData loginData)
     {
+        if (!string.IsNullOrWhiteSpace(loginData.DeviceId))
+        {
+            string normAssigned = DeviceIdentity.NormalizeDeviceId(loginData.DeviceId);
+            if (normAssigned.Length is >= 6 and <= 12 &&
+                !string.Equals(normAssigned, _settings.Identity.DeviceId, StringComparison.Ordinal))
+            {
+                _settings.AdoptAssignedDeviceId(normAssigned);
+            }
+        }
+
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         _userId = loginData.UserId;
         _hasEmail = loginData.HasEmail;
@@ -846,7 +860,8 @@ public sealed partial class AccountService : IDisposable
             login_key = loginKey.Trim(),
             device_id = _settings.Identity.DeviceId,
             device_name = _settings.Identity.DeviceName,
-            os_version = Environment.OSVersion.VersionString
+            os_version = Environment.OSVersion.VersionString,
+            device_secret = _settings.Identity.DeviceSecret
         }, retryOnTransient: false);
         if (result.Ok && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Stoken))
         {

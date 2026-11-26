@@ -69,6 +69,27 @@ public sealed partial class SignalingClient : IDisposable
                 }
                 case "registered":
                 {
+                    string assignedId = root.TryGetProperty("deviceId", out var did) && did.ValueKind == JsonValueKind.String
+                        ? DeviceIdentity.NormalizeDeviceId(did.GetString())
+                        : string.Empty;
+                    bool reassigned = root.TryGetProperty("deviceIdReassigned", out var dr) && dr.ValueKind == JsonValueKind.True;
+                    bool useFallbackSecret = root.TryGetProperty("useFallbackSecret", out var ufs) && ufs.ValueKind == JsonValueKind.True;
+                    if (assignedId.Length is >= 6 and <= 12 &&
+                        (reassigned || !string.Equals(assignedId, _deviceId, StringComparison.Ordinal)))
+                    {
+                        string? rotatedSecret = null;
+                        _deviceId = assignedId;
+                        if (useFallbackSecret && !string.IsNullOrWhiteSpace(_pendingFallbackDeviceSecret))
+                        {
+                            _deviceSecret = _pendingFallbackDeviceSecret;
+                            rotatedSecret = _deviceSecret;
+                        }
+
+                        _log.Info(
+                            $"Signaling server reassigned device ID to {_deviceId} (secretRotated={rotatedSecret != null})");
+                        DeviceIdReassigned?.Invoke(_deviceId, rotatedSecret);
+                    }
+
                     if (root.TryGetProperty("stunHost", out var sh) && sh.ValueKind == JsonValueKind.String)
                         AdvertisedStunHost = sh.GetString() ?? string.Empty;
                     if (root.TryGetProperty("stunPort", out var p) && p.ValueKind == JsonValueKind.Number)
@@ -1113,10 +1134,15 @@ public sealed partial class SignalingClient : IDisposable
                 _isTransportRegistered = false;
                 var registerTcs = BeginPendingRegister();
                 var profile = _powerProfile;
+                _pendingFallbackDeviceSecret = DeviceIdentity.GenerateDeviceSecret();
                 bool registerSent = await SendJsonAsync(ws, new
                 {
                     type = "register",
                     deviceId = _deviceId,
+                    deviceSecret = _deviceSecret,
+                    fallbackDeviceSecret = _pendingFallbackDeviceSecret,
+                    instanceId = _instanceId,
+                    supportsDeviceIdReassign = true,
                     deviceName = _deviceName,
                     allowRemote = _allowRemote,
                     allowQuickLaunch = _allowQuickLaunch,

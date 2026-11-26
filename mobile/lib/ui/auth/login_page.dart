@@ -225,6 +225,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted || _oauthSession?.state != session.state) return;
 
       if (res.ok && res.data != null) {
+        if (res.data!.state == 'two_fa_required' &&
+            res.data!.twoFaToken.isNotEmpty) {
+          final twoFaToken = res.data!.twoFaToken;
+          _stopOAuthPolling(cancelRemote: false);
+          setState(() {
+            _oauthDialogVisible = false;
+            _oauthBusy = false;
+          });
+          _openTwoFaDialog(twoFaToken);
+          return;
+        }
         if (res.data!.state == 'completed' && accountSvc.isLoggedIn) {
           _stopOAuthPolling(cancelRemote: false);
           setState(() {
