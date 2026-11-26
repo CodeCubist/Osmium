@@ -53,6 +53,8 @@ class OsmiumSettings {
     this.controlMode = ControlMode.directTouch,
     this.cursorSensitivity = 1.15,
     this.precisionMagnifierEnabled = true,
+    this.pinchZoomEnabled = true,
+    this.autoShowIme = false,
     this.enableHaptics = true,
     this.desiredWidth = 1920,
     this.desiredHeight = 1080,
@@ -73,6 +75,8 @@ class OsmiumSettings {
   final ControlMode controlMode;
   final double cursorSensitivity;
   final bool precisionMagnifierEnabled;
+  final bool pinchZoomEnabled;
+  final bool autoShowIme;
   final bool enableHaptics;
   final int desiredWidth;
   final int desiredHeight;
@@ -93,6 +97,8 @@ class OsmiumSettings {
     ControlMode? controlMode,
     double? cursorSensitivity,
     bool? precisionMagnifierEnabled,
+    bool? pinchZoomEnabled,
+    bool? autoShowIme,
     bool? enableHaptics,
     int? desiredWidth,
     int? desiredHeight,
@@ -114,6 +120,8 @@ class OsmiumSettings {
       cursorSensitivity: cursorSensitivity ?? this.cursorSensitivity,
       precisionMagnifierEnabled:
           precisionMagnifierEnabled ?? this.precisionMagnifierEnabled,
+      pinchZoomEnabled: pinchZoomEnabled ?? this.pinchZoomEnabled,
+      autoShowIme: autoShowIme ?? this.autoShowIme,
       enableHaptics: enableHaptics ?? this.enableHaptics,
       desiredWidth: desiredWidth ?? this.desiredWidth,
       desiredHeight: desiredHeight ?? this.desiredHeight,
@@ -137,6 +145,8 @@ class OsmiumSettings {
     'controlMode': controlMode.index,
     'cursorSensitivity': cursorSensitivity,
     'precisionMagnifierEnabled': precisionMagnifierEnabled,
+    'pinchZoomEnabled': pinchZoomEnabled,
+    'autoShowIme': autoShowIme,
     'enableHaptics': enableHaptics,
     'desiredWidth': desiredWidth,
     'desiredHeight': desiredHeight,
@@ -170,6 +180,8 @@ class OsmiumSettings {
       cursorSensitivity:
           (json['cursorSensitivity'] as num?)?.toDouble() ?? 1.15,
       precisionMagnifierEnabled: json['precisionMagnifierEnabled'] != false,
+      pinchZoomEnabled: json['pinchZoomEnabled'] != false,
+      autoShowIme: json['autoShowIme'] == true,
       enableHaptics: json['enableHaptics'] != false,
       desiredWidth: (json['desiredWidth'] as num?)?.toInt() ?? 1920,
       desiredHeight: (json['desiredHeight'] as num?)?.toInt() ?? 1080,

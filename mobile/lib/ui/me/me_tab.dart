@@ -1027,6 +1027,26 @@ class _MeTabState extends ConsumerState<MeTab> {
                                 ),
                                 const OsmiumCardDivider(),
                                 MiuixSwitchPreference(
+                                  title: '双指缩放',
+                                  startAction: const OsmiumPrefIcon(
+                                    Icons.pinch_outlined,
+                                  ),
+                                  value: s.pinchZoomEnabled,
+                                  onChanged: (v) =>
+                                      _update(s.copyWith(pinchZoomEnabled: v)),
+                                ),
+                                const OsmiumCardDivider(),
+                                MiuixSwitchPreference(
+                                  title: '自动唤起输入法',
+                                  startAction: const OsmiumPrefIcon(
+                                    Icons.keyboard_alt_outlined,
+                                  ),
+                                  value: s.autoShowIme,
+                                  onChanged: (v) =>
+                                      _update(s.copyWith(autoShowIme: v)),
+                                ),
+                                const OsmiumCardDivider(),
+                                MiuixSwitchPreference(
                                   title: '触觉反馈',
                                   startAction: const OsmiumPrefIcon(
                                     Icons.vibration_rounded,

@@ -61,11 +61,10 @@ class TouchControlLayer extends StatefulWidget {
     required this.controlMode,
     required this.sensitivity,
     required this.magnifierEnabled,
+    this.pinchZoomEnabled = true,
     required this.enableHaptics,
     required this.onUserInteraction,
     this.keyboardBar,
-    this.rightInset = 0,
-    this.bottomInset = 0,
   });
 
   final RemoteSessionController controller;
@@ -76,17 +75,13 @@ class TouchControlLayer extends StatefulWidget {
   final ControlMode controlMode;
   final double sensitivity;
   final bool magnifierEnabled;
+  final bool pinchZoomEnabled;
   final bool enableHaptics;
   final VoidCallback onUserInteraction;
 
   /// Visible height of the keyboard bar above the system IME; with the IME
   /// it is what the picture lifts the host caret clear of.
   final ValueListenable<double>? keyboardBar;
-
-  /// Extra insets reserved for the docked [SessionRail] (right in landscape,
-  /// bottom in portrait).
-  final double rightInset;
-  final double bottomInset;
 
   @override
   State<TouchControlLayer> createState() => TouchControlLayerState();
@@ -142,6 +137,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
   // Single-finger tracking
   final Map<int, Offset> _activePointers = {};
+  final Map<int, TouchContact> _remoteContacts = {};
   Offset? _downPos;
   Offset? _lastSinglePos;
   bool _movedBeyondSlop = false;
@@ -259,10 +255,25 @@ class TouchControlLayerState extends State<TouchControlLayer>
             _precisionDragging && widget.magnifierEnabled,
       );
     }
+    if (widget.pinchZoomEnabled != oldWidget.pinchZoomEnabled ||
+        widget.controlMode != oldWidget.controlMode) {
+      _cancelRemoteContacts();
+    }
+    if (!widget.pinchZoomEnabled && oldWidget.pinchZoomEnabled) {
+      if (_touchPointer != null) _touchLift(TouchPhase.cancel);
+      _cancelSingleFingerPending();
+      _resetSingle();
+      _multiTapTimer?.cancel();
+      _multiTapEligible = false;
+      _twoMode = _TwoFingerMode.undecided;
+      _activePointers.clear();
+      _clearZoom();
+    }
   }
 
   @override
   void dispose() {
+    _cancelRemoteContacts();
     if (_touchPointer != null) _touchLift(TouchPhase.cancel);
     _longPressTimer?.cancel();
     _multiTapTimer?.cancel();
@@ -563,10 +574,26 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
   void _onPointerDown(PointerDownEvent e, Size viewport) {
     widget.onUserInteraction();
+    final nativeTouch =
+        widget.controlMode == ControlMode.directTouch &&
+        widget.controller.hostStatus.touchInput;
+    if (_remoteContacts.isNotEmpty ||
+        (_activePointers.isEmpty && nativeTouch && !widget.pinchZoomEnabled)) {
+      if (_remoteContacts.length >= TouchContact.maxContacts) return;
+      final usedIds = _remoteContacts.values
+          .map((contact) => contact.id)
+          .toSet();
+      final id = Iterable<int>.generate(TouchContact.maxContacts)
+          .firstWhere((id) => !usedIds.contains(id));
+      _setRemoteContact(e, viewport, id, TouchPhase.down);
+      _addRipple(e.localPosition);
+      _touchHeartbeat ??= Timer.periodic(
+        _touchHeartbeatInterval,
+        (_) => widget.controller.sendTouch(_remoteContacts.values.toList()),
+      );
+      return;
+    }
     if (_activePointers.isEmpty) {
-      final nativeTouch =
-          widget.controlMode == ControlMode.directTouch &&
-          widget.controller.hostStatus.touchInput;
       if (nativeTouch) {
         _activePointers[e.pointer] = e.localPosition;
         _touchDown(e, viewport);
@@ -632,6 +659,11 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _onPointerMove(PointerMoveEvent e, Size viewport) {
+    final remote = _remoteContacts[e.pointer];
+    if (remote != null) {
+      _setRemoteContact(e, viewport, remote.id, TouchPhase.move);
+      return;
+    }
     if (e.pointer == _touchPointer) {
       _activePointers[e.pointer] = e.localPosition;
       _touchMove(e, viewport);
@@ -686,7 +718,8 @@ class TouchControlLayerState extends State<TouchControlLayer>
 
     if (_twoMode == _TwoFingerMode.undecided) {
       final slid = (focal - _multiStartFocal).distance > _scrollSlop;
-      if ((dist - _initialPinchDist).abs() > _pinchSlop) {
+      if (widget.pinchZoomEnabled &&
+          (dist - _initialPinchDist).abs() > _pinchSlop) {
         // Rebase so the zoom grows from here instead of jumping by the
         // threshold.
         _twoMode = _TwoFingerMode.pinch;
@@ -738,6 +771,10 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _onPointerUp(PointerUpEvent e, Size viewport) {
+    if (_remoteContacts.containsKey(e.pointer)) {
+      _finishRemoteContact(e, viewport, TouchPhase.up);
+      return;
+    }
     if (e.pointer == _touchPointer) {
       _activePointers.remove(e.pointer);
       _touchLift(TouchPhase.up, at: e.localPosition, viewport: viewport);
@@ -767,19 +804,84 @@ class TouchControlLayerState extends State<TouchControlLayer>
     _resetSingle();
   }
 
-  void _onPointerCancel(PointerCancelEvent e) {
+  void _onPointerCancel(PointerCancelEvent e, Size viewport) {
+    if (_remoteContacts.containsKey(e.pointer)) {
+      _finishRemoteContact(e, viewport, TouchPhase.cancel);
+      return;
+    }
     if (e.pointer == _touchPointer) {
       _activePointers.remove(e.pointer);
       _touchLift(TouchPhase.cancel);
       return;
     }
-    _activePointers.remove(e.pointer);
+    if (_activePointers.remove(e.pointer) == null) return;
     _cancelSingleFingerPending();
     if (_activePointers.length < 2 && _twoMode == _TwoFingerMode.pinch) {
       _twoMode = _TwoFingerMode.undecided;
       _syncZoomBadge(autoHide: true);
     }
     if (_activePointers.isEmpty) _resetSingle();
+  }
+
+  void _setRemoteContact(
+    PointerEvent event,
+    Size viewport,
+    int id,
+    TouchPhase phase,
+  ) {
+    final norm = _viewportToNorm(
+      event.localPosition,
+      _computeVideoRect(viewport),
+    );
+    _remoteContacts[event.pointer] = TouchContact(
+      id: id,
+      phase: phase,
+      x: norm.dx,
+      y: norm.dy,
+    );
+    widget.controller.sendTouch(_remoteContacts.values.toList());
+    if (phase == TouchPhase.down) {
+      _remoteContacts[event.pointer] = TouchContact(
+        id: id,
+        phase: TouchPhase.move,
+        x: norm.dx,
+        y: norm.dy,
+      );
+    }
+  }
+
+  void _finishRemoteContact(
+    PointerEvent event,
+    Size viewport,
+    TouchPhase phase,
+  ) {
+    _setRemoteContact(
+      event,
+      viewport,
+      _remoteContacts[event.pointer]!.id,
+      phase,
+    );
+    _remoteContacts.remove(event.pointer);
+    if (_remoteContacts.isEmpty) {
+      _touchHeartbeat?.cancel();
+      _touchHeartbeat = null;
+    }
+  }
+
+  void _cancelRemoteContacts() {
+    if (_remoteContacts.isEmpty) return;
+    widget.controller.sendTouch([
+      for (final contact in _remoteContacts.values)
+        TouchContact(
+          id: contact.id,
+          phase: TouchPhase.cancel,
+          x: contact.x,
+          y: contact.y,
+        ),
+    ]);
+    _remoteContacts.clear();
+    _touchHeartbeat?.cancel();
+    _touchHeartbeat = null;
   }
 
   void _touchDown(PointerDownEvent e, Size viewport) {
@@ -962,13 +1064,16 @@ class TouchControlLayerState extends State<TouchControlLayer>
   }
 
   void _resetZoom() {
+    setState(_clearZoom);
+  }
+
+  void _clearZoom() {
     _forgetTap();
+    _zoomSpring.stop();
     _zoomBadgeTimer?.cancel();
-    setState(() {
-      _zoom = 1.0;
-      _pan = Offset.zero;
-      _zoomBadgeVisible = false;
-    });
+    _zoom = 1.0;
+    _pan = Offset.zero;
+    _zoomBadgeVisible = false;
   }
 
   void _togglePrecisionDrag() {
@@ -985,7 +1090,10 @@ class TouchControlLayerState extends State<TouchControlLayer>
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewport = Size(constraints.maxWidth, constraints.maxHeight);
-        _lastViewport = viewport;
+        if (viewport != _lastViewport) {
+          _pan = _clampPan(_pan, _zoom, viewport);
+          _lastViewport = viewport;
+        }
         final zoomVisible = _zoom > 1.05 && _zoomBadgeVisible;
 
         return Stack(
@@ -1030,7 +1138,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
               onPointerDown: (e) => _onPointerDown(e, viewport),
               onPointerMove: (e) => _onPointerMove(e, viewport),
               onPointerUp: (e) => _onPointerUp(e, viewport),
-              onPointerCancel: _onPointerCancel,
+              onPointerCancel: (e) => _onPointerCancel(e, viewport),
               child: const SizedBox.expand(),
             ),
 
@@ -1069,7 +1177,7 @@ class TouchControlLayerState extends State<TouchControlLayer>
             Positioned(
               key: TouchControlLayer.zoomBadgeKey,
               top: MediaQuery.paddingOf(context).top + 12,
-              right: MediaQuery.paddingOf(context).right + widget.rightInset + 16,
+              right: MediaQuery.paddingOf(context).right + 16,
               child: IgnorePointer(
                 ignoring: !zoomVisible,
                 child: AnimatedOpacity(
@@ -1136,12 +1244,9 @@ class TouchControlLayerState extends State<TouchControlLayer>
             // Precision mouse quick action dock (Left / Drag / Right / Scroll)
             if (widget.controlMode == ControlMode.precisionMouse)
               Positioned(
-                bottom:
-                    MediaQuery.paddingOf(context).bottom +
-                    widget.bottomInset +
-                    14,
+                bottom: MediaQuery.paddingOf(context).bottom + 14,
                 left: 0,
-                right: widget.rightInset,
+                right: 0,
                 child: Center(
                   child: _PrecisionMouseDock(
                     dragging: _precisionDragging,

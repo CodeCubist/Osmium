@@ -91,6 +91,21 @@ class _SessionViewState extends State<SessionView>
   @override
   void didUpdateWidget(covariant SessionView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.settings.autoShowIme && !widget.settings.autoShowIme) {
+      _lowerTimer?.cancel();
+      final wasAutoRaised = _imeRaisedByFocus;
+      _imeRaisedByFocus = false;
+      if (wasAutoRaised &&
+          widget.keyboardMode == KeyboardOverlayMode.systemIme) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              !widget.settings.autoShowIme &&
+              widget.keyboardMode == KeyboardOverlayMode.systemIme) {
+            widget.onKeyboardModeChanged(KeyboardOverlayMode.none);
+          }
+        });
+      }
+    }
     if (widget.panelOpen && !oldWidget.panelOpen && _railFolded) {
       _railFolded = false;
       _savedRailFolded = false;
@@ -134,7 +149,7 @@ class _SessionViewState extends State<SessionView>
   /// A text field taking focus on the host brings up the phone IME; focus
   /// leaving takes it down again, unless the user has since taken over.
   void _onTextFocus() {
-    if (!mounted) return;
+    if (!mounted || !widget.settings.autoShowIme) return;
     final focus = widget.signals.textFocus.value;
     if (focus.active) {
       _lowerTimer?.cancel();
@@ -195,7 +210,7 @@ class _SessionViewState extends State<SessionView>
     final railBottomInset = railExpanded && !isLandscape
         ? SessionRail.portraitHeight
         : 0.0;
-    final panelRailInset = railExpanded
+    final railExtent = railExpanded
         ? (isLandscape
               ? SessionRail.landscapeWidth + pad.right
               : SessionRail.portraitHeight + pad.bottom)
@@ -210,19 +225,29 @@ class _SessionViewState extends State<SessionView>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Full-bleed video texture & direct/precision touch gesture surface
-          TouchControlLayer(
-            controller: widget.controller,
-            signals: widget.signals,
-            videoReveal: _videoReveal,
-            controlMode: settings.controlMode,
-            sensitivity: settings.cursorSensitivity,
-            magnifierEnabled: settings.precisionMagnifierEnabled,
-            enableHaptics: settings.enableHaptics,
-            onUserInteraction: () {},
-            keyboardBar: _keyboardBar,
-            rightInset: railRightInset,
-            bottomInset: railBottomInset,
+          // The video and its gesture surface share the area beside the dock.
+          Positioned.fill(
+            right: isLandscape ? railExtent : 0,
+            bottom: isLandscape ? 0 : railExtent,
+            child: MediaQuery.removePadding(
+              context: context,
+              removeRight: railRightInset > 0,
+              removeBottom: railBottomInset > 0,
+              child: ClipRect(
+                child: TouchControlLayer(
+                  controller: widget.controller,
+                  signals: widget.signals,
+                  videoReveal: _videoReveal,
+                  controlMode: settings.controlMode,
+                  sensitivity: settings.cursorSensitivity,
+                  magnifierEnabled: settings.precisionMagnifierEnabled,
+                  pinchZoomEnabled: settings.pinchZoomEnabled,
+                  enableHaptics: settings.enableHaptics,
+                  onUserInteraction: () {},
+                  keyboardBar: _keyboardBar,
+                ),
+              ),
+            ),
           ),
 
           // Draggable OSD telemetry capsule, avoiding the docked rail
@@ -248,7 +273,7 @@ class _SessionViewState extends State<SessionView>
               controller: widget.controller,
               signals: widget.signals,
               settings: settings,
-              railInset: panelRailInset,
+              railInset: railExtent,
               visible: widget.panelOpen,
               onSettingsChanged: widget.onSettingsChanged,
               onOpenKeyboard: _setKeyboardMode,

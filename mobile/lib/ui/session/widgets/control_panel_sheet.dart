@@ -480,6 +480,18 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
           ),
         ],
         _ToggleRow(
+          label: '双指缩放',
+          value: s.pinchZoomEnabled,
+          onChanged: (v) =>
+              widget.onSettingsChanged(s.copyWith(pinchZoomEnabled: v)),
+        ),
+        _ToggleRow(
+          label: '自动唤起输入法',
+          value: s.autoShowIme,
+          onChanged: (v) =>
+              widget.onSettingsChanged(s.copyWith(autoShowIme: v)),
+        ),
+        _ToggleRow(
           label: '外接鼠标捕获',
           value: ctrl.pointerCaptureActive,
           onChanged: (_) => ctrl.togglePointerCapture(),
