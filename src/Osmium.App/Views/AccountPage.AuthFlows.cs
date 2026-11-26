@@ -309,7 +309,11 @@ public sealed partial class AccountPage : Page
                     return;
                 }
 
-                if (loginRes.Ok && loginRes.Data != null)
+                if (loginRes.RequiresTwoFa && loginRes.TwoFaChallenge != null)
+                {
+                    await ShowTwoFaVerifyDialogAsync(email, loginRes.TwoFaChallenge.TwoFaToken);
+                }
+                else if (loginRes.Ok && loginRes.Data != null)
                 {
                     acc.ApplyLoginSession(email, loginRes.Data);
                     AuthPasswordBox.Password = string.Empty;

@@ -581,8 +581,10 @@ class RemoteSessionController extends ChangeNotifier {
         const Duration(seconds: 15),
       );
       if (verRes == null || aborted()) return;
-      if (!verRes.compatible) {
-        _fail(verRes.reason.isNotEmpty ? verRes.reason : '协议版本不兼容');
+      if (!verRes.compatible ||
+          !OsmiumConstants.isVersionSupported(verRes.clientVersion) ||
+          !OsmiumConstants.isVersionSupported(verRes.hostVersion)) {
+        _fail(verRes.reason.isNotEmpty ? verRes.reason : '协议版本不兼容，请更新至最新版本');
         return;
       }
 

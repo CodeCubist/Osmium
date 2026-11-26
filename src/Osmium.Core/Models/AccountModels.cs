@@ -36,6 +36,7 @@ public static class OsmiumErrorCode
     public const int Ok = 0;
     public const int CaptchaRequired = 100;
     public const int ChallengePending = 101;
+    public const int TwoFaRequired = 102;
 
     public const int InvalidInput = 1001;
     public const int UnsupportedMediaType = 1002;
@@ -68,6 +69,9 @@ public static class OsmiumErrorCode
     public const int PasswordAlreadySet = 2014;
     public const int OAuthAlreadyBound = 2015;
     public const int OAuthProviderAlreadyBound = 2016;
+    public const int TwoFaAlreadyEnabled = 2017;
+    public const int TwoFaNotEnabled = 2018;
+    public const int LoginKeyInvalid = 2019;
 
     public const int ChallengeExpired = 3001;
     public const int ChallengeNotFound = 3002;
@@ -87,6 +91,8 @@ public static class OsmiumErrorCode
     public const int QrCancelled = 3016;
     public const int OAuthExpired = 3017;
     public const int OAuthFailed = 3018;
+    public const int TwoFaInvalid = 3019;
+    public const int TwoFaExpired = 3020;
 
     public const int RateLimited = 4001;
     public const int UserDailyOpsExceeded = 4002;
@@ -109,6 +115,8 @@ public static class OsmiumErrorCode
     public const int QuickLaunchNotFound = 4019;
     public const int QuickLaunchLimitExceeded = 4020;
     public const int QuickLaunchUnsupported = 4021;
+    public const int LoginKeyLimitExceeded = 4022;
+    public const int VersionUnsupported = 4023;
 
     public const int InternalError = 5001;
     public const int ServerMisconfigured = 5002;
@@ -181,8 +189,17 @@ public sealed class AccountApiResult<T>
         init;
     }
 
+    public TwoFaRequiredData? TwoFaChallenge
+    {
+        get;
+        init;
+    }
+
     public bool RequiresCaptcha =>
         Challenge != null && Code == OsmiumErrorCode.CaptchaRequired;
+
+    public bool RequiresTwoFa =>
+        TwoFaChallenge != null && Code == OsmiumErrorCode.TwoFaRequired;
 
     public bool IsPending =>
         Code == OsmiumErrorCode.ChallengePending;
@@ -322,6 +339,13 @@ public sealed class AccountLoginSessionData
         get;
         set;
     } = true;
+
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class AccountLtokenIssueData
@@ -403,6 +427,13 @@ public sealed class AccountLtokenIssueData
         get;
         set;
     } = true;
+
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class AccountStatusData
@@ -484,6 +515,13 @@ public sealed class AccountStatusData
         get;
         set;
     } = true;
+
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class AccountProfileUpdateData
@@ -1105,6 +1143,12 @@ public sealed class AccountPersistedSession
         get;
         set;
     }
+
+    public bool? TwoFaEnabled
+    {
+        get;
+        set;
+    }
 }
 
 public sealed class QrLoginCreateData
@@ -1672,6 +1716,167 @@ public sealed class QuickLaunchStartResponse
 
     [JsonPropertyName("pid")]
     public int Pid
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class TwoFaRequiredData
+{
+    [JsonPropertyName("two_fa_token")]
+    public string TwoFaToken
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    } = 300;
+}
+
+public sealed class TwoFaSetupStartData
+{
+    [JsonPropertyName("setup_token")]
+    public string SetupToken
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("secret")]
+    public string Secret
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("otpauth_uri")]
+    public string OtpAuthUri
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    } = 600;
+}
+
+public sealed class TwoFaToggleResultData
+{
+    [JsonPropertyName("two_fa_enabled")]
+    public bool TwoFaEnabled
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class LoginKeyItemDto
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("key_prefix")]
+    public string KeyPrefix
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("created_at")]
+    public long CreatedAt
+    {
+        get;
+        set;
+    }
+
+    [JsonPropertyName("last_used_at")]
+    public long LastUsedAt
+    {
+        get;
+        set;
+    }
+
+    [JsonIgnore]
+    public string CreatedAtText => CreatedAt > 0
+        ? DateTimeOffset.FromUnixTimeMilliseconds(CreatedAt).ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+        : "-";
+
+    [JsonIgnore]
+    public string LastUsedAtText => LastUsedAt > 0
+        ? DateTimeOffset.FromUnixTimeMilliseconds(LastUsedAt).ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+        : "-";
+}
+
+public sealed class LoginKeysListData
+{
+    [JsonPropertyName("keys")]
+    public List<LoginKeyItemDto> Keys
+    {
+        get;
+        set;
+    } = [];
+
+    [JsonPropertyName("max_keys")]
+    public int MaxKeys
+    {
+        get;
+        set;
+    } = 10;
+}
+
+public sealed class LoginKeyCreateData
+{
+    [JsonPropertyName("id")]
+    public string Id
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("key_prefix")]
+    public string KeyPrefix
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("login_key")]
+    public string LoginKey
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("created_at")]
+    public long CreatedAt
     {
         get;
         set;

@@ -23,6 +23,7 @@ class AccountService {
             receiveTimeout: const Duration(seconds: 25),
             headers: {
               'User-Agent': OsmiumConstants.userAgent,
+              'X-Client-Version': OsmiumConstants.protocolVersion,
               'Content-Type': 'application/json',
             },
             validateStatus: (_) => true,
@@ -192,10 +193,21 @@ class AccountService {
         return '登录授权未完成，请重试';
       case OsmiumErrorCode.oauthNotConfigured:
         return '暂不支持该登录方式，请稍后再试或使用邮箱登录';
+      case OsmiumErrorCode.twoFaInvalid:
+        return '动态验证码不正确，请重试';
+      case OsmiumErrorCode.twoFaExpired:
+        return '两步验证已超时，请重新登录';
+      case OsmiumErrorCode.loginKeyInvalid:
+        return '登录密钥无效或已移除';
+      case OsmiumErrorCode.loginKeyLimitExceeded:
+        return '登录密钥数量已达上限（最多10个）';
+      case OsmiumErrorCode.versionUnsupported:
+        return '当前客户端版本已停用，请更新到最新版本';
       case OsmiumErrorCode.forbidden:
       case OsmiumErrorCode.accountAuthRequired:
         return '登录状态已失效，请重新登录';
     }
+    if (status == 426) return '当前客户端版本已停用，请更新到最新版本';
     if (status == 423) return '账号已锁定，请先解锁';
     if (status == 429) return '请求过于频繁，请稍后再试';
     return fallback;
@@ -983,6 +995,9 @@ class AccountService {
           locked: locked,
           hasEmail: nextHasEmail,
           hasPassword: nextHasPassword,
+          twoFaEnabled: d.containsKey('two_fa_enabled')
+              ? d['two_fa_enabled'] == true
+              : cur.twoFaEnabled,
         );
         await _setSession(updated);
         return AccountApiResult(
@@ -1463,6 +1478,251 @@ class AccountService {
             parsed.code,
             parsed.httpStatusCode,
             parsed.message,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<AccountSessionData>> verifyTwoFaLogin({
+    required String twoFaToken,
+    required String code,
+  }) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/login/2fa/verify',
+        data: {
+          'two_fa_token': twoFaToken.trim(),
+          'code': code.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<AccountSessionData>(
+        resp,
+        AccountSessionData.fromLoginPayload,
+      );
+      if (parsed.needsCaptcha) return parsed;
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '验证失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return await _finishSignIn(parsed, parsed.data);
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<AccountSessionData>> loginWithKey({
+    required String loginKey,
+    required DeviceIdentity identity,
+  }) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/login/key',
+        data: {
+          'login_key': loginKey.trim(),
+          'device_id': identity.deviceId,
+          'device_name': identity.deviceName,
+          'os_version': Platform.isAndroid
+              ? 'Android'
+              : Platform.operatingSystem,
+        },
+      );
+      final parsed = _parseEnvelope<AccountSessionData>(
+        resp,
+        AccountSessionData.fromLoginPayload,
+      );
+      if (parsed.needsCaptcha) return parsed;
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '登录失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return await _finishSignIn(parsed, parsed.data);
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<LoginKeysListData>> fetchLoginKeys() async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed('GET', '/api/account/login-keys');
+      final parsed = _parseEnvelope<LoginKeysListData>(
+        resp,
+        LoginKeysListData.fromJson,
+      );
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '获取登录密钥失败',
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>>
+      startCreateLoginKeySendCode() async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/login-keys/send-code',
+        body: const <String, dynamic>{},
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (parsed.needsCaptcha || parsed.ok) return parsed;
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
+        retryAfterSec: parsed.retryAfterSec,
+        message: _formatAccountError(
+          parsed.code,
+          parsed.httpStatusCode,
+          parsed.message.isNotEmpty ? parsed.message : '发送验证码失败',
+          retryAfterSec: parsed.retryAfterSec,
+        ),
+      );
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<LoginKeyCreateData>> createLoginKey({
+    required String code,
+    required String name,
+  }) async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/login-keys/create',
+        body: {
+          'code': code.trim(),
+          'name': name.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<LoginKeyCreateData>(
+        resp,
+        LoginKeyCreateData.fromJson,
+      );
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '创建登录密钥失败',
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> deleteLoginKey(
+    String id,
+  ) async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/login-keys/delete',
+        body: {'id': id.trim()},
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '移除登录密钥失败',
           ),
         );
       }

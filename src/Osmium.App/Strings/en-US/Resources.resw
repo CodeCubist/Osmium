@@ -839,4 +839,56 @@
   <data name="QL_ErrAccessDenied" xml:space="preserve"><value>Access denied while reading the target folder.</value></data>
   <data name="QL_ErrLimitExceeded" xml:space="preserve"><value>Maximum Quick Launch app limit reached (100 apps).</value></data>
   <data name="QL_ErrGeneric" xml:space="preserve"><value>Operation failed. Please check the network and target computer status.</value></data>
+  <data name="Acc_ModeLoginKey" xml:space="preserve"><value>Sign in with Login Key</value></data>
+  <data name="Acc_ModeLoginKeyDesc" xml:space="preserve"><value>Use a generated login key to sign in quickly without password or 2FA</value></data>
+  <data name="Acc_LoginKeyDialogDesc" xml:space="preserve"><value>Enter a login key created on your desktop or mobile Osmium app.</value></data>
+  <data name="Acc_LoginKeyInputLabel" xml:space="preserve"><value>Login Key</value></data>
+  <data name="Acc_LoginKeyInputPlaceholder" xml:space="preserve"><value>Enter login key starting with osmk_</value></data>
+  <data name="Acc_RowTwoFa" xml:space="preserve"><value>Two-Factor Authentication (2FA)</value></data>
+  <data name="Acc_RowTwoFaDesc" xml:space="preserve"><value>Require a 6-digit authenticator code when signing in with email and password</value></data>
+  <data name="Acc_TwoFaEnabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="Acc_TwoFaDisabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Acc_EnableTwoFaBtn" xml:space="preserve"><value>Enable 2FA</value></data>
+  <data name="Acc_RemoveTwoFaBtn" xml:space="preserve"><value>Remove 2FA</value></data>
+  <data name="Acc_EnableTwoFaTitle" xml:space="preserve"><value>Enable Two-Factor Authentication</value></data>
+  <data name="Acc_RemoveTwoFaTitle" xml:space="preserve"><value>Remove Two-Factor Authentication</value></data>
+  <data name="Acc_TwoFaVerifyPasswordDesc" xml:space="preserve"><value>Verify your account password before setting up 2FA.</value></data>
+  <data name="Acc_RemoveTwoFaDesc" xml:space="preserve"><value>Verify your account password to disable 2FA on this account.</value></data>
+  <data name="Acc_TwoFaScanQrDesc" xml:space="preserve"><value>Scan the QR code below with your authenticator app or enter the secret manually, then enter the 6-digit code.</value></data>
+  <data name="Acc_TwoFaSecretLabel" xml:space="preserve"><value>Manual Setup Key</value></data>
+  <data name="Acc_TwoFaLoginTitle" xml:space="preserve"><value>Two-Factor Authentication</value></data>
+  <data name="Acc_TwoFaLoginDesc" xml:space="preserve"><value>Enter the 6-digit code from your authenticator app to finish signing in.</value></data>
+  <data name="Acc_TwoFaCodeLabel" xml:space="preserve"><value>6-Digit Code</value></data>
+  <data name="Acc_TwoFaCodePlaceholder" xml:space="preserve"><value>Enter 6-digit code</value></data>
+  <data name="Acc_TwoFaVerifyBtn" xml:space="preserve"><value>Verify &amp; Sign In</value></data>
+  <data name="Acc_ConfirmEnableBtn" xml:space="preserve"><value>Confirm &amp; Enable</value></data>
+  <data name="Acc_CopyBtn" xml:space="preserve"><value>Copy</value></data>
+  <data name="Acc_CopiedBtn" xml:space="preserve"><value>Copied</value></data>
+  <data name="Acc_CopyAndCloseBtn" xml:space="preserve"><value>Copy &amp; Close</value></data>
+  <data name="Acc_RemoveBtn" xml:space="preserve"><value>Remove</value></data>
+  <data name="Acc_Loading" xml:space="preserve"><value>Loading...</value></data>
+  <data name="Acc_RowLoginKeys" xml:space="preserve"><value>Login Keys</value></data>
+  <data name="Acc_RowLoginKeysDesc" xml:space="preserve"><value>Create high-entropy keys for quick passwordless sign-in across devices</value></data>
+  <data name="Acc_ManageLoginKeysBtn" xml:space="preserve"><value>Manage Keys</value></data>
+  <data name="Acc_CreateLoginKeyBtn" xml:space="preserve"><value>Create Key</value></data>
+  <data name="Acc_LoginKeysEmpty" xml:space="preserve"><value>No login keys yet. Click below to create one.</value></data>
+  <data name="Acc_LoginKeyNameLabel" xml:space="preserve"><value>Key Name</value></data>
+  <data name="Acc_LoginKeyNamePlaceholder" xml:space="preserve"><value>e.g. Work PC, Backup Key</value></data>
+  <data name="Acc_LoginKeyDefaultName" xml:space="preserve"><value>Login Key</value></data>
+  <data name="Acc_LoginKeySendOtpDescFmt" xml:space="preserve"><value>Creating a login key requires a 6-digit code sent to your email ({0}).</value></data>
+  <data name="Acc_LoginKeyMetaUsedFmt" xml:space="preserve"><value>Created {0} · Last used {1}</value></data>
+  <data name="Acc_LoginKeyMetaUnusedFmt" xml:space="preserve"><value>Created {0} · Never used</value></data>
+  <data name="Acc_LoginKeyCreatedTitle" xml:space="preserve"><value>Login Key Created</value></data>
+  <data name="Acc_LoginKeyCreatedOnceHint" xml:space="preserve"><value>Copy and store this login key securely now. You will not be able to view the full key again after closing.</value></data>
+  <data name="Acc_MsgTwoFaEnabled" xml:space="preserve"><value>Two-factor authentication enabled.</value></data>
+  <data name="Acc_MsgTwoFaRemoved" xml:space="preserve"><value>Two-factor authentication removed.</value></data>
+  <data name="Acc_MsgLoginKeyCopied" xml:space="preserve"><value>Login key copied to clipboard.</value></data>
+  <data name="Acc_ErrEnterTwoFaCode" xml:space="preserve"><value>Please enter the 6-digit authenticator code.</value></data>
+  <data name="Acc_ErrTwoFaInvalid" xml:space="preserve"><value>Incorrect 2FA code. Please try again.</value></data>
+  <data name="Acc_ErrTwoFaExpired" xml:space="preserve"><value>2FA session expired. Please sign in again.</value></data>
+  <data name="Acc_ErrTwoFaAlreadyEnabled" xml:space="preserve"><value>Two-factor authentication is already enabled.</value></data>
+  <data name="Acc_ErrTwoFaNotEnabled" xml:space="preserve"><value>Two-factor authentication is not enabled.</value></data>
+  <data name="Acc_ErrLoginKeyInvalid" xml:space="preserve"><value>Invalid or revoked login key.</value></data>
+  <data name="Acc_ErrLoginKeyLimit" xml:space="preserve"><value>Maximum limit of 10 login keys reached.</value></data>
+  <data name="Acc_ErrVersionUnsupported" xml:space="preserve"><value>This client version is no longer supported. Please update Osmium.</value></data>
 </root>

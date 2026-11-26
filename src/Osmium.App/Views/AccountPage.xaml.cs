@@ -201,6 +201,8 @@ public sealed partial class AccountPage : Page
         ModeLoginDescText.Text = LocalizationService.GetString("Acc_ModeLoginDesc");
         ModeQrLoginTitleText.Text = LocalizationService.GetString("Acc_ModeQrLogin");
         ModeQrLoginDescText.Text = LocalizationService.GetString("Acc_ModeQrLoginDesc");
+        ModeLoginKeyTitleText.Text = LocalizationService.GetString("Acc_ModeLoginKey");
+        ModeLoginKeyDescText.Text = LocalizationService.GetString("Acc_ModeLoginKeyDesc");
         ModeRegisterTitleText.Text = LocalizationService.GetString("Acc_ModeRegister");
         ModeRegisterDescText.Text = LocalizationService.GetString("Acc_ModeRegisterDesc");
         ModeResetTitleText.Text = LocalizationService.GetString("Acc_ModeReset");
@@ -257,6 +259,12 @@ public sealed partial class AccountPage : Page
 
         RowAccountLock.Title = LocalizationService.GetString("Acc_RowAccountLock");
         BtnRefreshStatus.Content = LocalizationService.GetString("Gamepad_RefreshBtn");
+
+        RowAccountTwoFa.Title = LocalizationService.GetString("Acc_RowTwoFa");
+        RowAccountTwoFa.Description = LocalizationService.GetString("Acc_RowTwoFaDesc");
+        RowAccountLoginKeys.Title = LocalizationService.GetString("Acc_RowLoginKeys");
+        RowAccountLoginKeys.Description = LocalizationService.GetString("Acc_RowLoginKeysDesc");
+        BtnManageLoginKeys.Content = LocalizationService.GetString("Acc_ManageLoginKeysBtn");
 
         RowAccountBlacklist.Title = LocalizationService.GetString("Acc_RowBlacklist");
         BtnManageBlacklist.Content = LocalizationService.GetString("Acc_ManageBlacklistBtn");
@@ -368,6 +376,10 @@ public sealed partial class AccountPage : Page
         AccountLockStatusText.Text = LocalizationService.GetString(locked ? "Acc_StatusLocked" : "Acc_StatusNormal");
         BtnToggleLock.Content = LocalizationService.GetString(locked ? "Acc_UnlockBtn" : "Acc_LockBtn");
 
+        bool twoFa = acc.TwoFaEnabled;
+        TwoFaStatusText.Text = LocalizationService.GetString(twoFa ? "Acc_TwoFaEnabled" : "Acc_TwoFaDisabled");
+        BtnManageTwoFa.Content = LocalizationService.GetString(twoFa ? "Acc_RemoveTwoFaBtn" : "Acc_EnableTwoFaBtn");
+
         _ = ApplyAvatarPreviewAsync(acc.CurrentAvatarData);
         RenderDevicesList(acc.SameAccountDevices);
         ApplyHostSecurityLockdown();
@@ -393,6 +405,8 @@ public sealed partial class AccountPage : Page
         BtnChangeEmail.IsEnabled = !hostControlled && !accountLocked && (!hasEmail || profileComplete) && !_isBusy;
         BtnSetPassword.IsEnabled = !hostControlled && !accountLocked && hasEmail && !hasPassword && !_isBusy;
         BtnToggleLock.IsEnabled = !hostControlled && hasEmail && !_isBusy;
+        BtnManageTwoFa.IsEnabled = !hostControlled && !accountLocked && hasPassword && !_isBusy;
+        BtnManageLoginKeys.IsEnabled = !hostControlled && !accountLocked && !_isBusy;
         BtnManageBlacklist.IsEnabled = !hostControlled && !_isBusy;
         BtnLogout.IsEnabled = !hostControlled && !_isBusy;
         BtnDeleteAccount.IsEnabled = !hostControlled && !accountLocked && hasPassword && !_isBusy;
@@ -480,6 +494,13 @@ public sealed partial class AccountPage : Page
         {
             StatusInfoBar.IsOpen = false;
             EnterQrLoginFlow();
+            return;
+        }
+
+        if (mode == 4)
+        {
+            StatusInfoBar.IsOpen = false;
+            _ = ShowLoginKeyLoginDialogAsync();
             return;
         }
 

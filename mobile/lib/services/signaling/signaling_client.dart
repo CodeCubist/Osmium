@@ -293,6 +293,7 @@ class SignalingClient {
         'deviceId': _deviceId,
         'deviceName': _deviceName,
         'allowRemote': false,
+        'clientVersion': OsmiumConstants.protocolVersion,
         'osVersion': Platform.isAndroid ? 'Android' : Platform.operatingSystem,
         'ltoken': _ltoken,
       });

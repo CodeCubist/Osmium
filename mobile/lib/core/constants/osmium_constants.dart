@@ -3,8 +3,22 @@ class OsmiumConstants {
 
   static const String defaultSignalingUrl = 'wss://osmium.fufu.skin';
   static const String defaultApiBaseUrl = 'https://osmium.fufu.skin';
-  static const String protocolVersion = '1.0.0';
-  static const String userAgent = 'Osmium-Mobile/1.0';
+  static const String protocolVersion = '1.0.1';
+  static const String minimumSupportedVersion = '1.0.1';
+  static const String userAgent = 'Osmium-Mobile/1.0.1';
+
+  static bool isVersionSupported(String? raw) {
+    if (raw == null) return false;
+    final clean = raw.trim().replaceFirst(RegExp(r'^[vV]'), '');
+    final m = RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(clean);
+    if (m == null) return false;
+    final maj = int.parse(m.group(1)!);
+    final min = int.parse(m.group(2)!);
+    final pat = int.parse(m.group(3) ?? '0');
+    if (maj != 1) return maj > 1;
+    if (min != 0) return min > 0;
+    return pat >= 1;
+  }
 
   /// Frame-rate choices; the Windows client's list
   /// (`SettingsPage.PopulateFpsCombo`).
@@ -19,6 +33,7 @@ class OsmiumErrorCode {
   static const int captchaRequired = 100;
   static const int accountCaptchaRequired = captchaRequired;
   static const int challengePending = 101;
+  static const int twoFaRequired = 102;
   static const int payloadTooLarge = 1003;
   static const int invalidEmail = 1004;
   static const int invalidPassword = 1005;
@@ -38,6 +53,9 @@ class OsmiumErrorCode {
   static const int passwordAlreadySet = 2014;
   static const int oauthAlreadyBound = 2015;
   static const int oauthProviderAlreadyBound = 2016;
+  static const int twoFaAlreadyEnabled = 2017;
+  static const int twoFaNotEnabled = 2018;
+  static const int loginKeyInvalid = 2019;
   static const int otpExpired = 3007;
   static const int otpInvalid = 3008;
   static const int otpTooManyAttempts = 3009;
@@ -50,6 +68,8 @@ class OsmiumErrorCode {
   static const int qrCancelled = 3016;
   static const int oauthExpired = 3017;
   static const int oauthFailed = 3018;
+  static const int twoFaInvalid = 3019;
+  static const int twoFaExpired = 3020;
   static const int rateLimited = 4001;
   static const int connectCooldown = 4005;
   static const int deviceOffline = 4006;
@@ -66,6 +86,8 @@ class OsmiumErrorCode {
   static const int quickLaunchNotFound = 4019;
   static const int quickLaunchLimitExceeded = 4020;
   static const int quickLaunchUnsupported = 4021;
+  static const int loginKeyLimitExceeded = 4022;
+  static const int versionUnsupported = 4023;
   static const int oauthNotConfigured = 5007;
 }
 

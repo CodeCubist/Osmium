@@ -63,6 +63,7 @@ class AccountSessionData {
     this.locked = false,
     this.hasEmail = true,
     this.hasPassword = true,
+    this.twoFaEnabled = false,
   });
 
   final String userId;
@@ -77,6 +78,7 @@ class AccountSessionData {
   final bool locked;
   final bool hasEmail;
   final bool hasPassword;
+  final bool twoFaEnabled;
 
   bool get isProfileComplete => hasEmail && hasPassword;
 
@@ -108,6 +110,7 @@ class AccountSessionData {
     bool? locked,
     bool? hasEmail,
     bool? hasPassword,
+    bool? twoFaEnabled,
   }) {
     return AccountSessionData(
       userId: userId ?? this.userId,
@@ -122,6 +125,7 @@ class AccountSessionData {
       locked: locked ?? this.locked,
       hasEmail: hasEmail ?? this.hasEmail,
       hasPassword: hasPassword ?? this.hasPassword,
+      twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
     );
   }
 
@@ -138,6 +142,7 @@ class AccountSessionData {
     'locked': locked,
     'has_email': hasEmail,
     'has_password': hasPassword,
+    'two_fa_enabled': twoFaEnabled,
   };
 
   factory AccountSessionData.fromStoredJson(Map<String, dynamic> json) {
@@ -156,6 +161,7 @@ class AccountSessionData {
       locked: json['locked'] == true,
       hasEmail: hasEmail,
       hasPassword: hasPassword,
+      twoFaEnabled: json['two_fa_enabled'] == true,
     );
   }
 
@@ -180,6 +186,7 @@ class AccountSessionData {
       locked: locked,
       hasEmail: hasEmail,
       hasPassword: hasPassword,
+      twoFaEnabled: json['two_fa_enabled'] == true,
     );
   }
 }
@@ -853,6 +860,82 @@ class QrConfirmTicket {
       confirmUnlockAtMs: (json['confirm_unlock_at'] as num?)?.toInt() ?? 0,
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 180,
       pcInfo: QrPcLoginInfo.fromJson(pcMap),
+    );
+  }
+}
+
+class LoginKeyItemDto {
+  const LoginKeyItemDto({
+    required this.id,
+    required this.name,
+    required this.keyPrefix,
+    this.createdAt = 0,
+    this.lastUsedAt = 0,
+  });
+
+  final String id;
+  final String name;
+  final String keyPrefix;
+  final int createdAt;
+  final int lastUsedAt;
+
+  factory LoginKeyItemDto.fromJson(Map<String, dynamic> json) {
+    return LoginKeyItemDto(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '登录密钥').toString(),
+      keyPrefix: (json['key_prefix'] ?? '').toString(),
+      createdAt: (json['created_at'] as num?)?.toInt() ?? 0,
+      lastUsedAt: (json['last_used_at'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class LoginKeysListData {
+  const LoginKeysListData({
+    required this.keys,
+    this.maxKeys = 10,
+  });
+
+  final List<LoginKeyItemDto> keys;
+  final int maxKeys;
+
+  factory LoginKeysListData.fromJson(Map<String, dynamic> json) {
+    final raw = json['keys'];
+    final items = raw is List
+        ? raw
+              .whereType<Map<String, dynamic>>()
+              .map(LoginKeyItemDto.fromJson)
+              .toList(growable: false)
+        : const <LoginKeyItemDto>[];
+    return LoginKeysListData(
+      keys: items,
+      maxKeys: (json['max_keys'] as num?)?.toInt() ?? 10,
+    );
+  }
+}
+
+class LoginKeyCreateData {
+  const LoginKeyCreateData({
+    required this.id,
+    required this.name,
+    required this.keyPrefix,
+    required this.loginKey,
+    this.createdAt = 0,
+  });
+
+  final String id;
+  final String name;
+  final String keyPrefix;
+  final String loginKey;
+  final int createdAt;
+
+  factory LoginKeyCreateData.fromJson(Map<String, dynamic> json) {
+    return LoginKeyCreateData(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '登录密钥').toString(),
+      keyPrefix: (json['key_prefix'] ?? '').toString(),
+      loginKey: (json['login_key'] ?? '').toString(),
+      createdAt: (json['created_at'] as num?)?.toInt() ?? 0,
     );
   }
 }

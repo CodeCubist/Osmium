@@ -1120,6 +1120,7 @@ public sealed partial class SignalingClient : IDisposable
                     deviceName = _deviceName,
                     allowRemote = _allowRemote,
                     allowQuickLaunch = _allowQuickLaunch,
+                    clientVersion = AppVersionInfo.Current,
                     osVersion = Environment.OSVersion.VersionString,
                     ltoken = _ltoken,
                     powerProfile = profile == null

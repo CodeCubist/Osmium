@@ -224,7 +224,9 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
                 }
 
-                if (!versionRes.Compatible)
+                if (!versionRes.Compatible ||
+                    !AppVersionInfo.IsVersionSupported(versionRes.ClientVersion) ||
+                    !AppVersionInfo.IsVersionSupported(versionRes.HostVersion))
                 {
                     _log.Warn(
                         $"Blocked incoming session {args.SessionId} due to incompatible versions (client={versionRes.ClientVersion}, host={versionRes.HostVersion}): {versionRes.Reason}");
