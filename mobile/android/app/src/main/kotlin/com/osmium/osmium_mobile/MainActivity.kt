@@ -144,12 +144,12 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "setOrientationLock" -> {
-                    // 0 = auto/sensor, 1 = portrait, 2 = landscape
+                    // 0 = system rotation setting, 1 = portrait, 2 = landscape
                     val mode = call.argument<Int>("mode") ?: 0
                     requestedOrientation = when (mode) {
                         1 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                         2 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                        else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                        else -> ActivityInfo.SCREEN_ORIENTATION_USER
                     }
                     result.success(true)
                 }

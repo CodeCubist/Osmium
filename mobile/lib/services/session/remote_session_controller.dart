@@ -248,7 +248,7 @@ class RemoteSessionController extends ChangeNotifier {
   /// The host granted this session view-only, so input can't be turned back on.
   bool get viewOnlyLocked => _request?.viewOnly ?? false;
 
-  int _orientationMode = 0; // 0=auto, 1=portrait, 2=landscape
+  int _orientationMode = 2; // 0=system, 1=portrait, 2=landscape
   int get orientationMode => _orientationMode;
 
   AuxTransferProgressEvent? _lastTransferProgress;
@@ -786,6 +786,7 @@ class RemoteSessionController extends ChangeNotifier {
       // consider the session agreed before it has pushed real video).
       _setupRuntimePipelines();
 
+      unawaited(platformBridge.setOrientationLock(_orientationMode));
       _setPhase(SessionPhase.streaming, '已连接');
     } catch (e) {
       if (!aborted()) {
@@ -1343,9 +1344,10 @@ class RemoteSessionController extends ChangeNotifier {
   }
 
   Future<void> cycleOrientation() async {
+    if (_phase != SessionPhase.streaming || _cancelling) return;
     _orientationMode = (_orientationMode + 1) % 3;
     await platformBridge.setOrientationLock(_orientationMode);
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   void sendSystemAction(int action) {
@@ -1387,6 +1389,7 @@ class RemoteSessionController extends ChangeNotifier {
   }
 
   Future<void> _cleanupNative({required bool notifySignaling}) async {
+    final restoreOrientation = platformBridge.setOrientationLock(0);
     _eventPollTimer?.cancel();
     _eventPollTimer = null;
     _textFocusTimer?.cancel();
@@ -1466,7 +1469,7 @@ class RemoteSessionController extends ChangeNotifier {
       await platformBridge.destroySurface();
     }
 
-    await platformBridge.setOrientationLock(0);
+    await restoreOrientation;
     await platformBridge.setImmersiveMode(false);
     try {
       await WakelockPlus.disable();

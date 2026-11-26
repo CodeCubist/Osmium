@@ -218,7 +218,7 @@ class PlatformBridge {
     } catch (_) {}
   }
 
-  /// 0 = sensor auto, 1 = portrait, 2 = landscape
+  /// 0 = follow the system rotation setting, 1 = portrait, 2 = landscape.
   Future<void> setOrientationLock(int mode) async {
     if (!Platform.isAndroid) return;
     try {

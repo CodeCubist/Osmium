@@ -398,7 +398,7 @@ class _ControlPanelSheetState extends State<ControlPanelSheet>
         label: switch (ctrl.orientationMode) {
           1 => '竖屏',
           2 => '横屏',
-          _ => '自动旋转',
+          _ => '跟随系统',
         },
         active: ctrl.orientationMode != 0,
         onTap: ctrl.cycleOrientation,
