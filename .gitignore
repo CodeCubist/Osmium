@@ -528,3 +528,6 @@ server/tmp/
 tmp/
 
 !mobile/android/app/src/debug/
+
+# Installer build output
+Osmium.Installer/installer/
