@@ -27,14 +27,14 @@
 
 struct SDL_WindowData
 {
-    SDL_Window *sdl_window;
+    SDL_Window* sdl_window;
 #ifdef SDL_VIDEO_OPENGL_EGL
     EGLSurface egl_surface;
 #endif
 };
 
-extern bool OFFSCREEN_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_PropertiesID create_props);
-extern void OFFSCREEN_DestroyWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void OFFSCREEN_SetWindowSize(SDL_VideoDevice *_this, SDL_Window *window);
+extern bool OFFSCREEN_CreateWindow(SDL_VideoDevice* _this, SDL_Window* window, SDL_PropertiesID create_props);
+extern void OFFSCREEN_DestroyWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void OFFSCREEN_SetWindowSize(SDL_VideoDevice* _this, SDL_Window* window);
 
 #endif // SDL_offscreenwindow_h

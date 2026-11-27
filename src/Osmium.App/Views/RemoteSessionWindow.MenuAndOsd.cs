@@ -135,7 +135,7 @@ public sealed partial class RemoteSessionWindow : Window
         }
     }
 
-    // Pure Win32 release safe inside WndProc so minimizing unlocks the cursor immediately.
+
     private void ReleaseCursorCaptureWin32()
     {
         bool wasCapturedOrHidden = _isCursorCaptured || _cursorHidden;
@@ -411,7 +411,8 @@ public sealed partial class RemoteSessionWindow : Window
         sb.AppendLine(LocalizationService.Format("Session_DbgLineStreamFmt", s.VideoWidth, s.VideoHeight));
         sb.AppendLine(LocalizationService.Format("Session_DbgLinePerfFmt", $"{s.Fps:F1}", s.RttMs,
             $"{s.DecodeLatencyMs:F2}"));
-        int hostHz = _hostStatus.Displays.FirstOrDefault(d => d.Index == _hostStatus.ActiveDisplayIndex)?.RefreshRate ?? 0;
+        int hostHz = _hostStatus.Displays.FirstOrDefault(d => d.Index == _hostStatus.ActiveDisplayIndex)?.RefreshRate ??
+                     0;
         int clientHz = GetSessionMonitorRefreshRate();
         sb.AppendLine(LocalizationService.Format("Session_DbgLineFpsPathFmt",
             _currentFps, _hostStatus.Fps > 0 ? _hostStatus.Fps.ToString() : "—",
@@ -445,6 +446,7 @@ public sealed partial class RemoteSessionWindow : Window
             if (d.Left == bounds.X && d.Top == bounds.Y && d.Width == bounds.Width && d.Height == bounds.Height)
                 return d.RefreshRate;
         }
+
         return 0;
     }
 
@@ -573,7 +575,8 @@ public sealed partial class RemoteSessionWindow : Window
 
     private async void SessionBitrateMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (_isClosed || _remoteSessionEnded || _clientHandle == IntPtr.Zero || RootSessionGrid.XamlRoot == null) return;
+        if (_isClosed || _remoteSessionEnded || _clientHandle == IntPtr.Zero ||
+            RootSessionGrid.XamlRoot == null) return;
 
         int maxKbps = GetSessionBitrateLimitKbps();
         var autoBitrate = new CheckBox
@@ -617,6 +620,7 @@ public sealed partial class RemoteSessionWindow : Window
                 if (!double.IsFinite(bitrateBox.Value)) return;
                 _manualBitrateKbps = Math.Clamp((int)Math.Round(bitrateBox.Value * 1000.0), 500, maxKbps);
             }
+
             _autoAdjustBitrate = automatic;
             SendUpdatedVideoParams();
         }
@@ -710,7 +714,8 @@ public sealed partial class RemoteSessionWindow : Window
         PrivacyScreenMenuItem.Visibility = _hostStatus.AllowPrivacyScreen ? Visibility.Visible : Visibility.Collapsed;
         PrivacyScreenMenuItem.IsEnabled = !_hostStatus.ScreenLocked || _hostStatus.PrivacyScreenActive;
         PrivacyScreenMenuItem.Text = LocalizationService.GetString(_hostStatus.PrivacyScreenActive
-            ? "Session_DisablePrivacyScreen" : "Session_EnablePrivacyScreen");
+            ? "Session_DisablePrivacyScreen"
+            : "Session_EnablePrivacyScreen");
     }
 
     private void PrivacyScreenMenuItem_Click(object sender, RoutedEventArgs e)

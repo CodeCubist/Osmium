@@ -27,7 +27,7 @@
 #if SDL_DYNAMIC_API
 #define SDL_memmove SDL_memmove_REAL
 #endif
-void *SDL_memmove(SDL_OUT_BYTECAP(len) void *dst, SDL_IN_BYTECAP(len) const void *src, size_t len)
+void* SDL_memmove(SDL_OUT_BYTECAP(len) void* dst, SDL_IN_BYTECAP(len) const void* src, size_t len)
 {
 #if defined(__GNUC__) && (defined(HAVE_LIBC) && HAVE_LIBC)
     // Presumably this is well tuned for speed.
@@ -35,17 +35,22 @@ void *SDL_memmove(SDL_OUT_BYTECAP(len) void *dst, SDL_IN_BYTECAP(len) const void
 #elif defined(HAVE_MEMMOVE)
     return memmove(dst, src, len);
 #else
-    char *srcp = (char *)src;
-    char *dstp = (char *)dst;
+    char* srcp = (char*)src;
+    char* dstp = (char*)dst;
 
-    if (src < dst) {
+    if (src < dst)
+    {
         srcp += len - 1;
         dstp += len - 1;
-        while (len--) {
+        while (len--)
+        {
             *dstp-- = *srcp--;
         }
-    } else {
-        while (len--) {
+    }
+    else
+    {
+        while (len--)
+        {
             *dstp++ = *srcp++;
         }
     }
@@ -56,7 +61,7 @@ void *SDL_memmove(SDL_OUT_BYTECAP(len) void *dst, SDL_IN_BYTECAP(len) const void
 
 #ifndef HAVE_LIBC
 // NOLINTNEXTLINE(readability-redundant-declaration)
-extern void *memmove(void *dst, const void *src, size_t len);
+extern void* memmove(void* dst, const void* src, size_t len);
 #if defined(_MSC_VER) && !defined(__INTEL_LLVM_COMPILER)
 #pragma intrinsic(memmove)
 #endif
@@ -65,7 +70,7 @@ extern void *memmove(void *dst, const void *src, size_t len);
 #pragma function(memmove)
 #endif
 // NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name)
-void *memmove(void *dst, const void *src, size_t len)
+void* memmove(void* dst, const void* src, size_t len)
 {
     return SDL_memmove(dst, src, len);
 }

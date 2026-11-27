@@ -27,60 +27,69 @@
 
 static int active_trays = 0;
 
-void SDL_RegisterTray(SDL_Tray *tray)
+void SDL_RegisterTray(SDL_Tray* tray)
 {
     SDL_SetObjectValid(tray, SDL_OBJECT_TYPE_TRAY, true);
 
     ++active_trays;
 }
 
-void SDL_UnregisterTray(SDL_Tray *tray)
+void SDL_UnregisterTray(SDL_Tray* tray)
 {
     SDL_assert(SDL_ObjectValid(tray, SDL_OBJECT_TYPE_TRAY));
 
     SDL_SetObjectValid(tray, SDL_OBJECT_TYPE_TRAY, false);
 
     --active_trays;
-    if (active_trays > 0) {
+    if (active_trays > 0)
+    {
         return;
     }
 
-    if (!SDL_GetHintBoolean(SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, true)) {
+    if (!SDL_GetHintBoolean(SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, true))
+    {
         return;
     }
 
     int toplevel_count = 0;
-    SDL_Window **windows = SDL_GetWindows(NULL);
-    if (windows) {
-        for (int i = 0; windows[i]; ++i) {
-            SDL_Window *window = windows[i];
-            if (!window->parent && !(window->flags & SDL_WINDOW_HIDDEN)) {
+    SDL_Window** windows = SDL_GetWindows(NULL);
+    if (windows)
+    {
+        for (int i = 0; windows[i]; ++i)
+        {
+            SDL_Window* window = windows[i];
+            if (!window->parent && !(window->flags & SDL_WINDOW_HIDDEN))
+            {
                 ++toplevel_count;
             }
         }
         SDL_free(windows);
     }
 
-    if (toplevel_count == 0) {
+    if (toplevel_count == 0)
+    {
         SDL_SendQuit();
     }
 }
 
 void SDL_CleanupTrays(void)
 {
-    if (active_trays == 0) {
+    if (active_trays == 0)
+    {
         return;
     }
 
-    void **trays = (void **)SDL_malloc(active_trays * sizeof(*trays));
-    if (!trays) {
+    void** trays = (void**)SDL_malloc(active_trays * sizeof(*trays));
+    if (!trays)
+    {
         return;
     }
 
     int count = SDL_GetObjects(SDL_OBJECT_TYPE_TRAY, trays, active_trays);
     SDL_assert(count == active_trays);
-    for (int i = 0; i < count; ++i) {
-        SDL_DestroyTray((SDL_Tray *)trays[i]);
+    for (int i = 0; i < count; ++i)
+    {
+        SDL_DestroyTray((SDL_Tray*)trays[i]);
     }
     SDL_free(trays);
 

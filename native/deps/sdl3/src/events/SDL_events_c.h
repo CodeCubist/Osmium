@@ -46,9 +46,9 @@ extern void SDL_SendKeymapChangedEvent(void);
 extern void SDL_SendLocaleChangedEvent(void);
 extern void SDL_SendSystemThemeChangedEvent(void);
 
-extern void *SDL_AllocateTemporaryMemory(size_t size);
-extern const char *SDL_CreateTemporaryString(const char *string);
-extern void *SDL_ClaimTemporaryMemory(const void *mem);
+extern void* SDL_AllocateTemporaryMemory(size_t size);
+extern const char* SDL_CreateTemporaryString(const char* string);
+extern void* SDL_ClaimTemporaryMemory(const void* mem);
 extern void SDL_FreeTemporaryMemory(void);
 
 extern void SDL_PumpEventMaintenance(void);

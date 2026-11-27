@@ -33,6 +33,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 typedef enum SDL_WindowRect
@@ -52,9 +53,9 @@ typedef enum SDL_WindowEraseBackgroundMode
 
 typedef struct
 {
-    void **lpVtbl;
+    void** lpVtbl;
     int refcount;
-    SDL_Window *window;
+    SDL_Window* window;
     HWND hwnd;
     UINT format_text;
     UINT format_file;
@@ -62,7 +63,7 @@ typedef struct
 
 struct SDL_WindowData
 {
-    SDL_Window *window;
+    SDL_Window* window;
     HWND hwnd;
     HWND parent;
     HDC hdc;
@@ -95,57 +96,59 @@ struct SDL_WindowData
     RECT cursor_ctrlock_rect; // this is Windows-specific, but probably does not need to be per-window
     bool mouse_tracked;
     bool destroy_parent_with_window;
-    WCHAR *ICMFileName;
+    WCHAR* ICMFileName;
     SDL_WindowEraseBackgroundMode hint_erase_background_mode;
     bool taskbar_button_created;
-    struct SDL_VideoData *videodata;
+    struct SDL_VideoData* videodata;
 #ifdef SDL_VIDEO_OPENGL_EGL
     EGLSurface egl_surface;
 #endif
 
     // Whether we retain the content of the window when changing state
     UINT copybits_flag;
-    SDLDropTarget *drop_target;
+    SDLDropTarget* drop_target;
 };
 
-extern bool WIN_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_PropertiesID create_props);
-extern void WIN_SetWindowTitle(SDL_VideoDevice *_this, SDL_Window *window);
-extern bool WIN_SetWindowIcon(SDL_VideoDevice *_this, SDL_Window *window, SDL_Surface *icon);
-extern bool WIN_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_SetWindowSize(SDL_VideoDevice *_this, SDL_Window *window);
-extern bool WIN_GetWindowBordersSize(SDL_VideoDevice *_this, SDL_Window *window, int *top, int *left, int *bottom, int *right);
-extern void WIN_GetWindowSizeInPixels(SDL_VideoDevice *_this, SDL_Window *window, int *width, int *height);
-extern bool WIN_SetWindowOpacity(SDL_VideoDevice *_this, SDL_Window *window, float opacity);
-extern void WIN_ShowWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_HideWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_RaiseWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_MaximizeWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_MinimizeWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_RestoreWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_SetWindowBordered(SDL_VideoDevice *_this, SDL_Window *window, bool bordered);
-extern void WIN_SetWindowResizable(SDL_VideoDevice *_this, SDL_Window *window, bool resizable);
-extern void WIN_SetWindowAlwaysOnTop(SDL_VideoDevice *_this, SDL_Window *window, bool on_top);
-extern SDL_FullscreenResult WIN_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window *window, SDL_VideoDisplay *display, SDL_FullscreenOp fullscreen);
-extern void WIN_UpdateWindowICCProfile(SDL_Window *window, bool send_event);
-extern void *WIN_GetWindowICCProfile(SDL_VideoDevice *_this, SDL_Window *window, size_t *size);
-extern bool WIN_SetWindowMouseRect(SDL_VideoDevice *_this, SDL_Window *window);
-extern bool WIN_SetWindowMouseGrab(SDL_VideoDevice *_this, SDL_Window *window, bool grabbed);
-extern bool WIN_SetWindowKeyboardGrab(SDL_VideoDevice *_this, SDL_Window *window, bool grabbed);
-extern void WIN_DestroyWindow(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_OnWindowEnter(SDL_VideoDevice *_this, SDL_Window *window);
-extern void WIN_UpdateClipCursor(SDL_Window *window);
-extern void WIN_UnclipCursorForWindow(SDL_Window *window);
-extern bool WIN_SetWindowHitTest(SDL_Window *window, bool enabled);
-extern void WIN_AcceptDragAndDrop(SDL_Window *window, bool accept);
-extern bool WIN_FlashWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_FlashOperation operation);
-extern bool WIN_ApplyWindowProgress(SDL_VideoDevice *_this, SDL_Window *window);
-extern bool WIN_SetWindowPositionInternal(SDL_Window *window, UINT flags, SDL_WindowRect rect_type);
-extern void WIN_ShowWindowSystemMenu(SDL_Window *window, int x, int y);
-extern bool WIN_SetWindowFocusable(SDL_VideoDevice *_this, SDL_Window *window, bool focusable);
-extern bool WIN_AdjustWindowRect(SDL_Window *window, int *x, int *y, int *width, int *height, SDL_WindowRect rect_type);
+extern bool WIN_CreateWindow(SDL_VideoDevice* _this, SDL_Window* window, SDL_PropertiesID create_props);
+extern void WIN_SetWindowTitle(SDL_VideoDevice* _this, SDL_Window* window);
+extern bool WIN_SetWindowIcon(SDL_VideoDevice* _this, SDL_Window* window, SDL_Surface* icon);
+extern bool WIN_SetWindowPosition(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_SetWindowSize(SDL_VideoDevice* _this, SDL_Window* window);
+extern bool WIN_GetWindowBordersSize(SDL_VideoDevice* _this, SDL_Window* window, int* top, int* left, int* bottom,
+                                     int* right);
+extern void WIN_GetWindowSizeInPixels(SDL_VideoDevice* _this, SDL_Window* window, int* width, int* height);
+extern bool WIN_SetWindowOpacity(SDL_VideoDevice* _this, SDL_Window* window, float opacity);
+extern void WIN_ShowWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_HideWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_RaiseWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_MaximizeWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_MinimizeWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_RestoreWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_SetWindowBordered(SDL_VideoDevice* _this, SDL_Window* window, bool bordered);
+extern void WIN_SetWindowResizable(SDL_VideoDevice* _this, SDL_Window* window, bool resizable);
+extern void WIN_SetWindowAlwaysOnTop(SDL_VideoDevice* _this, SDL_Window* window, bool on_top);
+extern SDL_FullscreenResult WIN_SetWindowFullscreen(SDL_VideoDevice* _this, SDL_Window* window,
+                                                    SDL_VideoDisplay* display, SDL_FullscreenOp fullscreen);
+extern void WIN_UpdateWindowICCProfile(SDL_Window* window, bool send_event);
+extern void* WIN_GetWindowICCProfile(SDL_VideoDevice* _this, SDL_Window* window, size_t* size);
+extern bool WIN_SetWindowMouseRect(SDL_VideoDevice* _this, SDL_Window* window);
+extern bool WIN_SetWindowMouseGrab(SDL_VideoDevice* _this, SDL_Window* window, bool grabbed);
+extern bool WIN_SetWindowKeyboardGrab(SDL_VideoDevice* _this, SDL_Window* window, bool grabbed);
+extern void WIN_DestroyWindow(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_OnWindowEnter(SDL_VideoDevice* _this, SDL_Window* window);
+extern void WIN_UpdateClipCursor(SDL_Window* window);
+extern void WIN_UnclipCursorForWindow(SDL_Window* window);
+extern bool WIN_SetWindowHitTest(SDL_Window* window, bool enabled);
+extern void WIN_AcceptDragAndDrop(SDL_Window* window, bool accept);
+extern bool WIN_FlashWindow(SDL_VideoDevice* _this, SDL_Window* window, SDL_FlashOperation operation);
+extern bool WIN_ApplyWindowProgress(SDL_VideoDevice* _this, SDL_Window* window);
+extern bool WIN_SetWindowPositionInternal(SDL_Window* window, UINT flags, SDL_WindowRect rect_type);
+extern void WIN_ShowWindowSystemMenu(SDL_Window* window, int x, int y);
+extern bool WIN_SetWindowFocusable(SDL_VideoDevice* _this, SDL_Window* window, bool focusable);
+extern bool WIN_AdjustWindowRect(SDL_Window* window, int* x, int* y, int* width, int* height, SDL_WindowRect rect_type);
 extern bool WIN_AdjustWindowRectForHWND(HWND hwnd, LPRECT lpRect, UINT frame_dpi);
-extern bool WIN_SetWindowParent(SDL_VideoDevice *_this, SDL_Window *window, SDL_Window *parent);
-extern bool WIN_SetWindowModal(SDL_VideoDevice *_this, SDL_Window *window, bool modal);
+extern bool WIN_SetWindowParent(SDL_VideoDevice* _this, SDL_Window* window, SDL_Window* parent);
+extern bool WIN_SetWindowModal(SDL_VideoDevice* _this, SDL_Window* window, bool modal);
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

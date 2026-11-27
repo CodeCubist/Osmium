@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -41,7 +43,7 @@ class _RemoteSessionPageState extends ConsumerState<RemoteSessionPage> {
     );
     _signals = SessionSignals(_session);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startConnect());
+    scheduleMicrotask(_startConnect);
   }
 
   Future<void> _startConnect() async {

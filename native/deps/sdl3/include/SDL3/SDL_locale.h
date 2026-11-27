@@ -43,6 +43,7 @@
 /* *INDENT-OFF* */
 extern "C" {
 
+
 /* *INDENT-ON* */
 #endif
 
@@ -60,8 +61,8 @@ extern "C" {
  */
 typedef struct SDL_Locale
 {
-    const char *language; /**< A language name, like "en" for English. */
-    const char *country;  /**< A country, like "US" for America. Can be NULL. */
+    const char* language; /**< A language name, like "en" for English. */
+    const char* country; /**< A country, like "US" for America. Can be NULL. */
 } SDL_Locale;
 
 /**
@@ -107,7 +108,7 @@ typedef struct SDL_Locale
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_Locale ** SDLCALL SDL_GetPreferredLocales(int *count);
+extern SDL_DECLSPEC SDL_Locale** SDLCALL SDL_GetPreferredLocales(int* count);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

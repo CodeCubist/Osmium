@@ -22,7 +22,9 @@ public sealed class WebRtcPeerTransport : IDisposable
     private readonly LoggingService _log;
     private readonly CancellationTokenSource _cts = new();
     private readonly TaskCompletionSource<bool> _readyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource<bool> _mediaReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private readonly TaskCompletionSource<bool>
+        _mediaReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly ConcurrentQueue<(byte[] Buf, int Len)> _ctrlQueue = new();
     private readonly object _audioQueueLock = new();
@@ -45,7 +47,11 @@ public sealed class WebRtcPeerTransport : IDisposable
     private int _droppedVideoGroupId;
     private int _disposed;
 
-    public string EndpointLabel { get; private set; } = "WebRTC P2P";
+    public string EndpointLabel
+    {
+        get;
+        private set;
+    } = "WebRTC P2P";
 
     public WebRtcPeerTransport(
         IntPtr nativeTransport,
@@ -69,6 +75,7 @@ public sealed class WebRtcPeerTransport : IDisposable
                 ushort port = stunPort > 0 ? stunPort : (ushort)3478;
                 iceServers.Add(new RTCIceServer { urls = $"stun:{stunHost}:{port}" });
             }
+
             iceServers.Add(new RTCIceServer { urls = "stun:stun.l.google.com:19302" });
             iceServers.Add(new RTCIceServer { urls = "stun:stun1.l.google.com:19302" });
 
@@ -91,6 +98,7 @@ public sealed class WebRtcPeerTransport : IDisposable
                     {
                         raw = "candidate:" + raw;
                     }
+
                     _ = _signaling.SendWebRtcIceAsync(
                         _sessionId,
                         raw,
@@ -271,6 +279,7 @@ public sealed class WebRtcPeerTransport : IDisposable
             {
                 _readyTcs.TrySetResult(true);
             }
+
             SignalSender();
         };
 
@@ -289,6 +298,7 @@ public sealed class WebRtcPeerTransport : IDisposable
             {
                 return;
             }
+
             NativeMethods.Osmium_PushTransportRelayPacket(_nativeTransport, data, data.Length);
         };
 
@@ -302,6 +312,7 @@ public sealed class WebRtcPeerTransport : IDisposable
             {
                 _readyTcs.TrySetResult(true);
             }
+
             SignalSender();
         }
     }
@@ -376,6 +387,7 @@ public sealed class WebRtcPeerTransport : IDisposable
                             Volatile.Write(ref _droppedVideoGroupId, dropGroupId);
                             return 1;
                         }
+
                         break;
                     }
 
@@ -603,6 +615,7 @@ public sealed class WebRtcPeerTransport : IDisposable
                 var vid = _videoQueue.Dequeue();
                 ArrayPool<byte>.Shared.Return(vid.Buf);
             }
+
             _queuedVideoBytes = 0;
         }
     }

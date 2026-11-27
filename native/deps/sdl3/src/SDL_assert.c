@@ -40,26 +40,26 @@
 // The size of the stack buffer to use for rendering assert messages.
 #define SDL_MAX_ASSERT_MESSAGE_STACK 256
 
-static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, void *userdata);
+static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData* data, void* userdata);
 
 /*
  * We keep all triggered assertions in a singly-linked list so we can
  *  generate a report later.
  */
-static SDL_AssertData *triggered_assertions = NULL;
+static SDL_AssertData* triggered_assertions = NULL;
 
 #ifndef SDL_THREADS_DISABLED
-static SDL_Mutex *assertion_mutex = NULL;
+static SDL_Mutex* assertion_mutex = NULL;
 #endif
 
 static SDL_AssertionHandler assertion_handler = SDL_PromptAssertion;
-static void *assertion_userdata = NULL;
+static void* assertion_userdata = NULL;
 
 #ifdef __GNUC__
-static void debug_print(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+static void debug_print(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 #endif
 
-static void debug_print(const char *fmt, ...)
+static void debug_print(const char* fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -67,12 +67,13 @@ static void debug_print(const char *fmt, ...)
     va_end(ap);
 }
 
-static void SDL_AddAssertionToReport(SDL_AssertData *data)
+static void SDL_AddAssertionToReport(SDL_AssertData* data)
 {
     /* (data) is always a static struct defined with the assert macros, so
        we don't have to worry about copying or allocating them. */
     data->trigger_count++;
-    if (data->trigger_count == 1) {
+    if (data->trigger_count == 1)
+    {
         // not yet added?
         data->next = triggered_assertions;
         triggered_assertions = data;
@@ -85,7 +86,7 @@ static void SDL_AddAssertionToReport(SDL_AssertData *data)
 #define ENDLINE "\n"
 #endif
 
-static int SDL_RenderAssertMessage(char *buf, size_t buf_len, const SDL_AssertData *data)
+static int SDL_RenderAssertMessage(char* buf, size_t buf_len, const SDL_AssertData* data)
 {
     return SDL_snprintf(buf, buf_len,
                         "Assertion failure at %s (%s:%d), triggered %u %s:" ENDLINE "  '%s'",
@@ -96,14 +97,16 @@ static int SDL_RenderAssertMessage(char *buf, size_t buf_len, const SDL_AssertDa
 
 static void SDL_GenerateAssertionReport(void)
 {
-    const SDL_AssertData *item = triggered_assertions;
+    const SDL_AssertData* item = triggered_assertions;
 
     // only do this if the app hasn't assigned an assertion handler.
-    if ((item) && (assertion_handler != SDL_PromptAssertion)) {
+    if ((item) && (assertion_handler != SDL_PromptAssertion))
+    {
         debug_print("\n\nSDL assertion report.\n");
         debug_print("All SDL assertions between last init/quit:\n\n");
 
-        while (item) {
+        while (item)
+        {
             debug_print(
                 "'%s'\n"
                 "    * %s (%s:%d)\n"
@@ -127,24 +130,28 @@ static SDL_NORETURN void SDL_AbortAssertion(void)
     SDL_abort();
 }
 
-static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, void *userdata)
+static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData* data, void* userdata)
 {
     SDL_AssertState state = SDL_ASSERTION_ABORT;
-    SDL_Window *window;
+    SDL_Window* window;
     SDL_MessageBoxData messagebox;
     SDL_MessageBoxButtonData buttons[] = {
-        { 0, SDL_ASSERTION_RETRY, "Retry" },
-        { 0, SDL_ASSERTION_BREAK, "Break" },
-        { 0, SDL_ASSERTION_ABORT, "Abort" },
-        { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT,
-          SDL_ASSERTION_IGNORE, "Ignore" },
-        { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
-          SDL_ASSERTION_ALWAYS_IGNORE, "Always Ignore" }
+        {0, SDL_ASSERTION_RETRY, "Retry"},
+        {0, SDL_ASSERTION_BREAK, "Break"},
+        {0, SDL_ASSERTION_ABORT, "Abort"},
+        {
+            SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT,
+            SDL_ASSERTION_IGNORE, "Ignore"
+        },
+        {
+            SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
+            SDL_ASSERTION_ALWAYS_IGNORE, "Always Ignore"
+        }
     };
     int selected;
 
     char stack_buf[SDL_MAX_ASSERT_MESSAGE_STACK];
-    char *message = stack_buf;
+    char* message = stack_buf;
     size_t buf_len = sizeof(stack_buf);
     int len;
 
@@ -154,20 +161,27 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
     len = SDL_RenderAssertMessage(message, buf_len, data);
 
     // .. and if it didn't, try to allocate as much room as we actually need.
-    if (len >= (int)buf_len) {
-        if (SDL_size_add_check_overflow(len, 1, &buf_len)) {
-            message = (char *)SDL_malloc(buf_len);
-            if (message) {
+    if (len >= (int)buf_len)
+    {
+        if (SDL_size_add_check_overflow(len, 1, &buf_len))
+        {
+            message = (char*)SDL_malloc(buf_len);
+            if (message)
+            {
                 len = SDL_RenderAssertMessage(message, buf_len, data);
-            } else {
+            }
+            else
+            {
                 message = stack_buf;
             }
         }
     }
 
     // Something went very wrong
-    if (len < 0) {
-        if (message != stack_buf) {
+    if (len < 0)
+    {
+        if (message != stack_buf)
+        {
             SDL_free(message);
         }
         return SDL_ASSERTION_ABORT;
@@ -176,33 +190,50 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
     debug_print("\n\n%s\n\n", message);
 
     // let env. variable override, so unit tests won't block in a GUI.
-    const char *hint = SDL_GetHint(SDL_HINT_ASSERT);
-    if (hint) {
-        if (message != stack_buf) {
+    const char* hint = SDL_GetHint(SDL_HINT_ASSERT);
+    if (hint)
+    {
+        if (message != stack_buf)
+        {
             SDL_free(message);
         }
 
-        if (SDL_strcmp(hint, "abort") == 0) {
+        if (SDL_strcmp(hint, "abort") == 0)
+        {
             return SDL_ASSERTION_ABORT;
-        } else if (SDL_strcmp(hint, "break") == 0) {
+        }
+        else if (SDL_strcmp(hint, "break") == 0)
+        {
             return SDL_ASSERTION_BREAK;
-        } else if (SDL_strcmp(hint, "retry") == 0) {
+        }
+        else if (SDL_strcmp(hint, "retry") == 0)
+        {
             return SDL_ASSERTION_RETRY;
-        } else if (SDL_strcmp(hint, "ignore") == 0) {
+        }
+        else if (SDL_strcmp(hint, "ignore") == 0)
+        {
             return SDL_ASSERTION_IGNORE;
-        } else if (SDL_strcmp(hint, "always_ignore") == 0) {
+        }
+        else if (SDL_strcmp(hint, "always_ignore") == 0)
+        {
             return SDL_ASSERTION_ALWAYS_IGNORE;
-        } else {
+        }
+        else
+        {
             return SDL_ASSERTION_ABORT; // oh well.
         }
     }
 
     // Leave fullscreen mode, if possible (scary!)
     window = SDL_GetToplevelForKeyboardFocus();
-    if (window) {
-        if (window->fullscreen_exclusive) {
+    if (window)
+    {
+        if (window->fullscreen_exclusive)
+        {
             SDL_MinimizeWindow(window);
-        } else {
+        }
+        else
+        {
             // !!! FIXME: ungrab the input if we're not fullscreen?
             // No need to mess with the window
             window = NULL;
@@ -218,18 +249,25 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
     messagebox.numbuttons = SDL_arraysize(buttons);
     messagebox.buttons = buttons;
 
-    if (SDL_ShowMessageBox(&messagebox, &selected)) {
-        if (selected == -1) {
+    if (SDL_ShowMessageBox(&messagebox, &selected))
+    {
+        if (selected == -1)
+        {
             state = SDL_ASSERTION_IGNORE;
-        } else {
+        }
+        else
+        {
             state = (SDL_AssertState)selected;
         }
-    } else {
+    }
+    else
+    {
 #ifdef SDL_PLATFORM_PRIVATE_ASSERT
         SDL_PRIVATE_PROMPTASSERTION();
 #elif defined(SDL_PLATFORM_EMSCRIPTEN)
         // This is nasty, but we can't block on a custom UI.
-        for (;;) {
+        for (;;)
+        {
             bool okay = true;
             /* *INDENT-OFF* */ // clang-format off
             int reply = MAIN_THREAD_EM_ASM_INT({
@@ -244,7 +282,8 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
             }, message);
             /* *INDENT-ON* */ // clang-format on
 
-            switch (reply) {
+            switch (reply)
+            {
             case 'a':
                 state = SDL_ASSERTION_ABORT;
                 break;
@@ -267,33 +306,45 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
         break;
             }
 
-        if (okay) {
+        if (okay)
+        {
             break;
         }
         }
 #elif defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_3DS)
         // this is a little hacky.
-        for (;;) {
+        for (;;)
+        {
             char buf[32];
             (void)fprintf(stderr, "Abort/Break/Retry/Ignore/AlwaysIgnore? [abriA] : ");
             (void)fflush(stderr);
-            if (fgets(buf, sizeof(buf), stdin) == NULL) {
+            if (fgets(buf, sizeof(buf), stdin) == NULL)
+            {
                 break;
             }
 
-            if (SDL_strncmp(buf, "a", 1) == 0) {
+            if (SDL_strncmp(buf, "a", 1) == 0)
+            {
                 state = SDL_ASSERTION_ABORT;
                 break;
-            } else if (SDL_strncmp(buf, "b", 1) == 0) {
+            }
+            else if (SDL_strncmp(buf, "b", 1) == 0)
+            {
                 state = SDL_ASSERTION_BREAK;
                 break;
-            } else if (SDL_strncmp(buf, "r", 1) == 0) {
+            }
+            else if (SDL_strncmp(buf, "r", 1) == 0)
+            {
                 state = SDL_ASSERTION_RETRY;
                 break;
-            } else if (SDL_strncmp(buf, "i", 1) == 0) {
+            }
+            else if (SDL_strncmp(buf, "i", 1) == 0)
+            {
                 state = SDL_ASSERTION_IGNORE;
                 break;
-            } else if (SDL_strncmp(buf, "A", 1) == 0) {
+            }
+            else if (SDL_strncmp(buf, "A", 1) == 0)
+            {
                 state = SDL_ASSERTION_ALWAYS_IGNORE;
                 break;
             }
@@ -304,18 +355,20 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
     }
 
     // Re-enter fullscreen mode
-    if (window) {
+    if (window)
+    {
         SDL_RestoreWindow(window);
     }
 
-    if (message != stack_buf) {
+    if (message != stack_buf)
+    {
         SDL_free(message);
     }
 
     return state;
 }
 
-SDL_AssertState SDL_ReportAssertion(SDL_AssertData *data, const char *func, const char *file, int line)
+SDL_AssertState SDL_ReportAssertion(SDL_AssertData* data, const char* func, const char* file, int line)
 {
     SDL_AssertState state = SDL_ASSERTION_IGNORE;
     static int assertion_running = 0;
@@ -323,10 +376,12 @@ SDL_AssertState SDL_ReportAssertion(SDL_AssertData *data, const char *func, cons
 #ifndef SDL_THREADS_DISABLED
     static SDL_SpinLock spinlock = 0;
     SDL_LockSpinlock(&spinlock);
-    if (!assertion_mutex) {
+    if (!assertion_mutex)
+    {
         // never called SDL_Init()?
         assertion_mutex = SDL_CreateMutex();
-        if (!assertion_mutex) {
+        if (!assertion_mutex)
+        {
             SDL_UnlockSpinlock(&spinlock);
             return SDL_ASSERTION_IGNORE; // oh well, I guess.
         }
@@ -337,7 +392,8 @@ SDL_AssertState SDL_ReportAssertion(SDL_AssertData *data, const char *func, cons
 #endif // !SDL_THREADS_DISABLED
 
     // doing this because Visual C is upset over assigning in the macro.
-    if (data->trigger_count == 0) {
+    if (data->trigger_count == 0)
+    {
         data->function = func;
         data->filename = file;
         data->linenum = line;
@@ -346,25 +402,34 @@ SDL_AssertState SDL_ReportAssertion(SDL_AssertData *data, const char *func, cons
     SDL_AddAssertionToReport(data);
 
     assertion_running++;
-    if (assertion_running > 1) {
+    if (assertion_running > 1)
+    {
         // assert during assert! Abort.
-        if (assertion_running == 2) {
+        if (assertion_running == 2)
+        {
             SDL_AbortAssertion();
-        } else if (assertion_running == 3) {
+        }
+        else if (assertion_running == 3)
+        {
             // Abort asserted!
             SDL_abort();
-        } else {
-            while (1) {
+        }
+        else
+        {
+            while (1)
+            {
                 // do nothing but spin; what else can you do?!
             }
         }
     }
 
-    if (!data->always_ignore) {
+    if (!data->always_ignore)
+    {
         state = assertion_handler(data, assertion_userdata);
     }
 
-    switch (state) {
+    switch (state)
+    {
     case SDL_ASSERTION_ALWAYS_IGNORE:
         state = SDL_ASSERTION_IGNORE;
         data->always_ignore = true;
@@ -394,7 +459,8 @@ void SDL_AssertionsQuit(void)
 #if SDL_ASSERT_LEVEL > 0
     SDL_GenerateAssertionReport();
 #ifndef SDL_THREADS_DISABLED
-    if (assertion_mutex) {
+    if (assertion_mutex)
+    {
         SDL_DestroyMutex(assertion_mutex);
         assertion_mutex = NULL;
     }
@@ -402,28 +468,32 @@ void SDL_AssertionsQuit(void)
 #endif // SDL_ASSERT_LEVEL > 0
 }
 
-void SDL_SetAssertionHandler(SDL_AssertionHandler handler, void *userdata)
+void SDL_SetAssertionHandler(SDL_AssertionHandler handler, void* userdata)
 {
-    if (handler != NULL) {
+    if (handler != NULL)
+    {
         assertion_handler = handler;
         assertion_userdata = userdata;
-    } else {
+    }
+    else
+    {
         assertion_handler = SDL_PromptAssertion;
         assertion_userdata = NULL;
     }
 }
 
-const SDL_AssertData *SDL_GetAssertionReport(void)
+const SDL_AssertData* SDL_GetAssertionReport(void)
 {
     return triggered_assertions;
 }
 
 void SDL_ResetAssertionReport(void)
 {
-    SDL_AssertData *next = NULL;
-    SDL_AssertData *item;
-    for (item = triggered_assertions; item; item = next) {
-        next = (SDL_AssertData *)item->next;
+    SDL_AssertData* next = NULL;
+    SDL_AssertData* item;
+    for (item = triggered_assertions; item; item = next)
+    {
+        next = (SDL_AssertData*)item->next;
         item->always_ignore = false;
         item->trigger_count = 0;
         item->next = NULL;
@@ -437,9 +507,10 @@ SDL_AssertionHandler SDL_GetDefaultAssertionHandler(void)
     return SDL_PromptAssertion;
 }
 
-SDL_AssertionHandler SDL_GetAssertionHandler(void **userdata)
+SDL_AssertionHandler SDL_GetAssertionHandler(void** userdata)
 {
-    if (userdata) {
+    if (userdata)
+    {
         *userdata = assertion_userdata;
     }
     return assertion_handler;

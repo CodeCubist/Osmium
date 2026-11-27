@@ -256,6 +256,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 #include "SDL_utils_c.h"
@@ -270,7 +271,7 @@ extern SDL_NORETURN void SDL_ExitProcess(int exitcode);
 // Get just the process's binary name, no path. NULL if it doesn't make sense for a platform.
 // Can be something not a file, like a package ID on Android. Meant to be human-readable, not appended to a path, etc.
 // Calculates and caches the string on first call. String lives until SDL_Quit(). This is not a public API right now!
-extern const char *SDL_GetExeName(void);
+extern const char* SDL_GetExeName(void);
 
 #ifdef HAVE_LIBC
 #define SDL_abort() abort()
@@ -313,9 +314,9 @@ extern bool SDL_IsVideoThread(void);
 /* The internal implementations of these functions have up to nanosecond precision.
    We can expose these functions as part of the API if we want to later.
 */
-extern bool SDLCALL SDL_WaitSemaphoreTimeoutNS(SDL_Semaphore *sem, Sint64 timeoutNS);
-extern bool SDLCALL SDL_WaitConditionTimeoutNS(SDL_Condition *cond, SDL_Mutex *mutex, Sint64 timeoutNS);
-extern bool SDLCALL SDL_WaitEventTimeoutNS(SDL_Event *event, Sint64 timeoutNS);
+extern bool SDLCALL SDL_WaitSemaphoreTimeoutNS(SDL_Semaphore* sem, Sint64 timeoutNS);
+extern bool SDLCALL SDL_WaitConditionTimeoutNS(SDL_Condition* cond, SDL_Mutex* mutex, Sint64 timeoutNS);
+extern bool SDLCALL SDL_WaitEventTimeoutNS(SDL_Event* event, Sint64 timeoutNS);
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

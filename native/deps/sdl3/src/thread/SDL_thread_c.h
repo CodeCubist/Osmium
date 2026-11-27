@@ -52,16 +52,16 @@ struct SDL_Thread
     int status;
     SDL_AtomicInt state; /* SDL_ThreadState */
     SDL_error errbuf;
-    char *name;
+    char* name;
     size_t stacksize; // 0 for default, >0 for user-specified stack size.
-    int (SDLCALL *userfunc)(void *);
-    void *userdata;
-    void *data;
+    int (SDLCALL *userfunc)(void*);
+    void* userdata;
+    void* data;
     SDL_FunctionPointer endfunc; // only used on some platforms.
 };
 
 // This is the function called to run a thread
-extern void SDL_RunThread(SDL_Thread *thread);
+extern void SDL_RunThread(SDL_Thread* thread);
 
 // This is the system-independent thread local storage structure
 typedef struct
@@ -73,8 +73,8 @@ typedef struct
 #endif
     struct
     {
-        void *data;
-        void (SDLCALL *destructor)(void *);
+        void* data;
+        void (SDLCALL *destructor)(void*);
     } array[];
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -92,8 +92,8 @@ extern void SDL_QuitTLSData(void);
    storage fails or isn't supported on this platform.
  */
 extern void SDL_Generic_InitTLSData(void);
-extern SDL_TLSData *SDL_Generic_GetTLSData(void);
-extern bool SDL_Generic_SetTLSData(SDL_TLSData *data);
+extern SDL_TLSData* SDL_Generic_GetTLSData(void);
+extern bool SDL_Generic_SetTLSData(SDL_TLSData* data);
 extern void SDL_Generic_QuitTLSData(void);
 
 #endif // SDL_thread_c_h_

@@ -22,6 +22,9 @@ public sealed class CloudRelayTransport : IDisposable
     private const int MaxIncomingFrameBytes = 131072;
     private const int SocketBufferBytes = 512 * 1024;
 
+    private static readonly ConcurrentDictionary<string, (IPAddress[] Addrs, long ExpiresTickMs)> RelayDnsCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly IntPtr _nativeTransport;
     private readonly LoggingService _log;
     private readonly ClientWebSocket _ws = new();
@@ -44,7 +47,10 @@ public sealed class CloudRelayTransport : IDisposable
     private Task? _sendTask;
     private Task? _recvTask;
 
-    public string EndpointLabel { get; }
+    public string EndpointLabel
+    {
+        get;
+    }
 
     public CloudRelayTransport(IntPtr nativeTransport, string endpointLabel, LoggingService log)
     {
@@ -57,7 +63,8 @@ public sealed class CloudRelayTransport : IDisposable
         _ws.Options.DangerousDeflateOptions = null;
     }
 
-    public static Uri BuildRelayUri(string signalingServerUrl, string relayPath, string sessionId, string role, string relayToken)
+    public static Uri BuildRelayUri(string signalingServerUrl, string relayPath, string sessionId, string role,
+        string relayToken)
     {
         string normalized = SignalingClient.NormalizeServerUrl(signalingServerUrl);
         var baseUri = new Uri(normalized);
@@ -67,7 +74,8 @@ public sealed class CloudRelayTransport : IDisposable
         var ub = new UriBuilder(baseUri)
         {
             Path = path,
-            Query = $"sessionId={Uri.EscapeDataString(sessionId)}&role={Uri.EscapeDataString(role)}&token={Uri.EscapeDataString(relayToken)}"
+            Query =
+                $"sessionId={Uri.EscapeDataString(sessionId)}&role={Uri.EscapeDataString(role)}&token={Uri.EscapeDataString(relayToken)}"
         };
         return ub.Uri;
     }
@@ -83,8 +91,9 @@ public sealed class CloudRelayTransport : IDisposable
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
             using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-            using var connectLinked = CancellationTokenSource.CreateLinkedTokenSource(linked.Token, connectTimeout.Token);
-            
+            using var connectLinked =
+                CancellationTokenSource.CreateLinkedTokenSource(linked.Token, connectTimeout.Token);
+
             using var handler = new SocketsHttpHandler
             {
                 ConnectCallback = async (context, token) =>
@@ -94,9 +103,24 @@ public sealed class CloudRelayTransport : IDisposable
                     Socket socket;
                     try
                     {
-                        IPAddress[] v4Addrs = IPAddress.TryParse(host, out var parsed)
-                            ? (parsed.AddressFamily == AddressFamily.InterNetwork ? [parsed] : [])
-                            : await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, token);
+                        IPAddress[] v4Addrs;
+                        if (IPAddress.TryParse(host, out var parsed))
+                        {
+                            v4Addrs = parsed.AddressFamily == AddressFamily.InterNetwork ? [parsed] : [];
+                        }
+                        else if (RelayDnsCache.TryGetValue(host, out var cached) &&
+                                 Environment.TickCount64 < cached.ExpiresTickMs)
+                        {
+                            v4Addrs = cached.Addrs;
+                        }
+                        else
+                        {
+                            v4Addrs = await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, token);
+                            if (v4Addrs.Length > 0)
+                            {
+                                RelayDnsCache[host] = (v4Addrs, Environment.TickCount64 + 300_000L);
+                            }
+                        }
 
                         if (v4Addrs.Length > 0)
                         {
@@ -120,7 +144,6 @@ public sealed class CloudRelayTransport : IDisposable
                     }
                     catch when (!token.IsCancellationRequested)
                     {
-                        
                     }
 
                     socket = new Socket(SocketType.Stream, ProtocolType.Tcp)
@@ -161,7 +184,8 @@ public sealed class CloudRelayTransport : IDisposable
             _recvTask = Task.Run(() => ReceiveLoopAsync(_cts.Token));
             _sendTask = Task.Run(() => SendLoopAsync(_cts.Token));
 
-            using var peerTimeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Max(2000, peerReadyTimeoutMs)));
+            using var peerTimeout =
+                new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Max(2000, peerReadyTimeoutMs)));
             using var waitLinked = CancellationTokenSource.CreateLinkedTokenSource(linked.Token, peerTimeout.Token);
             using var reg = waitLinked.Token.Register(() => _peerReadyTcs.TrySetResult(false));
 
@@ -248,6 +272,7 @@ public sealed class CloudRelayTransport : IDisposable
                             Volatile.Write(ref _droppedVideoGroupId, dropGroupId);
                             return 1;
                         }
+
                         break;
                     }
 
@@ -470,7 +495,7 @@ public sealed class CloudRelayTransport : IDisposable
                     _peerReadyTcs.TrySetResult(false);
                     return;
                 }
-                
+
                 if (result.EndOfMessage)
                 {
                     if (result.MessageType == WebSocketMessageType.Binary && result.Count >= 10)
@@ -489,7 +514,7 @@ public sealed class CloudRelayTransport : IDisposable
 
                     continue;
                 }
-                
+
                 frameMs.SetLength(0);
                 bool overflowed = false;
                 if (result.Count > 0)

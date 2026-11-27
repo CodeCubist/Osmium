@@ -27,9 +27,10 @@
 
 #include "../../core/windows/SDL_windows.h"
 
-SDL_SharedObject *SDL_LoadObject(const char *sofile)
+SDL_SharedObject* SDL_LoadObject(const char* sofile)
 {
-    CHECK_PARAM(!sofile) {
+    CHECK_PARAM(!sofile)
+    {
         SDL_InvalidParamError("sofile");
         return NULL;
     }
@@ -39,18 +40,20 @@ SDL_SharedObject *SDL_LoadObject(const char *sofile)
     SDL_free(wstr);
 
     // Generate an error message if all loads failed
-    if (!handle) {
+    if (!handle)
+    {
         char errbuf[512];
         SDL_snprintf(errbuf, sizeof (errbuf), "Failed loading %s", sofile);
         WIN_SetError(errbuf);
     }
-    return (SDL_SharedObject *)handle;
+    return (SDL_SharedObject*)handle;
 }
 
-SDL_FunctionPointer SDL_LoadFunction(SDL_SharedObject *handle, const char *name)
+SDL_FunctionPointer SDL_LoadFunction(SDL_SharedObject* handle, const char* name)
 {
     SDL_FunctionPointer symbol = (SDL_FunctionPointer)GetProcAddress((HMODULE)handle, name);
-    if (!symbol) {
+    if (!symbol)
+    {
         char errbuf[512];
         SDL_snprintf(errbuf, sizeof (errbuf), "Failed loading %s", name);
         WIN_SetError(errbuf);
@@ -58,9 +61,10 @@ SDL_FunctionPointer SDL_LoadFunction(SDL_SharedObject *handle, const char *name)
     return symbol;
 }
 
-void SDL_UnloadObject(SDL_SharedObject *handle)
+void SDL_UnloadObject(SDL_SharedObject* handle)
 {
-    if (handle) {
+    if (handle)
+    {
         FreeLibrary((HMODULE)handle);
     }
 }

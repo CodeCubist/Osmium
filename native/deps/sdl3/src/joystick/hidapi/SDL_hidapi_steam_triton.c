@@ -61,7 +61,6 @@ enum
 
 typedef enum
 {
-
     TRITON_LBUTTON_A = 0x00000001,
     TRITON_LBUTTON_B = 0x00000002,
     TRITON_LBUTTON_X = 0x00000004,
@@ -125,14 +124,14 @@ typedef struct
 static bool IsProteusDongle(Uint16 product_id)
 {
     return (product_id == USB_PRODUCT_VALVE_STEAM_PROTEUS_DONGLE ||
-            product_id == USB_PRODUCT_VALVE_STEAM_NEREID_DONGLE);
+        product_id == USB_PRODUCT_VALVE_STEAM_NEREID_DONGLE);
 }
 
-static bool DisableSteamTritonLizardMode(SDL_hid_device *dev)
+static bool DisableSteamTritonLizardMode(SDL_hid_device* dev)
 {
     int rc;
-    Uint8 buffer[HID_FEATURE_REPORT_BYTES] = { 1 };
-    FeatureReportMsg *msg = (FeatureReportMsg *)(buffer + 1);
+    Uint8 buffer[HID_FEATURE_REPORT_BYTES] = {1};
+    FeatureReportMsg* msg = (FeatureReportMsg*)(buffer + 1);
 
     msg->header.type = ID_SET_SETTINGS_VALUES;
     msg->header.length = 1 * sizeof(ControllerSetting);
@@ -140,7 +139,8 @@ static bool DisableSteamTritonLizardMode(SDL_hid_device *dev)
     msg->payload.setSettingsValues.settings[0].settingValue = LIZARD_MODE_OFF;
 
     rc = SDL_hid_send_feature_report(dev, buffer, sizeof(buffer));
-    if (rc != sizeof(buffer)) {
+    if (rc != sizeof(buffer))
+    {
         return false;
     }
 
@@ -149,9 +149,11 @@ static bool DisableSteamTritonLizardMode(SDL_hid_device *dev)
 
 // Triton newer state MTUs are identical until touchpads. Parse them using this routine.
 // Expects report to be a TritonMTUNoQuat_t, so cast as needed
-static void HIDAPI_DriverSteamTriton_HandleGenericState(SDL_DriverSteamTriton_Context *ctx, SDL_Joystick *joystick, Uint64 timestamp, TritonMTUNoQuat_t *pTritonReport)
+static void HIDAPI_DriverSteamTriton_HandleGenericState(SDL_DriverSteamTriton_Context* ctx, SDL_Joystick* joystick,
+                                                        Uint64 timestamp, TritonMTUNoQuat_t* pTritonReport)
 {
-    if (pTritonReport->buttons != ctx->last_button_state) {
+    if (pTritonReport->buttons != ctx->last_button_state)
+    {
         Uint8 hat = 0;
 
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_SOUTH,
@@ -206,16 +208,20 @@ static void HIDAPI_DriverSteamTriton_HandleGenericState(SDL_DriverSteamTriton_Co
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_TRITON_LEFT_GRIP_TOUCH,
                                ((pTritonReport->buttons & TRITON_LEFT_GRIP_TOUCH) != 0));
 
-        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_UP) {
+        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_UP)
+        {
             hat |= SDL_HAT_UP;
         }
-        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_DOWN) {
+        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_DOWN)
+        {
             hat |= SDL_HAT_DOWN;
         }
-        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_LEFT) {
+        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_LEFT)
+        {
             hat |= SDL_HAT_LEFT;
         }
-        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_RIGHT) {
+        if (pTritonReport->buttons & TRITON_LBUTTON_DPAD_RIGHT)
+        {
             hat |= SDL_HAT_RIGHT;
         }
         SDL_SendJoystickHat(timestamp, joystick, 0, hat);
@@ -237,12 +243,12 @@ static void HIDAPI_DriverSteamTriton_HandleGenericState(SDL_DriverSteamTriton_Co
                          -pTritonReport->sRightStickY);
 }
 
-static void HIDAPI_DriverSteamTriton_HandleState(SDL_HIDAPI_Device *device,
-                                                 SDL_Joystick *joystick,
-                                                 TritonMTUNoQuat_t *pTritonReport)
+static void HIDAPI_DriverSteamTriton_HandleState(SDL_HIDAPI_Device* device,
+                                                 SDL_Joystick* joystick,
+                                                 TritonMTUNoQuat_t* pTritonReport)
 {
     float values[3];
-    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
+    SDL_DriverSteamTriton_Context* ctx = (SDL_DriverSteamTriton_Context*)device->context;
     Uint64 timestamp = SDL_GetTicksNS();
 
     HIDAPI_DriverSteamTriton_HandleGenericState(ctx, joystick, timestamp, pTritonReport);
@@ -250,8 +256,10 @@ static void HIDAPI_DriverSteamTriton_HandleState(SDL_HIDAPI_Device *device,
     bool left_touch_down = (pTritonReport->buttons & TRITON_LEFT_TOUCHPAD_TOUCH) ? true : false;
     bool right_touch_down = (pTritonReport->buttons & TRITON_RIGHT_TOUCHPAD_TOUCH) ? true : false;
 
-    if (left_touch_down || ctx->left_touch_down) {
-        if (left_touch_down) {
+    if (left_touch_down || ctx->left_touch_down)
+    {
+        if (left_touch_down)
+        {
             ctx->left_touch_x = pTritonReport->sLeftPadX / 65536.0f + 0.5f;
             ctx->left_touch_y = -(float)pTritonReport->sLeftPadY / 65536.0f + 0.5f;
         }
@@ -262,8 +270,10 @@ static void HIDAPI_DriverSteamTriton_HandleState(SDL_HIDAPI_Device *device,
                                  pTritonReport->unPressureLeft / 32768.0f);
         ctx->left_touch_down = left_touch_down;
     }
-    if (right_touch_down || ctx->right_touch_down) {
-        if (right_touch_down) {
+    if (right_touch_down || ctx->right_touch_down)
+    {
+        if (right_touch_down)
+        {
             ctx->right_touch_x = pTritonReport->sRightPadX / 65536.0f + 0.5f;
             ctx->right_touch_y = -(float)pTritonReport->sRightPadY / 65536.0f + 0.5f;
         }
@@ -275,7 +285,8 @@ static void HIDAPI_DriverSteamTriton_HandleState(SDL_HIDAPI_Device *device,
         ctx->right_touch_down = right_touch_down;
     }
 
-    if (ctx->report_sensors && pTritonReport->imu.timestamp != ctx->last_sensor_tick32) {
+    if (ctx->report_sensors && pTritonReport->imu.timestamp != ctx->last_sensor_tick32)
+    {
         Uint32 delta_us = (pTritonReport->imu.timestamp - ctx->last_sensor_tick32);
 
         ctx->sensor_timestamp_ns += SDL_US_TO_NS(delta_us);
@@ -294,21 +305,23 @@ static void HIDAPI_DriverSteamTriton_HandleState(SDL_HIDAPI_Device *device,
     }
 }
 
-static void HIDAPI_DriverSteamTriton_HandleState_Timestamp(SDL_HIDAPI_Device *device,
-                                                           SDL_Joystick *joystick,
-                                                           TritonMTUNoQuat32TS_t *pTritonReport)
+static void HIDAPI_DriverSteamTriton_HandleState_Timestamp(SDL_HIDAPI_Device* device,
+                                                           SDL_Joystick* joystick,
+                                                           TritonMTUNoQuat32TS_t* pTritonReport)
 {
     float values[3];
-    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
+    SDL_DriverSteamTriton_Context* ctx = (SDL_DriverSteamTriton_Context*)device->context;
     Uint64 timestamp = SDL_GetTicksNS();
 
-    HIDAPI_DriverSteamTriton_HandleGenericState(ctx, joystick, timestamp, (TritonMTUNoQuat_t *)pTritonReport);
+    HIDAPI_DriverSteamTriton_HandleGenericState(ctx, joystick, timestamp, (TritonMTUNoQuat_t*)pTritonReport);
 
     bool left_touch_down = (pTritonReport->buttons & TRITON_LEFT_TOUCHPAD_TOUCH) ? true : false;
     bool right_touch_down = (pTritonReport->buttons & TRITON_RIGHT_TOUCHPAD_TOUCH) ? true : false;
 
-    if (left_touch_down || ctx->left_touch_down) {
-        if (left_touch_down) {
+    if (left_touch_down || ctx->left_touch_down)
+    {
+        if (left_touch_down)
+        {
             ctx->left_touch_x = pTritonReport->sLeftPadX / 65536.0f + 0.5f;
             ctx->left_touch_y = -(float)pTritonReport->sLeftPadY / 65536.0f + 0.5f;
         }
@@ -319,8 +332,10 @@ static void HIDAPI_DriverSteamTriton_HandleState_Timestamp(SDL_HIDAPI_Device *de
                                  pTritonReport->unPressureLeft / 32768.0f);
         ctx->left_touch_down = left_touch_down;
     }
-    if (right_touch_down || ctx->right_touch_down) {
-        if (right_touch_down) {
+    if (right_touch_down || ctx->right_touch_down)
+    {
+        if (right_touch_down)
+        {
             ctx->right_touch_x = pTritonReport->sRightPadX / 65536.0f + 0.5f;
             ctx->right_touch_y = -(float)pTritonReport->sRightPadY / 65536.0f + 0.5f;
         }
@@ -332,7 +347,8 @@ static void HIDAPI_DriverSteamTriton_HandleState_Timestamp(SDL_HIDAPI_Device *de
         ctx->right_touch_down = right_touch_down;
     }
 
-    if (ctx->report_sensors && pTritonReport->imu.timestamp != ctx->last_sensor_tick16) {
+    if (ctx->report_sensors && pTritonReport->imu.timestamp != ctx->last_sensor_tick16)
+    {
         // The timestamp is in units of 32 microseconds
         Uint32 delta_us = (Uint32)(pTritonReport->imu.timestamp - ctx->last_sensor_tick16) * 32;
 
@@ -352,13 +368,14 @@ static void HIDAPI_DriverSteamTriton_HandleState_Timestamp(SDL_HIDAPI_Device *de
     }
 }
 
-static void HIDAPI_DriverSteamTriton_HandleBatteryStatus(SDL_HIDAPI_Device *device,
-                                                         SDL_Joystick *joystick,
-                                                         TritonBatteryStatus_t *pTritonBatteryStatus)
+static void HIDAPI_DriverSteamTriton_HandleBatteryStatus(SDL_HIDAPI_Device* device,
+                                                         SDL_Joystick* joystick,
+                                                         TritonBatteryStatus_t* pTritonBatteryStatus)
 {
     SDL_PowerState state;
 
-    switch (pTritonBatteryStatus->ucChargeState) {
+    switch (pTritonBatteryStatus->ucChargeState)
+    {
     case k_EChargeStateDischarging:
         state = SDL_POWERSTATE_ON_BATTERY;
         break;
@@ -376,20 +393,26 @@ static void HIDAPI_DriverSteamTriton_HandleBatteryStatus(SDL_HIDAPI_Device *devi
     SDL_SendJoystickPowerInfo(joystick, state, pTritonBatteryStatus->ucBatteryLevel);
 }
 
-static bool HIDAPI_DriverSteamTriton_SetControllerConnected(SDL_HIDAPI_Device *device, bool connected)
+static bool HIDAPI_DriverSteamTriton_SetControllerConnected(SDL_HIDAPI_Device* device, bool connected)
 {
-    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
+    SDL_DriverSteamTriton_Context* ctx = (SDL_DriverSteamTriton_Context*)device->context;
 
-    if (ctx->connected != connected) {
+    if (ctx->connected != connected)
+    {
         ctx->connected = connected;
 
-        if (connected) {
+        if (connected)
+        {
             SDL_JoystickID joystickID;
-            if (!HIDAPI_JoystickConnected(device, &joystickID)) {
+            if (!HIDAPI_JoystickConnected(device, &joystickID))
+            {
                 return false;
             }
-        } else {
-            if (device->num_joysticks > 0) {
+        }
+        else
+        {
+            if (device->num_joysticks > 0)
+            {
                 HIDAPI_JoystickDisconnected(device, device->joysticks[0]);
             }
         }
@@ -397,10 +420,11 @@ static bool HIDAPI_DriverSteamTriton_SetControllerConnected(SDL_HIDAPI_Device *d
     return true;
 }
 
-static void HIDAPI_DriverSteamTriton_HandleWirelessStatus(SDL_HIDAPI_Device *device,
-                                                          TritonWirelessStatus_t *pTritonWirelessStatus)
+static void HIDAPI_DriverSteamTriton_HandleWirelessStatus(SDL_HIDAPI_Device* device,
+                                                          TritonWirelessStatus_t* pTritonWirelessStatus)
 {
-    switch (pTritonWirelessStatus->state) {
+    switch (pTritonWirelessStatus->state)
+    {
     case k_ETritonWirelessStateConnect:
         HIDAPI_DriverSteamTriton_SetControllerConnected(device, true);
         break;
@@ -414,12 +438,12 @@ static void HIDAPI_DriverSteamTriton_HandleWirelessStatus(SDL_HIDAPI_Device *dev
 
 /*****************************************************************************************************/
 
-static void HIDAPI_DriverSteamTriton_RegisterHints(SDL_HintCallback callback, void *userdata)
+static void HIDAPI_DriverSteamTriton_RegisterHints(SDL_HintCallback callback, void* userdata)
 {
     SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_STEAM, callback, userdata);
 }
 
-static void HIDAPI_DriverSteamTriton_UnregisterHints(SDL_HintCallback callback, void *userdata)
+static void HIDAPI_DriverSteamTriton_UnregisterHints(SDL_HintCallback callback, void* userdata)
 {
     SDL_RemoveHintCallback(SDL_HINT_JOYSTICK_HIDAPI_STEAM, callback, userdata);
 }
@@ -431,8 +455,8 @@ static bool HIDAPI_DriverSteamTriton_IsEnabled(void)
 }
 
 static bool HIDAPI_DriverSteamTriton_IsSupportedDevice(
-    SDL_HIDAPI_Device *device,
-    const char *name,
+    SDL_HIDAPI_Device* device,
+    const char* name,
     SDL_GamepadType type,
     Uint16 vendor_id,
     Uint16 product_id,
@@ -442,24 +466,28 @@ static bool HIDAPI_DriverSteamTriton_IsSupportedDevice(
     int interface_subclass,
     int interface_protocol)
 {
-
-    if (IsProteusDongle(product_id)) {
-        if (interface_number >= 2 && interface_number <= 5) {
+    if (IsProteusDongle(product_id))
+    {
+        if (interface_number >= 2 && interface_number <= 5)
+        {
             // The set of controller interfaces for Proteus & Nereid...currently
             return true;
         }
-    } else if (SDL_IsJoystickSteamTriton(vendor_id, product_id)) {
+    }
+    else if (SDL_IsJoystickSteamTriton(vendor_id, product_id))
+    {
         return true;
     }
     return false;
 }
 
-static bool HIDAPI_DriverSteamTriton_InitDevice(SDL_HIDAPI_Device *device)
+static bool HIDAPI_DriverSteamTriton_InitDevice(SDL_HIDAPI_Device* device)
 {
-    SDL_DriverSteamTriton_Context *ctx;
+    SDL_DriverSteamTriton_Context* ctx;
 
-    ctx = (SDL_DriverSteamTriton_Context *)SDL_calloc(1, sizeof(*ctx));
-    if (ctx == NULL) {
+    ctx = (SDL_DriverSteamTriton_Context*)SDL_calloc(1, sizeof(*ctx));
+    if (ctx == NULL)
+    {
         return false;
     }
 
@@ -467,7 +495,8 @@ static bool HIDAPI_DriverSteamTriton_InitDevice(SDL_HIDAPI_Device *device)
 
     HIDAPI_SetDeviceName(device, "Steam Controller");
 
-    if (IsProteusDongle(device->product_id)) {
+    if (IsProteusDongle(device->product_id))
+    {
         return true;
     }
 
@@ -475,48 +504,59 @@ static bool HIDAPI_DriverSteamTriton_InitDevice(SDL_HIDAPI_Device *device)
     return HIDAPI_DriverSteamTriton_SetControllerConnected(device, true);
 }
 
-static int HIDAPI_DriverSteamTriton_GetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id)
+static int HIDAPI_DriverSteamTriton_GetDevicePlayerIndex(SDL_HIDAPI_Device* device, SDL_JoystickID instance_id)
 {
     return -1;
 }
 
-static void HIDAPI_DriverSteamTriton_SetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id, int player_index)
+static void HIDAPI_DriverSteamTriton_SetDevicePlayerIndex(SDL_HIDAPI_Device* device, SDL_JoystickID instance_id,
+                                                          int player_index)
 {
 }
 
-static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble);
+static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                    Uint16 low_frequency_rumble, Uint16 high_frequency_rumble);
 
-static bool HIDAPI_DriverSteamTriton_UpdateDevice(SDL_HIDAPI_Device *device)
+static bool HIDAPI_DriverSteamTriton_UpdateDevice(SDL_HIDAPI_Device* device)
 {
-    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
-    SDL_Joystick *joystick = NULL;
+    SDL_DriverSteamTriton_Context* ctx = (SDL_DriverSteamTriton_Context*)device->context;
+    SDL_Joystick* joystick = NULL;
 
-    if (device->num_joysticks > 0) {
+    if (device->num_joysticks > 0)
+    {
         joystick = SDL_GetJoystickFromID(device->joysticks[0]);
     }
 
-    if (ctx->connected && joystick) {
+    if (ctx->connected && joystick)
+    {
         Uint64 now = SDL_GetTicks();
-        if (!ctx->last_lizard_update || (now - ctx->last_lizard_update) >= 3000) {
+        if (!ctx->last_lizard_update || (now - ctx->last_lizard_update) >= 3000)
+        {
             DisableSteamTritonLizardMode(device->dev);
             ctx->last_lizard_update = now;
         }
 
-        if (ctx->low_frequency_rumble || ctx->high_frequency_rumble) {
-            if ((now - ctx->last_rumble_time) >= TRITON_RUMBLE_RESEND_INTERVAL_MS) {
-                HIDAPI_DriverSteamTriton_RumbleJoystick(device, joystick, ctx->low_frequency_rumble, ctx->high_frequency_rumble);
+        if (ctx->low_frequency_rumble || ctx->high_frequency_rumble)
+        {
+            if ((now - ctx->last_rumble_time) >= TRITON_RUMBLE_RESEND_INTERVAL_MS)
+            {
+                HIDAPI_DriverSteamTriton_RumbleJoystick(device, joystick, ctx->low_frequency_rumble,
+                                                        ctx->high_frequency_rumble);
             }
         }
     }
 
-    for (;;) {
+    for (;;)
+    {
         uint8_t data[64];
         int r = SDL_hid_read(device->dev, data, sizeof(data));
 
-        if (r == 0) {
+        if (r == 0)
+        {
             return true;
         }
-        if (r < 0) {
+        if (r < 0)
+        {
             // Failed to read from controller
             HIDAPI_DriverSteamTriton_SetControllerConnected(device, false);
             return false;
@@ -526,42 +566,51 @@ static bool HIDAPI_DriverSteamTriton_UpdateDevice(SDL_HIDAPI_Device *device)
         HIDAPI_DumpPacket("Steam Controller packet: size = %d", data, r);
 #endif
 
-        switch (data[0]) {
+        switch (data[0])
+        {
         case ID_TRITON_CONTROLLER_STATE:
         case ID_TRITON_CONTROLLER_STATE_BLE:
-            if (!joystick) {
+            if (!joystick)
+            {
                 HIDAPI_DriverSteamTriton_SetControllerConnected(device, true);
-                if (device->num_joysticks > 0) {
+                if (device->num_joysticks > 0)
+                {
                     joystick = SDL_GetJoystickFromID(device->joysticks[0]);
                 }
             }
-            if (joystick && r >= (1 + sizeof(TritonMTUNoQuat_t))) {
-                TritonMTUNoQuat_t *pTritonReport = (TritonMTUNoQuat_t *)&data[1];
+            if (joystick && r >= (1 + sizeof(TritonMTUNoQuat_t)))
+            {
+                TritonMTUNoQuat_t* pTritonReport = (TritonMTUNoQuat_t*)&data[1];
                 HIDAPI_DriverSteamTriton_HandleState(device, joystick, pTritonReport);
             }
             break;
         case ID_TRITON_CONTROLLER_STATE_TIMESTAMP:
-            if (!joystick) {
+            if (!joystick)
+            {
                 HIDAPI_DriverSteamTriton_SetControllerConnected(device, true);
-                if (device->num_joysticks > 0) {
+                if (device->num_joysticks > 0)
+                {
                     joystick = SDL_GetJoystickFromID(device->joysticks[0]);
                 }
             }
-            if (joystick && r >= (1 + sizeof(TritonMTUNoQuat32TS_t))) {
-                TritonMTUNoQuat32TS_t *pTritonReport = (TritonMTUNoQuat32TS_t *)&data[1];
+            if (joystick && r >= (1 + sizeof(TritonMTUNoQuat32TS_t)))
+            {
+                TritonMTUNoQuat32TS_t* pTritonReport = (TritonMTUNoQuat32TS_t*)&data[1];
                 HIDAPI_DriverSteamTriton_HandleState_Timestamp(device, joystick, pTritonReport);
             }
             break;
         case ID_TRITON_BATTERY_STATUS:
-            if (joystick && r >= (1 + sizeof(TritonBatteryStatus_t))) {
-                TritonBatteryStatus_t *pTritonBatteryStatus = (TritonBatteryStatus_t *)&data[1];
+            if (joystick && r >= (1 + sizeof(TritonBatteryStatus_t)))
+            {
+                TritonBatteryStatus_t* pTritonBatteryStatus = (TritonBatteryStatus_t*)&data[1];
                 HIDAPI_DriverSteamTriton_HandleBatteryStatus(device, joystick, pTritonBatteryStatus);
             }
             break;
         case ID_TRITON_WIRELESS_STATUS_X:
         case ID_TRITON_WIRELESS_STATUS:
-            if (r >= (1 + sizeof(TritonWirelessStatus_t))) {
-                TritonWirelessStatus_t *pTritonWirelessStatus = (TritonWirelessStatus_t *)&data[1];
+            if (r >= (1 + sizeof(TritonWirelessStatus_t)))
+            {
+                TritonWirelessStatus_t* pTritonWirelessStatus = (TritonWirelessStatus_t*)&data[1];
                 HIDAPI_DriverSteamTriton_HandleWirelessStatus(device, pTritonWirelessStatus);
             }
             break;
@@ -571,7 +620,7 @@ static bool HIDAPI_DriverSteamTriton_UpdateDevice(SDL_HIDAPI_Device *device)
     }
 }
 
-static bool HIDAPI_DriverSteamTriton_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static bool HIDAPI_DriverSteamTriton_OpenJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
     float update_rate_in_hz = 1000000.0f / TRITON_SENSOR_UPDATE_INTERVAL_US;
 
@@ -591,17 +640,18 @@ static bool HIDAPI_DriverSteamTriton_OpenJoystick(SDL_HIDAPI_Device *device, SDL
     return true;
 }
 
-static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
+static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                    Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
-    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
+    SDL_DriverSteamTriton_Context* ctx = (SDL_DriverSteamTriton_Context*)device->context;
     int rc;
 
     ctx->low_frequency_rumble = low_frequency_rumble;
     ctx->high_frequency_rumble = high_frequency_rumble;
     ctx->last_rumble_time = SDL_GetTicks();
 
-    Uint8 buffer[HID_RUMBLE_OUTPUT_REPORT_BYTES] = { 0 };
-    OutputReportMsg *msg = (OutputReportMsg *)(buffer);
+    Uint8 buffer[HID_RUMBLE_OUTPUT_REPORT_BYTES] = {0};
+    OutputReportMsg* msg = (OutputReportMsg*)(buffer);
 
     msg->report_id = ID_OUT_REPORT_HAPTIC_RUMBLE;
     msg->payload.hapticRumble.type = 0;
@@ -612,7 +662,8 @@ static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device *device, S
     msg->payload.hapticRumble.right.gain = 0;
 
     rc = SDL_hid_write(device->dev, buffer, sizeof(buffer));
-    if (rc < 0) {
+    if (rc < 0)
+    {
         SDL_LogError(SDL_LOG_CATEGORY_INPUT,
                      "Steam Controller HID Write FAILED! rc: %d. SDL_Error: %s",
                      rc, SDL_GetError());
@@ -622,26 +673,31 @@ static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device *device, S
     return true;
 }
 
-static bool HIDAPI_DriverSteamTriton_RumbleJoystickTriggers(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
+static bool HIDAPI_DriverSteamTriton_RumbleJoystickTriggers(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                            Uint16 left_rumble, Uint16 right_rumble)
 {
     return SDL_Unsupported();
 }
 
-static Uint32 HIDAPI_DriverSteamTriton_GetJoystickCapabilities(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static Uint32 HIDAPI_DriverSteamTriton_GetJoystickCapabilities(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
     return SDL_JOYSTICK_CAP_RUMBLE;
 }
 
-static bool HIDAPI_DriverSteamTriton_SetJoystickLED(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
+static bool HIDAPI_DriverSteamTriton_SetJoystickLED(SDL_HIDAPI_Device* device, SDL_Joystick* joystick, Uint8 red,
+                                                    Uint8 green, Uint8 blue)
 {
     return SDL_Unsupported();
 }
 
-static bool HIDAPI_DriverSteamTriton_SendJoystickEffect(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, const void *data, int size)
+static bool HIDAPI_DriverSteamTriton_SendJoystickEffect(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                        const void* data, int size)
 {
-    if (size == HID_FEATURE_REPORT_BYTES) {
+    if (size == HID_FEATURE_REPORT_BYTES)
+    {
         int rc = SDL_hid_send_feature_report(device->dev, data, size);
-        if (rc != size) {
+        if (rc != size)
+        {
             return false;
         }
         return true;
@@ -649,24 +705,29 @@ static bool HIDAPI_DriverSteamTriton_SendJoystickEffect(SDL_HIDAPI_Device *devic
     return SDL_Unsupported();
 }
 
-static bool HIDAPI_DriverSteamTriton_SetSensorsEnabled(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, bool enabled)
+static bool HIDAPI_DriverSteamTriton_SetSensorsEnabled(SDL_HIDAPI_Device* device, SDL_Joystick* joystick, bool enabled)
 {
-    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
+    SDL_DriverSteamTriton_Context* ctx = (SDL_DriverSteamTriton_Context*)device->context;
     int rc;
-    Uint8 buffer[HID_FEATURE_REPORT_BYTES] = { 1 };
-    FeatureReportMsg *msg = (FeatureReportMsg *)(buffer + 1);
+    Uint8 buffer[HID_FEATURE_REPORT_BYTES] = {1};
+    FeatureReportMsg* msg = (FeatureReportMsg*)(buffer + 1);
 
     msg->header.type = ID_SET_SETTINGS_VALUES;
     msg->header.length = 1 * sizeof(ControllerSetting);
     msg->payload.setSettingsValues.settings[0].settingNum = SETTING_IMU_MODE;
-    if (enabled) {
-        msg->payload.setSettingsValues.settings[0].settingValue = (SETTING_GYRO_MODE_SEND_RAW_ACCEL | SETTING_GYRO_MODE_SEND_RAW_GYRO);
-    } else {
+    if (enabled)
+    {
+        msg->payload.setSettingsValues.settings[0].settingValue = (SETTING_GYRO_MODE_SEND_RAW_ACCEL |
+            SETTING_GYRO_MODE_SEND_RAW_GYRO);
+    }
+    else
+    {
         msg->payload.setSettingsValues.settings[0].settingValue = SETTING_GYRO_MODE_OFF;
     }
 
     rc = SDL_hid_send_feature_report(device->dev, buffer, sizeof(buffer));
-    if (rc != sizeof(buffer)) {
+    if (rc != sizeof(buffer))
+    {
         return false;
     }
 
@@ -675,12 +736,12 @@ static bool HIDAPI_DriverSteamTriton_SetSensorsEnabled(SDL_HIDAPI_Device *device
     return true;
 }
 
-static void HIDAPI_DriverSteamTriton_CloseJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static void HIDAPI_DriverSteamTriton_CloseJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
     // Lizard mode id automatically re-enabled by watchdog. Nothing to do here.
 }
 
-static void HIDAPI_DriverSteamTriton_FreeDevice(SDL_HIDAPI_Device *device)
+static void HIDAPI_DriverSteamTriton_FreeDevice(SDL_HIDAPI_Device* device)
 {
 }
 

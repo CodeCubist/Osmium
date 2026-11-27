@@ -707,6 +707,7 @@ public sealed partial class P2PCoordinator : IDisposable
         string sessionId = Convert.ToHexString(sessionToken);
         var (stunHost, stunPort) = GetStunEndpoint();
         IntPtr transport = IntPtr.Zero;
+        Task<(IntPtr Handle, string CandidatesJson)>? preTransportTask = null;
         CloudRelayTransport? clientRelay = null;
         bool bridgeReadyReached = false;
         bool launchedSessionHandledEnd = false;
@@ -784,6 +785,14 @@ public sealed partial class P2PCoordinator : IDisposable
                 bool clientEncrypt = _settings.Settings.EnableEncryption;
                 ClientStageUpdated?.Invoke(Tr("Conn_Requesting", "Connecting to {0}...",
                     DeviceIdentity.FormatDeviceId(normalizedTarget)));
+
+                preTransportTask = Task.Run(() =>
+                {
+                    var sb = new StringBuilder(4096);
+                    int ok = NativeMethods.Osmium_CreateTransport(stunHost, stunPort, out IntPtr h, sb, sb.Capacity);
+                    return ok != 0 && h != IntPtr.Zero ? (h, sb.ToString()) : (IntPtr.Zero, string.Empty);
+                });
+
                 await _signaling.SendConnectRequestAsync(
                     sessionId,
                     normalizedTarget,
@@ -969,15 +978,48 @@ public sealed partial class P2PCoordinator : IDisposable
                 }
 
                 ClientStageUpdated?.Invoke(Tr("Conn_Probing", "Detecting network endpoints..."));
-                var candSb = new StringBuilder(4096);
-                if (NativeMethods.Osmium_CreateTransport(stunHost, stunPort, out transport, candSb, candSb.Capacity) ==
-                    0 ||
-                    transport == IntPtr.Zero)
+                string localCandidatesJson;
+                if (preTransportTask != null)
+                {
+                    var pre = await preTransportTask.WaitAsync(ct);
+                    preTransportTask = null;
+                    transport = pre.Handle;
+                    localCandidatesJson = pre.CandidatesJson;
+
+                    string chStunHost = !string.IsNullOrWhiteSpace(challenge.StunHost) ? challenge.StunHost : stunHost;
+                    ushort chStunPort = challenge.StunPort > 0 ? challenge.StunPort : stunPort;
+                    if (transport != IntPtr.Zero &&
+                        !localCandidatesJson.Contains("\"srflx\"", StringComparison.Ordinal) &&
+                        (!string.Equals(chStunHost, stunHost, StringComparison.OrdinalIgnoreCase) ||
+                         chStunPort != stunPort))
+                    {
+                        NativeMethods.Osmium_DestroyTransport(transport);
+                        transport = IntPtr.Zero;
+                        var candSb = new StringBuilder(4096);
+                        if (NativeMethods.Osmium_CreateTransport(chStunHost, chStunPort, out transport, candSb,
+                                candSb.Capacity) != 0 && transport != IntPtr.Zero)
+                        {
+                            localCandidatesJson = candSb.ToString();
+                        }
+                    }
+                }
+                else
+                {
+                    var candSb = new StringBuilder(4096);
+                    if (NativeMethods.Osmium_CreateTransport(stunHost, stunPort, out transport, candSb,
+                            candSb.Capacity) == 0 || transport == IntPtr.Zero)
+                    {
+                        return (false, Tr("Conn_BindFailed", "Unable to bind local UDP transport port"));
+                    }
+
+                    localCandidatesJson = candSb.ToString();
+                }
+
+                if (transport == IntPtr.Zero)
                 {
                     return (false, Tr("Conn_BindFailed", "Unable to bind local UDP transport port"));
                 }
 
-                string localCandidatesJson = candSb.ToString();
                 await _signaling.SendBridgeCandidatesAsync(sessionId, localCandidatesJson);
 
                 BridgeReadyEventArgs bridge;
@@ -1022,7 +1064,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
                 }
 
-                const int maxDirectAttempts = 3;
+                const int maxDirectAttempts = 2;
                 var epSb = new StringBuilder(128);
                 int transportRoute = 0;
                 int punchOk = 0;
@@ -1052,7 +1094,7 @@ public sealed partial class P2PCoordinator : IDisposable
                         sessionToken,
                         1,
                         bridge.CandidatesJson,
-                        2500,
+                        1400,
                         out transportRoute,
                         epSb,
                         epSb.Capacity), ct);
@@ -1125,7 +1167,8 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     if (!await SwitchToCloudRelayAsync())
                     {
-                        return (false, Tr("Conn_PunchFailed", "Failed to establish connection (direct and relay failed)"));
+                        return (false,
+                            Tr("Conn_PunchFailed", "Failed to establish connection (direct and relay failed)"));
                     }
                 }
 
@@ -1134,7 +1177,9 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                 }
-                NativeMethods.Osmium_SetTransportKcpEnabled(transport, (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
+
+                NativeMethods.Osmium_SetTransportKcpEnabled(transport,
+                    (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
 
                 var s = _settings.Settings;
                 var clientCfg = new OsmiumClientConfig
@@ -1180,7 +1225,8 @@ public sealed partial class P2PCoordinator : IDisposable
                         ? 10000
                         : (relayFallbackTcs.Task.IsCompleted ? 2500 : 5000);
                     authRes = await Task.Run(
-                        () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, authTimeoutMs), ct);
+                        () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, authTimeoutMs),
+                        ct);
 
                     if (authRes == 0 && transportRoute != 4)
                     {
@@ -1190,7 +1236,8 @@ public sealed partial class P2PCoordinator : IDisposable
                             ClientStageUpdated?.Invoke(
                                 Tr("Conn_VerifyingRelay", "Cloud relay active, verifying access code..."));
                             authRes = await Task.Run(
-                                () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, 10000), ct);
+                                () => NativeMethods.Osmium_AuthenticateClient(transport, authTag, in clientCfg, 10000),
+                                ct);
                         }
                     }
                 }
@@ -1251,14 +1298,9 @@ public sealed partial class P2PCoordinator : IDisposable
                                 : _account.GetEffectiveLocalDeviceName()));
                     string displayHeader = Tr("Session_WhoControllingWhomFmt", "{0} is controlling {1}", controllerWho,
                         hostWhom);
-                    try
+                    if (!string.IsNullOrWhiteSpace(_signaling.ResolvedServerIp))
                     {
-                        var addrs = await Dns.GetHostAddressesAsync(sigHost, AddressFamily.InterNetwork, ct);
-                        var ipv4 = addrs.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
-                        if (ipv4 != null) sigIp = ipv4.ToString();
-                    }
-                    catch
-                    {
+                        sigIp = _signaling.ResolvedServerIp;
                     }
 
                     var launchArgs = new RemoteSessionLaunchArgs
@@ -1359,6 +1401,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     _peerEndedClientSession = false;
                     _activeClientSessionEstablished = false;
                 }
+
                 try
                 {
                     await Task.Run(() => NativeMethods.Osmium_RunClientSession(transport, in clientCfg, in callbacks),
@@ -1379,7 +1422,8 @@ public sealed partial class P2PCoordinator : IDisposable
 
                     if (wasEstablished)
                     {
-                        await SendClientSessionEndAndAwaitCooldownAsync(sessionId, normalizedTarget, "Client closed session");
+                        await SendClientSessionEndAndAwaitCooldownAsync(sessionId, normalizedTarget,
+                            "Client closed session");
                     }
                     else
                     {
@@ -1387,6 +1431,7 @@ public sealed partial class P2PCoordinator : IDisposable
                             "Client closed before mutual confirmation", role: "client", failed: true);
                     }
                 }
+
                 return (true, Tr("Conn_SessionEnded", "Session ended"));
             }
             finally
@@ -1419,6 +1464,19 @@ public sealed partial class P2PCoordinator : IDisposable
             }
 
             clientRelay?.Dispose();
+            if (preTransportTask != null)
+            {
+                var orphanTask = preTransportTask;
+                preTransportTask = null;
+                _ = orphanTask.ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully && t.Result.Handle != IntPtr.Zero)
+                    {
+                        NativeMethods.Osmium_DestroyTransport(t.Result.Handle);
+                    }
+                }, TaskScheduler.Default);
+            }
+
             if (transport != IntPtr.Zero)
             {
                 NativeMethods.Osmium_DestroyTransport(transport);

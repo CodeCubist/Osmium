@@ -22,51 +22,56 @@
 
 #include "SDL_dialog_utils.h"
 
-char *convert_filters(const SDL_DialogFileFilter *filters, int nfilters,
-                      NameTransform ntf, const char *prefix,
-                      const char *separator, const char *suffix,
-                      const char *filt_prefix, const char *filt_separator,
-                      const char *filt_suffix, const char *ext_prefix,
-                      const char *ext_separator, const char *ext_suffix,
+char* convert_filters(const SDL_DialogFileFilter* filters, int nfilters,
+                      NameTransform ntf, const char* prefix,
+                      const char* separator, const char* suffix,
+                      const char* filt_prefix, const char* filt_separator,
+                      const char* filt_suffix, const char* ext_prefix,
+                      const char* ext_separator, const char* ext_suffix,
                       bool anycase)
 {
-    char *combined;
-    char *new_combined;
-    char *converted;
-    const char *terminator;
+    char* combined;
+    char* new_combined;
+    char* converted;
+    const char* terminator;
     size_t new_length;
     int i;
 
-    if (!filters) {
+    if (!filters)
+    {
         SDL_SetError("Called convert_filters() with NULL filters (SDL bug)");
         return NULL;
     }
 
     combined = SDL_strdup(prefix);
 
-    if (!combined) {
+    if (!combined)
+    {
         return NULL;
     }
 
-    for (i = 0; i < nfilters; i++) {
-        const SDL_DialogFileFilter *f = &filters[i];
+    for (i = 0; i < nfilters; i++)
+    {
+        const SDL_DialogFileFilter* f = &filters[i];
 
         converted = convert_filter(*f, ntf, filt_prefix, filt_separator,
                                    filt_suffix, ext_prefix, ext_separator,
                                    ext_suffix, anycase);
 
-        if (!converted) {
+        if (!converted)
+        {
             SDL_free(combined);
             return NULL;
         }
 
         terminator = ((i + 1) < nfilters) ? separator : suffix;
         new_length = SDL_strlen(combined) + SDL_strlen(converted)
-                     + SDL_strlen(terminator) + 1;
+            + SDL_strlen(terminator) + 1;
 
-        new_combined = (char *)SDL_realloc(combined, new_length);
+        new_combined = (char*)SDL_realloc(combined, new_length);
 
-        if (!new_combined) {
+        if (!new_combined)
+        {
             SDL_free(converted);
             SDL_free(combined);
             return NULL;
@@ -81,9 +86,10 @@ char *convert_filters(const SDL_DialogFileFilter *filters, int nfilters,
 
     new_length = SDL_strlen(combined) + SDL_strlen(suffix) + 1;
 
-    new_combined = (char *)SDL_realloc(combined, new_length);
+    new_combined = (char*)SDL_realloc(combined, new_length);
 
-    if (!new_combined) {
+    if (!new_combined)
+    {
         SDL_free(combined);
         return NULL;
     }
@@ -95,43 +101,49 @@ char *convert_filters(const SDL_DialogFileFilter *filters, int nfilters,
     return combined;
 }
 
-char *convert_filter(SDL_DialogFileFilter filter, NameTransform ntf,
-                     const char *prefix, const char *separator,
-                     const char *suffix, const char *ext_prefix,
-                     const char *ext_separator, const char *ext_suffix,
+char* convert_filter(SDL_DialogFileFilter filter, NameTransform ntf,
+                     const char* prefix, const char* separator,
+                     const char* suffix, const char* ext_prefix,
+                     const char* ext_separator, const char* ext_suffix,
                      bool anycase)
 {
-    char *converted;
-    char *name_filtered;
+    char* converted;
+    char* name_filtered;
     size_t total_length;
-    char *list;
+    char* list;
 
     list = convert_ext_list(filter.pattern, ext_prefix, ext_separator,
                             ext_suffix, anycase);
 
-    if (!list) {
+    if (!list)
+    {
         return NULL;
     }
 
-    if (ntf) {
+    if (ntf)
+    {
         name_filtered = ntf(filter.name);
-    } else {
+    }
+    else
+    {
         // Useless strdup, but easier to read and maintain code this way
         name_filtered = SDL_strdup(filter.name);
     }
 
-    if (!name_filtered) {
+    if (!name_filtered)
+    {
         SDL_free(list);
         return NULL;
     }
 
     total_length = SDL_strlen(prefix) + SDL_strlen(name_filtered)
-                   + SDL_strlen(separator) + SDL_strlen(list)
-                   + SDL_strlen(suffix) + 1;
+        + SDL_strlen(separator) + SDL_strlen(list)
+        + SDL_strlen(suffix) + 1;
 
-    converted = (char *)SDL_malloc(total_length);
+    converted = (char*)SDL_malloc(total_length);
 
-    if (!converted) {
+    if (!converted)
+    {
         SDL_free(list);
         SDL_free(name_filtered);
         return NULL;
@@ -146,28 +158,30 @@ char *convert_filter(SDL_DialogFileFilter filter, NameTransform ntf,
     return converted;
 }
 
-char *convert_ext_list(const char *list, const char *prefix,
-                       const char *separator, const char *suffix, bool anycase)
+char* convert_ext_list(const char* list, const char* prefix,
+                       const char* separator, const char* suffix, bool anycase)
 {
-    char *converted;
+    char* converted;
     int semicolons;
     size_t total_length;
 
     semicolons = 0;
 
-    for (const char *c = list; *c; c++) {
+    for (const char* c = list; *c; c++)
+    {
         semicolons += (*c == ';');
     }
 
     total_length =
-        (SDL_strlen(list) - semicolons) * 4       // length of list contents (including "a" -> "[aA]")
-        + semicolons * SDL_strlen(separator)      // length of separators
+        (SDL_strlen(list) - semicolons) * 4 // length of list contents (including "a" -> "[aA]")
+        + semicolons * SDL_strlen(separator) // length of separators
         + SDL_strlen(prefix) + SDL_strlen(suffix) // length of prefix/suffix
-        + 1;                                      // terminating null byte
+        + 1; // terminating null byte
 
-    converted = (char *)SDL_malloc(total_length);
+    converted = (char*)SDL_malloc(total_length);
 
-    if (!converted) {
+    if (!converted)
+    {
         return NULL;
     }
 
@@ -177,11 +191,16 @@ char *convert_ext_list(const char *list, const char *prefix,
 
     /* Some platforms may prefer to handle the asterisk manually, but this
        function offers to handle it for ease of use. */
-    if (SDL_strcmp(list, "*") == 0) {
+    if (SDL_strcmp(list, "*") == 0)
+    {
         SDL_strlcat(converted, "*", total_length);
-    } else {
-        for (const char *c = list; *c; c++) {
-            if (anycase && ((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z'))) {
+    }
+    else
+    {
+        for (const char* c = list; *c; c++)
+        {
+            if (anycase && ((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z')))
+            {
                 char str[5];
                 str[0] = '[';
                 str[1] = *c;
@@ -189,22 +208,29 @@ char *convert_ext_list(const char *list, const char *prefix,
                 str[3] = ']';
                 str[4] = '\0';
                 SDL_strlcat(converted, str, total_length);
-            } else if ((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z')
-                       || (*c >= '0' && *c <= '9') || *c == '-' || *c == '_'
-                       || *c == '.') {
+            }
+            else if ((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z')
+                || (*c >= '0' && *c <= '9') || *c == '-' || *c == '_'
+                || *c == '.')
+            {
                 char str[2];
                 str[0] = *c;
                 str[1] = '\0';
                 SDL_strlcat(converted, str, total_length);
-            } else if (*c == ';') {
-                if (c == list || c[-1] == ';') {
+            }
+            else if (*c == ';')
+            {
+                if (c == list || c[-1] == ';')
+                {
                     SDL_SetError("Empty pattern not allowed");
                     SDL_free(converted);
                     return NULL;
                 }
 
                 SDL_strlcat(converted, separator, total_length);
-            } else {
+            }
+            else
+            {
                 SDL_SetError("Invalid character '%c' in pattern (Only [a-zA-Z0-9_.-] allowed, or a single *)", *c);
                 SDL_free(converted);
                 return NULL;
@@ -212,7 +238,8 @@ char *convert_ext_list(const char *list, const char *prefix,
         }
     }
 
-    if (list[SDL_strlen(list) - 1] == ';') {
+    if (list[SDL_strlen(list) - 1] == ';')
+    {
         SDL_SetError("Empty pattern not allowed");
         SDL_free(converted);
         return NULL;
@@ -223,13 +250,16 @@ char *convert_ext_list(const char *list, const char *prefix,
     return converted;
 }
 
-const char *validate_filters(const SDL_DialogFileFilter *filters, int nfilters)
+const char* validate_filters(const SDL_DialogFileFilter* filters, int nfilters)
 {
-    if (filters) {
-        for (int i = 0; i < nfilters; i++) {
-            const char *msg = validate_list(filters[i].pattern);
+    if (filters)
+    {
+        for (int i = 0; i < nfilters; i++)
+        {
+            const char* msg = validate_list(filters[i].pattern);
 
-            if (msg) {
+            if (msg)
+            {
                 return msg;
             }
         }
@@ -238,27 +268,38 @@ const char *validate_filters(const SDL_DialogFileFilter *filters, int nfilters)
     return NULL;
 }
 
-const char *validate_list(const char *list)
+const char* validate_list(const char* list)
 {
-    if (SDL_strcmp(list, "*") == 0) {
+    if (SDL_strcmp(list, "*") == 0)
+    {
         return NULL;
-    } else {
-        for (const char *c = list; *c; c++) {
+    }
+    else
+    {
+        for (const char* c = list; *c; c++)
+        {
             if ((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z')
                 || (*c >= '0' && *c <= '9') || *c == '-' || *c == '_'
-                || *c == '.') {
+                || *c == '.')
+            {
                 continue;
-            } else if (*c == ';') {
-                if (c == list || c[-1] == ';') {
+            }
+            else if (*c == ';')
+            {
+                if (c == list || c[-1] == ';')
+                {
                     return "Empty pattern not allowed";
                 }
-            } else {
+            }
+            else
+            {
                 return "Invalid character in pattern (Only [a-zA-Z0-9_.-] allowed, or a single *)";
             }
         }
     }
 
-    if (list[SDL_strlen(list) - 1] == ';') {
+    if (list[SDL_strlen(list) - 1] == ';')
+    {
         return "Empty pattern not allowed";
     }
 

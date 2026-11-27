@@ -76,14 +76,14 @@
 #ifdef EMULATE_CAS
 static SDL_SpinLock locks[32];
 
-static SDL_INLINE void enterLock(void *a)
+static SDL_INLINE void enterLock(void* a)
 {
     uintptr_t index = ((((uintptr_t)a) >> 3) & 0x1f);
 
     SDL_LockSpinlock(&locks[index]);
 }
 
-static SDL_INLINE void leaveLock(void *a)
+static SDL_INLINE void leaveLock(void* a)
 {
     uintptr_t index = ((((uintptr_t)a) >> 3) & 0x1f);
 
@@ -91,23 +91,24 @@ static SDL_INLINE void leaveLock(void *a)
 }
 #endif
 
-bool SDL_CompareAndSwapAtomicInt(SDL_AtomicInt *a, int oldval, int newval)
+bool SDL_CompareAndSwapAtomicInt(SDL_AtomicInt* a, int oldval, int newval)
 {
 #ifdef HAVE_MSC_ATOMICS
     SDL_COMPILE_TIME_ASSERT(atomic_cas, sizeof(long) == sizeof(a->value));
-    return _InterlockedCompareExchange((long *)&a->value, (long)newval, (long)oldval) == (long)oldval;
+    return _InterlockedCompareExchange((long*)&a->value, (long)newval, (long)oldval) == (long)oldval;
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_bool_compare_and_swap(&a->value, oldval, newval);
 #elif defined(SDL_PLATFORM_MACOS) // this is deprecated in 10.12 sdk; favor gcc atomics.
     return OSAtomicCompareAndSwap32Barrier(oldval, newval, &a->value);
 #elif defined(SDL_PLATFORM_SOLARIS)
     SDL_COMPILE_TIME_ASSERT(atomic_cas, sizeof(uint_t) == sizeof(a->value));
-    return ((int)atomic_cas_uint((volatile uint_t *)&a->value, (uint_t)oldval, (uint_t)newval) == oldval);
+    return ((int)atomic_cas_uint((volatile uint_t*)&a->value, (uint_t)oldval, (uint_t)newval) == oldval);
 #elif defined(EMULATE_CAS)
     bool result = false;
 
     enterLock(a);
-    if (a->value == oldval) {
+    if (a->value == oldval)
+    {
         a->value = newval;
         result = true;
     }
@@ -119,23 +120,24 @@ bool SDL_CompareAndSwapAtomicInt(SDL_AtomicInt *a, int oldval, int newval)
 #endif
 }
 
-bool SDL_CompareAndSwapAtomicU32(SDL_AtomicU32 *a, Uint32 oldval, Uint32 newval)
+bool SDL_CompareAndSwapAtomicU32(SDL_AtomicU32* a, Uint32 oldval, Uint32 newval)
 {
 #ifdef HAVE_MSC_ATOMICS
     SDL_COMPILE_TIME_ASSERT(atomic_cas, sizeof(long) == sizeof(a->value));
-    return _InterlockedCompareExchange((long *)&a->value, (long)newval, (long)oldval) == (long)oldval;
+    return _InterlockedCompareExchange((long*)&a->value, (long)newval, (long)oldval) == (long)oldval;
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_bool_compare_and_swap(&a->value, oldval, newval);
 #elif defined(SDL_PLATFORM_MACOS) // this is deprecated in 10.12 sdk; favor gcc atomics.
-    return OSAtomicCompareAndSwap32Barrier((int32_t)oldval, (int32_t)newval, (int32_t *)&a->value);
+    return OSAtomicCompareAndSwap32Barrier((int32_t)oldval, (int32_t)newval, (int32_t*)&a->value);
 #elif defined(SDL_PLATFORM_SOLARIS)
     SDL_COMPILE_TIME_ASSERT(atomic_cas, sizeof(uint_t) == sizeof(a->value));
-    return ((Uint32)atomic_cas_uint((volatile uint_t *)&a->value, (uint_t)oldval, (uint_t)newval) == oldval);
+    return ((Uint32)atomic_cas_uint((volatile uint_t*)&a->value, (uint_t)oldval, (uint_t)newval) == oldval);
 #elif defined(EMULATE_CAS)
     bool result = false;
 
     enterLock(a);
-    if (a->value == oldval) {
+    if (a->value == oldval)
+    {
         a->value = newval;
         result = true;
     }
@@ -147,23 +149,24 @@ bool SDL_CompareAndSwapAtomicU32(SDL_AtomicU32 *a, Uint32 oldval, Uint32 newval)
 #endif
 }
 
-bool SDL_CompareAndSwapAtomicPointer(void **a, void *oldval, void *newval)
+bool SDL_CompareAndSwapAtomicPointer(void** a, void* oldval, void* newval)
 {
 #ifdef HAVE_MSC_ATOMICS
     return _InterlockedCompareExchangePointer(a, newval, oldval) == oldval;
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_bool_compare_and_swap(a, oldval, newval);
 #elif defined(SDL_PLATFORM_MACOS) && defined(__LP64__)  // this is deprecated in 10.12 sdk; favor gcc atomics.
-    return OSAtomicCompareAndSwap64Barrier((int64_t)oldval, (int64_t)newval, (int64_t *)a);
+    return OSAtomicCompareAndSwap64Barrier((int64_t)oldval, (int64_t)newval, (int64_t*)a);
 #elif defined(SDL_PLATFORM_MACOS) && !defined(__LP64__) // this is deprecated in 10.12 sdk; favor gcc atomics.
-    return OSAtomicCompareAndSwap32Barrier((int32_t)oldval, (int32_t)newval, (int32_t *)a);
+    return OSAtomicCompareAndSwap32Barrier((int32_t)oldval, (int32_t)newval, (int32_t*)a);
 #elif defined(SDL_PLATFORM_SOLARIS)
     return (atomic_cas_ptr(a, oldval, newval) == oldval);
 #elif defined(EMULATE_CAS)
     bool result = false;
 
     enterLock(a);
-    if (*a == oldval) {
+    if (*a == oldval)
+    {
         *a = newval;
         result = true;
     }
@@ -175,11 +178,11 @@ bool SDL_CompareAndSwapAtomicPointer(void **a, void *oldval, void *newval)
 #endif
 }
 
-int SDL_SetAtomicInt(SDL_AtomicInt *a, int v)
+int SDL_SetAtomicInt(SDL_AtomicInt* a, int v)
 {
 #ifdef HAVE_MSC_ATOMICS
     SDL_COMPILE_TIME_ASSERT(atomic_set, sizeof(long) == sizeof(a->value));
-    return _InterlockedExchange((long *)&a->value, v);
+    return _InterlockedExchange((long*)&a->value, v);
 #elif defined(HAVE_ATOMIC_EXCHANGE_N)
     return __atomic_exchange_n(&a->value, v, __ATOMIC_SEQ_CST);
 #elif defined(HAVE_GCC_ATOMICS)
@@ -191,21 +194,23 @@ int SDL_SetAtomicInt(SDL_AtomicInt *a, int v)
     return __sync_lock_test_and_set(&a->value, v);
 #elif defined(SDL_PLATFORM_SOLARIS)
     SDL_COMPILE_TIME_ASSERT(atomic_set, sizeof(uint_t) == sizeof(a->value));
-    return (int)atomic_swap_uint((volatile uint_t *)&a->value, v);
+    return (int)atomic_swap_uint((volatile uint_t*)&a->value, v);
 #else
     int value;
-    do {
+    do
+    {
         value = a->value;
-    } while (!SDL_CompareAndSwapAtomicInt(a, value, v));
+    }
+    while (!SDL_CompareAndSwapAtomicInt(a, value, v));
     return value;
 #endif
 }
 
-Uint32 SDL_SetAtomicU32(SDL_AtomicU32 *a, Uint32 v)
+Uint32 SDL_SetAtomicU32(SDL_AtomicU32* a, Uint32 v)
 {
 #ifdef HAVE_MSC_ATOMICS
     SDL_COMPILE_TIME_ASSERT(atomic_set, sizeof(long) == sizeof(a->value));
-    return _InterlockedExchange((long *)&a->value, v);
+    return _InterlockedExchange((long*)&a->value, v);
 #elif defined(HAVE_ATOMIC_EXCHANGE_N)
     return __atomic_exchange_n(&a->value, v, __ATOMIC_SEQ_CST);
 #elif defined(HAVE_GCC_ATOMICS)
@@ -217,17 +222,19 @@ Uint32 SDL_SetAtomicU32(SDL_AtomicU32 *a, Uint32 v)
     return __sync_lock_test_and_set(&a->value, v);
 #elif defined(SDL_PLATFORM_SOLARIS)
     SDL_COMPILE_TIME_ASSERT(atomic_set, sizeof(uint_t) == sizeof(a->value));
-    return (Uint32)atomic_swap_uint((volatile uint_t *)&a->value, v);
+    return (Uint32)atomic_swap_uint((volatile uint_t*)&a->value, v);
 #else
     Uint32 value;
-    do {
+    do
+    {
         value = a->value;
-    } while (!SDL_CompareAndSwapAtomicU32(a, value, v));
+    }
+    while (!SDL_CompareAndSwapAtomicU32(a, value, v));
     return value;
 #endif
 }
 
-void *SDL_SetAtomicPointer(void **a, void *v)
+void* SDL_SetAtomicPointer(void** a, void* v)
 {
 #ifdef HAVE_MSC_ATOMICS
     return _InterlockedExchangePointer(a, v);
@@ -243,134 +250,148 @@ void *SDL_SetAtomicPointer(void **a, void *v)
 #elif defined(SDL_PLATFORM_SOLARIS)
     return atomic_swap_ptr(a, v);
 #else
-    void *value;
-    do {
+    void* value;
+    do
+    {
         value = *a;
-    } while (!SDL_CompareAndSwapAtomicPointer(a, value, v));
+    }
+    while (!SDL_CompareAndSwapAtomicPointer(a, value, v));
     return value;
 #endif
 }
 
-int SDL_AddAtomicInt(SDL_AtomicInt *a, int v)
+int SDL_AddAtomicInt(SDL_AtomicInt* a, int v)
 {
 #ifdef HAVE_MSC_ATOMICS
     SDL_COMPILE_TIME_ASSERT(atomic_add, sizeof(long) == sizeof(a->value));
-    return _InterlockedExchangeAdd((long *)&a->value, v);
+    return _InterlockedExchangeAdd((long*)&a->value, v);
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_fetch_and_add(&a->value, v);
 #elif defined(SDL_PLATFORM_SOLARIS)
     int pv = a->value;
     membar_consumer();
-    atomic_add_int((volatile uint_t *)&a->value, v);
+    atomic_add_int((volatile uint_t*)&a->value, v);
     return pv;
 #else
     int value;
-    do {
+    do
+    {
         value = a->value;
-    } while (!SDL_CompareAndSwapAtomicInt(a, value, (value + v)));
+    }
+    while (!SDL_CompareAndSwapAtomicInt(a, value, (value + v)));
     return value;
 #endif
 }
 
-Uint32 SDL_AddAtomicU32(SDL_AtomicU32 *a, int v)
+Uint32 SDL_AddAtomicU32(SDL_AtomicU32* a, int v)
 {
 #ifdef HAVE_MSC_ATOMICS
     SDL_COMPILE_TIME_ASSERT(atomic_add, sizeof(long) == sizeof(a->value));
-    return (Uint32)_InterlockedExchangeAdd((long *)&a->value, v);
+    return (Uint32)_InterlockedExchangeAdd((long*)&a->value, v);
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_fetch_and_add(&a->value, v);
 #elif defined(SDL_PLATFORM_SOLARIS)
     Uint32 pv = a->value;
     membar_consumer();
-    atomic_add_int((volatile uint_t *)&a->value, v);
+    atomic_add_int((volatile uint_t*)&a->value, v);
     return pv;
 #else
     Uint32 value;
-    do {
+    do
+    {
         value = a->value;
-    } while (!SDL_CompareAndSwapAtomicU32(a, value, (value + v)));
+    }
+    while (!SDL_CompareAndSwapAtomicU32(a, value, (value + v)));
     return value;
 #endif
 }
 
-int SDL_GetAtomicInt(SDL_AtomicInt *a)
+int SDL_GetAtomicInt(SDL_AtomicInt* a)
 {
 #ifdef HAVE_ATOMIC_LOAD_N
     return __atomic_load_n(&a->value, __ATOMIC_SEQ_CST);
 #elif defined(HAVE_MSC_ATOMICS) && (defined(_M_ARM64) || defined(_M_ARM64EC))
     SDL_COMPILE_TIME_ASSERT(atomic_get_int, sizeof(__int32) == sizeof(a->value));
-    return (int)__ldar32((unsigned __int32 *)&a->value);
+    return (int)__ldar32((unsigned __int32*)&a->value);
 #elif defined(HAVE_MSC_ATOMICS) && (defined(_M_X64) || defined(_M_IX86))
     SDL_COMPILE_TIME_ASSERT(atomic_get_int, sizeof(int) == sizeof(a->value));
     SDL_CompilerBarrier();
-    int value = *(volatile int *)&a->value;
+    int value = *(volatile int*)&a->value;
     SDL_CompilerBarrier();
     return value;
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_or_and_fetch(&a->value, 0);
 #elif defined(SDL_PLATFORM_MACOS) // this is deprecated in 10.12 sdk; favor gcc atomics.
-    return sizeof(a->value) == sizeof(uint32_t) ? OSAtomicOr32Barrier(0, (volatile uint32_t *)&a->value) : OSAtomicAdd64Barrier(0, (volatile int64_t *)&a->value);
+    return sizeof(a->value) == sizeof(uint32_t)
+               ? OSAtomicOr32Barrier(0, (volatile uint32_t*)&a->value)
+               : OSAtomicAdd64Barrier(0, (volatile int64_t*)&a->value);
 #elif defined(SDL_PLATFORM_SOLARIS)
-    return atomic_or_uint_nv((volatile uint_t *)&a->value, 0);
+    return atomic_or_uint_nv((volatile uint_t*)&a->value, 0);
 #else
     int value;
-    do {
+    do
+    {
         value = a->value;
-    } while (!SDL_CompareAndSwapAtomicInt(a, value, value));
+    }
+    while (!SDL_CompareAndSwapAtomicInt(a, value, value));
     return value;
 #endif
 }
 
-Uint32 SDL_GetAtomicU32(SDL_AtomicU32 *a)
+Uint32 SDL_GetAtomicU32(SDL_AtomicU32* a)
 {
 #ifdef HAVE_ATOMIC_LOAD_N
     return __atomic_load_n(&a->value, __ATOMIC_SEQ_CST);
 #elif defined(HAVE_MSC_ATOMICS) && (defined(_M_ARM64) || defined(_M_ARM64EC))
     SDL_COMPILE_TIME_ASSERT(atomic_get_u32, sizeof(__int32) == sizeof(a->value));
-    return __ldar32((unsigned __int32 *)&a->value);
+    return __ldar32((unsigned __int32*)&a->value);
 #elif defined(HAVE_MSC_ATOMICS) && (defined(_M_X64) || defined(_M_IX86))
     SDL_COMPILE_TIME_ASSERT(atomic_get_u32, sizeof(Uint32) == sizeof(a->value));
     SDL_CompilerBarrier();
-    Uint32 value = *(volatile Uint32 *)&a->value;
+    Uint32 value = *(volatile Uint32*)&a->value;
     SDL_CompilerBarrier();
     return value;
 #elif defined(HAVE_GCC_ATOMICS)
     return __sync_or_and_fetch(&a->value, 0);
 #elif defined(SDL_PLATFORM_MACOS) // this is deprecated in 10.12 sdk; favor gcc atomics.
-    return OSAtomicOr32Barrier(0, (volatile uint32_t *)&a->value);
+    return OSAtomicOr32Barrier(0, (volatile uint32_t*)&a->value);
 #elif defined(SDL_PLATFORM_SOLARIS)
     SDL_COMPILE_TIME_ASSERT(atomic_get, sizeof(uint_t) == sizeof(a->value));
-    return (Uint32)atomic_or_uint_nv((volatile uint_t *)&a->value, 0);
+    return (Uint32)atomic_or_uint_nv((volatile uint_t*)&a->value, 0);
 #else
     Uint32 value;
-    do {
+    do
+    {
         value = a->value;
-    } while (!SDL_CompareAndSwapAtomicU32(a, value, value));
+    }
+    while (!SDL_CompareAndSwapAtomicU32(a, value, value));
     return value;
 #endif
 }
 
-void *SDL_GetAtomicPointer(void **a)
+void* SDL_GetAtomicPointer(void** a)
 {
 #ifdef HAVE_ATOMIC_LOAD_N
     return __atomic_load_n(a, __ATOMIC_SEQ_CST);
 #elif defined(HAVE_MSC_ATOMICS) && (defined(_M_ARM64) || defined(_M_ARM64EC))
     SDL_COMPILE_TIME_ASSERT(atomic_get_ptr, sizeof(__int64) == sizeof(*a));
-    return (void *)__ldar64((unsigned __int64 *)a);
+    return (void*)__ldar64((unsigned __int64*)a);
 #elif defined(HAVE_MSC_ATOMICS) && (defined(_M_X64) || defined(_M_IX86))
     SDL_CompilerBarrier();
-    void *value = *(void * volatile *)a;
+    void* value = *(void* volatile *)a;
     SDL_CompilerBarrier();
     return value;
 #elif defined(HAVE_GCC_ATOMICS)
-    return __sync_val_compare_and_swap(a, (void *)0, (void *)0);
+    return __sync_val_compare_and_swap(a, (void*)0, (void*)0);
 #elif defined(SDL_PLATFORM_SOLARIS)
-    return atomic_cas_ptr(a, (void *)0, (void *)0);
+    return atomic_cas_ptr(a, (void*)0, (void*)0);
 #else
-    void *value;
-    do {
+    void* value;
+    do
+    {
         value = *a;
-    } while (!SDL_CompareAndSwapAtomicPointer(a, value, value));
+    }
+    while (!SDL_CompareAndSwapAtomicPointer(a, value, value));
     return value;
 #endif
 }

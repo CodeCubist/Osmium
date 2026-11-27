@@ -268,6 +268,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /*
@@ -343,7 +344,7 @@ extern "C" {
  * \sa SDL_AppEvent
  * \sa SDL_AppQuit
  */
-extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppInit(void **appstate, int argc, char *argv[]);
+extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppInit(void** appstate, int argc, char* argv[]);
 
 /**
  * App-implemented iteration entry point for SDL_MAIN_USE_CALLBACKS apps.
@@ -394,7 +395,7 @@ extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppInit(void **appstate, int a
  * \sa SDL_AppInit
  * \sa SDL_AppEvent
  */
-extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppIterate(void *appstate);
+extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppIterate(void* appstate);
 
 /**
  * App-implemented event entry point for SDL_MAIN_USE_CALLBACKS apps.
@@ -443,7 +444,7 @@ extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppIterate(void *appstate);
  * \sa SDL_AppInit
  * \sa SDL_AppIterate
  */
-extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppEvent(void *appstate, SDL_Event *event);
+extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppEvent(void* appstate, SDL_Event* event);
 
 /**
  * App-implemented deinit entry point for SDL_MAIN_USE_CALLBACKS apps.
@@ -481,7 +482,7 @@ extern SDLMAIN_DECLSPEC SDL_AppResult SDLCALL SDL_AppEvent(void *appstate, SDL_E
  *
  * \sa SDL_AppInit
  */
-extern SDLMAIN_DECLSPEC void SDLCALL SDL_AppQuit(void *appstate, SDL_AppResult result);
+extern SDLMAIN_DECLSPEC void SDLCALL SDL_AppQuit(void* appstate, SDL_AppResult result);
 
 #endif  /* SDL_MAIN_USE_CALLBACKS */
 
@@ -497,7 +498,7 @@ extern SDLMAIN_DECLSPEC void SDLCALL SDL_AppQuit(void *appstate, SDL_AppResult r
  *
  * \since This datatype is available since SDL 3.2.0.
  */
-typedef int (SDLCALL *SDL_main_func)(int argc, char *argv[]);
+typedef int (SDLCALL *SDL_main_func)(int argc, char* argv[]);
 
 /**
  * An app-supplied function for program entry.
@@ -530,7 +531,7 @@ typedef int (SDLCALL *SDL_main_func)(int argc, char *argv[]);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDLMAIN_DECLSPEC int SDLCALL SDL_main(int argc, char *argv[]);
+extern SDLMAIN_DECLSPEC int SDLCALL SDL_main(int argc, char* argv[]);
 
 /**
  * Circumvent failure of SDL_Init() when not using SDL_main() as an entry
@@ -580,7 +581,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_SetMainReady(void);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC int SDLCALL SDL_RunApp(int argc, char *argv[], SDL_main_func mainFunction, void *reserved);
+extern SDL_DECLSPEC int SDLCALL SDL_RunApp(int argc, char* argv[], SDL_main_func mainFunction, void* reserved);
 
 /**
  * An entry point for SDL's use in SDL_MAIN_USE_CALLBACKS.
@@ -607,7 +608,9 @@ extern SDL_DECLSPEC int SDLCALL SDL_RunApp(int argc, char *argv[], SDL_main_func
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC int SDLCALL SDL_EnterAppMainCallbacks(int argc, char *argv[], SDL_AppInit_func appinit, SDL_AppIterate_func appiter, SDL_AppEvent_func appevent, SDL_AppQuit_func appquit);
+extern SDL_DECLSPEC int SDLCALL SDL_EnterAppMainCallbacks(int argc, char* argv[], SDL_AppInit_func appinit,
+                                                          SDL_AppIterate_func appiter, SDL_AppEvent_func appevent,
+                                                          SDL_AppQuit_func appquit);
 
 
 #if defined(SDL_PLATFORM_WINDOWS)
@@ -639,7 +642,7 @@ extern SDL_DECLSPEC int SDLCALL SDL_EnterAppMainCallbacks(int argc, char *argv[]
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_RegisterApp(const char *name, Uint32 style, void *hInst);
+extern SDL_DECLSPEC bool SDLCALL SDL_RegisterApp(const char* name, Uint32 style, void* hInst);
 
 /**
  * Deregister the win32 window class from an SDL_RegisterApp call.

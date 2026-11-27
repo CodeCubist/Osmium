@@ -25,13 +25,15 @@
 static SDL_AppEvent_func SDL_main_event_callback;
 static SDL_AppIterate_func SDL_main_iteration_callback;
 static SDL_AppQuit_func SDL_main_quit_callback;
-static SDL_AtomicInt apprc; // use an atomic, since events might land from any thread and we don't want to wrap this all in a mutex. A CAS makes sure we only move from zero once.
-static void *SDL_main_appstate = NULL;
+static SDL_AtomicInt apprc;
+// use an atomic, since events might land from any thread and we don't want to wrap this all in a mutex. A CAS makes sure we only move from zero once.
+static void* SDL_main_appstate = NULL;
 
 // Return true if this event needs to be processed before returning from the event watcher
-static bool ShouldDispatchImmediately(SDL_Event *event)
+static bool ShouldDispatchImmediately(SDL_Event* event)
 {
-    switch (event->type) {
+    switch (event->type)
+    {
     case SDL_EVENT_TERMINATING:
     case SDL_EVENT_LOW_MEMORY:
     case SDL_EVENT_WILL_ENTER_BACKGROUND:
@@ -44,9 +46,10 @@ static bool ShouldDispatchImmediately(SDL_Event *event)
     }
 }
 
-static void SDL_DispatchMainCallbackEvent(SDL_Event *event)
+static void SDL_DispatchMainCallbackEvent(SDL_Event* event)
 {
-    if (SDL_GetAtomicInt(&apprc) == SDL_APP_CONTINUE) {
+    if (SDL_GetAtomicInt(&apprc) == SDL_APP_CONTINUE)
+    {
         // if already quitting, don't send the event to the app.
         SDL_CompareAndSwapAtomicInt(&apprc, SDL_APP_CONTINUE, SDL_main_event_callback(SDL_main_appstate, event));
     }
@@ -56,32 +59,40 @@ static void SDL_DispatchMainCallbackEvents(void)
 {
     SDL_Event events[16];
 
-    for (;;) {
+    for (;;)
+    {
         int count = SDL_PeepEvents(events, SDL_arraysize(events), SDL_GETEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST);
-        if (count <= 0) {
+        if (count <= 0)
+        {
             break;
         }
-        for (int i = 0; i < count; ++i) {
-            SDL_Event *event = &events[i];
-            if (!ShouldDispatchImmediately(event)) {
+        for (int i = 0; i < count; ++i)
+        {
+            SDL_Event* event = &events[i];
+            if (!ShouldDispatchImmediately(event))
+            {
                 SDL_DispatchMainCallbackEvent(event);
             }
         }
     }
 }
 
-static bool SDLCALL SDL_MainCallbackEventWatcher(void *userdata, SDL_Event *event)
+static bool SDLCALL SDL_MainCallbackEventWatcher(void* userdata, SDL_Event* event)
 {
-    if (ShouldDispatchImmediately(event)) {
+    if (ShouldDispatchImmediately(event))
+    {
         // Make sure any currently queued events are processed then dispatch this before continuing
         SDL_DispatchMainCallbackEvents();
         SDL_DispatchMainCallbackEvent(event);
 
         // Make sure that we quit if we get a terminating event
-        if (event->type == SDL_EVENT_TERMINATING) {
+        if (event->type == SDL_EVENT_TERMINATING)
+        {
             SDL_CompareAndSwapAtomicInt(&apprc, SDL_APP_CONTINUE, SDL_APP_SUCCESS);
         }
-    } else {
+    }
+    else
+    {
         // We'll process this event later from the main event queue
     }
     return true;
@@ -89,13 +100,15 @@ static bool SDLCALL SDL_MainCallbackEventWatcher(void *userdata, SDL_Event *even
 
 bool SDL_HasMainCallbacks(void)
 {
-    if (SDL_main_iteration_callback) {
+    if (SDL_main_iteration_callback)
+    {
         return true;
     }
     return false;
 }
 
-SDL_AppResult SDL_InitMainCallbacks(int argc, char *argv[], SDL_AppInit_func appinit, SDL_AppIterate_func appiter, SDL_AppEvent_func appevent, SDL_AppQuit_func appquit)
+SDL_AppResult SDL_InitMainCallbacks(int argc, char* argv[], SDL_AppInit_func appinit, SDL_AppIterate_func appiter,
+                                    SDL_AppEvent_func appevent, SDL_AppQuit_func appquit)
 {
     SDL_main_iteration_callback = appiter;
     SDL_main_event_callback = appevent;
@@ -103,15 +116,18 @@ SDL_AppResult SDL_InitMainCallbacks(int argc, char *argv[], SDL_AppInit_func app
     SDL_SetAtomicInt(&apprc, SDL_APP_CONTINUE);
 
     const SDL_AppResult rc = appinit(&SDL_main_appstate, argc, argv);
-    if (SDL_CompareAndSwapAtomicInt(&apprc, SDL_APP_CONTINUE, rc) && (rc == SDL_APP_CONTINUE)) {
+    if (SDL_CompareAndSwapAtomicInt(&apprc, SDL_APP_CONTINUE, rc) && (rc == SDL_APP_CONTINUE))
+    {
         // bounce if SDL_AppInit already said abort, otherwise...
         // make sure we definitely have events initialized, even if the app didn't do it.
-        if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
+        if (!SDL_InitSubSystem(SDL_INIT_EVENTS))
+        {
             SDL_SetAtomicInt(&apprc, SDL_APP_FAILURE);
             return SDL_APP_FAILURE;
         }
 
-        if (!SDL_AddEventWatch(SDL_MainCallbackEventWatcher, NULL)) {
+        if (!SDL_AddEventWatch(SDL_MainCallbackEventWatcher, NULL))
+        {
             SDL_SetAtomicInt(&apprc, SDL_APP_FAILURE);
             return SDL_APP_FAILURE;
         }
@@ -122,15 +138,18 @@ SDL_AppResult SDL_InitMainCallbacks(int argc, char *argv[], SDL_AppInit_func app
 
 SDL_AppResult SDL_IterateMainCallbacks(bool pump_events)
 {
-    if (pump_events) {
+    if (pump_events)
+    {
         SDL_PumpEvents();
     }
     SDL_DispatchMainCallbackEvents();
 
     SDL_AppResult rc = (SDL_AppResult)SDL_GetAtomicInt(&apprc);
-    if (rc == SDL_APP_CONTINUE) {
+    if (rc == SDL_APP_CONTINUE)
+    {
         rc = SDL_main_iteration_callback(SDL_main_appstate);
-        if (!SDL_CompareAndSwapAtomicInt(&apprc, SDL_APP_CONTINUE, rc)) {
+        if (!SDL_CompareAndSwapAtomicInt(&apprc, SDL_APP_CONTINUE, rc))
+        {
             rc = (SDL_AppResult)SDL_GetAtomicInt(&apprc); // something else already set a quit result, keep that.
         }
     }
@@ -149,17 +168,18 @@ void SDL_QuitMainCallbacks(SDL_AppResult result)
     SDL_Quit();
 }
 
-static void SDL_CheckDefaultArgcArgv(int *argc, char ***argv)
+static void SDL_CheckDefaultArgcArgv(int* argc, char*** argv)
 {
-    if (!*argv) {
-        static char dummyargv0[] = { 'S', 'D', 'L', '_', 'a', 'p', 'p', '\0' };
-        static char *argvdummy[2] = { dummyargv0, NULL };
+    if (!*argv)
+    {
+        static char dummyargv0[] = {'S', 'D', 'L', '_', 'a', 'p', 'p', '\0'};
+        static char* argvdummy[2] = {dummyargv0, NULL};
         *argc = 1;
         *argv = argvdummy;
     }
 }
 
-int SDL_CallMainFunction(int argc, char *argv[], SDL_main_func mainFunction)
+int SDL_CallMainFunction(int argc, char* argv[], SDL_main_func mainFunction)
 {
     SDL_CheckDefaultArgcArgv(&argc, &argv);
     SDL_SetMainReady();

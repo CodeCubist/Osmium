@@ -21,7 +21,8 @@ public sealed partial class SettingsPage : Page
         bool custom = App.Engine.SettingsService.Settings.HostUsePrivacyWallpaper;
         bool canEdit = !_selectingPrivacyWallpaper && !App.Engine.Coordinator.IsHostStreaming;
         HostPrivacyWallpaperBtn.Content = LocalizationService.GetString(custom
-            ? "Host_PrivacyWallpaperChange" : "Host_PrivacyWallpaperChoose");
+            ? "Host_PrivacyWallpaperChange"
+            : "Host_PrivacyWallpaperChoose");
         HostPrivacyWallpaperBtn.IsEnabled = canEdit;
         HostResetPrivacyWallpaperBtn.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
         HostResetPrivacyWallpaperBtn.IsEnabled = canEdit;
@@ -29,7 +30,8 @@ public sealed partial class SettingsPage : Page
 
     private async void HostPrivacyWallpaperBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectingPrivacyWallpaper || App.Engine.Coordinator.IsHostStreaming || App.MainWindowInstance is not { } window)
+        if (_selectingPrivacyWallpaper || App.Engine.Coordinator.IsHostStreaming ||
+            App.MainWindowInstance is not { } window)
             return;
 
         var settings = App.Engine.SettingsService;
@@ -78,10 +80,18 @@ public sealed partial class SettingsPage : Page
         {
             if (stagingPath != null)
             {
-                try { File.Delete(stagingPath); }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
+                try
+                {
+                    File.Delete(stagingPath);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
             }
+
             _selectingPrivacyWallpaper = false;
             RefreshPrivacyWallpaperButtons();
         }
@@ -202,8 +212,10 @@ public sealed partial class SettingsPage : Page
 
         if (await dlg.ShowAsync() == ContentDialogResult.Primary)
         {
-            int fps = double.IsNaN(fpsBox.Value) ? s.Fps : Math.Clamp((int)fpsBox.Value,
-                OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps);
+            int fps = double.IsNaN(fpsBox.Value)
+                ? s.Fps
+                : Math.Clamp((int)fpsBox.Value,
+                    OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps);
             s.Fps = fps;
             _loading = true;
             PopulateFpsCombo(fps);
@@ -787,10 +799,13 @@ public sealed partial class SettingsPage : Page
 
                     if (RemotePowerProfileWarningBar != null)
                     {
-                        RemotePowerProfileWarningBar.Title = LocalizationService.GetString("Acc_ProfileIncompleteTitle");
-                        RemotePowerProfileWarningBar.Message = LocalizationService.GetString("Power_ProfileWarningDesc");
+                        RemotePowerProfileWarningBar.Title =
+                            LocalizationService.GetString("Acc_ProfileIncompleteTitle");
+                        RemotePowerProfileWarningBar.Message =
+                            LocalizationService.GetString("Power_ProfileWarningDesc");
                         RemotePowerProfileWarningBar.IsOpen = powerProfileBlocked;
-                        RemotePowerProfileWarningBar.Visibility = powerProfileBlocked ? Visibility.Visible : Visibility.Collapsed;
+                        RemotePowerProfileWarningBar.Visibility =
+                            powerProfileBlocked ? Visibility.Visible : Visibility.Collapsed;
                     }
 
                     bool hasMac = !string.IsNullOrEmpty(profile.PrimaryMac);
@@ -919,7 +934,8 @@ public sealed partial class SettingsPage : Page
                         Title = LocalizationService.GetString("Host_RestoreWolTitle"),
                         Content = new TextBlock
                         {
-                            Text = LocalizationService.GetString(ok ? "Host_RestoreWolSuccess" : "Host_RestoreWolFailed"),
+                            Text = LocalizationService.GetString(
+                                ok ? "Host_RestoreWolSuccess" : "Host_RestoreWolFailed"),
                             FontSize = 13,
                             TextWrapping = TextWrapping.Wrap,
                             MaxWidth = 420
@@ -1232,7 +1248,8 @@ public sealed partial class SettingsPage : Page
                         };
                         if (!profileComplete)
                         {
-                            ToolTipService.SetToolTip(wakeBtn, LocalizationService.GetString("Power_ProfileIncompleteHint"));
+                            ToolTipService.SetToolTip(wakeBtn,
+                                LocalizationService.GetString("Power_ProfileIncompleteHint"));
                         }
                         else if (!hasMacs)
                         {

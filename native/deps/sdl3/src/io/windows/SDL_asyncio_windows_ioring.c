@@ -37,13 +37,13 @@
 static SDL_InitState ioring_init;
 
 // We could add a whole bootstrap thing like the audio/video/etc subsystems use, but let's keep this simple for now.
-static bool (*CreateAsyncIOQueue)(SDL_AsyncIOQueue *queue);
+static bool (*CreateAsyncIOQueue)(SDL_AsyncIOQueue* queue);
 static void (*QuitAsyncIO)(void);
-static bool (*AsyncIOFromFile)(const char *file, const char *mode, SDL_AsyncIO *asyncio);
+static bool (*AsyncIOFromFile)(const char* file, const char* mode, SDL_AsyncIO* asyncio);
 
 // we never link directly to ioring.
-static const char *ioring_library = "KernelBase.dll";
-static void *ioring_handle = NULL;
+static const char* ioring_library = "KernelBase.dll";
+static void* ioring_handle = NULL;
 
 #define SDL_IORING_FUNCS \
     SDL_IORING_FUNC(HRESULT, QueryIoRingCapabilities, (IORING_CAPABILITIES *capabilities)) \
@@ -74,8 +74,8 @@ static SDL_WinIoRingFunctions ioring;
 
 typedef struct WinIoRingAsyncIOQueueData
 {
-    SDL_Mutex *sqe_lock;
-    SDL_Mutex *cqe_lock;
+    SDL_Mutex* sqe_lock;
+    SDL_Mutex* cqe_lock;
     HANDLE event;
     HIORING ring;
     SDL_AtomicInt num_waiting;
@@ -84,7 +84,8 @@ typedef struct WinIoRingAsyncIOQueueData
 
 static void UnloadWinIoRingLibrary(void)
 {
-    if (ioring_library) {
+    if (ioring_library)
+    {
         SDL_UnloadObject(ioring_handle);
         ioring_library = NULL;
     }
@@ -108,24 +109,33 @@ static bool LoadWinIoRing(void)
 {
     bool result = true;
 
-    if (!ioring_handle) {
+    if (!ioring_handle)
+    {
         ioring_handle = SDL_LoadObject(ioring_library);
-        if (!ioring_handle) {
+        if (!ioring_handle)
+        {
             result = false;
             // Don't call SDL_SetError(): SDL_LoadObject already did.
-        } else {
+        }
+        else
+        {
             result = LoadWinIoRingSyms();
-            if (result) {
+            if (result)
+            {
                 IORING_CAPABILITIES caps;
                 HRESULT hr = ioring.QueryIoRingCapabilities(&caps);
-                if (FAILED(hr)) {
+                if (FAILED(hr))
+                {
                     result = false;
-                } else if (caps.MaxVersion < SDL_REQUIRED_IORING_VERSION) {
+                }
+                else if (caps.MaxVersion < SDL_REQUIRED_IORING_VERSION)
+                {
                     result = false;
                 }
             }
 
-            if (!result) {
+            if (!result)
+            {
                 UnloadWinIoRingLibrary();
             }
         }
@@ -133,11 +143,12 @@ static bool LoadWinIoRing(void)
     return result;
 }
 
-static Sint64 ioring_asyncio_size(void *userdata)
+static Sint64 ioring_asyncio_size(void* userdata)
 {
     HANDLE handle = (HANDLE)userdata;
     LARGE_INTEGER size;
-    if (!GetFileSizeEx(handle, &size)) {
+    if (!GetFileSizeEx(handle, &size))
+    {
         WIN_SetError("GetFileSizeEx");
         return -1;
     }
@@ -145,32 +156,35 @@ static Sint64 ioring_asyncio_size(void *userdata)
 }
 
 // you must hold sqe_lock when calling this!
-static bool ioring_asyncioqueue_queue_task(void *userdata, SDL_AsyncIOTask *task)
+static bool ioring_asyncioqueue_queue_task(void* userdata, SDL_AsyncIOTask* task)
 {
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)userdata;
     const HRESULT hr = ioring.SubmitIoRing(queuedata->ring, 0, 0, NULL);
     return (FAILED(hr) ? WIN_SetErrorFromHRESULT("SubmitIoRing", hr) : true);
 }
 
-static void ioring_asyncioqueue_cancel_task(void *userdata, SDL_AsyncIOTask *task)
+static void ioring_asyncioqueue_cancel_task(void* userdata, SDL_AsyncIOTask* task)
 {
-    if (!task->asyncio || !task->asyncio->userdata) {
+    if (!task->asyncio || !task->asyncio->userdata)
+    {
         return; // Windows IoRing needs the file handle in question, so we'll just have to let it complete if unknown.
     }
 
-    SDL_AsyncIOTask *cancel_task = (SDL_AsyncIOTask *)SDL_calloc(1, sizeof (*cancel_task));
-    if (!cancel_task) {
+    SDL_AsyncIOTask* cancel_task = (SDL_AsyncIOTask*)SDL_calloc(1, sizeof (*cancel_task));
+    if (!cancel_task)
+    {
         return; // oh well, the task can just finish on its own.
     }
 
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)userdata;
     HANDLE handle = (HANDLE)task->asyncio->userdata;
     IORING_HANDLE_REF href = IoRingHandleRefFromHandle(handle);
 
     // have to hold a lock because otherwise two threads could get_sqe and submit while one request isn't fully set up.
     SDL_LockMutex(queuedata->sqe_lock);
     const HRESULT hr = ioring.BuildIoRingCancelRequest(queuedata->ring, href, (UINT_PTR)task, (UINT_PTR)cancel_task);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         SDL_UnlockMutex(queuedata->sqe_lock);
         SDL_free(cancel_task); // oh well, the task can just finish on its own.
         return;
@@ -181,54 +195,73 @@ static void ioring_asyncioqueue_cancel_task(void *userdata, SDL_AsyncIOTask *tas
     SDL_UnlockMutex(queuedata->sqe_lock);
 }
 
-static SDL_AsyncIOTask *ProcessCQE(WinIoRingAsyncIOQueueData *queuedata, IORING_CQE *cqe)
+static SDL_AsyncIOTask* ProcessCQE(WinIoRingAsyncIOQueueData* queuedata, IORING_CQE* cqe)
 {
-    if (!cqe) {
+    if (!cqe)
+    {
         return NULL;
     }
 
-    SDL_AsyncIOTask *task = (SDL_AsyncIOTask *)cqe->UserData;
-    if (task) {
+    SDL_AsyncIOTask* task = (SDL_AsyncIOTask*)cqe->UserData;
+    if (task)
+    {
         // can be NULL if this was just a wakeup message, a NOP, etc.
-        if (!task->queue) {
+        if (!task->queue)
+        {
             // We leave `queue` blank to signify this was a task cancellation.
-            SDL_AsyncIOTask *cancel_task = task;
-            task = (SDL_AsyncIOTask *)cancel_task->app_userdata;
+            SDL_AsyncIOTask* cancel_task = task;
+            task = (SDL_AsyncIOTask*)cancel_task->app_userdata;
             SDL_free(cancel_task);
-            if (SUCCEEDED(cqe->ResultCode)) {
+            if (SUCCEEDED(cqe->ResultCode))
+            {
                 // cancel was successful?
                 task->result = SDL_ASYNCIO_CANCELED;
-            } else {
-                task = NULL; // it already finished or was too far along to cancel, so we'll pick up the actual results later.
             }
-        } else if (FAILED(cqe->ResultCode)) {
-            if ((task->type == SDL_ASYNCIO_TASK_CLOSE) && (cqe->ResultCode == E_ACCESSDENIED) && task->asyncio->readonly) {
+            else
+            {
+                task = NULL;
+                // it already finished or was too far along to cancel, so we'll pick up the actual results later.
+            }
+        }
+        else if (FAILED(cqe->ResultCode))
+        {
+            if ((task->type == SDL_ASYNCIO_TASK_CLOSE) && (cqe->ResultCode == E_ACCESSDENIED) && task->asyncio->
+                readonly)
+            {
                 // we push all close requests through as flushes, as there is currently no async close operation and flushing writes to disk is the time-consuming part.
                 // However, flushing a read-only handle generates an error, so we catch this specific situation and ignore it. This approach still makes the task go
                 // through the IoRing so we can handle this all in the same place otherwise. The actual close happens below.
-            } else {
+            }
+            else
+            {
                 task->result = SDL_ASYNCIO_FAILURE;
                 // !!! FIXME: fill in task->error.
             }
-        } else {
-            if ((task->type == SDL_ASYNCIO_TASK_WRITE) && (((Uint64)cqe->Information) < task->requested_size)) {
+        }
+        else
+        {
+            if ((task->type == SDL_ASYNCIO_TASK_WRITE) && (((Uint64)cqe->Information) < task->requested_size))
+            {
                 task->result = SDL_ASYNCIO_FAILURE; // it's always a failure on short writes.
             }
 
             // don't explicitly mark it as COMPLETE; that's the default value and a linked task might have failed in an earlier operation and this would overwrite it.
 
-            if ((task->type == SDL_ASYNCIO_TASK_READ) || (task->type == SDL_ASYNCIO_TASK_WRITE)) {
+            if ((task->type == SDL_ASYNCIO_TASK_READ) || (task->type == SDL_ASYNCIO_TASK_WRITE))
+            {
                 task->result_size = (Uint64)cqe->Information;
             }
         }
 
         // we currently send all close operations through as flushes, requested or not, so the actually closing is (in theory) fast. We do that here.
         // if a later IoRing interface version offers an asynchronous close operation, revisit this to only flush if requested, like we do in the Linux io_uring code.
-        if (task->type == SDL_ASYNCIO_TASK_CLOSE) {
+        if (task->type == SDL_ASYNCIO_TASK_CLOSE)
+        {
             SDL_assert(task->asyncio != NULL);
             SDL_assert(task->asyncio->userdata != NULL);
             HANDLE handle = (HANDLE)task->asyncio->userdata;
-            if (!CloseHandle(handle)) {
+            if (!CloseHandle(handle))
+            {
                 task->result = SDL_ASYNCIO_FAILURE; // shrug.
             }
         }
@@ -237,9 +270,9 @@ static SDL_AsyncIOTask *ProcessCQE(WinIoRingAsyncIOQueueData *queuedata, IORING_
     return task;
 }
 
-static SDL_AsyncIOTask *ioring_asyncioqueue_get_results(void *userdata)
+static SDL_AsyncIOTask* ioring_asyncioqueue_get_results(void* userdata)
 {
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)userdata;
 
     // unlike liburing's io_uring_peek_cqe(), it's possible PopIoRingCompletion() is thread safe, but for now we wrap it in a mutex just in case.
     SDL_LockMutex(queuedata->cqe_lock);
@@ -247,20 +280,22 @@ static SDL_AsyncIOTask *ioring_asyncioqueue_get_results(void *userdata)
     const HRESULT hr = ioring.PopIoRingCompletion(queuedata->ring, &cqe);
     SDL_UnlockMutex(queuedata->cqe_lock);
 
-    if ((hr == S_FALSE) || FAILED(hr)) {
+    if ((hr == S_FALSE) || FAILED(hr))
+    {
         return NULL; // nothing available at the moment.
     }
 
     return ProcessCQE(queuedata, &cqe);
 }
 
-static SDL_AsyncIOTask *ioring_asyncioqueue_wait_results(void *userdata, Sint32 timeoutMS)
+static SDL_AsyncIOTask* ioring_asyncioqueue_wait_results(void* userdata, Sint32 timeoutMS)
 {
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)userdata;
 
     // the event only signals when the IoRing moves from empty to non-empty, so you have to try a (non-blocking) get_results first or risk eternal hangs.
-    SDL_AsyncIOTask *task = ioring_asyncioqueue_get_results(userdata);
-    if (!task) {
+    SDL_AsyncIOTask* task = ioring_asyncioqueue_get_results(userdata);
+    if (!task)
+    {
         SDL_AddAtomicInt(&queuedata->num_waiting, 1);
         WaitForSingleObject(queuedata->event, (timeoutMS < 0) ? INFINITE : (DWORD)timeoutMS);
         SDL_AddAtomicInt(&queuedata->num_waiting, -1);
@@ -272,18 +307,19 @@ static SDL_AsyncIOTask *ioring_asyncioqueue_wait_results(void *userdata, Sint32 
     return task;
 }
 
-static void ioring_asyncioqueue_signal(void *userdata)
+static void ioring_asyncioqueue_signal(void* userdata)
 {
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)userdata;
     const int num_waiting = SDL_GetAtomicInt(&queuedata->num_waiting);
-    for (int i = 0; i < num_waiting; i++) {
+    for (int i = 0; i < num_waiting; i++)
+    {
         SetEvent(queuedata->event);
     }
 }
 
-static void ioring_asyncioqueue_destroy(void *userdata)
+static void ioring_asyncioqueue_destroy(void* userdata)
 {
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)userdata;
     ioring.CloseIoRing(queuedata->ring);
     CloseHandle(queuedata->event);
     SDL_DestroyMutex(queuedata->sqe_lock);
@@ -291,10 +327,11 @@ static void ioring_asyncioqueue_destroy(void *userdata)
     SDL_free(queuedata);
 }
 
-static bool SDL_SYS_CreateAsyncIOQueue_ioring(SDL_AsyncIOQueue *queue)
+static bool SDL_SYS_CreateAsyncIOQueue_ioring(SDL_AsyncIOQueue* queue)
 {
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)SDL_calloc(1, sizeof (*queuedata));
-    if (!queuedata) {
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)SDL_calloc(1, sizeof (*queuedata));
+    if (!queuedata)
+    {
         return false;
     }
 
@@ -304,17 +341,20 @@ static bool SDL_SYS_CreateAsyncIOQueue_ioring(SDL_AsyncIOQueue *queue)
     SDL_SetAtomicInt(&queuedata->num_waiting, 0);
 
     queuedata->sqe_lock = SDL_CreateMutex();
-    if (!queuedata->sqe_lock) {
+    if (!queuedata->sqe_lock)
+    {
         goto failed;
     }
 
     queuedata->cqe_lock = SDL_CreateMutex();
-    if (!queuedata->cqe_lock) {
+    if (!queuedata->cqe_lock)
+    {
         goto failed;
     }
 
     queuedata->event = CreateEventW(NULL, FALSE, FALSE, NULL);
-    if (!queuedata->event) {
+    if (!queuedata->event)
+    {
         WIN_SetError("CreateEventW");
         goto failed;
     }
@@ -323,13 +363,15 @@ static bool SDL_SYS_CreateAsyncIOQueue_ioring(SDL_AsyncIOQueue *queue)
     flags.Required = IORING_CREATE_REQUIRED_FLAGS_NONE;
     flags.Advisory = IORING_CREATE_ADVISORY_FLAGS_NONE;
     hr = ioring.CreateIoRing(SDL_REQUIRED_IORING_VERSION, flags, 128, 128, &queuedata->ring);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         WIN_SetErrorFromHRESULT("CreateIoRing", hr);
         goto failed;
     }
 
     hr = ioring.SetIoRingCompletionEvent(queuedata->ring, queuedata->event);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         WIN_SetErrorFromHRESULT("SetIoRingCompletionEvent", hr);
         goto failed;
     }
@@ -342,8 +384,10 @@ static bool SDL_SYS_CreateAsyncIOQueue_ioring(SDL_AsyncIOQueue *queue)
         IORING_OP_CANCEL
     };
 
-    for (int i = 0; i < SDL_arraysize(needed_ops); i++) {
-        if (!ioring.IsIoRingOpSupported(queuedata->ring, needed_ops[i])) {
+    for (int i = 0; i < SDL_arraysize(needed_ops); i++)
+    {
+        if (!ioring.IsIoRingOpSupported(queuedata->ring, needed_ops[i]))
+        {
             SDL_SetError("Created IoRing doesn't support op %u", (unsigned int)needed_ops[i]);
             goto failed;
         }
@@ -363,116 +407,137 @@ static bool SDL_SYS_CreateAsyncIOQueue_ioring(SDL_AsyncIOQueue *queue)
     return true;
 
 failed:
-    if (queuedata->ring) {
+    if (queuedata->ring)
+    {
         ioring.CloseIoRing(queuedata->ring);
     }
-    if (queuedata->event) {
+    if (queuedata->event)
+    {
         CloseHandle(queuedata->event);
     }
-    if (queuedata->sqe_lock) {
+    if (queuedata->sqe_lock)
+    {
         SDL_DestroyMutex(queuedata->sqe_lock);
     }
-    if (queuedata->cqe_lock) {
+    if (queuedata->cqe_lock)
+    {
         SDL_DestroyMutex(queuedata->cqe_lock);
     }
     SDL_free(queuedata);
     return false;
 }
 
-static bool ioring_asyncio_read(void *userdata, SDL_AsyncIOTask *task)
+static bool ioring_asyncio_read(void* userdata, SDL_AsyncIOTask* task)
 {
     // !!! FIXME: UINT32 smaller than requested_size's Uint64. If we overflow it, we could try submitting multiple SQEs
     // !!! FIXME:  and make a note in the task that there are several in sequence.
-    if (task->requested_size > 0xFFFFFFFF) {
+    if (task->requested_size > 0xFFFFFFFF)
+    {
         return SDL_SetError("ioring: i/o task is too large");
     }
 
     HANDLE handle = (HANDLE)userdata;
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)task->queue->userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)task->queue->userdata;
     IORING_HANDLE_REF href = IoRingHandleRefFromHandle(handle);
     IORING_BUFFER_REF bref = IoRingBufferRefFromPointer(task->buffer);
 
     // have to hold a lock because otherwise two threads could get_sqe and submit while one request isn't fully set up.
     SDL_LockMutex(queuedata->sqe_lock);
     bool retval;
-    const HRESULT hr = ioring.BuildIoRingReadFile(queuedata->ring, href, bref, (UINT32)task->requested_size, task->offset, (UINT_PTR)task, IOSQE_FLAGS_NONE);
-    if (FAILED(hr)) {
+    const HRESULT hr = ioring.BuildIoRingReadFile(queuedata->ring, href, bref, (UINT32)task->requested_size,
+                                                  task->offset, (UINT_PTR)task, IOSQE_FLAGS_NONE);
+    if (FAILED(hr))
+    {
         retval = WIN_SetErrorFromHRESULT("BuildIoRingReadFile", hr);
-    } else {
+    }
+    else
+    {
         retval = task->queue->iface.queue_task(task->queue->userdata, task);
     }
     SDL_UnlockMutex(queuedata->sqe_lock);
     return retval;
 }
 
-static bool ioring_asyncio_write(void *userdata, SDL_AsyncIOTask *task)
+static bool ioring_asyncio_write(void* userdata, SDL_AsyncIOTask* task)
 {
     // !!! FIXME: UINT32 smaller than requested_size's Uint64. If we overflow it, we could try submitting multiple SQEs
     // !!! FIXME:  and make a note in the task that there are several in sequence.
-    if (task->requested_size > 0xFFFFFFFF) {
+    if (task->requested_size > 0xFFFFFFFF)
+    {
         return SDL_SetError("ioring: i/o task is too large");
     }
 
     HANDLE handle = (HANDLE)userdata;
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)task->queue->userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)task->queue->userdata;
     IORING_HANDLE_REF href = IoRingHandleRefFromHandle(handle);
     IORING_BUFFER_REF bref = IoRingBufferRefFromPointer(task->buffer);
 
     // have to hold a lock because otherwise two threads could get_sqe and submit while one request isn't fully set up.
     SDL_LockMutex(queuedata->sqe_lock);
     bool retval;
-    const HRESULT hr = ioring.BuildIoRingWriteFile(queuedata->ring, href, bref, (UINT32)task->requested_size, task->offset, 0 /*FILE_WRITE_FLAGS_NONE*/, (UINT_PTR)task, IOSQE_FLAGS_NONE);
-    if (FAILED(hr)) {
+    const HRESULT hr = ioring.BuildIoRingWriteFile(queuedata->ring, href, bref, (UINT32)task->requested_size,
+                                                   task->offset, 0 /*FILE_WRITE_FLAGS_NONE*/, (UINT_PTR)task,
+                                                   IOSQE_FLAGS_NONE);
+    if (FAILED(hr))
+    {
         retval = WIN_SetErrorFromHRESULT("BuildIoRingWriteFile", hr);
-    } else {
+    }
+    else
+    {
         retval = task->queue->iface.queue_task(task->queue->userdata, task);
     }
     SDL_UnlockMutex(queuedata->sqe_lock);
     return retval;
 }
 
-static bool ioring_asyncio_close(void *userdata, SDL_AsyncIOTask *task)
+static bool ioring_asyncio_close(void* userdata, SDL_AsyncIOTask* task)
 {
     // current IoRing operations don't offer asynchronous closing, but let's assume most of the potential work is flushing to disk, so just do it for everything, explicit flush or not. We'll close when it finishes.
     HANDLE handle = (HANDLE)userdata;
-    WinIoRingAsyncIOQueueData *queuedata = (WinIoRingAsyncIOQueueData *)task->queue->userdata;
+    WinIoRingAsyncIOQueueData* queuedata = (WinIoRingAsyncIOQueueData*)task->queue->userdata;
     IORING_HANDLE_REF href = IoRingHandleRefFromHandle(handle);
 
     // have to hold a lock because otherwise two threads could get_sqe and submit while one request isn't fully set up.
     SDL_LockMutex(queuedata->sqe_lock);
     bool retval;
-    const HRESULT hr = ioring.BuildIoRingFlushFile(queuedata->ring, href, FILE_FLUSH_DEFAULT, (UINT_PTR)task, IOSQE_FLAGS_NONE);
-    if (FAILED(hr)) {
+    const HRESULT hr = ioring.BuildIoRingFlushFile(queuedata->ring, href, FILE_FLUSH_DEFAULT, (UINT_PTR)task,
+                                                   IOSQE_FLAGS_NONE);
+    if (FAILED(hr))
+    {
         retval = WIN_SetErrorFromHRESULT("BuildIoRingFlushFile", hr);
-    } else {
+    }
+    else
+    {
         retval = task->queue->iface.queue_task(task->queue->userdata, task);
     }
     SDL_UnlockMutex(queuedata->sqe_lock);
     return retval;
 }
 
-static void ioring_asyncio_destroy(void *userdata)
+static void ioring_asyncio_destroy(void* userdata)
 {
     // this is only a Win32 file HANDLE, should have been closed elsewhere.
 }
 
-static bool Win32OpenModeFromString(const char *mode, DWORD *access_mode, DWORD *create_mode)
+static bool Win32OpenModeFromString(const char* mode, DWORD* access_mode, DWORD* create_mode)
 {
     // this is exactly the set of strings that SDL_AsyncIOFromFile promises will work.
     static const struct
     {
-        const char *str;
+        const char* str;
         DWORD amode;
         WORD cmode;
     } mappings[] = {
-        { "rb", GENERIC_READ, OPEN_EXISTING },
-        { "wb", GENERIC_WRITE, CREATE_ALWAYS },
-        { "r+b", GENERIC_READ | GENERIC_WRITE, OPEN_EXISTING },
-        { "w+b", GENERIC_READ | GENERIC_WRITE, CREATE_ALWAYS }
+        {"rb", GENERIC_READ, OPEN_EXISTING},
+        {"wb", GENERIC_WRITE, CREATE_ALWAYS},
+        {"r+b", GENERIC_READ | GENERIC_WRITE, OPEN_EXISTING},
+        {"w+b", GENERIC_READ | GENERIC_WRITE, CREATE_ALWAYS}
     };
 
-    for (int i = 0; i < SDL_arraysize(mappings); i++) {
-        if (SDL_strcmp(mappings[i].str, mode) == 0) {
+    for (int i = 0; i < SDL_arraysize(mappings); i++)
+    {
+        if (SDL_strcmp(mappings[i].str, mode) == 0)
+        {
             *access_mode = mappings[i].amode;
             *create_mode = mappings[i].cmode;
             return true;
@@ -483,21 +548,24 @@ static bool Win32OpenModeFromString(const char *mode, DWORD *access_mode, DWORD 
     return SDL_SetError("Invalid file open mode");
 }
 
-static bool SDL_SYS_AsyncIOFromFile_ioring(const char *file, const char *mode, SDL_AsyncIO *asyncio)
+static bool SDL_SYS_AsyncIOFromFile_ioring(const char* file, const char* mode, SDL_AsyncIO* asyncio)
 {
     DWORD access_mode, create_mode;
-    if (!Win32OpenModeFromString(mode, &access_mode, &create_mode)) {
+    if (!Win32OpenModeFromString(mode, &access_mode, &create_mode))
+    {
         return false;
     }
 
     LPWSTR wstr = WIN_UTF8ToStringW(file);
-    if (!wstr) {
+    if (!wstr)
+    {
         return false;
     }
 
     HANDLE handle = CreateFileW(wstr, access_mode, FILE_SHARE_READ, NULL, create_mode, FILE_ATTRIBUTE_NORMAL, NULL);
     SDL_free(wstr);
-    if (!handle) {
+    if (!handle)
+    {
         return WIN_SetError("CreateFileW");
     }
 
@@ -511,7 +579,7 @@ static bool SDL_SYS_AsyncIOFromFile_ioring(const char *file, const char *mode, S
 
     SDL_copyp(&asyncio->iface, &SDL_AsyncIOFile_ioring);
 
-    asyncio->userdata = (void *)handle;
+    asyncio->userdata = (void*)handle;
     return true;
 }
 
@@ -522,13 +590,17 @@ static void SDL_SYS_QuitAsyncIO_ioring(void)
 
 static void MaybeInitializeWinIoRing(void)
 {
-    if (SDL_ShouldInit(&ioring_init)) {
-        if (LoadWinIoRing()) {
+    if (SDL_ShouldInit(&ioring_init))
+    {
+        if (LoadWinIoRing())
+        {
             SDL_DebugLogBackend("asyncio", "ioring");
             CreateAsyncIOQueue = SDL_SYS_CreateAsyncIOQueue_ioring;
             QuitAsyncIO = SDL_SYS_QuitAsyncIO_ioring;
             AsyncIOFromFile = SDL_SYS_AsyncIOFromFile_ioring;
-        } else {
+        }
+        else
+        {
             // can't use ioring? Use the "generic" threadpool implementation instead.
             SDL_DebugLogBackend("asyncio", "generic");
             CreateAsyncIOQueue = SDL_SYS_CreateAsyncIOQueue_Generic;
@@ -539,13 +611,13 @@ static void MaybeInitializeWinIoRing(void)
     }
 }
 
-bool SDL_SYS_CreateAsyncIOQueue(SDL_AsyncIOQueue *queue)
+bool SDL_SYS_CreateAsyncIOQueue(SDL_AsyncIOQueue* queue)
 {
     MaybeInitializeWinIoRing();
     return CreateAsyncIOQueue(queue);
 }
 
-bool SDL_SYS_AsyncIOFromFile(const char *file, const char *mode, SDL_AsyncIO *asyncio)
+bool SDL_SYS_AsyncIOFromFile(const char* file, const char* mode, SDL_AsyncIO* asyncio)
 {
     MaybeInitializeWinIoRing();
     return AsyncIOFromFile(file, mode, asyncio);
@@ -553,7 +625,8 @@ bool SDL_SYS_AsyncIOFromFile(const char *file, const char *mode, SDL_AsyncIO *as
 
 void SDL_SYS_QuitAsyncIO(void)
 {
-    if (SDL_ShouldQuit(&ioring_init)) {
+    if (SDL_ShouldQuit(&ioring_init))
+    {
         QuitAsyncIO();
         CreateAsyncIOQueue = NULL;
         QuitAsyncIO = NULL;

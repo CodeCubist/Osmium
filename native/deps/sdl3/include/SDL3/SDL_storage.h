@@ -254,6 +254,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -278,37 +279,38 @@ typedef struct SDL_StorageInterface
     Uint32 version;
 
     /* Called when the storage is closed */
-    bool (SDLCALL *close)(void *userdata);
+    bool (SDLCALL *close)(void* userdata);
 
     /* Optional, returns whether the storage is currently ready for access */
-    bool (SDLCALL *ready)(void *userdata);
+    bool (SDLCALL *ready)(void* userdata);
 
     /* Enumerate a directory, optional for write-only storage */
-    bool (SDLCALL *enumerate)(void *userdata, const char *path, SDL_EnumerateDirectoryCallback callback, void *callback_userdata);
+    bool (SDLCALL *enumerate)(void* userdata, const char* path, SDL_EnumerateDirectoryCallback callback,
+                              void* callback_userdata);
 
     /* Get path information, optional for write-only storage */
-    bool (SDLCALL *info)(void *userdata, const char *path, SDL_PathInfo *info);
+    bool (SDLCALL *info)(void* userdata, const char* path, SDL_PathInfo* info);
 
     /* Read a file from storage, optional for write-only storage */
-    bool (SDLCALL *read_file)(void *userdata, const char *path, void *destination, Uint64 length);
+    bool (SDLCALL *read_file)(void* userdata, const char* path, void* destination, Uint64 length);
 
     /* Write a file to storage, optional for read-only storage */
-    bool (SDLCALL *write_file)(void *userdata, const char *path, const void *source, Uint64 length);
+    bool (SDLCALL *write_file)(void* userdata, const char* path, const void* source, Uint64 length);
 
     /* Create a directory, optional for read-only storage */
-    bool (SDLCALL *mkdir)(void *userdata, const char *path);
+    bool (SDLCALL *mkdir)(void* userdata, const char* path);
 
     /* Remove a file or empty directory, optional for read-only storage */
-    bool (SDLCALL *remove)(void *userdata, const char *path);
+    bool (SDLCALL *remove)(void* userdata, const char* path);
 
     /* Rename a path, optional for read-only storage */
-    bool (SDLCALL *rename)(void *userdata, const char *oldpath, const char *newpath);
+    bool (SDLCALL *rename)(void* userdata, const char* oldpath, const char* newpath);
 
     /* Copy a file, optional for read-only storage */
-    bool (SDLCALL *copy)(void *userdata, const char *oldpath, const char *newpath);
+    bool (SDLCALL *copy)(void* userdata, const char* oldpath, const char* newpath);
 
     /* Get the space remaining, optional for read-only storage */
-    Uint64 (SDLCALL *space_remaining)(void *userdata);
+    Uint64 (SDLCALL *space_remaining)(void* userdata);
 } SDL_StorageInterface;
 
 /* Check the size of SDL_StorageInterface
@@ -351,7 +353,7 @@ typedef struct SDL_Storage SDL_Storage;
  * \sa SDL_OpenUserStorage
  * \sa SDL_ReadStorageFile
  */
-extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenTitleStorage(const char *override, SDL_PropertiesID props);
+extern SDL_DECLSPEC SDL_Storage* SDLCALL SDL_OpenTitleStorage(const char* override, SDL_PropertiesID props);
 
 /**
  * Opens up a container for a user's unique read/write filesystem.
@@ -377,7 +379,7 @@ extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenTitleStorage(const char *overr
  * \sa SDL_StorageReady
  * \sa SDL_WriteStorageFile
  */
-extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenUserStorage(const char *org, const char *app, SDL_PropertiesID props);
+extern SDL_DECLSPEC SDL_Storage* SDLCALL SDL_OpenUserStorage(const char* org, const char* app, SDL_PropertiesID props);
 
 /**
  * Opens up a container for local filesystem storage.
@@ -401,7 +403,7 @@ extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenUserStorage(const char *org, c
  * \sa SDL_ReadStorageFile
  * \sa SDL_WriteStorageFile
  */
-extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenFileStorage(const char *path);
+extern SDL_DECLSPEC SDL_Storage* SDLCALL SDL_OpenFileStorage(const char* path);
 
 /**
  * Opens up a container using a client-provided storage interface.
@@ -430,7 +432,7 @@ extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenFileStorage(const char *path);
  * \sa SDL_StorageReady
  * \sa SDL_WriteStorageFile
  */
-extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenStorage(const SDL_StorageInterface *iface, void *userdata);
+extern SDL_DECLSPEC SDL_Storage* SDLCALL SDL_OpenStorage(const SDL_StorageInterface* iface, void* userdata);
 
 /**
  * Closes and frees a storage container.
@@ -448,7 +450,7 @@ extern SDL_DECLSPEC SDL_Storage * SDLCALL SDL_OpenStorage(const SDL_StorageInter
  * \sa SDL_OpenTitleStorage
  * \sa SDL_OpenUserStorage
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CloseStorage(SDL_Storage *storage);
+extern SDL_DECLSPEC bool SDLCALL SDL_CloseStorage(SDL_Storage* storage);
 
 /**
  * Checks if the storage container is ready to use.
@@ -463,7 +465,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CloseStorage(SDL_Storage *storage);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_StorageReady(SDL_Storage *storage);
+extern SDL_DECLSPEC bool SDLCALL SDL_StorageReady(SDL_Storage* storage);
 
 /**
  * Query the size of a file within a storage container.
@@ -479,7 +481,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_StorageReady(SDL_Storage *storage);
  * \sa SDL_ReadStorageFile
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetStorageFileSize(SDL_Storage *storage, const char *path, Uint64 *length);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetStorageFileSize(SDL_Storage* storage, const char* path, Uint64* length);
 
 /**
  * Synchronously read a file from a storage container into a client-provided
@@ -502,7 +504,8 @@ extern SDL_DECLSPEC bool SDLCALL SDL_GetStorageFileSize(SDL_Storage *storage, co
  * \sa SDL_StorageReady
  * \sa SDL_WriteStorageFile
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadStorageFile(SDL_Storage *storage, const char *path, void *destination, Uint64 length);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadStorageFile(SDL_Storage* storage, const char* path, void* destination,
+                                                     Uint64 length);
 
 /**
  * Synchronously write a file from client memory into a storage container.
@@ -520,7 +523,8 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadStorageFile(SDL_Storage *storage, const
  * \sa SDL_ReadStorageFile
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteStorageFile(SDL_Storage *storage, const char *path, const void *source, Uint64 length);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteStorageFile(SDL_Storage* storage, const char* path, const void* source,
+                                                      Uint64 length);
 
 /**
  * Create a directory in a writable storage container.
@@ -534,7 +538,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteStorageFile(SDL_Storage *storage, cons
  *
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CreateStorageDirectory(SDL_Storage *storage, const char *path);
+extern SDL_DECLSPEC bool SDLCALL SDL_CreateStorageDirectory(SDL_Storage* storage, const char* path);
 
 /**
  * Enumerate a directory in a storage container through a callback function.
@@ -563,7 +567,8 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CreateStorageDirectory(SDL_Storage *storage
  *
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_EnumerateStorageDirectory(SDL_Storage *storage, const char *path, SDL_EnumerateDirectoryCallback callback, void *userdata);
+extern SDL_DECLSPEC bool SDLCALL SDL_EnumerateStorageDirectory(SDL_Storage* storage, const char* path,
+                                                               SDL_EnumerateDirectoryCallback callback, void* userdata);
 
 /**
  * Remove a file or an empty directory in a writable storage container.
@@ -577,7 +582,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_EnumerateStorageDirectory(SDL_Storage *stor
  *
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_RemoveStoragePath(SDL_Storage *storage, const char *path);
+extern SDL_DECLSPEC bool SDLCALL SDL_RemoveStoragePath(SDL_Storage* storage, const char* path);
 
 /**
  * Rename a file or directory in a writable storage container.
@@ -592,7 +597,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_RemoveStoragePath(SDL_Storage *storage, con
  *
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_RenameStoragePath(SDL_Storage *storage, const char *oldpath, const char *newpath);
+extern SDL_DECLSPEC bool SDLCALL SDL_RenameStoragePath(SDL_Storage* storage, const char* oldpath, const char* newpath);
 
 /**
  * Copy a file in a writable storage container.
@@ -607,7 +612,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_RenameStoragePath(SDL_Storage *storage, con
  *
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CopyStorageFile(SDL_Storage *storage, const char *oldpath, const char *newpath);
+extern SDL_DECLSPEC bool SDLCALL SDL_CopyStorageFile(SDL_Storage* storage, const char* oldpath, const char* newpath);
 
 /**
  * Get information about a filesystem path in a storage container.
@@ -623,7 +628,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CopyStorageFile(SDL_Storage *storage, const
  *
  * \sa SDL_StorageReady
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetStoragePathInfo(SDL_Storage *storage, const char *path, SDL_PathInfo *info);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetStoragePathInfo(SDL_Storage* storage, const char* path, SDL_PathInfo* info);
 
 /**
  * Queries the remaining space in a storage container.
@@ -636,7 +641,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_GetStoragePathInfo(SDL_Storage *storage, co
  * \sa SDL_StorageReady
  * \sa SDL_WriteStorageFile
  */
-extern SDL_DECLSPEC Uint64 SDLCALL SDL_GetStorageSpaceRemaining(SDL_Storage *storage);
+extern SDL_DECLSPEC Uint64 SDLCALL SDL_GetStorageSpaceRemaining(SDL_Storage* storage);
 
 /**
  * Enumerate a directory tree, filtered by pattern, and return a list.
@@ -676,7 +681,8 @@ extern SDL_DECLSPEC Uint64 SDLCALL SDL_GetStorageSpaceRemaining(SDL_Storage *sto
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC char ** SDLCALL SDL_GlobStorageDirectory(SDL_Storage *storage, const char *path, const char *pattern, SDL_GlobFlags flags, int *count);
+extern SDL_DECLSPEC char** SDLCALL SDL_GlobStorageDirectory(SDL_Storage* storage, const char* path, const char* pattern,
+                                                            SDL_GlobFlags flags, int* count);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

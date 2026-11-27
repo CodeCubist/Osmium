@@ -33,7 +33,7 @@
 
 
 // Pixel format functions
-extern void SDL_Get8888AlphaMaskAndShift(const SDL_PixelFormatDetails *fmt, Uint32 *mask, Uint32 *shift);
+extern void SDL_Get8888AlphaMaskAndShift(const SDL_PixelFormatDetails* fmt, Uint32* mask, Uint32* shift);
 extern SDL_Colorspace SDL_GetDefaultColorspaceForFormat(SDL_PixelFormat pixel_format);
 extern void SDL_QuitPixelFormatDetails(void);
 
@@ -42,20 +42,21 @@ extern float SDL_sRGBtoLinear(float v);
 extern float SDL_sRGBfromLinear(float v);
 extern float SDL_PQtoNits(float v);
 extern float SDL_PQfromNits(float v);
-extern const float *SDL_GetYCbCRtoRGBConversionMatrix(SDL_Colorspace colorspace, int w, int h, int bits_per_pixel);
-extern const float *SDL_GetColorPrimariesConversionMatrix(SDL_ColorPrimaries src, SDL_ColorPrimaries dst);
-extern void SDL_ConvertColorPrimaries(float *fR, float *fG, float *fB, const float *matrix);
+extern const float* SDL_GetYCbCRtoRGBConversionMatrix(SDL_Colorspace colorspace, int w, int h, int bits_per_pixel);
+extern const float* SDL_GetColorPrimariesConversionMatrix(SDL_ColorPrimaries src, SDL_ColorPrimaries dst);
+extern void SDL_ConvertColorPrimaries(float* fR, float* fG, float* fB, const float* matrix);
 
 // Blit mapping functions
-extern bool SDL_ValidateMap(SDL_Surface *src, SDL_Surface *dst);
-extern void SDL_InvalidateMap(SDL_BlitMap *map);
-extern bool SDL_MapSurface(SDL_Surface *src, SDL_Surface *dst);
+extern bool SDL_ValidateMap(SDL_Surface* src, SDL_Surface* dst);
+extern void SDL_InvalidateMap(SDL_BlitMap* map);
+extern bool SDL_MapSurface(SDL_Surface* src, SDL_Surface* dst);
 
 // Miscellaneous functions
-extern bool SDL_IsSamePalette(const SDL_Palette *src, const SDL_Palette *dst);
-extern void SDL_DitherPalette(SDL_Palette *palette);
-extern Uint8 SDL_LookupRGBAColor(SDL_HashTable *palette_map, Uint32 pixelvalue, const SDL_Palette *pal);
-extern void SDL_DetectPalette(const SDL_Palette *pal, bool *is_opaque, bool *has_alpha_channel);
-extern SDL_Surface *SDL_DuplicatePixels(int width, int height, SDL_PixelFormat format, SDL_Colorspace colorspace, void *pixels, int pitch);
+extern bool SDL_IsSamePalette(const SDL_Palette* src, const SDL_Palette* dst);
+extern void SDL_DitherPalette(SDL_Palette* palette);
+extern Uint8 SDL_LookupRGBAColor(SDL_HashTable* palette_map, Uint32 pixelvalue, const SDL_Palette* pal);
+extern void SDL_DetectPalette(const SDL_Palette* pal, bool* is_opaque, bool* has_alpha_channel);
+extern SDL_Surface* SDL_DuplicatePixels(int width, int height, SDL_PixelFormat format, SDL_Colorspace colorspace,
+                                        void* pixels, int pitch);
 
 #endif // SDL_pixels_c_h_

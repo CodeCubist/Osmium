@@ -12,10 +12,29 @@ namespace Osmium.Core.Services;
 
 public sealed class QuickLaunchHostStartedEventArgs : EventArgs
 {
-    public required string AppName { get; init; }
-    public required string ExePath { get; init; }
-    public required string RequesterDeviceId { get; init; }
-    public required bool IsLocalLaunch { get; init; }
+    public required string AppName
+    {
+        get;
+        init;
+    }
+
+    public required string ExePath
+    {
+        get;
+        init;
+    }
+
+    public required string RequesterDeviceId
+    {
+        get;
+        init;
+    }
+
+    public required bool IsLocalLaunch
+    {
+        get;
+        init;
+    }
 }
 
 public sealed class QuickLaunchHostService : IDisposable
@@ -38,8 +57,12 @@ public sealed class QuickLaunchHostService : IDisposable
     private readonly P2PCoordinator _coordinator;
     private readonly LoggingService _log;
 
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<QuickLaunchBrowseResult>> _pendingBrowse = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<QuickLaunchValidateResult>> _pendingValidate = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<QuickLaunchBrowseResult>> _pendingBrowse =
+        new(StringComparer.Ordinal);
+
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<QuickLaunchValidateResult>> _pendingValidate =
+        new(StringComparer.Ordinal);
+
     private readonly ConcurrentDictionary<string, PendingStartTracker> _pendingStarts = new(StringComparer.Ordinal);
 
     private readonly object _hostGuardLock = new();
@@ -50,20 +73,68 @@ public sealed class QuickLaunchHostService : IDisposable
 
     private sealed class PendingStartTracker
     {
-        public required TaskCompletionSource<QuickLaunchStartResponse> Tcs { get; init; }
-        public Action<string>? OnStatus { get; init; }
+        public required TaskCompletionSource<QuickLaunchStartResponse> Tcs
+        {
+            get;
+            init;
+        }
+
+        public Action<string>? OnStatus
+        {
+            get;
+            init;
+        }
     }
 
     private sealed class ActiveProcessGuard
     {
-        public required string RequestId { get; init; }
-        public required string RequesterDeviceId { get; init; }
-        public required string TargetDir { get; init; }
-        public required string TargetExeName { get; init; }
-        public required HashSet<int> TrackedPids { get; init; }
-        public required DateTime ArmedAtUtc { get; init; }
-        public required CancellationTokenSource MonitorCts { get; init; }
-        public bool SessionObserved { get; set; }
+        public required string RequestId
+        {
+            get;
+            init;
+        }
+
+        public required string RequesterDeviceId
+        {
+            get;
+            init;
+        }
+
+        public required string TargetDir
+        {
+            get;
+            init;
+        }
+
+        public required string TargetExeName
+        {
+            get;
+            init;
+        }
+
+        public required HashSet<int> TrackedPids
+        {
+            get;
+            init;
+        }
+
+        public required DateTime ArmedAtUtc
+        {
+            get;
+            init;
+        }
+
+        public required CancellationTokenSource MonitorCts
+        {
+            get;
+            init;
+        }
+
+        public bool SessionObserved
+        {
+            get;
+            set;
+        }
     }
 
     public bool HasActiveSessionGuard
@@ -103,7 +174,8 @@ public sealed class QuickLaunchHostService : IDisposable
         _coordinator.HostSessionEnded += OnHostSessionEnded;
     }
 
-    public async Task<QuickLaunchBrowseResult> BrowseAsync(string targetDeviceId, string path, CancellationToken ct = default)
+    public async Task<QuickLaunchBrowseResult> BrowseAsync(string targetDeviceId, string path,
+        CancellationToken ct = default)
     {
         string normTarget = DeviceIdentity.NormalizeDeviceId(targetDeviceId);
         string localId = DeviceIdentity.NormalizeDeviceId(_settings.Identity.DeviceId);
@@ -159,7 +231,8 @@ public sealed class QuickLaunchHostService : IDisposable
         }
     }
 
-    public async Task<QuickLaunchValidateResult> ValidateAsync(string targetDeviceId, string path, CancellationToken ct = default)
+    public async Task<QuickLaunchValidateResult> ValidateAsync(string targetDeviceId, string path,
+        CancellationToken ct = default)
     {
         string normTarget = DeviceIdentity.NormalizeDeviceId(targetDeviceId);
         string localId = DeviceIdentity.NormalizeDeviceId(_settings.Identity.DeviceId);
@@ -179,7 +252,8 @@ public sealed class QuickLaunchHostService : IDisposable
         }
 
         string reqId = Guid.NewGuid().ToString("N");
-        var tcs = new TaskCompletionSource<QuickLaunchValidateResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<QuickLaunchValidateResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingValidate[reqId] = tcs;
         try
         {
@@ -227,7 +301,8 @@ public sealed class QuickLaunchHostService : IDisposable
         string reqId = Guid.NewGuid().ToString("N");
         var tracker = new PendingStartTracker
         {
-            Tcs = new TaskCompletionSource<QuickLaunchStartResponse>(TaskCreationOptions.RunContinuationsAsynchronously),
+            Tcs =
+                new TaskCompletionSource<QuickLaunchStartResponse>(TaskCreationOptions.RunContinuationsAsynchronously),
             OnStatus = onStatus
         };
         _pendingStarts[reqId] = tracker;
@@ -413,13 +488,21 @@ public sealed class QuickLaunchHostService : IDisposable
         lock (_hostGuardLock)
         {
             if (_inflightLaunchCts != null &&
-                (string.IsNullOrEmpty(requestId) || string.Equals(_inflightLaunchRequestId, requestId, StringComparison.Ordinal)))
+                (string.IsNullOrEmpty(requestId) ||
+                 string.Equals(_inflightLaunchRequestId, requestId, StringComparison.Ordinal)))
             {
-                try { _inflightLaunchCts.Cancel(); } catch { }
+                try
+                {
+                    _inflightLaunchCts.Cancel();
+                }
+                catch
+                {
+                }
             }
 
             if (_activeGuard != null &&
-                string.Equals(_activeGuard.RequesterDeviceId, DeviceIdentity.NormalizeDeviceId(requesterDeviceId), StringComparison.Ordinal) &&
+                string.Equals(_activeGuard.RequesterDeviceId, DeviceIdentity.NormalizeDeviceId(requesterDeviceId),
+                    StringComparison.Ordinal) &&
                 !_activeGuard.SessionObserved)
             {
                 ClearActiveGuardLocked();
@@ -432,7 +515,8 @@ public sealed class QuickLaunchHostService : IDisposable
         lock (_hostGuardLock)
         {
             if (_activeGuard != null &&
-                string.Equals(_activeGuard.RequesterDeviceId, DeviceIdentity.NormalizeDeviceId(info.PeerDeviceId), StringComparison.Ordinal))
+                string.Equals(_activeGuard.RequesterDeviceId, DeviceIdentity.NormalizeDeviceId(info.PeerDeviceId),
+                    StringComparison.Ordinal))
             {
                 _activeGuard.SessionObserved = true;
             }
@@ -515,7 +599,14 @@ public sealed class QuickLaunchHostService : IDisposable
         CancellationTokenSource launchCts;
         lock (_hostGuardLock)
         {
-            try { _inflightLaunchCts?.Cancel(); } catch { }
+            try
+            {
+                _inflightLaunchCts?.Cancel();
+            }
+            catch
+            {
+            }
+
             _inflightLaunchCts?.Dispose();
             ClearActiveGuardLocked();
             launchCts = new CancellationTokenSource();
@@ -561,7 +652,8 @@ public sealed class QuickLaunchHostService : IDisposable
                 trackedPids.Add(startedProc.Id);
             }
 
-            _log.Info($"QuickLaunch started '{exePath}' (rootPid={startedProc?.Id ?? 0}) for peer {req.RequesterDeviceId}");
+            _log.Info(
+                $"QuickLaunch started '{exePath}' (rootPid={startedProc?.Id ?? 0}) for peer {req.RequesterDeviceId}");
 
             string displayName = !string.IsNullOrWhiteSpace(req.AppName)
                 ? req.AppName.Trim()
@@ -715,7 +807,8 @@ public sealed class QuickLaunchHostService : IDisposable
             {
                 await Task.Delay(500, ct);
 
-                ExpandTrackedPids(guard.TrackedPids, guard.TargetDir, guard.TargetExeName, guard.ArmedAtUtc.AddSeconds(-30));
+                ExpandTrackedPids(guard.TrackedPids, guard.TargetDir, guard.TargetExeName,
+                    guard.ArmedAtUtc.AddSeconds(-30));
                 bool anyAlive = HasAnyAlivePid(guard.TrackedPids);
 
                 if (!anyAlive)
@@ -723,7 +816,8 @@ public sealed class QuickLaunchHostService : IDisposable
                     deadTicks++;
                     if (deadTicks >= 2)
                     {
-                        _log.Info($"QuickLaunch tracked process exited for '{guard.TargetExeName}', disconnecting remote session");
+                        _log.Info(
+                            $"QuickLaunch tracked process exited for '{guard.TargetExeName}', disconnecting remote session");
                         bool shouldDisconnect = false;
                         lock (_hostGuardLock)
                         {
@@ -775,7 +869,14 @@ public sealed class QuickLaunchHostService : IDisposable
     {
         if (_activeGuard != null)
         {
-            try { _activeGuard.MonitorCts.Cancel(); } catch { }
+            try
+            {
+                _activeGuard.MonitorCts.Cancel();
+            }
+            catch
+            {
+            }
+
             _activeGuard.MonitorCts.Dispose();
             _activeGuard = null;
         }
@@ -1109,7 +1210,8 @@ public sealed class QuickLaunchHostService : IDisposable
             var fi = new FileInfo(filePath);
             if (!fi.Exists || fi.Length < 64) return false;
 
-            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
             Span<byte> header = stackalloc byte[64];
             if (fs.Read(header) < 64) return false;
             if (header[0] != 0x4D || header[1] != 0x5A) return false;
@@ -1168,7 +1270,8 @@ public sealed class QuickLaunchHostService : IDisposable
             if (hIcon == IntPtr.Zero)
             {
                 var shfi = new ShFileInfo();
-                if (SHGetFileInfoW(exePath, 0, ref shfi, (uint)Marshal.SizeOf<ShFileInfo>(), ShgfiIcon | ShgfiLargeIcon) != IntPtr.Zero)
+                if (SHGetFileInfoW(exePath, 0, ref shfi, (uint)Marshal.SizeOf<ShFileInfo>(),
+                        ShgfiIcon | ShgfiLargeIcon) != IntPtr.Zero)
                 {
                     hIcon = shfi.hIcon;
                 }
@@ -1313,7 +1416,8 @@ public sealed class QuickLaunchHostService : IDisposable
         return result;
     }
 
-    private static void ExpandTrackedPids(HashSet<int> trackedPids, string normalizedDir, string exeNameNoExt, DateTime startedSinceUtc)
+    private static void ExpandTrackedPids(HashSet<int> trackedPids, string normalizedDir, string exeNameNoExt,
+        DateTime startedSinceUtc)
     {
         var snapshot = EnumerateProcessParents();
         bool added;
@@ -1338,7 +1442,8 @@ public sealed class QuickLaunchHostService : IDisposable
             if (string.IsNullOrEmpty(imgPath)) continue;
 
             bool pathMatches = imgPath.StartsWith(normalizedDir, StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(Path.GetFileNameWithoutExtension(imgPath), exeNameNoExt, StringComparison.OrdinalIgnoreCase);
+                               string.Equals(Path.GetFileNameWithoutExtension(imgPath), exeNameNoExt,
+                                   StringComparison.OrdinalIgnoreCase);
             if (!pathMatches) continue;
 
             try
@@ -1463,7 +1568,14 @@ public sealed class QuickLaunchHostService : IDisposable
 
         lock (_hostGuardLock)
         {
-            try { _inflightLaunchCts?.Cancel(); } catch { }
+            try
+            {
+                _inflightLaunchCts?.Cancel();
+            }
+            catch
+            {
+            }
+
             _inflightLaunchCts?.Dispose();
             _inflightLaunchCts = null;
             ClearActiveGuardLocked();
@@ -1478,8 +1590,10 @@ public sealed class QuickLaunchHostService : IDisposable
         public IntPtr hIcon;
         public int iIcon;
         public uint dwAttributes;
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
         public string szDisplayName;
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
         public string szTypeName;
     }
@@ -1519,6 +1633,7 @@ public sealed class QuickLaunchHostService : IDisposable
         public uint th32ParentProcessID;
         public int pcPriClassBase;
         public uint dwFlags;
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
         public string szExeFile;
     }
@@ -1627,7 +1742,8 @@ public sealed class QuickLaunchHostService : IDisposable
     private static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool QueryFullProcessImageNameW(IntPtr hProcess, uint dwFlags, StringBuilder lpExeName, ref uint lpdwSize);
+    private static extern bool QueryFullProcessImageNameW(IntPtr hProcess, uint dwFlags, StringBuilder lpExeName,
+        ref uint lpdwSize);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr hObject);

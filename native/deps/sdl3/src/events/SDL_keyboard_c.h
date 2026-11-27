@@ -38,16 +38,16 @@ extern bool SDL_InitKeyboard(void);
 extern bool SDL_IsKeyboard(Uint16 vendor, Uint16 product, int num_keys);
 
 // A keyboard has been added to the system
-extern void SDL_AddKeyboard(SDL_KeyboardID keyboardID, const char *name);
+extern void SDL_AddKeyboard(SDL_KeyboardID keyboardID, const char* name);
 
 // A keyboard has been removed from the system
 extern void SDL_RemoveKeyboard(SDL_KeyboardID keyboardID);
 
 // Set the mapping of scancode to key codes
-extern void SDL_SetKeymap(SDL_Keymap *keymap, bool send_event);
+extern void SDL_SetKeymap(SDL_Keymap* keymap, bool send_event);
 
 // Set the keyboard focus window
-extern bool SDL_SetKeyboardFocus(SDL_Window *window);
+extern bool SDL_SetKeyboardFocus(SDL_Window* window);
 
 /* Send a character from an on-screen keyboard as scancode and modifier key events,
    currently assuming ASCII characters on a US keyboard layout
@@ -55,13 +55,16 @@ extern bool SDL_SetKeyboardFocus(SDL_Window *window);
 extern void SDL_SendKeyboardUnicodeKey(Uint64 timestamp, Uint32 ch);
 
 // Send a keyboard key event
-extern bool SDL_SendKeyboardKey(Uint64 timestamp, SDL_KeyboardID keyboardID, int rawcode, SDL_Scancode scancode, bool down);
-extern bool SDL_SendKeyboardKeyIgnoreModifiers(Uint64 timestamp, SDL_KeyboardID keyboardID, int rawcode, SDL_Scancode scancode, bool down);
+extern bool SDL_SendKeyboardKey(Uint64 timestamp, SDL_KeyboardID keyboardID, int rawcode, SDL_Scancode scancode,
+                                bool down);
+extern bool SDL_SendKeyboardKeyIgnoreModifiers(Uint64 timestamp, SDL_KeyboardID keyboardID, int rawcode,
+                                               SDL_Scancode scancode, bool down);
 extern bool SDL_SendKeyboardKeyAutoRelease(Uint64 timestamp, SDL_Scancode scancode);
 
 /* This is for platforms that don't know the keymap but can report scancode and keycode directly.
    Most platforms should prefer to optionally call SDL_SetKeymap and then use SDL_SendKeyboardKey. */
-extern bool SDL_SendKeyboardKeyAndKeycode(Uint64 timestamp, SDL_KeyboardID keyboardID, int rawcode, SDL_Scancode scancode, SDL_Keycode keycode, bool down);
+extern bool SDL_SendKeyboardKeyAndKeycode(Uint64 timestamp, SDL_KeyboardID keyboardID, int rawcode,
+                                          SDL_Scancode scancode, SDL_Keycode keycode, bool down);
 
 // Release all the autorelease keys
 extern void SDL_ReleaseAutoReleaseKeys(void);
@@ -70,13 +73,14 @@ extern void SDL_ReleaseAutoReleaseKeys(void);
 extern bool SDL_HardwareKeyboardKeyPressed(void);
 
 // Send keyboard text input
-extern void SDL_SendKeyboardText(const char *text);
+extern void SDL_SendKeyboardText(const char* text);
 
 // Send editing text for selected range from start to end
-extern void SDL_SendEditingText(const char *text, int start, int length);
+extern void SDL_SendEditingText(const char* text, int start, int length);
 
 // Send editing text candidates, which will be copied into the event
-extern void SDL_SendEditingTextCandidates(char **candidates, int num_candidates, int selected_candidate, bool horizontal);
+extern void SDL_SendEditingTextCandidates(char** candidates, int num_candidates, int selected_candidate,
+                                          bool horizontal);
 
 // Shutdown the keyboard subsystem
 extern void SDL_QuitKeyboard(void);

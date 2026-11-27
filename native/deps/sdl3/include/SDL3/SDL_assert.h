@@ -71,6 +71,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 #ifdef SDL_WIKI_DOCUMENTATION_SECTION
@@ -150,6 +151,7 @@ extern void __cdecl __debugbreak(void);
 #elif (defined(__GNUC__) || defined(__clang__)) && defined(__riscv)
 #define SDL_TriggerBreakpoint() __asm__ __volatile__ ( "ebreak\n\t" )
 #elif ( defined(SDL_PLATFORM_APPLE) && (defined(__arm64__) || defined(__aarch64__)) )  /* this might work on other ARM targets, but this is a known quantity... */
+
 #define SDL_TriggerBreakpoint() __asm__ __volatile__ ( "brk #22\n\t" )
 #elif defined(SDL_PLATFORM_APPLE) && defined(__arm__)
 #define SDL_TriggerBreakpoint() __asm__ __volatile__ ( "bkpt #22\n\t" )
@@ -319,10 +321,10 @@ disable assertions.
  */
 typedef enum SDL_AssertState
 {
-    SDL_ASSERTION_RETRY,        /**< Retry the assert immediately. */
-    SDL_ASSERTION_BREAK,        /**< Make the debugger trigger a breakpoint. */
-    SDL_ASSERTION_ABORT,        /**< Terminate the program. */
-    SDL_ASSERTION_IGNORE,       /**< Ignore the assert. */
+    SDL_ASSERTION_RETRY, /**< Retry the assert immediately. */
+    SDL_ASSERTION_BREAK, /**< Make the debugger trigger a breakpoint. */
+    SDL_ASSERTION_ABORT, /**< Terminate the program. */
+    SDL_ASSERTION_IGNORE, /**< Ignore the assert. */
     SDL_ASSERTION_ALWAYS_IGNORE /**< Ignore the assert from now on. */
 } SDL_AssertState;
 
@@ -337,13 +339,13 @@ typedef enum SDL_AssertState
  */
 typedef struct SDL_AssertData
 {
-    bool always_ignore;                /**< true if app should always continue when assertion is triggered. */
-    unsigned int trigger_count;        /**< Number of times this assertion has been triggered. */
-    const char *condition;             /**< A string of this assert's test code. */
-    const char *filename;              /**< The source file where this assert lives. */
-    int linenum;                       /**< The line in `filename` where this assert lives. */
-    const char *function;              /**< The name of the function where this assert lives. */
-    const struct SDL_AssertData *next; /**< next item in the linked list. */
+    bool always_ignore; /**< true if app should always continue when assertion is triggered. */
+    unsigned int trigger_count; /**< Number of times this assertion has been triggered. */
+    const char* condition; /**< A string of this assert's test code. */
+    const char* filename; /**< The source file where this assert lives. */
+    int linenum; /**< The line in `filename` where this assert lives. */
+    const char* function; /**< The name of the function where this assert lives. */
+    const struct SDL_AssertData* next; /**< next item in the linked list. */
 } SDL_AssertData;
 
 /**
@@ -361,9 +363,9 @@ typedef struct SDL_AssertData
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_AssertState SDLCALL SDL_ReportAssertion(SDL_AssertData *data,
-                                                                const char *func,
-                                                                const char *file, int line) SDL_ANALYZER_NORETURN;
+extern SDL_DECLSPEC SDL_AssertState SDLCALL SDL_ReportAssertion(SDL_AssertData* data,
+                                                                const char* func,
+                                                                const char* file, int line) SDL_ANALYZER_NORETURN;
 
 
 #ifdef SDL_WIKI_DOCUMENTATION_SECTION
@@ -577,7 +579,7 @@ extern SDL_DECLSPEC SDL_AssertState SDLCALL SDL_ReportAssertion(SDL_AssertData *
  * \since This datatype is available since SDL 3.2.0.
  */
 typedef SDL_AssertState (SDLCALL *SDL_AssertionHandler)(
-    const SDL_AssertData *data, void *userdata);
+    const SDL_AssertData* data, void* userdata);
 
 /**
  * Set an application-defined assertion handler.
@@ -604,7 +606,7 @@ typedef SDL_AssertState (SDLCALL *SDL_AssertionHandler)(
  */
 extern SDL_DECLSPEC void SDLCALL SDL_SetAssertionHandler(
     SDL_AssertionHandler handler,
-    void *userdata);
+    void* userdata);
 
 /**
  * Get the default assertion handler.
@@ -648,7 +650,7 @@ extern SDL_DECLSPEC SDL_AssertionHandler SDLCALL SDL_GetDefaultAssertionHandler(
  *
  * \sa SDL_SetAssertionHandler
  */
-extern SDL_DECLSPEC SDL_AssertionHandler SDLCALL SDL_GetAssertionHandler(void **puserdata);
+extern SDL_DECLSPEC SDL_AssertionHandler SDLCALL SDL_GetAssertionHandler(void** puserdata);
 
 /**
  * Get a list of all assertion failures.
@@ -682,7 +684,7 @@ extern SDL_DECLSPEC SDL_AssertionHandler SDLCALL SDL_GetAssertionHandler(void **
  *
  * \sa SDL_ResetAssertionReport
  */
-extern SDL_DECLSPEC const SDL_AssertData * SDLCALL SDL_GetAssertionReport(void);
+extern SDL_DECLSPEC const SDL_AssertData* SDLCALL SDL_GetAssertionReport(void);
 
 /**
  * Clear the list of all assertion failures.

@@ -75,11 +75,13 @@
 #  if (defined(_MSC_VER) || defined(__MINGW32__)) && defined(BUILD_GL32) /* tag specify we're building mesa as a DLL */
 #    define GLAPI __declspec(dllexport)
 #  elif (defined(_MSC_VER) || defined(__MINGW32__)) && defined(_DLL) /* tag specifying we're building for DLL runtime support */
+
 #    define GLAPI __declspec(dllimport)
 #  else /* for use with static link lib build of Win32 edition only */
 #    define GLAPI extern
 #  endif /* _STATIC_MESA support */
 #  if defined(__MINGW32__) && defined(GL_NO_STDCALL) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
+
 #    define GLAPIENTRY
 #  else
 #    define GLAPIENTRY __stdcall
@@ -143,6 +145,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 
@@ -159,17 +162,17 @@ typedef unsigned int GLenum;
 typedef unsigned char GLboolean;
 typedef unsigned int GLbitfield;
 typedef void GLvoid;
-typedef signed char GLbyte;      /* 1-byte signed */
-typedef short GLshort;           /* 2-byte signed */
-typedef int GLint;               /* 4-byte signed */
-typedef unsigned char GLubyte;   /* 1-byte unsigned */
+typedef signed char GLbyte; /* 1-byte signed */
+typedef short GLshort; /* 2-byte signed */
+typedef int GLint; /* 4-byte signed */
+typedef unsigned char GLubyte; /* 1-byte unsigned */
 typedef unsigned short GLushort; /* 2-byte unsigned */
-typedef unsigned int GLuint;     /* 4-byte unsigned */
-typedef int GLsizei;             /* 4-byte signed */
-typedef float GLfloat;           /* single precision float */
-typedef float GLclampf;          /* single precision float in [0,1] */
-typedef double GLdouble;         /* double precision float */
-typedef double GLclampd;         /* double precision float in [0,1] */
+typedef unsigned int GLuint; /* 4-byte unsigned */
+typedef int GLsizei; /* 4-byte signed */
+typedef float GLfloat; /* single precision float */
+typedef float GLclampf; /* single precision float in [0,1] */
+typedef double GLdouble; /* double precision float */
+typedef double GLclampd; /* double precision float in [0,1] */
 
 
 /*
@@ -811,19 +814,19 @@ GLAPI void GLAPIENTRY glPolygonMode(GLenum face, GLenum mode);
 
 GLAPI void GLAPIENTRY glPolygonOffset(GLfloat factor, GLfloat units);
 
-GLAPI void GLAPIENTRY glPolygonStipple(const GLubyte *mask);
+GLAPI void GLAPIENTRY glPolygonStipple(const GLubyte* mask);
 
-GLAPI void GLAPIENTRY glGetPolygonStipple(GLubyte *mask);
+GLAPI void GLAPIENTRY glGetPolygonStipple(GLubyte* mask);
 
 GLAPI void GLAPIENTRY glEdgeFlag(GLboolean flag);
 
-GLAPI void GLAPIENTRY glEdgeFlagv(const GLboolean *flag);
+GLAPI void GLAPIENTRY glEdgeFlagv(const GLboolean* flag);
 
 GLAPI void GLAPIENTRY glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
 
-GLAPI void GLAPIENTRY glClipPlane(GLenum plane, const GLdouble *equation);
+GLAPI void GLAPIENTRY glClipPlane(GLenum plane, const GLdouble* equation);
 
-GLAPI void GLAPIENTRY glGetClipPlane(GLenum plane, GLdouble *equation);
+GLAPI void GLAPIENTRY glGetClipPlane(GLenum plane, GLdouble* equation);
 
 GLAPI void GLAPIENTRY glDrawBuffer(GLenum mode);
 
@@ -841,13 +844,13 @@ GLAPI void GLAPIENTRY glEnableClientState(GLenum cap); /* 1.1 */
 GLAPI void GLAPIENTRY glDisableClientState(GLenum cap); /* 1.1 */
 
 
-GLAPI void GLAPIENTRY glGetBooleanv(GLenum pname, GLboolean *params);
+GLAPI void GLAPIENTRY glGetBooleanv(GLenum pname, GLboolean* params);
 
-GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble *params);
+GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble* params);
 
-GLAPI void GLAPIENTRY glGetFloatv(GLenum pname, GLfloat *params);
+GLAPI void GLAPIENTRY glGetFloatv(GLenum pname, GLfloat* params);
 
-GLAPI void GLAPIENTRY glGetIntegerv(GLenum pname, GLint *params);
+GLAPI void GLAPIENTRY glGetIntegerv(GLenum pname, GLint* params);
 
 
 GLAPI void GLAPIENTRY glPushAttrib(GLbitfield mask);
@@ -864,7 +867,7 @@ GLAPI GLint GLAPIENTRY glRenderMode(GLenum mode);
 
 GLAPI GLenum GLAPIENTRY glGetError(void);
 
-GLAPI const GLubyte * GLAPIENTRY glGetString(GLenum name);
+GLAPI const GLubyte* GLAPIENTRY glGetString(GLenum name);
 
 GLAPI void GLAPIENTRY glFinish(void);
 
@@ -918,11 +921,11 @@ GLAPI void GLAPIENTRY glPopMatrix(void);
 
 GLAPI void GLAPIENTRY glLoadIdentity(void);
 
-GLAPI void GLAPIENTRY glLoadMatrixd(const GLdouble *m);
-GLAPI void GLAPIENTRY glLoadMatrixf(const GLfloat *m);
+GLAPI void GLAPIENTRY glLoadMatrixd(const GLdouble* m);
+GLAPI void GLAPIENTRY glLoadMatrixf(const GLfloat* m);
 
-GLAPI void GLAPIENTRY glMultMatrixd(const GLdouble *m);
-GLAPI void GLAPIENTRY glMultMatrixf(const GLfloat *m);
+GLAPI void GLAPIENTRY glMultMatrixd(const GLdouble* m);
+GLAPI void GLAPIENTRY glMultMatrixf(const GLfloat* m);
 
 GLAPI void GLAPIENTRY glRotated(GLdouble angle,
                                 GLdouble x, GLdouble y, GLdouble z);
@@ -953,7 +956,7 @@ GLAPI void GLAPIENTRY glEndList(void);
 GLAPI void GLAPIENTRY glCallList(GLuint list);
 
 GLAPI void GLAPIENTRY glCallLists(GLsizei n, GLenum type,
-                                  const GLvoid *lists);
+                                  const GLvoid* lists);
 
 GLAPI void GLAPIENTRY glListBase(GLuint base);
 
@@ -982,20 +985,20 @@ GLAPI void GLAPIENTRY glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w);
 GLAPI void GLAPIENTRY glVertex4i(GLint x, GLint y, GLint z, GLint w);
 GLAPI void GLAPIENTRY glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w);
 
-GLAPI void GLAPIENTRY glVertex2dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glVertex2fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glVertex2iv(const GLint *v);
-GLAPI void GLAPIENTRY glVertex2sv(const GLshort *v);
+GLAPI void GLAPIENTRY glVertex2dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glVertex2fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glVertex2iv(const GLint* v);
+GLAPI void GLAPIENTRY glVertex2sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glVertex3dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glVertex3fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glVertex3iv(const GLint *v);
-GLAPI void GLAPIENTRY glVertex3sv(const GLshort *v);
+GLAPI void GLAPIENTRY glVertex3dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glVertex3fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glVertex3iv(const GLint* v);
+GLAPI void GLAPIENTRY glVertex3sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glVertex4dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glVertex4fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glVertex4iv(const GLint *v);
-GLAPI void GLAPIENTRY glVertex4sv(const GLshort *v);
+GLAPI void GLAPIENTRY glVertex4dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glVertex4fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glVertex4iv(const GLint* v);
+GLAPI void GLAPIENTRY glVertex4sv(const GLshort* v);
 
 
 GLAPI void GLAPIENTRY glNormal3b(GLbyte nx, GLbyte ny, GLbyte nz);
@@ -1004,11 +1007,11 @@ GLAPI void GLAPIENTRY glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz);
 GLAPI void GLAPIENTRY glNormal3i(GLint nx, GLint ny, GLint nz);
 GLAPI void GLAPIENTRY glNormal3s(GLshort nx, GLshort ny, GLshort nz);
 
-GLAPI void GLAPIENTRY glNormal3bv(const GLbyte *v);
-GLAPI void GLAPIENTRY glNormal3dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glNormal3fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glNormal3iv(const GLint *v);
-GLAPI void GLAPIENTRY glNormal3sv(const GLshort *v);
+GLAPI void GLAPIENTRY glNormal3bv(const GLbyte* v);
+GLAPI void GLAPIENTRY glNormal3dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glNormal3fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glNormal3iv(const GLint* v);
+GLAPI void GLAPIENTRY glNormal3sv(const GLshort* v);
 
 
 GLAPI void GLAPIENTRY glIndexd(GLdouble c);
@@ -1017,11 +1020,11 @@ GLAPI void GLAPIENTRY glIndexi(GLint c);
 GLAPI void GLAPIENTRY glIndexs(GLshort c);
 GLAPI void GLAPIENTRY glIndexub(GLubyte c); /* 1.1 */
 
-GLAPI void GLAPIENTRY glIndexdv(const GLdouble *c);
-GLAPI void GLAPIENTRY glIndexfv(const GLfloat *c);
-GLAPI void GLAPIENTRY glIndexiv(const GLint *c);
-GLAPI void GLAPIENTRY glIndexsv(const GLshort *c);
-GLAPI void GLAPIENTRY glIndexubv(const GLubyte *c); /* 1.1 */
+GLAPI void GLAPIENTRY glIndexdv(const GLdouble* c);
+GLAPI void GLAPIENTRY glIndexfv(const GLfloat* c);
+GLAPI void GLAPIENTRY glIndexiv(const GLint* c);
+GLAPI void GLAPIENTRY glIndexsv(const GLshort* c);
+GLAPI void GLAPIENTRY glIndexubv(const GLubyte* c); /* 1.1 */
 
 GLAPI void GLAPIENTRY glColor3b(GLbyte red, GLbyte green, GLbyte blue);
 GLAPI void GLAPIENTRY glColor3d(GLdouble red, GLdouble green, GLdouble blue);
@@ -1050,23 +1053,23 @@ GLAPI void GLAPIENTRY glColor4us(GLushort red, GLushort green,
                                  GLushort blue, GLushort alpha);
 
 
-GLAPI void GLAPIENTRY glColor3bv(const GLbyte *v);
-GLAPI void GLAPIENTRY glColor3dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glColor3fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glColor3iv(const GLint *v);
-GLAPI void GLAPIENTRY glColor3sv(const GLshort *v);
-GLAPI void GLAPIENTRY glColor3ubv(const GLubyte *v);
-GLAPI void GLAPIENTRY glColor3uiv(const GLuint *v);
-GLAPI void GLAPIENTRY glColor3usv(const GLushort *v);
+GLAPI void GLAPIENTRY glColor3bv(const GLbyte* v);
+GLAPI void GLAPIENTRY glColor3dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glColor3fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glColor3iv(const GLint* v);
+GLAPI void GLAPIENTRY glColor3sv(const GLshort* v);
+GLAPI void GLAPIENTRY glColor3ubv(const GLubyte* v);
+GLAPI void GLAPIENTRY glColor3uiv(const GLuint* v);
+GLAPI void GLAPIENTRY glColor3usv(const GLushort* v);
 
-GLAPI void GLAPIENTRY glColor4bv(const GLbyte *v);
-GLAPI void GLAPIENTRY glColor4dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glColor4fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glColor4iv(const GLint *v);
-GLAPI void GLAPIENTRY glColor4sv(const GLshort *v);
-GLAPI void GLAPIENTRY glColor4ubv(const GLubyte *v);
-GLAPI void GLAPIENTRY glColor4uiv(const GLuint *v);
-GLAPI void GLAPIENTRY glColor4usv(const GLushort *v);
+GLAPI void GLAPIENTRY glColor4bv(const GLbyte* v);
+GLAPI void GLAPIENTRY glColor4dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glColor4fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glColor4iv(const GLint* v);
+GLAPI void GLAPIENTRY glColor4sv(const GLshort* v);
+GLAPI void GLAPIENTRY glColor4ubv(const GLubyte* v);
+GLAPI void GLAPIENTRY glColor4uiv(const GLuint* v);
+GLAPI void GLAPIENTRY glColor4usv(const GLushort* v);
 
 
 GLAPI void GLAPIENTRY glTexCoord1d(GLdouble s);
@@ -1089,25 +1092,25 @@ GLAPI void GLAPIENTRY glTexCoord4f(GLfloat s, GLfloat t, GLfloat r, GLfloat q);
 GLAPI void GLAPIENTRY glTexCoord4i(GLint s, GLint t, GLint r, GLint q);
 GLAPI void GLAPIENTRY glTexCoord4s(GLshort s, GLshort t, GLshort r, GLshort q);
 
-GLAPI void GLAPIENTRY glTexCoord1dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glTexCoord1fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glTexCoord1iv(const GLint *v);
-GLAPI void GLAPIENTRY glTexCoord1sv(const GLshort *v);
+GLAPI void GLAPIENTRY glTexCoord1dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glTexCoord1fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glTexCoord1iv(const GLint* v);
+GLAPI void GLAPIENTRY glTexCoord1sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glTexCoord2dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glTexCoord2fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glTexCoord2iv(const GLint *v);
-GLAPI void GLAPIENTRY glTexCoord2sv(const GLshort *v);
+GLAPI void GLAPIENTRY glTexCoord2dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glTexCoord2fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glTexCoord2iv(const GLint* v);
+GLAPI void GLAPIENTRY glTexCoord2sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glTexCoord3dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glTexCoord3fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glTexCoord3iv(const GLint *v);
-GLAPI void GLAPIENTRY glTexCoord3sv(const GLshort *v);
+GLAPI void GLAPIENTRY glTexCoord3dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glTexCoord3fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glTexCoord3iv(const GLint* v);
+GLAPI void GLAPIENTRY glTexCoord3sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glTexCoord4dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glTexCoord4fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glTexCoord4iv(const GLint *v);
-GLAPI void GLAPIENTRY glTexCoord4sv(const GLshort *v);
+GLAPI void GLAPIENTRY glTexCoord4dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glTexCoord4fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glTexCoord4iv(const GLint* v);
+GLAPI void GLAPIENTRY glTexCoord4sv(const GLshort* v);
 
 
 GLAPI void GLAPIENTRY glRasterPos2d(GLdouble x, GLdouble y);
@@ -1125,20 +1128,20 @@ GLAPI void GLAPIENTRY glRasterPos4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w);
 GLAPI void GLAPIENTRY glRasterPos4i(GLint x, GLint y, GLint z, GLint w);
 GLAPI void GLAPIENTRY glRasterPos4s(GLshort x, GLshort y, GLshort z, GLshort w);
 
-GLAPI void GLAPIENTRY glRasterPos2dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glRasterPos2fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glRasterPos2iv(const GLint *v);
-GLAPI void GLAPIENTRY glRasterPos2sv(const GLshort *v);
+GLAPI void GLAPIENTRY glRasterPos2dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glRasterPos2fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glRasterPos2iv(const GLint* v);
+GLAPI void GLAPIENTRY glRasterPos2sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glRasterPos3dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glRasterPos3fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glRasterPos3iv(const GLint *v);
-GLAPI void GLAPIENTRY glRasterPos3sv(const GLshort *v);
+GLAPI void GLAPIENTRY glRasterPos3dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glRasterPos3fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glRasterPos3iv(const GLint* v);
+GLAPI void GLAPIENTRY glRasterPos3sv(const GLshort* v);
 
-GLAPI void GLAPIENTRY glRasterPos4dv(const GLdouble *v);
-GLAPI void GLAPIENTRY glRasterPos4fv(const GLfloat *v);
-GLAPI void GLAPIENTRY glRasterPos4iv(const GLint *v);
-GLAPI void GLAPIENTRY glRasterPos4sv(const GLshort *v);
+GLAPI void GLAPIENTRY glRasterPos4dv(const GLdouble* v);
+GLAPI void GLAPIENTRY glRasterPos4fv(const GLfloat* v);
+GLAPI void GLAPIENTRY glRasterPos4iv(const GLint* v);
+GLAPI void GLAPIENTRY glRasterPos4sv(const GLshort* v);
 
 
 GLAPI void GLAPIENTRY glRectd(GLdouble x1, GLdouble y1, GLdouble x2, GLdouble y2);
@@ -1147,10 +1150,10 @@ GLAPI void GLAPIENTRY glRecti(GLint x1, GLint y1, GLint x2, GLint y2);
 GLAPI void GLAPIENTRY glRects(GLshort x1, GLshort y1, GLshort x2, GLshort y2);
 
 
-GLAPI void GLAPIENTRY glRectdv(const GLdouble *v1, const GLdouble *v2);
-GLAPI void GLAPIENTRY glRectfv(const GLfloat *v1, const GLfloat *v2);
-GLAPI void GLAPIENTRY glRectiv(const GLint *v1, const GLint *v2);
-GLAPI void GLAPIENTRY glRectsv(const GLshort *v1, const GLshort *v2);
+GLAPI void GLAPIENTRY glRectdv(const GLdouble* v1, const GLdouble* v2);
+GLAPI void GLAPIENTRY glRectfv(const GLfloat* v1, const GLfloat* v2);
+GLAPI void GLAPIENTRY glRectiv(const GLint* v1, const GLint* v2);
+GLAPI void GLAPIENTRY glRectsv(const GLshort* v1, const GLshort* v2);
 
 
 /*
@@ -1158,33 +1161,33 @@ GLAPI void GLAPIENTRY glRectsv(const GLshort *v1, const GLshort *v2);
  */
 
 GLAPI void GLAPIENTRY glVertexPointer(GLint size, GLenum type,
-                                      GLsizei stride, const GLvoid *ptr);
+                                      GLsizei stride, const GLvoid* ptr);
 
 GLAPI void GLAPIENTRY glNormalPointer(GLenum type, GLsizei stride,
-                                      const GLvoid *ptr);
+                                      const GLvoid* ptr);
 
 GLAPI void GLAPIENTRY glColorPointer(GLint size, GLenum type,
-                                     GLsizei stride, const GLvoid *ptr);
+                                     GLsizei stride, const GLvoid* ptr);
 
 GLAPI void GLAPIENTRY glIndexPointer(GLenum type, GLsizei stride,
-                                     const GLvoid *ptr);
+                                     const GLvoid* ptr);
 
 GLAPI void GLAPIENTRY glTexCoordPointer(GLint size, GLenum type,
-                                        GLsizei stride, const GLvoid *ptr);
+                                        GLsizei stride, const GLvoid* ptr);
 
-GLAPI void GLAPIENTRY glEdgeFlagPointer(GLsizei stride, const GLvoid *ptr);
+GLAPI void GLAPIENTRY glEdgeFlagPointer(GLsizei stride, const GLvoid* ptr);
 
-GLAPI void GLAPIENTRY glGetPointerv(GLenum pname, GLvoid **params);
+GLAPI void GLAPIENTRY glGetPointerv(GLenum pname, GLvoid** params);
 
 GLAPI void GLAPIENTRY glArrayElement(GLint i);
 
 GLAPI void GLAPIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count);
 
 GLAPI void GLAPIENTRY glDrawElements(GLenum mode, GLsizei count,
-                                     GLenum type, const GLvoid *indices);
+                                     GLenum type, const GLvoid* indices);
 
 GLAPI void GLAPIENTRY glInterleavedArrays(GLenum format, GLsizei stride,
-                                          const GLvoid *pointer);
+                                          const GLvoid* pointer);
 
 /*
  * Lighting
@@ -1195,27 +1198,27 @@ GLAPI void GLAPIENTRY glShadeModel(GLenum mode);
 GLAPI void GLAPIENTRY glLightf(GLenum light, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glLighti(GLenum light, GLenum pname, GLint param);
 GLAPI void GLAPIENTRY glLightfv(GLenum light, GLenum pname,
-                                const GLfloat *params);
+                                const GLfloat* params);
 GLAPI void GLAPIENTRY glLightiv(GLenum light, GLenum pname,
-                                const GLint *params);
+                                const GLint* params);
 
 GLAPI void GLAPIENTRY glGetLightfv(GLenum light, GLenum pname,
-                                   GLfloat *params);
+                                   GLfloat* params);
 GLAPI void GLAPIENTRY glGetLightiv(GLenum light, GLenum pname,
-                                   GLint *params);
+                                   GLint* params);
 
 GLAPI void GLAPIENTRY glLightModelf(GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glLightModeli(GLenum pname, GLint param);
-GLAPI void GLAPIENTRY glLightModelfv(GLenum pname, const GLfloat *params);
-GLAPI void GLAPIENTRY glLightModeliv(GLenum pname, const GLint *params);
+GLAPI void GLAPIENTRY glLightModelfv(GLenum pname, const GLfloat* params);
+GLAPI void GLAPIENTRY glLightModeliv(GLenum pname, const GLint* params);
 
 GLAPI void GLAPIENTRY glMaterialf(GLenum face, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glMateriali(GLenum face, GLenum pname, GLint param);
-GLAPI void GLAPIENTRY glMaterialfv(GLenum face, GLenum pname, const GLfloat *params);
-GLAPI void GLAPIENTRY glMaterialiv(GLenum face, GLenum pname, const GLint *params);
+GLAPI void GLAPIENTRY glMaterialfv(GLenum face, GLenum pname, const GLfloat* params);
+GLAPI void GLAPIENTRY glMaterialiv(GLenum face, GLenum pname, const GLint* params);
 
-GLAPI void GLAPIENTRY glGetMaterialfv(GLenum face, GLenum pname, GLfloat *params);
-GLAPI void GLAPIENTRY glGetMaterialiv(GLenum face, GLenum pname, GLint *params);
+GLAPI void GLAPIENTRY glGetMaterialfv(GLenum face, GLenum pname, GLfloat* params);
+GLAPI void GLAPIENTRY glGetMaterialiv(GLenum face, GLenum pname, GLint* params);
 
 GLAPI void GLAPIENTRY glColorMaterial(GLenum face, GLenum mode);
 
@@ -1233,29 +1236,29 @@ GLAPI void GLAPIENTRY glPixelTransferf(GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glPixelTransferi(GLenum pname, GLint param);
 
 GLAPI void GLAPIENTRY glPixelMapfv(GLenum map, GLsizei mapsize,
-                                   const GLfloat *values);
+                                   const GLfloat* values);
 GLAPI void GLAPIENTRY glPixelMapuiv(GLenum map, GLsizei mapsize,
-                                    const GLuint *values);
+                                    const GLuint* values);
 GLAPI void GLAPIENTRY glPixelMapusv(GLenum map, GLsizei mapsize,
-                                    const GLushort *values);
+                                    const GLushort* values);
 
-GLAPI void GLAPIENTRY glGetPixelMapfv(GLenum map, GLfloat *values);
-GLAPI void GLAPIENTRY glGetPixelMapuiv(GLenum map, GLuint *values);
-GLAPI void GLAPIENTRY glGetPixelMapusv(GLenum map, GLushort *values);
+GLAPI void GLAPIENTRY glGetPixelMapfv(GLenum map, GLfloat* values);
+GLAPI void GLAPIENTRY glGetPixelMapuiv(GLenum map, GLuint* values);
+GLAPI void GLAPIENTRY glGetPixelMapusv(GLenum map, GLushort* values);
 
 GLAPI void GLAPIENTRY glBitmap(GLsizei width, GLsizei height,
                                GLfloat xorig, GLfloat yorig,
                                GLfloat xmove, GLfloat ymove,
-                               const GLubyte *bitmap);
+                               const GLubyte* bitmap);
 
 GLAPI void GLAPIENTRY glReadPixels(GLint x, GLint y,
                                    GLsizei width, GLsizei height,
                                    GLenum format, GLenum type,
-                                   GLvoid *pixels);
+                                   GLvoid* pixels);
 
 GLAPI void GLAPIENTRY glDrawPixels(GLsizei width, GLsizei height,
                                    GLenum format, GLenum type,
-                                   const GLvoid *pixels);
+                                   const GLvoid* pixels);
 
 GLAPI void GLAPIENTRY glCopyPixels(GLint x, GLint y,
                                    GLsizei width, GLsizei height,
@@ -1282,76 +1285,76 @@ GLAPI void GLAPIENTRY glTexGend(GLenum coord, GLenum pname, GLdouble param);
 GLAPI void GLAPIENTRY glTexGenf(GLenum coord, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glTexGeni(GLenum coord, GLenum pname, GLint param);
 
-GLAPI void GLAPIENTRY glTexGendv(GLenum coord, GLenum pname, const GLdouble *params);
-GLAPI void GLAPIENTRY glTexGenfv(GLenum coord, GLenum pname, const GLfloat *params);
-GLAPI void GLAPIENTRY glTexGeniv(GLenum coord, GLenum pname, const GLint *params);
+GLAPI void GLAPIENTRY glTexGendv(GLenum coord, GLenum pname, const GLdouble* params);
+GLAPI void GLAPIENTRY glTexGenfv(GLenum coord, GLenum pname, const GLfloat* params);
+GLAPI void GLAPIENTRY glTexGeniv(GLenum coord, GLenum pname, const GLint* params);
 
-GLAPI void GLAPIENTRY glGetTexGendv(GLenum coord, GLenum pname, GLdouble *params);
-GLAPI void GLAPIENTRY glGetTexGenfv(GLenum coord, GLenum pname, GLfloat *params);
-GLAPI void GLAPIENTRY glGetTexGeniv(GLenum coord, GLenum pname, GLint *params);
+GLAPI void GLAPIENTRY glGetTexGendv(GLenum coord, GLenum pname, GLdouble* params);
+GLAPI void GLAPIENTRY glGetTexGenfv(GLenum coord, GLenum pname, GLfloat* params);
+GLAPI void GLAPIENTRY glGetTexGeniv(GLenum coord, GLenum pname, GLint* params);
 
 
 GLAPI void GLAPIENTRY glTexEnvf(GLenum target, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glTexEnvi(GLenum target, GLenum pname, GLint param);
 
-GLAPI void GLAPIENTRY glTexEnvfv(GLenum target, GLenum pname, const GLfloat *params);
-GLAPI void GLAPIENTRY glTexEnviv(GLenum target, GLenum pname, const GLint *params);
+GLAPI void GLAPIENTRY glTexEnvfv(GLenum target, GLenum pname, const GLfloat* params);
+GLAPI void GLAPIENTRY glTexEnviv(GLenum target, GLenum pname, const GLint* params);
 
-GLAPI void GLAPIENTRY glGetTexEnvfv(GLenum target, GLenum pname, GLfloat *params);
-GLAPI void GLAPIENTRY glGetTexEnviv(GLenum target, GLenum pname, GLint *params);
+GLAPI void GLAPIENTRY glGetTexEnvfv(GLenum target, GLenum pname, GLfloat* params);
+GLAPI void GLAPIENTRY glGetTexEnviv(GLenum target, GLenum pname, GLint* params);
 
 
 GLAPI void GLAPIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param);
 
 GLAPI void GLAPIENTRY glTexParameterfv(GLenum target, GLenum pname,
-                                       const GLfloat *params);
+                                       const GLfloat* params);
 GLAPI void GLAPIENTRY glTexParameteriv(GLenum target, GLenum pname,
-                                       const GLint *params);
+                                       const GLint* params);
 
 GLAPI void GLAPIENTRY glGetTexParameterfv(GLenum target,
-                                          GLenum pname, GLfloat *params);
+                                          GLenum pname, GLfloat* params);
 GLAPI void GLAPIENTRY glGetTexParameteriv(GLenum target,
-                                          GLenum pname, GLint *params);
+                                          GLenum pname, GLint* params);
 
 GLAPI void GLAPIENTRY glGetTexLevelParameterfv(GLenum target, GLint level,
-                                               GLenum pname, GLfloat *params);
+                                               GLenum pname, GLfloat* params);
 GLAPI void GLAPIENTRY glGetTexLevelParameteriv(GLenum target, GLint level,
-                                               GLenum pname, GLint *params);
+                                               GLenum pname, GLint* params);
 
 
 GLAPI void GLAPIENTRY glTexImage1D(GLenum target, GLint level,
                                    GLint internalFormat,
                                    GLsizei width, GLint border,
                                    GLenum format, GLenum type,
-                                   const GLvoid *pixels);
+                                   const GLvoid* pixels);
 
 GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level,
                                    GLint internalFormat,
                                    GLsizei width, GLsizei height,
                                    GLint border, GLenum format, GLenum type,
-                                   const GLvoid *pixels);
+                                   const GLvoid* pixels);
 
 GLAPI void GLAPIENTRY glGetTexImage(GLenum target, GLint level,
                                     GLenum format, GLenum type,
-                                    GLvoid *pixels);
+                                    GLvoid* pixels);
 
 
 /* 1.1 functions */
 
-GLAPI void GLAPIENTRY glGenTextures(GLsizei n, GLuint *textures);
+GLAPI void GLAPIENTRY glGenTextures(GLsizei n, GLuint* textures);
 
-GLAPI void GLAPIENTRY glDeleteTextures(GLsizei n, const GLuint *textures);
+GLAPI void GLAPIENTRY glDeleteTextures(GLsizei n, const GLuint* textures);
 
 GLAPI void GLAPIENTRY glBindTexture(GLenum target, GLuint texture);
 
 GLAPI void GLAPIENTRY glPrioritizeTextures(GLsizei n,
-                                           const GLuint *textures,
-                                           const GLclampf *priorities);
+                                           const GLuint* textures,
+                                           const GLclampf* priorities);
 
 GLAPI GLboolean GLAPIENTRY glAreTexturesResident(GLsizei n,
-                                                 const GLuint *textures,
-                                                 GLboolean *residences);
+                                                 const GLuint* textures,
+                                                 GLboolean* residences);
 
 GLAPI GLboolean GLAPIENTRY glIsTexture(GLuint texture);
 
@@ -1359,14 +1362,14 @@ GLAPI GLboolean GLAPIENTRY glIsTexture(GLuint texture);
 GLAPI void GLAPIENTRY glTexSubImage1D(GLenum target, GLint level,
                                       GLint xoffset,
                                       GLsizei width, GLenum format,
-                                      GLenum type, const GLvoid *pixels);
+                                      GLenum type, const GLvoid* pixels);
 
 
 GLAPI void GLAPIENTRY glTexSubImage2D(GLenum target, GLint level,
                                       GLint xoffset, GLint yoffset,
                                       GLsizei width, GLsizei height,
                                       GLenum format, GLenum type,
-                                      const GLvoid *pixels);
+                                      const GLvoid* pixels);
 
 
 GLAPI void GLAPIENTRY glCopyTexImage1D(GLenum target, GLint level,
@@ -1399,35 +1402,35 @@ GLAPI void GLAPIENTRY glCopyTexSubImage2D(GLenum target, GLint level,
 
 GLAPI void GLAPIENTRY glMap1d(GLenum target, GLdouble u1, GLdouble u2,
                               GLint stride,
-                              GLint order, const GLdouble *points);
+                              GLint order, const GLdouble* points);
 GLAPI void GLAPIENTRY glMap1f(GLenum target, GLfloat u1, GLfloat u2,
                               GLint stride,
-                              GLint order, const GLfloat *points);
+                              GLint order, const GLfloat* points);
 
 GLAPI void GLAPIENTRY glMap2d(GLenum target,
                               GLdouble u1, GLdouble u2, GLint ustride, GLint uorder,
                               GLdouble v1, GLdouble v2, GLint vstride, GLint vorder,
-                              const GLdouble *points);
+                              const GLdouble* points);
 GLAPI void GLAPIENTRY glMap2f(GLenum target,
                               GLfloat u1, GLfloat u2, GLint ustride, GLint uorder,
                               GLfloat v1, GLfloat v2, GLint vstride, GLint vorder,
-                              const GLfloat *points);
+                              const GLfloat* points);
 
-GLAPI void GLAPIENTRY glGetMapdv(GLenum target, GLenum query, GLdouble *v);
-GLAPI void GLAPIENTRY glGetMapfv(GLenum target, GLenum query, GLfloat *v);
-GLAPI void GLAPIENTRY glGetMapiv(GLenum target, GLenum query, GLint *v);
+GLAPI void GLAPIENTRY glGetMapdv(GLenum target, GLenum query, GLdouble* v);
+GLAPI void GLAPIENTRY glGetMapfv(GLenum target, GLenum query, GLfloat* v);
+GLAPI void GLAPIENTRY glGetMapiv(GLenum target, GLenum query, GLint* v);
 
 GLAPI void GLAPIENTRY glEvalCoord1d(GLdouble u);
 GLAPI void GLAPIENTRY glEvalCoord1f(GLfloat u);
 
-GLAPI void GLAPIENTRY glEvalCoord1dv(const GLdouble *u);
-GLAPI void GLAPIENTRY glEvalCoord1fv(const GLfloat *u);
+GLAPI void GLAPIENTRY glEvalCoord1dv(const GLdouble* u);
+GLAPI void GLAPIENTRY glEvalCoord1fv(const GLfloat* u);
 
 GLAPI void GLAPIENTRY glEvalCoord2d(GLdouble u, GLdouble v);
 GLAPI void GLAPIENTRY glEvalCoord2f(GLfloat u, GLfloat v);
 
-GLAPI void GLAPIENTRY glEvalCoord2dv(const GLdouble *u);
-GLAPI void GLAPIENTRY glEvalCoord2fv(const GLfloat *u);
+GLAPI void GLAPIENTRY glEvalCoord2dv(const GLdouble* u);
+GLAPI void GLAPIENTRY glEvalCoord2fv(const GLfloat* u);
 
 GLAPI void GLAPIENTRY glMapGrid1d(GLint un, GLdouble u1, GLdouble u2);
 GLAPI void GLAPIENTRY glMapGrid1f(GLint un, GLfloat u1, GLfloat u2);
@@ -1454,20 +1457,20 @@ GLAPI void GLAPIENTRY glFogf(GLenum pname, GLfloat param);
 
 GLAPI void GLAPIENTRY glFogi(GLenum pname, GLint param);
 
-GLAPI void GLAPIENTRY glFogfv(GLenum pname, const GLfloat *params);
+GLAPI void GLAPIENTRY glFogfv(GLenum pname, const GLfloat* params);
 
-GLAPI void GLAPIENTRY glFogiv(GLenum pname, const GLint *params);
+GLAPI void GLAPIENTRY glFogiv(GLenum pname, const GLint* params);
 
 
 /*
  * Selection and Feedback
  */
 
-GLAPI void GLAPIENTRY glFeedbackBuffer(GLsizei size, GLenum type, GLfloat *buffer);
+GLAPI void GLAPIENTRY glFeedbackBuffer(GLsizei size, GLenum type, GLfloat* buffer);
 
 GLAPI void GLAPIENTRY glPassThrough(GLfloat token);
 
-GLAPI void GLAPIENTRY glSelectBuffer(GLsizei size, GLuint *buffer);
+GLAPI void GLAPIENTRY glSelectBuffer(GLsizei size, GLuint* buffer);
 
 GLAPI void GLAPIENTRY glInitNames(void);
 
@@ -1510,19 +1513,19 @@ typedef void (APIENTRYP PFNGLPOLYGONMODEPROC)(GLenum face, GLenum mode);
 
 typedef void (APIENTRYP PFNGLPOLYGONOFFSETPROC)(GLfloat factor, GLfloat units);
 
-typedef void (APIENTRYP PFNGLPOLYGONSTIPPLEPROC)(const GLubyte *mask);
+typedef void (APIENTRYP PFNGLPOLYGONSTIPPLEPROC)(const GLubyte* mask);
 
-typedef void (APIENTRYP PFNGLGETPOLYGONSTIPPLEPROC)(GLubyte *mask);
+typedef void (APIENTRYP PFNGLGETPOLYGONSTIPPLEPROC)(GLubyte* mask);
 
 typedef void (APIENTRYP PFNGLEDGEFLAGPROC)(GLboolean flag);
 
-typedef void (APIENTRYP PFNGLEDGEFLAGVPROC)(const GLboolean *flag);
+typedef void (APIENTRYP PFNGLEDGEFLAGVPROC)(const GLboolean* flag);
 
 typedef void (APIENTRYP PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
 
-typedef void (APIENTRYP PFNGLCLIPPLANEPROC)(GLenum plane, const GLdouble *equation);
+typedef void (APIENTRYP PFNGLCLIPPLANEPROC)(GLenum plane, const GLdouble* equation);
 
-typedef void (APIENTRYP PFNGLGETCLIPPLANEPROC)(GLenum plane, GLdouble *equation);
+typedef void (APIENTRYP PFNGLGETCLIPPLANEPROC)(GLenum plane, GLdouble* equation);
 
 typedef void (APIENTRYP PFNGLDRAWBUFFERPROC)(GLenum mode);
 
@@ -1540,13 +1543,13 @@ typedef void (APIENTRYP PFNGLENABLECLIENTSTATEPROC)(GLenum cap); /* 1.1 */
 typedef void (APIENTRYP PFNGLDISABLECLIENTSTATEPROC)(GLenum cap); /* 1.1 */
 
 
-typedef void (APIENTRYP PFNGLGETBOOLEANVPROC)(GLenum pname, GLboolean *params);
+typedef void (APIENTRYP PFNGLGETBOOLEANVPROC)(GLenum pname, GLboolean* params);
 
-typedef void (APIENTRYP PFNGLGETDOUBLEVPROC)(GLenum pname, GLdouble *params);
+typedef void (APIENTRYP PFNGLGETDOUBLEVPROC)(GLenum pname, GLdouble* params);
 
-typedef void (APIENTRYP PFNGLGETFLOATVPROC)(GLenum pname, GLfloat *params);
+typedef void (APIENTRYP PFNGLGETFLOATVPROC)(GLenum pname, GLfloat* params);
 
-typedef void (APIENTRYP PFNGLGETINTEGERVPROC)(GLenum pname, GLint *params);
+typedef void (APIENTRYP PFNGLGETINTEGERVPROC)(GLenum pname, GLint* params);
 
 
 typedef void (APIENTRYP PFNGLPUSHATTRIBPROC)(GLbitfield mask);
@@ -1563,7 +1566,7 @@ typedef GLint (APIENTRYP PFNGLRENDERMODEPROC)(GLenum mode);
 
 typedef GLenum (APIENTRYP PFNGLGETERRORPROC)(void);
 
-typedef const GLubyte * (APIENTRYP PFNGLGETSTRINGPROC)(GLenum name);
+typedef const GLubyte* (APIENTRYP PFNGLGETSTRINGPROC)(GLenum name);
 
 typedef void (APIENTRYP PFNGLFINISHPROC)(void);
 
@@ -1617,11 +1620,11 @@ typedef void (APIENTRYP PFNGLPOPMATRIXPROC)(void);
 
 typedef void (APIENTRYP PFNGLLOADIDENTITYPROC)(void);
 
-typedef void (APIENTRYP PFNGLLOADMATRIXDPROC)(const GLdouble *m);
-typedef void (APIENTRYP PFNGLLOADMATRIXFPROC)(const GLfloat *m);
+typedef void (APIENTRYP PFNGLLOADMATRIXDPROC)(const GLdouble* m);
+typedef void (APIENTRYP PFNGLLOADMATRIXFPROC)(const GLfloat* m);
 
-typedef void (APIENTRYP PFNGLMULTMATRIXDPROC)(const GLdouble *m);
-typedef void (APIENTRYP PFNGLMULTMATRIXFPROC)(const GLfloat *m);
+typedef void (APIENTRYP PFNGLMULTMATRIXDPROC)(const GLdouble* m);
+typedef void (APIENTRYP PFNGLMULTMATRIXFPROC)(const GLfloat* m);
 
 typedef void (APIENTRYP PFNGLROTATEDPROC)(GLdouble angle,
                                           GLdouble x, GLdouble y, GLdouble z);
@@ -1652,7 +1655,7 @@ typedef void (APIENTRYP PFNGLENDLISTPROC)(void);
 typedef void (APIENTRYP PFNGLCALLLISTPROC)(GLuint list);
 
 typedef void (APIENTRYP PFNGLCALLLISTSPROC)(GLsizei n, GLenum type,
-                                            const GLvoid *lists);
+                                            const GLvoid* lists);
 
 typedef void (APIENTRYP PFNGLLISTBASEPROC)(GLuint base);
 
@@ -1681,20 +1684,20 @@ typedef void (APIENTRYP PFNGLVERTEX4FPROC)(GLfloat x, GLfloat y, GLfloat z, GLfl
 typedef void (APIENTRYP PFNGLVERTEX4IPROC)(GLint x, GLint y, GLint z, GLint w);
 typedef void (APIENTRYP PFNGLVERTEX4SPROC)(GLshort x, GLshort y, GLshort z, GLshort w);
 
-typedef void (APIENTRYP PFNGLVERTEX2DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLVERTEX2FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLVERTEX2IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLVERTEX2SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLVERTEX2DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLVERTEX2FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLVERTEX2IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLVERTEX2SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLVERTEX3DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLVERTEX3FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLVERTEX3IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLVERTEX3SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLVERTEX3DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLVERTEX3FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLVERTEX3IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLVERTEX3SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLVERTEX4DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLVERTEX4FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLVERTEX4IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLVERTEX4SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLVERTEX4DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLVERTEX4FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLVERTEX4IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLVERTEX4SVPROC)(const GLshort* v);
 
 
 typedef void (APIENTRYP PFNGLNORMAL3BPROC)(GLbyte nx, GLbyte ny, GLbyte nz);
@@ -1703,11 +1706,11 @@ typedef void (APIENTRYP PFNGLNORMAL3FPROC)(GLfloat nx, GLfloat ny, GLfloat nz);
 typedef void (APIENTRYP PFNGLNORMAL3IPROC)(GLint nx, GLint ny, GLint nz);
 typedef void (APIENTRYP PFNGLNORMAL3SPROC)(GLshort nx, GLshort ny, GLshort nz);
 
-typedef void (APIENTRYP PFNGLNORMAL3BVPROC)(const GLbyte *v);
-typedef void (APIENTRYP PFNGLNORMAL3DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLNORMAL3FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLNORMAL3IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLNORMAL3SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLNORMAL3BVPROC)(const GLbyte* v);
+typedef void (APIENTRYP PFNGLNORMAL3DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLNORMAL3FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLNORMAL3IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLNORMAL3SVPROC)(const GLshort* v);
 
 
 typedef void (APIENTRYP PFNGLINDEXDPROC)(GLdouble c);
@@ -1716,11 +1719,11 @@ typedef void (APIENTRYP PFNGLINDEXIPROC)(GLint c);
 typedef void (APIENTRYP PFNGLINDEXSPROC)(GLshort c);
 typedef void (APIENTRYP PFNGLINDEXUBPROC)(GLubyte c); /* 1.1 */
 
-typedef void (APIENTRYP PFNGLINDEXDVPROC)(const GLdouble *c);
-typedef void (APIENTRYP PFNGLINDEXFVPROC)(const GLfloat *c);
-typedef void (APIENTRYP PFNGLINDEXIVPROC)(const GLint *c);
-typedef void (APIENTRYP PFNGLINDEXSVPROC)(const GLshort *c);
-typedef void (APIENTRYP PFNGLINDEXUBVPROC)(const GLubyte *c); /* 1.1 */
+typedef void (APIENTRYP PFNGLINDEXDVPROC)(const GLdouble* c);
+typedef void (APIENTRYP PFNGLINDEXFVPROC)(const GLfloat* c);
+typedef void (APIENTRYP PFNGLINDEXIVPROC)(const GLint* c);
+typedef void (APIENTRYP PFNGLINDEXSVPROC)(const GLshort* c);
+typedef void (APIENTRYP PFNGLINDEXUBVPROC)(const GLubyte* c); /* 1.1 */
 
 typedef void (APIENTRYP PFNGLCOLOR3BPROC)(GLbyte red, GLbyte green, GLbyte blue);
 typedef void (APIENTRYP PFNGLCOLOR3DPROC)(GLdouble red, GLdouble green, GLdouble blue);
@@ -1749,23 +1752,23 @@ typedef void (APIENTRYP PFNGLCOLOR4USPROC)(GLushort red, GLushort green,
                                            GLushort blue, GLushort alpha);
 
 
-typedef void (APIENTRYP PFNGLCOLOR3BVPROC)(const GLbyte *v);
-typedef void (APIENTRYP PFNGLCOLOR3DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLCOLOR3FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLCOLOR3IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLCOLOR3SVPROC)(const GLshort *v);
-typedef void (APIENTRYP PFNGLCOLOR3UBVPROC)(const GLubyte *v);
-typedef void (APIENTRYP PFNGLCOLOR3UIVPROC)(const GLuint *v);
-typedef void (APIENTRYP PFNGLCOLOR3USVPROC)(const GLushort *v);
+typedef void (APIENTRYP PFNGLCOLOR3BVPROC)(const GLbyte* v);
+typedef void (APIENTRYP PFNGLCOLOR3DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLCOLOR3FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLCOLOR3IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLCOLOR3SVPROC)(const GLshort* v);
+typedef void (APIENTRYP PFNGLCOLOR3UBVPROC)(const GLubyte* v);
+typedef void (APIENTRYP PFNGLCOLOR3UIVPROC)(const GLuint* v);
+typedef void (APIENTRYP PFNGLCOLOR3USVPROC)(const GLushort* v);
 
-typedef void (APIENTRYP PFNGLCOLOR4BVPROC)(const GLbyte *v);
-typedef void (APIENTRYP PFNGLCOLOR4DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLCOLOR4FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLCOLOR4IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLCOLOR4SVPROC)(const GLshort *v);
-typedef void (APIENTRYP PFNGLCOLOR4UBVPROC)(const GLubyte *v);
-typedef void (APIENTRYP PFNGLCOLOR4UIVPROC)(const GLuint *v);
-typedef void (APIENTRYP PFNGLCOLOR4USVPROC)(const GLushort *v);
+typedef void (APIENTRYP PFNGLCOLOR4BVPROC)(const GLbyte* v);
+typedef void (APIENTRYP PFNGLCOLOR4DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLCOLOR4FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLCOLOR4IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLCOLOR4SVPROC)(const GLshort* v);
+typedef void (APIENTRYP PFNGLCOLOR4UBVPROC)(const GLubyte* v);
+typedef void (APIENTRYP PFNGLCOLOR4UIVPROC)(const GLuint* v);
+typedef void (APIENTRYP PFNGLCOLOR4USVPROC)(const GLushort* v);
 
 
 typedef void (APIENTRYP PFNGLTEXCOORD1DPROC)(GLdouble s);
@@ -1788,25 +1791,25 @@ typedef void (APIENTRYP PFNGLTEXCOORD4FPROC)(GLfloat s, GLfloat t, GLfloat r, GL
 typedef void (APIENTRYP PFNGLTEXCOORD4IPROC)(GLint s, GLint t, GLint r, GLint q);
 typedef void (APIENTRYP PFNGLTEXCOORD4SPROC)(GLshort s, GLshort t, GLshort r, GLshort q);
 
-typedef void (APIENTRYP PFNGLTEXCOORD1DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLTEXCOORD1FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLTEXCOORD1IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLTEXCOORD1SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLTEXCOORD1DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLTEXCOORD1FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLTEXCOORD1IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLTEXCOORD1SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLTEXCOORD2DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLTEXCOORD2FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLTEXCOORD2IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLTEXCOORD2SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLTEXCOORD2DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLTEXCOORD2FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLTEXCOORD2IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLTEXCOORD2SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLTEXCOORD3DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLTEXCOORD3FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLTEXCOORD3IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLTEXCOORD3SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLTEXCOORD3DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLTEXCOORD3FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLTEXCOORD3IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLTEXCOORD3SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLTEXCOORD4DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLTEXCOORD4FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLTEXCOORD4IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLTEXCOORD4SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLTEXCOORD4DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLTEXCOORD4FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLTEXCOORD4IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLTEXCOORD4SVPROC)(const GLshort* v);
 
 
 typedef void (APIENTRYP PFNGLRASTERPOS2DPROC)(GLdouble x, GLdouble y);
@@ -1824,20 +1827,20 @@ typedef void (APIENTRYP PFNGLRASTERPOS4FPROC)(GLfloat x, GLfloat y, GLfloat z, G
 typedef void (APIENTRYP PFNGLRASTERPOS4IPROC)(GLint x, GLint y, GLint z, GLint w);
 typedef void (APIENTRYP PFNGLRASTERPOS4SPROC)(GLshort x, GLshort y, GLshort z, GLshort w);
 
-typedef void (APIENTRYP PFNGLRASTERPOS2DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLRASTERPOS2FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLRASTERPOS2IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLRASTERPOS2SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLRASTERPOS2DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLRASTERPOS2FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLRASTERPOS2IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLRASTERPOS2SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLRASTERPOS3DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLRASTERPOS3FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLRASTERPOS3IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLRASTERPOS3SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLRASTERPOS3DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLRASTERPOS3FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLRASTERPOS3IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLRASTERPOS3SVPROC)(const GLshort* v);
 
-typedef void (APIENTRYP PFNGLRASTERPOS4DVPROC)(const GLdouble *v);
-typedef void (APIENTRYP PFNGLRASTERPOS4FVPROC)(const GLfloat *v);
-typedef void (APIENTRYP PFNGLRASTERPOS4IVPROC)(const GLint *v);
-typedef void (APIENTRYP PFNGLRASTERPOS4SVPROC)(const GLshort *v);
+typedef void (APIENTRYP PFNGLRASTERPOS4DVPROC)(const GLdouble* v);
+typedef void (APIENTRYP PFNGLRASTERPOS4FVPROC)(const GLfloat* v);
+typedef void (APIENTRYP PFNGLRASTERPOS4IVPROC)(const GLint* v);
+typedef void (APIENTRYP PFNGLRASTERPOS4SVPROC)(const GLshort* v);
 
 
 typedef void (APIENTRYP PFNGLRECTDPROC)(GLdouble x1, GLdouble y1, GLdouble x2, GLdouble y2);
@@ -1846,10 +1849,10 @@ typedef void (APIENTRYP PFNGLRECTIPROC)(GLint x1, GLint y1, GLint x2, GLint y2);
 typedef void (APIENTRYP PFNGLRECTSPROC)(GLshort x1, GLshort y1, GLshort x2, GLshort y2);
 
 
-typedef void (APIENTRYP PFNGLRECTDVPROC)(const GLdouble *v1, const GLdouble *v2);
-typedef void (APIENTRYP PFNGLRECTFVPROC)(const GLfloat *v1, const GLfloat *v2);
-typedef void (APIENTRYP PFNGLRECTIVPROC)(const GLint *v1, const GLint *v2);
-typedef void (APIENTRYP PFNGLRECTSVPROC)(const GLshort *v1, const GLshort *v2);
+typedef void (APIENTRYP PFNGLRECTDVPROC)(const GLdouble* v1, const GLdouble* v2);
+typedef void (APIENTRYP PFNGLRECTFVPROC)(const GLfloat* v1, const GLfloat* v2);
+typedef void (APIENTRYP PFNGLRECTIVPROC)(const GLint* v1, const GLint* v2);
+typedef void (APIENTRYP PFNGLRECTSVPROC)(const GLshort* v1, const GLshort* v2);
 
 
 /*
@@ -1857,33 +1860,33 @@ typedef void (APIENTRYP PFNGLRECTSVPROC)(const GLshort *v1, const GLshort *v2);
  */
 
 typedef void (APIENTRYP PFNGLVERTEXPOINTERPROC)(GLint size, GLenum type,
-                                                GLsizei stride, const GLvoid *ptr);
+                                                GLsizei stride, const GLvoid* ptr);
 
 typedef void (APIENTRYP PFNGLNORMALPOINTERPROC)(GLenum type, GLsizei stride,
-                                                const GLvoid *ptr);
+                                                const GLvoid* ptr);
 
 typedef void (APIENTRYP PFNGLCOLORPOINTERPROC)(GLint size, GLenum type,
-                                               GLsizei stride, const GLvoid *ptr);
+                                               GLsizei stride, const GLvoid* ptr);
 
 typedef void (APIENTRYP PFNGLINDEXPOINTERPROC)(GLenum type, GLsizei stride,
-                                               const GLvoid *ptr);
+                                               const GLvoid* ptr);
 
 typedef void (APIENTRYP PFNGLTEXCOORDPOINTERPROC)(GLint size, GLenum type,
-                                                  GLsizei stride, const GLvoid *ptr);
+                                                  GLsizei stride, const GLvoid* ptr);
 
-typedef void (APIENTRYP PFNGLEDGEFLAGPOINTERPROC)(GLsizei stride, const GLvoid *ptr);
+typedef void (APIENTRYP PFNGLEDGEFLAGPOINTERPROC)(GLsizei stride, const GLvoid* ptr);
 
-typedef void (APIENTRYP PFNGLGETPOINTERVPROC)(GLenum pname, GLvoid **params);
+typedef void (APIENTRYP PFNGLGETPOINTERVPROC)(GLenum pname, GLvoid** params);
 
 typedef void (APIENTRYP PFNGLARRAYELEMENTPROC)(GLint i);
 
 typedef void (APIENTRYP PFNGLDRAWARRAYSPROC)(GLenum mode, GLint first, GLsizei count);
 
 typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count,
-                                               GLenum type, const GLvoid *indices);
+                                               GLenum type, const GLvoid* indices);
 
 typedef void (APIENTRYP PFNGLINTERLEAVEDARRAYSPROC)(GLenum format, GLsizei stride,
-                                                    const GLvoid *pointer);
+                                                    const GLvoid* pointer);
 
 /*
  * Lighting
@@ -1894,27 +1897,27 @@ typedef void (APIENTRYP PFNGLSHADEMODELPROC)(GLenum mode);
 typedef void (APIENTRYP PFNGLLIGHTFPROC)(GLenum light, GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLLIGHTIPROC)(GLenum light, GLenum pname, GLint param);
 typedef void (APIENTRYP PFNGLLIGHTFVPROC)(GLenum light, GLenum pname,
-                                          const GLfloat *params);
+                                          const GLfloat* params);
 typedef void (APIENTRYP PFNGLLIGHTIVPROC)(GLenum light, GLenum pname,
-                                          const GLint *params);
+                                          const GLint* params);
 
 typedef void (APIENTRYP PFNGLGETLIGHTFVPROC)(GLenum light, GLenum pname,
-                                             GLfloat *params);
+                                             GLfloat* params);
 typedef void (APIENTRYP PFNGLGETLIGHTIVPROC)(GLenum light, GLenum pname,
-                                             GLint *params);
+                                             GLint* params);
 
 typedef void (APIENTRYP PFNGLLIGHTMODELFPROC)(GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLLIGHTMODELIPROC)(GLenum pname, GLint param);
-typedef void (APIENTRYP PFNGLLIGHTMODELFVPROC)(GLenum pname, const GLfloat *params);
-typedef void (APIENTRYP PFNGLLIGHTMODELIVPROC)(GLenum pname, const GLint *params);
+typedef void (APIENTRYP PFNGLLIGHTMODELFVPROC)(GLenum pname, const GLfloat* params);
+typedef void (APIENTRYP PFNGLLIGHTMODELIVPROC)(GLenum pname, const GLint* params);
 
 typedef void (APIENTRYP PFNGLMATERIALFPROC)(GLenum face, GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLMATERIALIPROC)(GLenum face, GLenum pname, GLint param);
-typedef void (APIENTRYP PFNGLMATERIALFVPROC)(GLenum face, GLenum pname, const GLfloat *params);
-typedef void (APIENTRYP PFNGLMATERIALIVPROC)(GLenum face, GLenum pname, const GLint *params);
+typedef void (APIENTRYP PFNGLMATERIALFVPROC)(GLenum face, GLenum pname, const GLfloat* params);
+typedef void (APIENTRYP PFNGLMATERIALIVPROC)(GLenum face, GLenum pname, const GLint* params);
 
-typedef void (APIENTRYP PFNGLGETMATERIALFVPROC)(GLenum face, GLenum pname, GLfloat *params);
-typedef void (APIENTRYP PFNGLGETMATERIALIVPROC)(GLenum face, GLenum pname, GLint *params);
+typedef void (APIENTRYP PFNGLGETMATERIALFVPROC)(GLenum face, GLenum pname, GLfloat* params);
+typedef void (APIENTRYP PFNGLGETMATERIALIVPROC)(GLenum face, GLenum pname, GLint* params);
 
 typedef void (APIENTRYP PFNGLCOLORMATERIALPROC)(GLenum face, GLenum mode);
 
@@ -1932,29 +1935,29 @@ typedef void (APIENTRYP PFNGLPIXELTRANSFERFPROC)(GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLPIXELTRANSFERIPROC)(GLenum pname, GLint param);
 
 typedef void (APIENTRYP PFNGLPIXELMAPFVPROC)(GLenum map, GLsizei mapsize,
-                                             const GLfloat *values);
+                                             const GLfloat* values);
 typedef void (APIENTRYP PFNGLPIXELMAPUIVPROC)(GLenum map, GLsizei mapsize,
-                                              const GLuint *values);
+                                              const GLuint* values);
 typedef void (APIENTRYP PFNGLPIXELMAPUSVPROC)(GLenum map, GLsizei mapsize,
-                                              const GLushort *values);
+                                              const GLushort* values);
 
-typedef void (APIENTRYP PFNGLGETPIXELMAPFVPROC)(GLenum map, GLfloat *values);
-typedef void (APIENTRYP PFNGLGETPIXELMAPUIVPROC)(GLenum map, GLuint *values);
-typedef void (APIENTRYP PFNGLGETPIXELMAPUSVPROC)(GLenum map, GLushort *values);
+typedef void (APIENTRYP PFNGLGETPIXELMAPFVPROC)(GLenum map, GLfloat* values);
+typedef void (APIENTRYP PFNGLGETPIXELMAPUIVPROC)(GLenum map, GLuint* values);
+typedef void (APIENTRYP PFNGLGETPIXELMAPUSVPROC)(GLenum map, GLushort* values);
 
 typedef void (APIENTRYP PFNGLBITMAPPROC)(GLsizei width, GLsizei height,
                                          GLfloat xorig, GLfloat yorig,
                                          GLfloat xmove, GLfloat ymove,
-                                         const GLubyte *bitmap);
+                                         const GLubyte* bitmap);
 
 typedef void (APIENTRYP PFNGLREADPIXELSPROC)(GLint x, GLint y,
                                              GLsizei width, GLsizei height,
                                              GLenum format, GLenum type,
-                                             GLvoid *pixels);
+                                             GLvoid* pixels);
 
 typedef void (APIENTRYP PFNGLDRAWPIXELSPROC)(GLsizei width, GLsizei height,
                                              GLenum format, GLenum type,
-                                             const GLvoid *pixels);
+                                             const GLvoid* pixels);
 
 typedef void (APIENTRYP PFNGLCOPYPIXELSPROC)(GLint x, GLint y,
                                              GLsizei width, GLsizei height,
@@ -1981,76 +1984,76 @@ typedef void (APIENTRYP PFNGLTEXGENDPROC)(GLenum coord, GLenum pname, GLdouble p
 typedef void (APIENTRYP PFNGLTEXGENFPROC)(GLenum coord, GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLTEXGENIPROC)(GLenum coord, GLenum pname, GLint param);
 
-typedef void (APIENTRYP PFNGLTEXGENDVPROC)(GLenum coord, GLenum pname, const GLdouble *params);
-typedef void (APIENTRYP PFNGLTEXGENFVPROC)(GLenum coord, GLenum pname, const GLfloat *params);
-typedef void (APIENTRYP PFNGLTEXGENIVPROC)(GLenum coord, GLenum pname, const GLint *params);
+typedef void (APIENTRYP PFNGLTEXGENDVPROC)(GLenum coord, GLenum pname, const GLdouble* params);
+typedef void (APIENTRYP PFNGLTEXGENFVPROC)(GLenum coord, GLenum pname, const GLfloat* params);
+typedef void (APIENTRYP PFNGLTEXGENIVPROC)(GLenum coord, GLenum pname, const GLint* params);
 
-typedef void (APIENTRYP PFNGLGETTEXGENDVPROC)(GLenum coord, GLenum pname, GLdouble *params);
-typedef void (APIENTRYP PFNGLGETTEXGENFVPROC)(GLenum coord, GLenum pname, GLfloat *params);
-typedef void (APIENTRYP PFNGLGETTEXGENIVPROC)(GLenum coord, GLenum pname, GLint *params);
+typedef void (APIENTRYP PFNGLGETTEXGENDVPROC)(GLenum coord, GLenum pname, GLdouble* params);
+typedef void (APIENTRYP PFNGLGETTEXGENFVPROC)(GLenum coord, GLenum pname, GLfloat* params);
+typedef void (APIENTRYP PFNGLGETTEXGENIVPROC)(GLenum coord, GLenum pname, GLint* params);
 
 
 typedef void (APIENTRYP PFNGLTEXENVFPROC)(GLenum target, GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLTEXENVIPROC)(GLenum target, GLenum pname, GLint param);
 
-typedef void (APIENTRYP PFNGLTEXENVFVPROC)(GLenum target, GLenum pname, const GLfloat *params);
-typedef void (APIENTRYP PFNGLTEXENVIVPROC)(GLenum target, GLenum pname, const GLint *params);
+typedef void (APIENTRYP PFNGLTEXENVFVPROC)(GLenum target, GLenum pname, const GLfloat* params);
+typedef void (APIENTRYP PFNGLTEXENVIVPROC)(GLenum target, GLenum pname, const GLint* params);
 
-typedef void (APIENTRYP PFNGLGETTEXENVFVPROC)(GLenum target, GLenum pname, GLfloat *params);
-typedef void (APIENTRYP PFNGLGETTEXENVIVPROC)(GLenum target, GLenum pname, GLint *params);
+typedef void (APIENTRYP PFNGLGETTEXENVFVPROC)(GLenum target, GLenum pname, GLfloat* params);
+typedef void (APIENTRYP PFNGLGETTEXENVIVPROC)(GLenum target, GLenum pname, GLint* params);
 
 
 typedef void (APIENTRYP PFNGLTEXPARAMETERFPROC)(GLenum target, GLenum pname, GLfloat param);
 typedef void (APIENTRYP PFNGLTEXPARAMETERIPROC)(GLenum target, GLenum pname, GLint param);
 
 typedef void (APIENTRYP PFNGLTEXPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                 const GLfloat *params);
+                                                 const GLfloat* params);
 typedef void (APIENTRYP PFNGLTEXPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                 const GLint *params);
+                                                 const GLint* params);
 
 typedef void (APIENTRYP PFNGLGETTEXPARAMETERFVPROC)(GLenum target,
-                                                    GLenum pname, GLfloat *params);
+                                                    GLenum pname, GLfloat* params);
 typedef void (APIENTRYP PFNGLGETTEXPARAMETERIVPROC)(GLenum target,
-                                                    GLenum pname, GLint *params);
+                                                    GLenum pname, GLint* params);
 
 typedef void (APIENTRYP PFNGLGETTEXLEVELPARAMETERFVPROC)(GLenum target, GLint level,
-                                                         GLenum pname, GLfloat *params);
+                                                         GLenum pname, GLfloat* params);
 typedef void (APIENTRYP PFNGLGETTEXLEVELPARAMETERIVPROC)(GLenum target, GLint level,
-                                                         GLenum pname, GLint *params);
+                                                         GLenum pname, GLint* params);
 
 
 typedef void (APIENTRYP PFNGLTEXIMAGE1DPROC)(GLenum target, GLint level,
                                              GLint internalFormat,
                                              GLsizei width, GLint border,
                                              GLenum format, GLenum type,
-                                             const GLvoid *pixels);
+                                             const GLvoid* pixels);
 
 typedef void (APIENTRYP PFNGLTEXIMAGE2DPROC)(GLenum target, GLint level,
                                              GLint internalFormat,
                                              GLsizei width, GLsizei height,
                                              GLint border, GLenum format, GLenum type,
-                                             const GLvoid *pixels);
+                                             const GLvoid* pixels);
 
 typedef void (APIENTRYP PFNGLGETTEXIMAGEPROC)(GLenum target, GLint level,
                                               GLenum format, GLenum type,
-                                              GLvoid *pixels);
+                                              GLvoid* pixels);
 
 
 /* 1.1 functions */
 
-typedef void (APIENTRYP PFNGLGENTEXTURESPROC)(GLsizei n, GLuint *textures);
+typedef void (APIENTRYP PFNGLGENTEXTURESPROC)(GLsizei n, GLuint* textures);
 
-typedef void (APIENTRYP PFNGLDELETETEXTURESPROC)(GLsizei n, const GLuint *textures);
+typedef void (APIENTRYP PFNGLDELETETEXTURESPROC)(GLsizei n, const GLuint* textures);
 
 typedef void (APIENTRYP PFNGLBINDTEXTUREPROC)(GLenum target, GLuint texture);
 
 typedef void (APIENTRYP PFNGLPRIORITIZETEXTURESPROC)(GLsizei n,
-                                                     const GLuint *textures,
-                                                     const GLclampf *priorities);
+                                                     const GLuint* textures,
+                                                     const GLclampf* priorities);
 
 typedef GLboolean (APIENTRYP PFNGLARETEXTURESRESIDENTPROC)(GLsizei n,
-                                                           const GLuint *textures,
-                                                           GLboolean *residences);
+                                                           const GLuint* textures,
+                                                           GLboolean* residences);
 
 typedef GLboolean (APIENTRYP PFNGLISTEXTUREPROC)(GLuint texture);
 
@@ -2058,14 +2061,14 @@ typedef GLboolean (APIENTRYP PFNGLISTEXTUREPROC)(GLuint texture);
 typedef void (APIENTRYP PFNGLTEXSUBIMAGE1DPROC)(GLenum target, GLint level,
                                                 GLint xoffset,
                                                 GLsizei width, GLenum format,
-                                                GLenum type, const GLvoid *pixels);
+                                                GLenum type, const GLvoid* pixels);
 
 
 typedef void (APIENTRYP PFNGLTEXSUBIMAGE2DPROC)(GLenum target, GLint level,
                                                 GLint xoffset, GLint yoffset,
                                                 GLsizei width, GLsizei height,
                                                 GLenum format, GLenum type,
-                                                const GLvoid *pixels);
+                                                const GLvoid* pixels);
 
 
 typedef void (APIENTRYP PFNGLCOPYTEXIMAGE1DPROC)(GLenum target, GLint level,
@@ -2098,35 +2101,35 @@ typedef void (APIENTRYP PFNGLCOPYTEXSUBIMAGE2DPROC)(GLenum target, GLint level,
 
 typedef void (APIENTRYP PFNGLMAP1DPROC)(GLenum target, GLdouble u1, GLdouble u2,
                                         GLint stride,
-                                        GLint order, const GLdouble *points);
+                                        GLint order, const GLdouble* points);
 typedef void (APIENTRYP PFNGLMAP1FPROC)(GLenum target, GLfloat u1, GLfloat u2,
                                         GLint stride,
-                                        GLint order, const GLfloat *points);
+                                        GLint order, const GLfloat* points);
 
 typedef void (APIENTRYP PFNGLMAP2DPROC)(GLenum target,
                                         GLdouble u1, GLdouble u2, GLint ustride, GLint uorder,
                                         GLdouble v1, GLdouble v2, GLint vstride, GLint vorder,
-                                        const GLdouble *points);
+                                        const GLdouble* points);
 typedef void (APIENTRYP PFNGLMAP2FPROC)(GLenum target,
                                         GLfloat u1, GLfloat u2, GLint ustride, GLint uorder,
                                         GLfloat v1, GLfloat v2, GLint vstride, GLint vorder,
-                                        const GLfloat *points);
+                                        const GLfloat* points);
 
-typedef void (APIENTRYP PFNGLGETMAPDVPROC)(GLenum target, GLenum query, GLdouble *v);
-typedef void (APIENTRYP PFNGLGETMAPFVPROC)(GLenum target, GLenum query, GLfloat *v);
-typedef void (APIENTRYP PFNGLGETMAPIVPROC)(GLenum target, GLenum query, GLint *v);
+typedef void (APIENTRYP PFNGLGETMAPDVPROC)(GLenum target, GLenum query, GLdouble* v);
+typedef void (APIENTRYP PFNGLGETMAPFVPROC)(GLenum target, GLenum query, GLfloat* v);
+typedef void (APIENTRYP PFNGLGETMAPIVPROC)(GLenum target, GLenum query, GLint* v);
 
 typedef void (APIENTRYP PFNGLEVALCOORD1DPROC)(GLdouble u);
 typedef void (APIENTRYP PFNGLEVALCOORD1FPROC)(GLfloat u);
 
-typedef void (APIENTRYP PFNGLEVALCOORD1DVPROC)(const GLdouble *u);
-typedef void (APIENTRYP PFNGLEVALCOORD1FVPROC)(const GLfloat *u);
+typedef void (APIENTRYP PFNGLEVALCOORD1DVPROC)(const GLdouble* u);
+typedef void (APIENTRYP PFNGLEVALCOORD1FVPROC)(const GLfloat* u);
 
 typedef void (APIENTRYP PFNGLEVALCOORD2DPROC)(GLdouble u, GLdouble v);
 typedef void (APIENTRYP PFNGLEVALCOORD2FPROC)(GLfloat u, GLfloat v);
 
-typedef void (APIENTRYP PFNGLEVALCOORD2DVPROC)(const GLdouble *u);
-typedef void (APIENTRYP PFNGLEVALCOORD2FVPROC)(const GLfloat *u);
+typedef void (APIENTRYP PFNGLEVALCOORD2DVPROC)(const GLdouble* u);
+typedef void (APIENTRYP PFNGLEVALCOORD2FVPROC)(const GLfloat* u);
 
 typedef void (APIENTRYP PFNGLMAPGRID1DPROC)(GLint un, GLdouble u1, GLdouble u2);
 typedef void (APIENTRYP PFNGLMAPGRID1FPROC)(GLint un, GLfloat u1, GLfloat u2);
@@ -2153,20 +2156,20 @@ typedef void (APIENTRYP PFNGLFOGFPROC)(GLenum pname, GLfloat param);
 
 typedef void (APIENTRYP PFNGLFOGIPROC)(GLenum pname, GLint param);
 
-typedef void (APIENTRYP PFNGLFOGFVPROC)(GLenum pname, const GLfloat *params);
+typedef void (APIENTRYP PFNGLFOGFVPROC)(GLenum pname, const GLfloat* params);
 
-typedef void (APIENTRYP PFNGLFOGIVPROC)(GLenum pname, const GLint *params);
+typedef void (APIENTRYP PFNGLFOGIVPROC)(GLenum pname, const GLint* params);
 
 
 /*
  * Selection and Feedback
  */
 
-typedef void (APIENTRYP PFNGLFEEDBACKBUFFERPROC)(GLsizei size, GLenum type, GLfloat *buffer);
+typedef void (APIENTRYP PFNGLFEEDBACKBUFFERPROC)(GLsizei size, GLenum type, GLfloat* buffer);
 
 typedef void (APIENTRYP PFNGLPASSTHROUGHPROC)(GLfloat token);
 
-typedef void (APIENTRYP PFNGLSELECTBUFFERPROC)(GLsizei size, GLuint *buffer);
+typedef void (APIENTRYP PFNGLSELECTBUFFERPROC)(GLsizei size, GLuint* buffer);
 
 typedef void (APIENTRYP PFNGLINITNAMESPROC)(void);
 
@@ -2227,21 +2230,21 @@ typedef void (APIENTRYP PFNGLPOPNAMEPROC)(void);
 #ifndef SDL_OPENGL_1_NO_PROTOTYPES
 
 GLAPI void GLAPIENTRY glDrawRangeElements(GLenum mode, GLuint start,
-                                          GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
+                                          GLuint end, GLsizei count, GLenum type, const GLvoid* indices);
 
 GLAPI void GLAPIENTRY glTexImage3D(GLenum target, GLint level,
                                    GLint internalFormat,
                                    GLsizei width, GLsizei height,
                                    GLsizei depth, GLint border,
                                    GLenum format, GLenum type,
-                                   const GLvoid *pixels);
+                                   const GLvoid* pixels);
 
 GLAPI void GLAPIENTRY glTexSubImage3D(GLenum target, GLint level,
                                       GLint xoffset, GLint yoffset,
                                       GLint zoffset, GLsizei width,
                                       GLsizei height, GLsizei depth,
                                       GLenum format,
-                                      GLenum type, const GLvoid *pixels);
+                                      GLenum type, const GLvoid* pixels);
 
 GLAPI void GLAPIENTRY glCopyTexSubImage3D(GLenum target, GLint level,
                                           GLint xoffset, GLint yoffset,
@@ -2253,21 +2256,21 @@ GLAPI void GLAPIENTRY glCopyTexSubImage3D(GLenum target, GLint level,
 #ifdef SDL_OPENGL_1_FUNCTION_TYPEDEFS
 
 typedef void (APIENTRYP PFNGLDRAWRANGEELEMENTSPROC)(GLenum mode, GLuint start,
-                                                    GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
+                                                    GLuint end, GLsizei count, GLenum type, const GLvoid* indices);
 
 typedef void (APIENTRYP PFNGLTEXIMAGE3DPROC)(GLenum target, GLint level,
                                              GLint internalFormat,
                                              GLsizei width, GLsizei height,
                                              GLsizei depth, GLint border,
                                              GLenum format, GLenum type,
-                                             const GLvoid *pixels);
+                                             const GLvoid* pixels);
 
 typedef void (APIENTRYP PFNGLTEXSUBIMAGE3DPROC)(GLenum target, GLint level,
                                                 GLint xoffset, GLint yoffset,
                                                 GLint zoffset, GLsizei width,
                                                 GLsizei height, GLsizei depth,
                                                 GLenum format,
-                                                GLenum type, const GLvoid *pixels);
+                                                GLenum type, const GLvoid* pixels);
 
 typedef void (APIENTRYP PFNGLCOPYTEXSUBIMAGE3DPROC)(GLenum target, GLint level,
                                                     GLint xoffset, GLint yoffset,
@@ -2277,10 +2280,16 @@ typedef void (APIENTRYP PFNGLCOPYTEXSUBIMAGE3DPROC)(GLenum target, GLint level,
 
 #endif
 
-typedef void (APIENTRYP PFNGLDRAWRANGEELEMENTSPROC)(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
-typedef void (APIENTRYP PFNGLTEXIMAGE3DPROC)(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
-typedef void (APIENTRYP PFNGLTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const GLvoid *pixels);
-typedef void (APIENTRYP PFNGLCOPYTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+typedef void (APIENTRYP PFNGLDRAWRANGEELEMENTSPROC)(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type,
+                                                    const GLvoid* indices);
+typedef void (APIENTRYP PFNGLTEXIMAGE3DPROC)(GLenum target, GLint level, GLint internalformat, GLsizei width,
+                                             GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type,
+                                             const GLvoid* pixels);
+typedef void (APIENTRYP PFNGLTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset,
+                                                GLsizei width, GLsizei height, GLsizei depth, GLenum format,
+                                                GLenum type, const GLvoid* pixels);
+typedef void (APIENTRYP PFNGLCOPYTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+                                                    GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 
 
 /*
@@ -2368,18 +2377,18 @@ typedef void (APIENTRYP PFNGLCOPYTEXSUBIMAGE3DPROC)(GLenum target, GLint level, 
 
 GLAPI void GLAPIENTRY glColorTable(GLenum target, GLenum internalformat,
                                    GLsizei width, GLenum format,
-                                   GLenum type, const GLvoid *table);
+                                   GLenum type, const GLvoid* table);
 
 GLAPI void GLAPIENTRY glColorSubTable(GLenum target,
                                       GLsizei start, GLsizei count,
                                       GLenum format, GLenum type,
-                                      const GLvoid *data);
+                                      const GLvoid* data);
 
 GLAPI void GLAPIENTRY glColorTableParameteriv(GLenum target, GLenum pname,
-                                              const GLint *params);
+                                              const GLint* params);
 
 GLAPI void GLAPIENTRY glColorTableParameterfv(GLenum target, GLenum pname,
-                                              const GLfloat *params);
+                                              const GLfloat* params);
 
 GLAPI void GLAPIENTRY glCopyColorSubTable(GLenum target, GLsizei start,
                                           GLint x, GLint y, GLsizei width);
@@ -2388,13 +2397,13 @@ GLAPI void GLAPIENTRY glCopyColorTable(GLenum target, GLenum internalformat,
                                        GLint x, GLint y, GLsizei width);
 
 GLAPI void GLAPIENTRY glGetColorTable(GLenum target, GLenum format,
-                                      GLenum type, GLvoid *table);
+                                      GLenum type, GLvoid* table);
 
 GLAPI void GLAPIENTRY glGetColorTableParameterfv(GLenum target, GLenum pname,
-                                                 GLfloat *params);
+                                                 GLfloat* params);
 
 GLAPI void GLAPIENTRY glGetColorTableParameteriv(GLenum target, GLenum pname,
-                                                 GLint *params);
+                                                 GLint* params);
 
 GLAPI void GLAPIENTRY glBlendEquation(GLenum mode);
 
@@ -2408,13 +2417,13 @@ GLAPI void GLAPIENTRY glResetHistogram(GLenum target);
 
 GLAPI void GLAPIENTRY glGetHistogram(GLenum target, GLboolean reset,
                                      GLenum format, GLenum type,
-                                     GLvoid *values);
+                                     GLvoid* values);
 
 GLAPI void GLAPIENTRY glGetHistogramParameterfv(GLenum target, GLenum pname,
-                                                GLfloat *params);
+                                                GLfloat* params);
 
 GLAPI void GLAPIENTRY glGetHistogramParameteriv(GLenum target, GLenum pname,
-                                                GLint *params);
+                                                GLint* params);
 
 GLAPI void GLAPIENTRY glMinmax(GLenum target, GLenum internalformat,
                                GLboolean sink);
@@ -2423,33 +2432,33 @@ GLAPI void GLAPIENTRY glResetMinmax(GLenum target);
 
 GLAPI void GLAPIENTRY glGetMinmax(GLenum target, GLboolean reset,
                                   GLenum format, GLenum types,
-                                  GLvoid *values);
+                                  GLvoid* values);
 
 GLAPI void GLAPIENTRY glGetMinmaxParameterfv(GLenum target, GLenum pname,
-                                             GLfloat *params);
+                                             GLfloat* params);
 
 GLAPI void GLAPIENTRY glGetMinmaxParameteriv(GLenum target, GLenum pname,
-                                             GLint *params);
+                                             GLint* params);
 
 GLAPI void GLAPIENTRY glConvolutionFilter1D(GLenum target,
                                             GLenum internalformat, GLsizei width, GLenum format, GLenum type,
-                                            const GLvoid *image);
+                                            const GLvoid* image);
 
 GLAPI void GLAPIENTRY glConvolutionFilter2D(GLenum target,
                                             GLenum internalformat, GLsizei width, GLsizei height, GLenum format,
-                                            GLenum type, const GLvoid *image);
+                                            GLenum type, const GLvoid* image);
 
 GLAPI void GLAPIENTRY glConvolutionParameterf(GLenum target, GLenum pname,
                                               GLfloat params);
 
 GLAPI void GLAPIENTRY glConvolutionParameterfv(GLenum target, GLenum pname,
-                                               const GLfloat *params);
+                                               const GLfloat* params);
 
 GLAPI void GLAPIENTRY glConvolutionParameteri(GLenum target, GLenum pname,
                                               GLint params);
 
 GLAPI void GLAPIENTRY glConvolutionParameteriv(GLenum target, GLenum pname,
-                                               const GLint *params);
+                                               const GLint* params);
 
 GLAPI void GLAPIENTRY glCopyConvolutionFilter1D(GLenum target,
                                                 GLenum internalformat, GLint x, GLint y, GLsizei width);
@@ -2459,38 +2468,38 @@ GLAPI void GLAPIENTRY glCopyConvolutionFilter2D(GLenum target,
                                                 GLsizei height);
 
 GLAPI void GLAPIENTRY glGetConvolutionFilter(GLenum target, GLenum format,
-                                             GLenum type, GLvoid *image);
+                                             GLenum type, GLvoid* image);
 
 GLAPI void GLAPIENTRY glGetConvolutionParameterfv(GLenum target, GLenum pname,
-                                                  GLfloat *params);
+                                                  GLfloat* params);
 
 GLAPI void GLAPIENTRY glGetConvolutionParameteriv(GLenum target, GLenum pname,
-                                                  GLint *params);
+                                                  GLint* params);
 
 GLAPI void GLAPIENTRY glSeparableFilter2D(GLenum target,
                                           GLenum internalformat, GLsizei width, GLsizei height, GLenum format,
-                                          GLenum type, const GLvoid *row, const GLvoid *column);
+                                          GLenum type, const GLvoid* row, const GLvoid* column);
 
 GLAPI void GLAPIENTRY glGetSeparableFilter(GLenum target, GLenum format,
-                                           GLenum type, GLvoid *row, GLvoid *column, GLvoid *span);
+                                           GLenum type, GLvoid* row, GLvoid* column, GLvoid* span);
 
 #endif
 #ifdef SDL_OPENGL_1_FUNCTION_TYPEDEFS
 
 typedef void (APIENTRYP PFNGLCOLORTABLEPROC)(GLenum target, GLenum internalformat,
                                              GLsizei width, GLenum format,
-                                             GLenum type, const GLvoid *table);
+                                             GLenum type, const GLvoid* table);
 
 typedef void (APIENTRYP PFNGLCOLORSUBTABLEPROC)(GLenum target,
                                                 GLsizei start, GLsizei count,
                                                 GLenum format, GLenum type,
-                                                const GLvoid *data);
+                                                const GLvoid* data);
 
 typedef void (APIENTRYP PFNGLCOLORTABLEPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                        const GLint *params);
+                                                        const GLint* params);
 
 typedef void (APIENTRYP PFNGLCOLORTABLEPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                        const GLfloat *params);
+                                                        const GLfloat* params);
 
 typedef void (APIENTRYP PFNGLCOPYCOLORSUBTABLEPROC)(GLenum target, GLsizei start,
                                                     GLint x, GLint y, GLsizei width);
@@ -2499,13 +2508,13 @@ typedef void (APIENTRYP PFNGLCOPYCOLORTABLEPROC)(GLenum target, GLenum internalf
                                                  GLint x, GLint y, GLsizei width);
 
 typedef void (APIENTRYP PFNGLGETCOLORTABLEPROC)(GLenum target, GLenum format,
-                                                GLenum type, GLvoid *table);
+                                                GLenum type, GLvoid* table);
 
 typedef void (APIENTRYP PFNGLGETCOLORTABLEPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                           GLfloat *params);
+                                                           GLfloat* params);
 
 typedef void (APIENTRYP PFNGLGETCOLORTABLEPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                           GLint *params);
+                                                           GLint* params);
 
 typedef void (APIENTRYP PFNGLBLENDEQUATIONPROC)(GLenum mode);
 
@@ -2519,13 +2528,13 @@ typedef void (APIENTRYP PFNGLRESETHISTOGRAMPROC)(GLenum target);
 
 typedef void (APIENTRYP PFNGLGETHISTOGRAMPROC)(GLenum target, GLboolean reset,
                                                GLenum format, GLenum type,
-                                               GLvoid *values);
+                                               GLvoid* values);
 
 typedef void (APIENTRYP PFNGLGETHISTOGRAMPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                          GLfloat *params);
+                                                          GLfloat* params);
 
 typedef void (APIENTRYP PFNGLGETHISTOGRAMPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                          GLint *params);
+                                                          GLint* params);
 
 typedef void (APIENTRYP PFNGLMINMAXPROC)(GLenum target, GLenum internalformat,
                                          GLboolean sink);
@@ -2534,33 +2543,34 @@ typedef void (APIENTRYP PFNGLRESETMINMAXPROC)(GLenum target);
 
 typedef void (APIENTRYP PFNGLGETMINMAXPROC)(GLenum target, GLboolean reset,
                                             GLenum format, GLenum types,
-                                            GLvoid *values);
+                                            GLvoid* values);
 
 typedef void (APIENTRYP PFNGLGETMINMAXPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                       GLfloat *params);
+                                                       GLfloat* params);
 
 typedef void (APIENTRYP PFNGLGETMINMAXPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                       GLint *params);
+                                                       GLint* params);
 
 typedef void (APIENTRYP PFNGLCONVOLUTIONFILTER1DPROC)(GLenum target,
                                                       GLenum internalformat, GLsizei width, GLenum format, GLenum type,
-                                                      const GLvoid *image);
+                                                      const GLvoid* image);
 
 typedef void (APIENTRYP PFNGLCONVOLUTIONFILTER2DPROC)(GLenum target,
-                                                      GLenum internalformat, GLsizei width, GLsizei height, GLenum format,
-                                                      GLenum type, const GLvoid *image);
+                                                      GLenum internalformat, GLsizei width, GLsizei height,
+                                                      GLenum format,
+                                                      GLenum type, const GLvoid* image);
 
 typedef void (APIENTRYP PFNGLCONVOLUTIONPARAMETERFPROC)(GLenum target, GLenum pname,
                                                         GLfloat params);
 
 typedef void (APIENTRYP PFNGLCONVOLUTIONPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                         const GLfloat *params);
+                                                         const GLfloat* params);
 
 typedef void (APIENTRYP PFNGLCONVOLUTIONPARAMETERIPROC)(GLenum target, GLenum pname,
                                                         GLint params);
 
 typedef void (APIENTRYP PFNGLCONVOLUTIONPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                         const GLint *params);
+                                                         const GLint* params);
 
 typedef void (APIENTRYP PFNGLCOPYCONVOLUTIONFILTER1DPROC)(GLenum target,
                                                           GLenum internalformat, GLint x, GLint y, GLsizei width);
@@ -2570,20 +2580,20 @@ typedef void (APIENTRYP PFNGLCOPYCONVOLUTIONFILTER2DPROC)(GLenum target,
                                                           GLsizei height);
 
 typedef void (APIENTRYP PFNGLGETCONVOLUTIONFILTERPROC)(GLenum target, GLenum format,
-                                                       GLenum type, GLvoid *image);
+                                                       GLenum type, GLvoid* image);
 
 typedef void (APIENTRYP PFNGLGETCONVOLUTIONPARAMETERFVPROC)(GLenum target, GLenum pname,
-                                                            GLfloat *params);
+                                                            GLfloat* params);
 
 typedef void (APIENTRYP PFNGLGETCONVOLUTIONPARAMETERIVPROC)(GLenum target, GLenum pname,
-                                                            GLint *params);
+                                                            GLint* params);
 
 typedef void (APIENTRYP PFNGLSEPARABLEFILTER2DPROC)(GLenum target,
                                                     GLenum internalformat, GLsizei width, GLsizei height, GLenum format,
-                                                    GLenum type, const GLvoid *row, const GLvoid *column);
+                                                    GLenum type, const GLvoid* row, const GLvoid* column);
 
 typedef void (APIENTRYP PFNGLGETSEPARABLEFILTERPROC)(GLenum target, GLenum format,
-                                                     GLenum type, GLvoid *row, GLvoid *column, GLvoid *span);
+                                                     GLenum type, GLvoid* row, GLvoid* column, GLvoid* span);
 
 #endif
 
@@ -2703,83 +2713,91 @@ GLAPI void GLAPIENTRY glActiveTexture(GLenum texture);
 
 GLAPI void GLAPIENTRY glClientActiveTexture(GLenum texture);
 
-GLAPI void GLAPIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const GLvoid *data);
+GLAPI void GLAPIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                             GLint border, GLsizei imageSize, const GLvoid* data);
 
-GLAPI void GLAPIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const GLvoid *data);
+GLAPI void GLAPIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                             GLsizei height, GLint border, GLsizei imageSize, const GLvoid* data);
 
-GLAPI void GLAPIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const GLvoid *data);
+GLAPI void GLAPIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                             GLsizei height, GLsizei depth, GLint border, GLsizei imageSize,
+                                             const GLvoid* data);
 
-GLAPI void GLAPIENTRY glCompressedTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const GLvoid *data);
+GLAPI void GLAPIENTRY glCompressedTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format,
+                                                GLsizei imageSize, const GLvoid* data);
 
-GLAPI void GLAPIENTRY glCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const GLvoid *data);
+GLAPI void GLAPIENTRY glCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
+                                                GLsizei height, GLenum format, GLsizei imageSize, const GLvoid* data);
 
-GLAPI void GLAPIENTRY glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const GLvoid *data);
+GLAPI void GLAPIENTRY glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset,
+                                                GLsizei width, GLsizei height, GLsizei depth, GLenum format,
+                                                GLsizei imageSize, const GLvoid* data);
 
-GLAPI void GLAPIENTRY glGetCompressedTexImage(GLenum target, GLint lod, GLvoid *img);
+GLAPI void GLAPIENTRY glGetCompressedTexImage(GLenum target, GLint lod, GLvoid* img);
 
 GLAPI void GLAPIENTRY glMultiTexCoord1d(GLenum target, GLdouble s);
 
-GLAPI void GLAPIENTRY glMultiTexCoord1dv(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1dv(GLenum target, const GLdouble* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord1f(GLenum target, GLfloat s);
 
-GLAPI void GLAPIENTRY glMultiTexCoord1fv(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1fv(GLenum target, const GLfloat* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord1i(GLenum target, GLint s);
 
-GLAPI void GLAPIENTRY glMultiTexCoord1iv(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1iv(GLenum target, const GLint* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord1s(GLenum target, GLshort s);
 
-GLAPI void GLAPIENTRY glMultiTexCoord1sv(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1sv(GLenum target, const GLshort* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord2d(GLenum target, GLdouble s, GLdouble t);
 
-GLAPI void GLAPIENTRY glMultiTexCoord2dv(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2dv(GLenum target, const GLdouble* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord2f(GLenum target, GLfloat s, GLfloat t);
 
-GLAPI void GLAPIENTRY glMultiTexCoord2fv(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2fv(GLenum target, const GLfloat* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord2i(GLenum target, GLint s, GLint t);
 
-GLAPI void GLAPIENTRY glMultiTexCoord2iv(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2iv(GLenum target, const GLint* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord2s(GLenum target, GLshort s, GLshort t);
 
-GLAPI void GLAPIENTRY glMultiTexCoord2sv(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2sv(GLenum target, const GLshort* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord3d(GLenum target, GLdouble s, GLdouble t, GLdouble r);
 
-GLAPI void GLAPIENTRY glMultiTexCoord3dv(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3dv(GLenum target, const GLdouble* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord3f(GLenum target, GLfloat s, GLfloat t, GLfloat r);
 
-GLAPI void GLAPIENTRY glMultiTexCoord3fv(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3fv(GLenum target, const GLfloat* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord3i(GLenum target, GLint s, GLint t, GLint r);
 
-GLAPI void GLAPIENTRY glMultiTexCoord3iv(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3iv(GLenum target, const GLint* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord3s(GLenum target, GLshort s, GLshort t, GLshort r);
 
-GLAPI void GLAPIENTRY glMultiTexCoord3sv(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3sv(GLenum target, const GLshort* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord4d(GLenum target, GLdouble s, GLdouble t, GLdouble r, GLdouble q);
 
-GLAPI void GLAPIENTRY glMultiTexCoord4dv(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4dv(GLenum target, const GLdouble* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord4f(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
 
-GLAPI void GLAPIENTRY glMultiTexCoord4fv(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4fv(GLenum target, const GLfloat* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord4i(GLenum target, GLint s, GLint t, GLint r, GLint q);
 
-GLAPI void GLAPIENTRY glMultiTexCoord4iv(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4iv(GLenum target, const GLint* v);
 
 GLAPI void GLAPIENTRY glMultiTexCoord4s(GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
 
-GLAPI void GLAPIENTRY glMultiTexCoord4sv(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4sv(GLenum target, const GLshort* v);
 
 
 GLAPI void GLAPIENTRY glLoadTransposeMatrixd(const GLdouble m[16]);
@@ -2799,83 +2817,93 @@ typedef void (APIENTRYP PFNGLACTIVETEXTUREPROC)(GLenum texture);
 
 typedef void (APIENTRYP PFNGLCLIENTACTIVETEXTUREPROC)(GLenum texture);
 
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE1DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const GLvoid *data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE1DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                                       GLint border, GLsizei imageSize, const GLvoid* data);
 
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE2DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const GLvoid *data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE2DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                                       GLsizei height, GLint border, GLsizei imageSize,
+                                                       const GLvoid* data);
 
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE3DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const GLvoid *data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE3DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                                       GLsizei height, GLsizei depth, GLint border, GLsizei imageSize,
+                                                       const GLvoid* data);
 
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE1DPROC)(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const GLvoid *data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE1DPROC)(GLenum target, GLint level, GLint xoffset, GLsizei width,
+                                                          GLenum format, GLsizei imageSize, const GLvoid* data);
 
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const GLvoid *data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+                                                          GLsizei width, GLsizei height, GLenum format,
+                                                          GLsizei imageSize, const GLvoid* data);
 
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const GLvoid *data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+                                                          GLint zoffset, GLsizei width, GLsizei height, GLsizei depth,
+                                                          GLenum format, GLsizei imageSize, const GLvoid* data);
 
-typedef void (APIENTRYP PFNGLGETCOMPRESSEDTEXIMAGEPROC)(GLenum target, GLint lod, GLvoid *img);
+typedef void (APIENTRYP PFNGLGETCOMPRESSEDTEXIMAGEPROC)(GLenum target, GLint lod, GLvoid* img);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1DPROC)(GLenum target, GLdouble s);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1DVPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1DVPROC)(GLenum target, const GLdouble* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1FPROC)(GLenum target, GLfloat s);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1FVPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1FVPROC)(GLenum target, const GLfloat* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1IPROC)(GLenum target, GLint s);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1IVPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1IVPROC)(GLenum target, const GLint* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1SPROC)(GLenum target, GLshort s);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1SVPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1SVPROC)(GLenum target, const GLshort* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2DPROC)(GLenum target, GLdouble s, GLdouble t);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2DVPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2DVPROC)(GLenum target, const GLdouble* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2FPROC)(GLenum target, GLfloat s, GLfloat t);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2FVPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2FVPROC)(GLenum target, const GLfloat* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2IPROC)(GLenum target, GLint s, GLint t);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2IVPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2IVPROC)(GLenum target, const GLint* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2SPROC)(GLenum target, GLshort s, GLshort t);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2SVPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2SVPROC)(GLenum target, const GLshort* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3DPROC)(GLenum target, GLdouble s, GLdouble t, GLdouble r);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3DVPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3DVPROC)(GLenum target, const GLdouble* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3FPROC)(GLenum target, GLfloat s, GLfloat t, GLfloat r);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3FVPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3FVPROC)(GLenum target, const GLfloat* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3IPROC)(GLenum target, GLint s, GLint t, GLint r);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3IVPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3IVPROC)(GLenum target, const GLint* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3SPROC)(GLenum target, GLshort s, GLshort t, GLshort r);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3SVPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3SVPROC)(GLenum target, const GLshort* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4DPROC)(GLenum target, GLdouble s, GLdouble t, GLdouble r, GLdouble q);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4DVPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4DVPROC)(GLenum target, const GLdouble* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4FPROC)(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4FVPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4FVPROC)(GLenum target, const GLfloat* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4IPROC)(GLenum target, GLint s, GLint t, GLint r, GLint q);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4IVPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4IVPROC)(GLenum target, const GLint* v);
 
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4SPROC)(GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
 
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4SVPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4SVPROC)(GLenum target, const GLshort* v);
 
 
 typedef void (APIENTRYP PFNGLLOADTRANSPOSEMATRIXDPROC)(const GLdouble m[16]);
@@ -2893,13 +2921,23 @@ typedef void (APIENTRYP PFNGLSAMPLECOVERAGEPROC)(GLclampf value, GLboolean inver
 
 typedef void (APIENTRYP PFNGLACTIVETEXTUREPROC)(GLenum texture);
 typedef void (APIENTRYP PFNGLSAMPLECOVERAGEPROC)(GLclampf value, GLboolean invert);
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE3DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const GLvoid *data);
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE2DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const GLvoid *data);
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE1DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const GLvoid *data);
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const GLvoid *data);
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const GLvoid *data);
-typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE1DPROC)(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const GLvoid *data);
-typedef void (APIENTRYP PFNGLGETCOMPRESSEDTEXIMAGEPROC)(GLenum target, GLint level, GLvoid *img);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE3DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                                       GLsizei height, GLsizei depth, GLint border, GLsizei imageSize,
+                                                       const GLvoid* data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE2DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                                       GLsizei height, GLint border, GLsizei imageSize,
+                                                       const GLvoid* data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXIMAGE1DPROC)(GLenum target, GLint level, GLenum internalformat, GLsizei width,
+                                                       GLint border, GLsizei imageSize, const GLvoid* data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+                                                          GLint zoffset, GLsizei width, GLsizei height, GLsizei depth,
+                                                          GLenum format, GLsizei imageSize, const GLvoid* data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+                                                          GLsizei width, GLsizei height, GLenum format,
+                                                          GLsizei imageSize, const GLvoid* data);
+typedef void (APIENTRYP PFNGLCOMPRESSEDTEXSUBIMAGE1DPROC)(GLenum target, GLint level, GLint xoffset, GLsizei width,
+                                                          GLenum format, GLsizei imageSize, const GLvoid* data);
+typedef void (APIENTRYP PFNGLGETCOMPRESSEDTEXIMAGEPROC)(GLenum target, GLint level, GLvoid* img);
 
 
 /*
@@ -2949,37 +2987,37 @@ typedef void (APIENTRYP PFNGLGETCOMPRESSEDTEXIMAGEPROC)(GLenum target, GLint lev
 GLAPI void GLAPIENTRY glActiveTextureARB(GLenum texture);
 GLAPI void GLAPIENTRY glClientActiveTextureARB(GLenum texture);
 GLAPI void GLAPIENTRY glMultiTexCoord1dARB(GLenum target, GLdouble s);
-GLAPI void GLAPIENTRY glMultiTexCoord1dvARB(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1dvARB(GLenum target, const GLdouble* v);
 GLAPI void GLAPIENTRY glMultiTexCoord1fARB(GLenum target, GLfloat s);
-GLAPI void GLAPIENTRY glMultiTexCoord1fvARB(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1fvARB(GLenum target, const GLfloat* v);
 GLAPI void GLAPIENTRY glMultiTexCoord1iARB(GLenum target, GLint s);
-GLAPI void GLAPIENTRY glMultiTexCoord1ivARB(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1ivARB(GLenum target, const GLint* v);
 GLAPI void GLAPIENTRY glMultiTexCoord1sARB(GLenum target, GLshort s);
-GLAPI void GLAPIENTRY glMultiTexCoord1svARB(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord1svARB(GLenum target, const GLshort* v);
 GLAPI void GLAPIENTRY glMultiTexCoord2dARB(GLenum target, GLdouble s, GLdouble t);
-GLAPI void GLAPIENTRY glMultiTexCoord2dvARB(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2dvARB(GLenum target, const GLdouble* v);
 GLAPI void GLAPIENTRY glMultiTexCoord2fARB(GLenum target, GLfloat s, GLfloat t);
-GLAPI void GLAPIENTRY glMultiTexCoord2fvARB(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2fvARB(GLenum target, const GLfloat* v);
 GLAPI void GLAPIENTRY glMultiTexCoord2iARB(GLenum target, GLint s, GLint t);
-GLAPI void GLAPIENTRY glMultiTexCoord2ivARB(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2ivARB(GLenum target, const GLint* v);
 GLAPI void GLAPIENTRY glMultiTexCoord2sARB(GLenum target, GLshort s, GLshort t);
-GLAPI void GLAPIENTRY glMultiTexCoord2svARB(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord2svARB(GLenum target, const GLshort* v);
 GLAPI void GLAPIENTRY glMultiTexCoord3dARB(GLenum target, GLdouble s, GLdouble t, GLdouble r);
-GLAPI void GLAPIENTRY glMultiTexCoord3dvARB(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3dvARB(GLenum target, const GLdouble* v);
 GLAPI void GLAPIENTRY glMultiTexCoord3fARB(GLenum target, GLfloat s, GLfloat t, GLfloat r);
-GLAPI void GLAPIENTRY glMultiTexCoord3fvARB(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3fvARB(GLenum target, const GLfloat* v);
 GLAPI void GLAPIENTRY glMultiTexCoord3iARB(GLenum target, GLint s, GLint t, GLint r);
-GLAPI void GLAPIENTRY glMultiTexCoord3ivARB(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3ivARB(GLenum target, const GLint* v);
 GLAPI void GLAPIENTRY glMultiTexCoord3sARB(GLenum target, GLshort s, GLshort t, GLshort r);
-GLAPI void GLAPIENTRY glMultiTexCoord3svARB(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord3svARB(GLenum target, const GLshort* v);
 GLAPI void GLAPIENTRY glMultiTexCoord4dARB(GLenum target, GLdouble s, GLdouble t, GLdouble r, GLdouble q);
-GLAPI void GLAPIENTRY glMultiTexCoord4dvARB(GLenum target, const GLdouble *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4dvARB(GLenum target, const GLdouble* v);
 GLAPI void GLAPIENTRY glMultiTexCoord4fARB(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
-GLAPI void GLAPIENTRY glMultiTexCoord4fvARB(GLenum target, const GLfloat *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4fvARB(GLenum target, const GLfloat* v);
 GLAPI void GLAPIENTRY glMultiTexCoord4iARB(GLenum target, GLint s, GLint t, GLint r, GLint q);
-GLAPI void GLAPIENTRY glMultiTexCoord4ivARB(GLenum target, const GLint *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4ivARB(GLenum target, const GLint* v);
 GLAPI void GLAPIENTRY glMultiTexCoord4sARB(GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
-GLAPI void GLAPIENTRY glMultiTexCoord4svARB(GLenum target, const GLshort *v);
+GLAPI void GLAPIENTRY glMultiTexCoord4svARB(GLenum target, const GLshort* v);
 
 #endif
 #ifdef SDL_OPENGL_1_FUNCTION_TYPEDEFS
@@ -2987,74 +3025,74 @@ GLAPI void GLAPIENTRY glMultiTexCoord4svARB(GLenum target, const GLshort *v);
 typedef void (APIENTRYP PFNGLACTIVETEXTUREARBPROC)(GLenum texture);
 typedef void (APIENTRYP PFNGLCLIENTACTIVETEXTUREARBPROC)(GLenum texture);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1DARBPROC)(GLenum target, GLdouble s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1FARBPROC)(GLenum target, GLfloat s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1IARBPROC)(GLenum target, GLint s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1SARBPROC)(GLenum target, GLshort s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1SVARBPROC)(GLenum target, const GLshort* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2DARBPROC)(GLenum target, GLdouble s, GLdouble t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2FARBPROC)(GLenum target, GLfloat s, GLfloat t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2IARBPROC)(GLenum target, GLint s, GLint t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2SARBPROC)(GLenum target, GLshort s, GLshort t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2SVARBPROC)(GLenum target, const GLshort* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3DARBPROC)(GLenum target, GLdouble s, GLdouble t, GLdouble r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3FARBPROC)(GLenum target, GLfloat s, GLfloat t, GLfloat r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3IARBPROC)(GLenum target, GLint s, GLint t, GLint r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3SARBPROC)(GLenum target, GLshort s, GLshort t, GLshort r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3SVARBPROC)(GLenum target, const GLshort* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4DARBPROC)(GLenum target, GLdouble s, GLdouble t, GLdouble r, GLdouble q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4FARBPROC)(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4IARBPROC)(GLenum target, GLint s, GLint t, GLint r, GLint q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4SARBPROC)(GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4SVARBPROC)(GLenum target, const GLshort* v);
 
 #endif
 
 typedef void (APIENTRYP PFNGLACTIVETEXTUREARBPROC)(GLenum texture);
 typedef void (APIENTRYP PFNGLCLIENTACTIVETEXTUREARBPROC)(GLenum texture);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1DARBPROC)(GLenum target, GLdouble s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1FARBPROC)(GLenum target, GLfloat s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1IARBPROC)(GLenum target, GLint s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD1SARBPROC)(GLenum target, GLshort s);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD1SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD1SVARBPROC)(GLenum target, const GLshort* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2DARBPROC)(GLenum target, GLdouble s, GLdouble t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2FARBPROC)(GLenum target, GLfloat s, GLfloat t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2IARBPROC)(GLenum target, GLint s, GLint t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD2SARBPROC)(GLenum target, GLshort s, GLshort t);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD2SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD2SVARBPROC)(GLenum target, const GLshort* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3DARBPROC)(GLenum target, GLdouble s, GLdouble t, GLdouble r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3FARBPROC)(GLenum target, GLfloat s, GLfloat t, GLfloat r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3IARBPROC)(GLenum target, GLint s, GLint t, GLint r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD3SARBPROC)(GLenum target, GLshort s, GLshort t, GLshort r);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD3SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD3SVARBPROC)(GLenum target, const GLshort* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4DARBPROC)(GLenum target, GLdouble s, GLdouble t, GLdouble r, GLdouble q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4DVARBPROC)(GLenum target, const GLdouble *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4DVARBPROC)(GLenum target, const GLdouble* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4FARBPROC)(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4FVARBPROC)(GLenum target, const GLfloat *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4FVARBPROC)(GLenum target, const GLfloat* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4IARBPROC)(GLenum target, GLint s, GLint t, GLint r, GLint q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4IVARBPROC)(GLenum target, const GLint *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4IVARBPROC)(GLenum target, const GLint* v);
 typedef void (APIENTRYP PFNGLMULTITEXCOORD4SARBPROC)(GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
-typedef void (APIENTRYP PFNGLMULTITEXCOORD4SVARBPROC)(GLenum target, const GLshort *v);
+typedef void (APIENTRYP PFNGLMULTITEXCOORD4SVARBPROC)(GLenum target, const GLshort* v);
 
 #endif /* GL_ARB_multitexture */
 

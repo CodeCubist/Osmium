@@ -247,12 +247,12 @@
     g_8_22 = __lsx_vpickev_b(g_2, g_1);                       \
     b_8_22 = __lsx_vpickev_b(b_2, b_1);
 
-void LSX_FUNCTION_NAME(uint32_t width, uint32_t height, const uint8_t *Y,
-                       const uint8_t *U, const uint8_t *V, uint32_t Y_stride,
-                       uint32_t UV_stride, uint8_t *RGB, uint32_t RGB_stride,
+void LSX_FUNCTION_NAME(uint32_t width, uint32_t height, const uint8_t* Y,
+                       const uint8_t* U, const uint8_t* V, uint32_t Y_stride,
+                       uint32_t UV_stride, uint8_t* RGB, uint32_t RGB_stride,
                        YCbCrType yuv_type)
 {
-    const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+    const YUV2RGBParam* const param = &(YUV2RGB[yuv_type]);
 #if YUV_FORMAT == YUV_FORMAT_420
     const int y_pixel_stride = 1;
     const int uv_pixel_stride = 1;
@@ -264,11 +264,11 @@ void LSX_FUNCTION_NAME(uint32_t width, uint32_t height, const uint8_t *Y,
     const int rgb_pixel_stride = 2;
 #elif RGB_FORMAT == RGB_FORMAT_RGB24
     const int rgb_pixel_stride = 3;
-    __m128i mask1 = { 0x0504110302100100, 0x0A14090813070612 };
-    __m128i mask2 = { 0x1808170716061505, 0x00000000000A1909 };
-    __m128i mask3 = { 0x0504170302160100, 0x0A1A090819070618 };
-    __m128i mask4 = { 0x1E0D1D0C1C0B1B0A, 0x00000000000F1F0E };
-    __m128i mask5 = { 0x05041C03021B0100, 0x0A1F09081E07061D };
+    __m128i mask1 = {0x0504110302100100, 0x0A14090813070612};
+    __m128i mask2 = {0x1808170716061505, 0x00000000000A1909};
+    __m128i mask3 = {0x0504170302160100, 0x0A1A090819070618};
+    __m128i mask4 = {0x1E0D1D0C1C0B1B0A, 0x00000000000F1F0E};
+    __m128i mask5 = {0x05041C03021B0100, 0x0A1F09081E07061D};
 #elif RGB_FORMAT == RGB_FORMAT_RGBA || RGB_FORMAT_BGRA || \
     RGB_FORMAT == RGB_FORMAT_ARGB || RGB_FORMAT_ABGR
     const int rgb_pixel_stride = 4;
@@ -286,8 +286,10 @@ void LSX_FUNCTION_NAME(uint32_t width, uint32_t height, const uint8_t *Y,
     __m128i yf = __lsx_vreplgr2vr_h(param->y_factor);
     __m128i zero = __lsx_vldi(0);
 
-    if (width >= 32) {
-        for (ypos = 0; ypos < (height - (uv_y_sample_interval - 1)); ypos += uv_y_sample_interval) {
+    if (width >= 32)
+    {
+        for (ypos = 0; ypos < (height - (uv_y_sample_interval - 1)); ypos += uv_y_sample_interval)
+        {
             const uint8_t *y_ptr1 = Y + ypos * Y_stride,
                           *y_ptr2 = Y + (ypos + 1) * Y_stride,
                           *u_ptr = U + (ypos / uv_y_sample_interval) * UV_stride,
@@ -295,12 +297,14 @@ void LSX_FUNCTION_NAME(uint32_t width, uint32_t height, const uint8_t *Y,
             uint8_t *rgb_ptr1 = RGB + ypos * RGB_stride,
                     *rgb_ptr2 = RGB + (ypos + 1) * RGB_stride;
 
-            for (xpos = 0; xpos < (width - 31); xpos += 32) {
+            for (xpos = 0; xpos < (width - 31); xpos += 32)
+            {
                 YUV2RGB_32
                 {
                     PACK_PIXEL
                     SAVE_LINE1
-                    if (uv_y_sample_interval > 1) {
+                    if (uv_y_sample_interval > 1)
+                    {
                         SAVE_LINE2
                     }
                 }
@@ -312,23 +316,26 @@ void LSX_FUNCTION_NAME(uint32_t width, uint32_t height, const uint8_t *Y,
                 rgb_ptr2 += 32 * rgb_pixel_stride;
             }
         }
-        if (uv_y_sample_interval == 2 && ypos == (height - 1)) {
+        if (uv_y_sample_interval == 2 && ypos == (height - 1))
+        {
             const uint8_t *y_ptr = Y + ypos * Y_stride,
                           *u_ptr = U + (ypos / uv_y_sample_interval) * UV_stride,
                           *v_ptr = V + (ypos / uv_y_sample_interval) * UV_stride;
-            uint8_t *rgb_ptr = RGB + ypos * RGB_stride;
+            uint8_t* rgb_ptr = RGB + ypos * RGB_stride;
             STD_FUNCTION_NAME(width, 1, y_ptr, u_ptr, v_ptr, Y_stride, UV_stride, rgb_ptr, RGB_stride, yuv_type);
         }
     }
     {
         int converted = (width & ~31);
-        if (converted != width) {
+        if (converted != width)
+        {
             const uint8_t *y_ptr = Y + converted * y_pixel_stride,
                           *u_ptr = U + converted * uv_pixel_stride / uv_x_sample_interval,
                           *v_ptr = V + converted * uv_pixel_stride / uv_x_sample_interval;
-            uint8_t *rgb_ptr = RGB + converted * rgb_pixel_stride;
+            uint8_t* rgb_ptr = RGB + converted * rgb_pixel_stride;
 
-            STD_FUNCTION_NAME(width - converted, height, y_ptr, u_ptr, v_ptr, Y_stride, UV_stride, rgb_ptr, RGB_stride, yuv_type);
+            STD_FUNCTION_NAME(width - converted, height, y_ptr, u_ptr, v_ptr, Y_stride, UV_stride, rgb_ptr, RGB_stride,
+                              yuv_type);
         }
     }
 }

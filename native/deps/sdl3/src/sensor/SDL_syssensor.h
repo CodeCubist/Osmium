@@ -33,21 +33,21 @@
 struct SDL_Sensor
 {
     SDL_SensorID instance_id _guarded; // Device instance, monotonically increasing from 0
-    char *name _guarded;               // Sensor name - system dependent
-    SDL_SensorType type _guarded;      // Type of the sensor
-    int non_portable_type _guarded;    // Platform dependent type of the sensor
+    char* name _guarded; // Sensor name - system dependent
+    SDL_SensorType type _guarded; // Type of the sensor
+    int non_portable_type _guarded; // Platform dependent type of the sensor
 
     float data[16] _guarded; // The current state of the sensor
 
-    struct SDL_SensorDriver *driver _guarded;
+    struct SDL_SensorDriver* driver _guarded;
 
-    struct sensor_hwdata *hwdata _guarded; // Driver dependent information
+    struct sensor_hwdata* hwdata _guarded; // Driver dependent information
 
     SDL_PropertiesID props _guarded;
 
     int ref_count _guarded; // Reference count for multiple opens
 
-    struct SDL_Sensor *next _guarded; // pointer to next sensor we have allocated
+    struct SDL_Sensor* next _guarded; // pointer to next sensor we have allocated
 };
 
 #undef _guarded
@@ -67,7 +67,7 @@ typedef struct SDL_SensorDriver
     void (*Detect)(void);
 
     // Function to get the device-dependent name of a sensor
-    const char *(*GetDeviceName)(int device_index);
+    const char*(*GetDeviceName)(int device_index);
 
     // Function to get the type of a sensor
     SDL_SensorType (*GetDeviceType)(int device_index);
@@ -82,21 +82,20 @@ typedef struct SDL_SensorDriver
        The sensor to open is specified by the device index.
        It returns 0, or -1 if there is an error.
      */
-    bool (*Open)(SDL_Sensor *sensor, int device_index);
+    bool (*Open)(SDL_Sensor* sensor, int device_index);
 
     /* Function to update the state of a sensor - called as a device poll.
      * This function shouldn't update the sensor structure directly,
      * but instead should call SDL_SendSensorUpdate() to deliver events
      * and update sensor device state.
      */
-    void (*Update)(SDL_Sensor *sensor);
+    void (*Update)(SDL_Sensor* sensor);
 
     // Function to close a sensor after use
-    void (*Close)(SDL_Sensor *sensor);
+    void (*Close)(SDL_Sensor* sensor);
 
     // Function to perform any system-specific sensor related cleanup
     void (*Quit)(void);
-
 } SDL_SensorDriver;
 
 // The available sensor drivers

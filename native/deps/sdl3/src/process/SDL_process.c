@@ -23,17 +23,19 @@
 #include "SDL_sysprocess.h"
 
 
-SDL_Process *SDL_CreateProcess(const char *const *args, bool pipe_stdio)
+SDL_Process* SDL_CreateProcess(const char* const * args, bool pipe_stdio)
 {
-    CHECK_PARAM(!args || !args[0] || !args[0][0]) {
+    CHECK_PARAM(!args || !args[0] || !args[0][0])
+    {
         SDL_InvalidParamError("args");
         return NULL;
     }
 
-    SDL_Process *process;
+    SDL_Process* process;
     SDL_PropertiesID props = SDL_CreateProperties();
-    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void *)args);
-    if (pipe_stdio) {
+    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void*)args);
+    if (pipe_stdio)
+    {
         SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDIN_NUMBER, SDL_PROCESS_STDIO_APP);
         SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER, SDL_PROCESS_STDIO_APP);
     }
@@ -42,36 +44,42 @@ SDL_Process *SDL_CreateProcess(const char *const *args, bool pipe_stdio)
     return process;
 }
 
-SDL_Process *SDL_CreateProcessWithProperties(SDL_PropertiesID props)
+SDL_Process* SDL_CreateProcessWithProperties(SDL_PropertiesID props)
 {
-    const char *const *args = SDL_GetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, NULL);
+    const char* const * args = SDL_GetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, NULL);
 #if defined(SDL_PROCESS_WINDOWS)
-    const char *cmdline = SDL_GetStringProperty(props, SDL_PROP_PROCESS_CREATE_CMDLINE_STRING, NULL);
-    CHECK_PARAM((!args || !args[0] || !args[0][0]) && (!cmdline || !cmdline[0])) {
-        SDL_SetError("Either SDL_PROP_PROCESS_CREATE_ARGS_POINTER or SDL_PROP_PROCESS_CREATE_CMDLINE_STRING must be valid");
+    const char* cmdline = SDL_GetStringProperty(props, SDL_PROP_PROCESS_CREATE_CMDLINE_STRING, NULL);
+    CHECK_PARAM((!args || !args[0] || !args[0][0]) && (!cmdline || !cmdline[0]))
+    {
+        SDL_SetError(
+            "Either SDL_PROP_PROCESS_CREATE_ARGS_POINTER or SDL_PROP_PROCESS_CREATE_CMDLINE_STRING must be valid");
         return NULL;
     }
 #else
-    CHECK_PARAM(!args || !args[0] || !args[0][0]) {
+    CHECK_PARAM(!args || !args[0] || !args[0][0])
+    {
         SDL_InvalidParamError("SDL_PROP_PROCESS_CREATE_ARGS_POINTER");
         return NULL;
     }
 #endif
 
-    SDL_Process *process = (SDL_Process *)SDL_calloc(1, sizeof(*process));
-    if (!process) {
+    SDL_Process* process = (SDL_Process*)SDL_calloc(1, sizeof(*process));
+    if (!process)
+    {
         return NULL;
     }
     process->background = SDL_GetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, false);
 
     process->props = SDL_CreateProperties();
-    if (!process->props) {
+    if (!process->props)
+    {
         SDL_DestroyProcess(process);
         return NULL;
     }
     SDL_SetBooleanProperty(process->props, SDL_PROP_PROCESS_BACKGROUND_BOOLEAN, process->background);
 
-    if (!SDL_SYS_CreateProcessWithProperties(process, props)) {
+    if (!SDL_SYS_CreateProcessWithProperties(process, props))
+    {
         SDL_DestroyProcess(process);
         return NULL;
     }
@@ -79,32 +87,37 @@ SDL_Process *SDL_CreateProcessWithProperties(SDL_PropertiesID props)
     return process;
 }
 
-SDL_PropertiesID SDL_GetProcessProperties(SDL_Process *process)
+SDL_PropertiesID SDL_GetProcessProperties(SDL_Process* process)
 {
-    CHECK_PARAM(!process) {
+    CHECK_PARAM(!process)
+    {
         return SDL_InvalidParamError("process");
     }
     return process->props;
 }
 
-void *SDL_ReadProcess(SDL_Process *process, size_t *datasize, int *exitcode)
+void* SDL_ReadProcess(SDL_Process* process, size_t* datasize, int* exitcode)
 {
-    void *result;
+    void* result;
 
-    if (datasize) {
+    if (datasize)
+    {
         *datasize = 0;
     }
-    if (exitcode) {
+    if (exitcode)
+    {
         *exitcode = -1;
     }
 
-    CHECK_PARAM(!process) {
+    CHECK_PARAM(!process)
+    {
         SDL_InvalidParamError("process");
         return NULL;
     }
 
-    SDL_IOStream *io = (SDL_IOStream *)SDL_GetPointerProperty(process->props, SDL_PROP_PROCESS_STDOUT_POINTER, NULL);
-    if (!io) {
+    SDL_IOStream* io = (SDL_IOStream*)SDL_GetPointerProperty(process->props, SDL_PROP_PROCESS_STDOUT_POINTER, NULL);
+    if (!io)
+    {
         SDL_SetError("Process not created with I/O enabled");
         return NULL;
     }
@@ -116,15 +129,17 @@ void *SDL_ReadProcess(SDL_Process *process, size_t *datasize, int *exitcode)
     return result;
 }
 
-SDL_IOStream *SDL_GetProcessInput(SDL_Process *process)
+SDL_IOStream* SDL_GetProcessInput(SDL_Process* process)
 {
-    CHECK_PARAM(!process) {
+    CHECK_PARAM(!process)
+    {
         SDL_InvalidParamError("process");
         return NULL;
     }
 
-    SDL_IOStream *io = (SDL_IOStream *)SDL_GetPointerProperty(process->props, SDL_PROP_PROCESS_STDIN_POINTER, NULL);
-    if (!io) {
+    SDL_IOStream* io = (SDL_IOStream*)SDL_GetPointerProperty(process->props, SDL_PROP_PROCESS_STDIN_POINTER, NULL);
+    if (!io)
+    {
         SDL_SetError("Process not created with standard input available");
         return NULL;
     }
@@ -132,15 +147,17 @@ SDL_IOStream *SDL_GetProcessInput(SDL_Process *process)
     return io;
 }
 
-SDL_IOStream *SDL_GetProcessOutput(SDL_Process *process)
+SDL_IOStream* SDL_GetProcessOutput(SDL_Process* process)
 {
-    CHECK_PARAM(!process) {
+    CHECK_PARAM(!process)
+    {
         SDL_InvalidParamError("process");
         return NULL;
     }
 
-    SDL_IOStream *io = (SDL_IOStream *)SDL_GetPointerProperty(process->props, SDL_PROP_PROCESS_STDOUT_POINTER, NULL);
-    if (!io) {
+    SDL_IOStream* io = (SDL_IOStream*)SDL_GetPointerProperty(process->props, SDL_PROP_PROCESS_STDOUT_POINTER, NULL);
+    if (!io)
+    {
         SDL_SetError("Process not created with standard output available");
         return NULL;
     }
@@ -148,36 +165,44 @@ SDL_IOStream *SDL_GetProcessOutput(SDL_Process *process)
     return io;
 }
 
-bool SDL_KillProcess(SDL_Process *process, bool force)
+bool SDL_KillProcess(SDL_Process* process, bool force)
 {
-    CHECK_PARAM(!process) {
+    CHECK_PARAM(!process)
+    {
         return SDL_InvalidParamError("process");
     }
 
-    if (!process->alive) {
+    if (!process->alive)
+    {
         return SDL_SetError("Process isn't running");
     }
 
     return SDL_SYS_KillProcess(process, force);
 }
 
-bool SDL_WaitProcess(SDL_Process *process, bool block, int *exitcode)
+bool SDL_WaitProcess(SDL_Process* process, bool block, int* exitcode)
 {
-    CHECK_PARAM(!process) {
+    CHECK_PARAM(!process)
+    {
         return SDL_InvalidParamError("process");
     }
 
-    if (!process->alive) {
-        if (exitcode) {
+    if (!process->alive)
+    {
+        if (exitcode)
+        {
             *exitcode = process->exitcode;
         }
         return true;
     }
 
-    if (SDL_SYS_WaitProcess(process, block, &process->exitcode)) {
+    if (SDL_SYS_WaitProcess(process, block, &process->exitcode))
+    {
         process->alive = false;
-        if (exitcode) {
-            if (process->background) {
+        if (exitcode)
+        {
+            if (process->background)
+            {
                 process->exitcode = 0;
             }
             *exitcode = process->exitcode;
@@ -187,14 +212,16 @@ bool SDL_WaitProcess(SDL_Process *process, bool block, int *exitcode)
     return false;
 }
 
-void SDL_DestroyProcess(SDL_Process *process)
+void SDL_DestroyProcess(SDL_Process* process)
 {
-    if (!process) {
+    if (!process)
+    {
         return;
     }
 
     // Check to see if the process has exited, will reap zombies on POSIX platforms
-    if (process->alive) {
+    if (process->alive)
+    {
         SDL_WaitProcess(process, false, NULL);
     }
 

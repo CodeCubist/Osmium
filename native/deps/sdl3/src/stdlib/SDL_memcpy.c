@@ -27,7 +27,7 @@
 #if SDL_DYNAMIC_API
 #define SDL_memcpy SDL_memcpy_REAL
 #endif
-void *SDL_memcpy(SDL_OUT_BYTECAP(len) void *dst, SDL_IN_BYTECAP(len) const void *src, size_t len)
+void* SDL_memcpy(SDL_OUT_BYTECAP(len) void* dst, SDL_IN_BYTECAP(len) const void* src, size_t len)
 {
 #if defined(__GNUC__) && (defined(HAVE_LIBC) && HAVE_LIBC)
     /* Presumably this is well tuned for speed.
@@ -44,29 +44,35 @@ void *SDL_memcpy(SDL_OUT_BYTECAP(len) void *dst, SDL_IN_BYTECAP(len) const void 
        using Uint32* pointers, so we need to make sure the pointers are
        aligned before we loop using them.
      */
-    if (((uintptr_t)src & 0x3) || ((uintptr_t)dst & 0x3)) {
+    if (((uintptr_t)src & 0x3) || ((uintptr_t)dst & 0x3))
+    {
         // Do an unaligned byte copy
-        Uint8 *srcp1 = (Uint8 *)src;
-        Uint8 *dstp1 = (Uint8 *)dst;
+        Uint8* srcp1 = (Uint8*)src;
+        Uint8* dstp1 = (Uint8*)dst;
 
-        while (len--) {
+        while (len--)
+        {
             *dstp1++ = *srcp1++;
         }
-    } else {
+    }
+    else
+    {
         size_t left = (len % 4);
         Uint32 *srcp4, *dstp4;
         Uint8 *srcp1, *dstp1;
 
-        srcp4 = (Uint32 *)src;
-        dstp4 = (Uint32 *)dst;
+        srcp4 = (Uint32*)src;
+        dstp4 = (Uint32*)dst;
         len /= 4;
-        while (len--) {
+        while (len--)
+        {
             *dstp4++ = *srcp4++;
         }
 
-        srcp1 = (Uint8 *)srcp4;
-        dstp1 = (Uint8 *)dstp4;
-        switch (left) {
+        srcp1 = (Uint8*)srcp4;
+        dstp1 = (Uint8*)dstp4;
+        switch (left)
+        {
         case 3:
             *dstp1++ = *srcp1++;
             SDL_FALLTHROUGH;
@@ -85,7 +91,7 @@ void *SDL_memcpy(SDL_OUT_BYTECAP(len) void *dst, SDL_IN_BYTECAP(len) const void 
    We will provide our own implementation if we're not building with a C runtime. */
 #ifndef HAVE_LIBC
 // NOLINTNEXTLINE(readability-redundant-declaration)
-extern void *memcpy(void *dst, const void *src, size_t len);
+extern void* memcpy(void* dst, const void* src, size_t len);
 #if defined(_MSC_VER) && !defined(__INTEL_LLVM_COMPILER)
 #pragma intrinsic(memcpy)
 #endif
@@ -94,7 +100,7 @@ extern void *memcpy(void *dst, const void *src, size_t len);
 #pragma function(memcpy)
 #endif
 // NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name)
-void *memcpy(void *dst, const void *src, size_t len)
+void* memcpy(void* dst, const void* src, size_t len)
 {
     return SDL_memcpy(dst, src, len);
 }

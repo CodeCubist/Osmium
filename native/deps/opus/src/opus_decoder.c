@@ -1491,6 +1491,7 @@ int opus_dred_decoder_ctl(OpusDREDDecoder* dred_dec, int request, ...)
     switch (request)
     {
  
+
 # ifdef USE_WEIGHTS_FILE
 case OPUS_SET_DNN_BLOB_REQUEST:
     {

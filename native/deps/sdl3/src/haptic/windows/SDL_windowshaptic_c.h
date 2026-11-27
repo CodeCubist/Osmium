@@ -31,6 +31,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /*
@@ -41,10 +42,10 @@ struct haptic_hwdata
 #ifdef SDL_HAPTIC_DINPUT
     LPDIRECTINPUTDEVICE8 device;
 #endif
-    DWORD axes[3];    // Axes to use.
+    DWORD axes[3]; // Axes to use.
     bool is_joystick; // Device is loaded as joystick.
-    SDL_Thread *thread;
-    SDL_Mutex *mutex;
+    SDL_Thread* thread;
+    SDL_Mutex* mutex;
     Uint64 stopTicks;
     SDL_AtomicInt stopThread;
 };
@@ -66,19 +67,19 @@ struct haptic_hweffect
 typedef struct SDL_hapticlist_item
 {
     SDL_HapticID instance_id;
-    char *name;
-    SDL_Haptic *haptic;
+    char* name;
+    SDL_Haptic* haptic;
 #ifdef SDL_HAPTIC_DINPUT
     DIDEVICEINSTANCE instance;
     DIDEVCAPS capabilities;
 #endif
-    struct SDL_hapticlist_item *next;
+    struct SDL_hapticlist_item* next;
 } SDL_hapticlist_item;
 
-extern SDL_hapticlist_item *SDL_hapticlist;
+extern SDL_hapticlist_item* SDL_hapticlist;
 
-extern bool SDL_SYS_AddHapticDevice(SDL_hapticlist_item *item);
-extern bool SDL_SYS_RemoveHapticDevice(SDL_hapticlist_item *prev, SDL_hapticlist_item *item);
+extern bool SDL_SYS_AddHapticDevice(SDL_hapticlist_item* item);
+extern bool SDL_SYS_RemoveHapticDevice(SDL_hapticlist_item* prev, SDL_hapticlist_item* item);
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

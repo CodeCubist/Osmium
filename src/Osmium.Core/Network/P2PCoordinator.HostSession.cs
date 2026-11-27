@@ -89,6 +89,7 @@ public sealed partial class P2PCoordinator : IDisposable
                 : new byte[32];
             byte[]? aesKey = null;
             IntPtr transport = IntPtr.Zero;
+            Task<(IntPtr Handle, string CandidatesJson)>? preTransportTask = null;
             CloudRelayTransport? hostRelay = null;
             WebRtcPeerTransport? hostWebRtc = null;
             bool startedHost = false;
@@ -145,6 +146,7 @@ public sealed partial class P2PCoordinator : IDisposable
                         return;
                     }
                 }
+
                 rtc.AddRemoteIceCandidate(ice.Candidate, ice.SdpMid, ice.SdpMLineIndex);
             }
 
@@ -167,6 +169,15 @@ public sealed partial class P2PCoordinator : IDisposable
                     Convert.ToBase64String(hostPubBytes),
                     Convert.ToBase64String(challengeNonce),
                     hostEncrypt);
+
+                var (preStunHost, preStunPort) = GetStunEndpoint();
+                preTransportTask = Task.Run(() =>
+                {
+                    var sb = new StringBuilder(4096);
+                    int ok = NativeMethods.Osmium_CreateTransport(preStunHost, preStunPort, out IntPtr h, sb,
+                        sb.Capacity);
+                    return ok != 0 && h != IntPtr.Zero ? (h, sb.ToString()) : (IntPtr.Zero, string.Empty);
+                });
 
                 ConnectAuthEventArgs authMsg;
                 using (var authTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
@@ -234,10 +245,25 @@ public sealed partial class P2PCoordinator : IDisposable
                 }
 
                 var (stunHost, stunPort) = GetStunEndpoint();
-                var candSb = new StringBuilder(4096);
-                if (NativeMethods.Osmium_CreateTransport(stunHost, stunPort, out transport, candSb, candSb.Capacity) ==
-                    0 ||
-                    transport == IntPtr.Zero)
+                string preCandidatesJson = string.Empty;
+                if (preTransportTask != null)
+                {
+                    var pre = await preTransportTask;
+                    preTransportTask = null;
+                    transport = pre.Handle;
+                    preCandidatesJson = pre.CandidatesJson;
+                }
+                else
+                {
+                    var candSb = new StringBuilder(4096);
+                    if (NativeMethods.Osmium_CreateTransport(stunHost, stunPort, out transport, candSb,
+                            candSb.Capacity) != 0 && transport != IntPtr.Zero)
+                    {
+                        preCandidatesJson = candSb.ToString();
+                    }
+                }
+
+                if (transport == IntPtr.Zero)
                 {
                     await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "TRANSPORT_ERROR",
                         "Host failed to bind UDP socket");
@@ -249,7 +275,9 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     bridgeReadyReached = true;
                     aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
-                    string rtcStunHost = !string.IsNullOrWhiteSpace(versionRes.StunHost) ? versionRes.StunHost : stunHost;
+                    string rtcStunHost = !string.IsNullOrWhiteSpace(versionRes.StunHost)
+                        ? versionRes.StunHost
+                        : stunHost;
                     ushort rtcStunPort = versionRes.StunPort > 0 ? versionRes.StunPort : stunPort;
 
                     var rtc = new WebRtcPeerTransport(transport, _signaling, args.SessionId, _log);
@@ -316,6 +344,7 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                     }
+
                     NativeMethods.Osmium_SetTransportKcpEnabled(transport, 0);
 
                     int rtcAuthOk = NativeMethods.Osmium_WaitClientAuthHost(
@@ -333,14 +362,15 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         _log.Warn(
                             $"Rejected incoming WebRTC connection from {args.ClientDeviceId}: tunnel auth failed or timed out");
-                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "INVALID_ACCESS_CODE",
+                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId,
+                            "INVALID_ACCESS_CODE",
                             "Tunnel access code verification failed");
                         return;
                     }
                 }
                 else
                 {
-                    string localCandidatesJson = candSb.ToString();
+                    string localCandidatesJson = preCandidatesJson;
                     await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
 
                     BridgeReadyEventArgs bridge;
@@ -351,7 +381,8 @@ public sealed partial class P2PCoordinator : IDisposable
                         {
                             while (!bridgeReadyTcs.Task.IsCompleted && !bridgeTimeout.IsCancellationRequested)
                             {
-                                using var retryDelayCts = CancellationTokenSource.CreateLinkedTokenSource(bridgeTimeout.Token);
+                                using var retryDelayCts =
+                                    CancellationTokenSource.CreateLinkedTokenSource(bridgeTimeout.Token);
                                 var retryDelay = Task.Delay(TimeSpan.FromSeconds(4), retryDelayCts.Token);
                                 var step = await Task.WhenAny(bridgeReadyTcs.Task, retryDelay);
                                 if (step == bridgeReadyTcs.Task)
@@ -378,7 +409,7 @@ public sealed partial class P2PCoordinator : IDisposable
 
                     aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
 
-                    const int maxDirectAttempts = 3;
+                    const int maxDirectAttempts = 2;
                     int punchOk = 0;
                     for (int attempt = 1; attempt <= maxDirectAttempts; attempt++)
                     {
@@ -400,7 +431,7 @@ public sealed partial class P2PCoordinator : IDisposable
                             sessionToken,
                             2,
                             bridge.CandidatesJson,
-                            2500,
+                            1400,
                             out transportRoute,
                             epSb,
                             epSb.Capacity));
@@ -447,9 +478,11 @@ public sealed partial class P2PCoordinator : IDisposable
                         hostRelay?.Dispose();
                         string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
                         string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
-                        var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
+                        var relayUri =
+                            CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
                         hostRelay = new CloudRelayTransport(transport, relayLabel, _log);
-                        bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 12000, CancellationToken.None);
+                        bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 12000,
+                            CancellationToken.None);
                         if (!relayOk)
                         {
                             hostRelay.Dispose();
@@ -477,7 +510,9 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         NativeMethods.Osmium_SetTransportKey(transport, aesKey);
                     }
-                    NativeMethods.Osmium_SetTransportKcpEnabled(transport, (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
+
+                    NativeMethods.Osmium_SetTransportKcpEnabled(transport,
+                        (bridge.KcpEnabled && transportRoute != 4) ? 1 : 0);
 
                     int hostAuthTimeoutMs = transportRoute == 4
                         ? 12000
@@ -511,7 +546,8 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         _log.Warn(
                             $"Rejected incoming connection from {args.ClientDeviceId}: tunnel auth failed or timed out");
-                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "INVALID_ACCESS_CODE",
+                        await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId,
+                            "INVALID_ACCESS_CODE",
                             "Tunnel access code verification failed");
                         return;
                     }
@@ -676,7 +712,8 @@ public sealed partial class P2PCoordinator : IDisposable
                     OnEnded = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostEndedDelegate),
                     OnLog = IntPtr.Zero,
                     OnConfirmDriverAction =
-                        System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostDriverConfirmDelegate),
+                        System.Runtime.InteropServices.Marshal
+                            .GetFunctionPointerForDelegate(_hostDriverConfirmDelegate),
                     OnAuxData =
                         System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hostAuxDataDelegate)
                 };
@@ -762,7 +799,8 @@ public sealed partial class P2PCoordinator : IDisposable
                     _hostSessionEstablished = false;
                     _pendingHostSessionInfo = activeInfo;
                     _pendingHostRefreshTempCode = !args.SameAccountVerified &&
-                        _settings.Identity.RefreshPolicy != AccessCodeRefreshPolicy.ManualOnly;
+                                                  _settings.Identity.RefreshPolicy !=
+                                                  AccessCodeRefreshPolicy.ManualOnly;
                     _hostConfirmTimeoutCts?.Cancel();
                     _hostConfirmTimeoutCts?.Dispose();
                     _hostConfirmTimeoutCts = confirmWatchdogCts;
@@ -785,6 +823,7 @@ public sealed partial class P2PCoordinator : IDisposable
                                            !_hostSessionEstablished &&
                                            string.Equals(_activeHostSessionId, confirmSid, StringComparison.Ordinal);
                         }
+
                         if (stillPending)
                         {
                             await _signaling.SendSessionConfirmAsync(confirmSid);
@@ -798,9 +837,11 @@ public sealed partial class P2PCoordinator : IDisposable
                                        !_hostSessionEstablished &&
                                        string.Equals(_activeHostSessionId, confirmSid, StringComparison.Ordinal);
                         }
+
                         if (timedOut)
                         {
-                            _log.Warn($"Host session {confirmSid} timed out waiting for controller mutual confirmation");
+                            _log.Warn(
+                                $"Host session {confirmSid} timed out waiting for controller mutual confirmation");
                             StopHostSession(notifyPeer: true, notifyEndedReason: "Mutual confirmation timed out");
                         }
                     }
@@ -829,6 +870,19 @@ public sealed partial class P2PCoordinator : IDisposable
                     {
                         _ = _signaling.SendSessionEndAsync(args.SessionId, args.ClientDeviceId,
                             "Host failed to establish session", role: "host", failed: true);
+                    }
+
+                    if (preTransportTask != null)
+                    {
+                        var orphanTask = preTransportTask;
+                        preTransportTask = null;
+                        _ = orphanTask.ContinueWith(t =>
+                        {
+                            if (t.IsCompletedSuccessfully && t.Result.Handle != IntPtr.Zero)
+                            {
+                                NativeMethods.Osmium_DestroyTransport(t.Result.Handle);
+                            }
+                        }, TaskScheduler.Default);
                     }
 
                     if (transport != IntPtr.Zero)
@@ -879,7 +933,14 @@ public sealed partial class P2PCoordinator : IDisposable
         {
             if (confirmCts != null)
             {
-                try { confirmCts.Cancel(); } catch { }
+                try
+                {
+                    confirmCts.Cancel();
+                }
+                catch
+                {
+                }
+
                 confirmCts.Dispose();
             }
 
@@ -1003,7 +1064,8 @@ public sealed partial class P2PCoordinator : IDisposable
                 long writtenSeq = Volatile.Read(ref _lastHostWrittenClipboardSeq);
                 if (writtenSeq >= 0 && curSeq == (uint)writtenSeq) continue;
 
-                if (_hostViewOnlySession || !_hostRemoteFileTransferEnabled || !_settings.Settings.HostAllowFileTransfer)
+                if (_hostViewOnlySession || !_hostRemoteFileTransferEnabled ||
+                    !_settings.Settings.HostAllowFileTransfer)
                     continue;
 
                 var dir = (FileTransferDirection)_hostRemoteFileTransferDirection;
@@ -1085,7 +1147,14 @@ public sealed partial class P2PCoordinator : IDisposable
 
         if (confirmCts != null)
         {
-            try { confirmCts.Cancel(); } catch { }
+            try
+            {
+                confirmCts.Cancel();
+            }
+            catch
+            {
+            }
+
             confirmCts.Dispose();
         }
 

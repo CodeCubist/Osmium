@@ -3,7 +3,7 @@ using System.Text;
 namespace Osmium.Core.Helpers;
 
 /// <summary>
-/// Self-contained ISO/IEC 18004 QR Code encoder (Byte mode, Error Correction Level M, Versions 1-20).
+///     Self-contained ISO/IEC 18004 QR Code encoder (Byte mode, Error Correction Level M, Versions 1-20).
 /// </summary>
 public static class QrCodeEncoder
 {
@@ -11,7 +11,7 @@ public static class QrCodeEncoder
 
     private static readonly int[] EcCodewordsPerBlockM =
     [
-        0,  // 1-indexed
+        0, // 1-indexed
         10, 16, 26, 18, 24, 16, 18, 22, 22, 26,
         30, 22, 22, 24, 24, 28, 28, 26, 26, 26
     ];

@@ -23,24 +23,28 @@
 #include "SDL_eventwatch_c.h"
 
 
-bool SDL_InitEventWatchList(SDL_EventWatchList *list)
+bool SDL_InitEventWatchList(SDL_EventWatchList* list)
 {
-    if (list->lock == NULL) {
+    if (list->lock == NULL)
+    {
         list->lock = SDL_CreateMutex();
-        if (list->lock == NULL) {
+        if (list->lock == NULL)
+        {
             return false;
         }
     }
     return true;
 }
 
-void SDL_QuitEventWatchList(SDL_EventWatchList *list)
+void SDL_QuitEventWatchList(SDL_EventWatchList* list)
 {
-    if (list->lock) {
+    if (list->lock)
+    {
         SDL_DestroyMutex(list->lock);
         list->lock = NULL;
     }
-    if (list->watchers) {
+    if (list->watchers)
+    {
         SDL_free(list->watchers);
         list->watchers = NULL;
         list->count = 0;
@@ -48,11 +52,12 @@ void SDL_QuitEventWatchList(SDL_EventWatchList *list)
     SDL_zero(list->filter);
 }
 
-bool SDL_DispatchEventWatchList(SDL_EventWatchList *list, SDL_Event *event)
+bool SDL_DispatchEventWatchList(SDL_EventWatchList* list, SDL_Event* event)
 {
-    SDL_EventWatcher *filter = &list->filter;
+    SDL_EventWatcher* filter = &list->filter;
 
-    if (!filter->callback && list->count == 0) {
+    if (!filter->callback && list->count == 0)
+    {
         return true;
     }
 
@@ -61,25 +66,33 @@ bool SDL_DispatchEventWatchList(SDL_EventWatchList *list, SDL_Event *event)
         // Make sure we only dispatch the current watcher list
         int i, count = list->count;
 
-        if (filter->callback && !filter->callback(filter->userdata, event)) {
+        if (filter->callback && !filter->callback(filter->userdata, event))
+        {
             SDL_UnlockMutex(list->lock);
             return false;
         }
 
         list->dispatching = true;
-        for (i = 0; i < count; ++i) {
-            if (!list->watchers[i].removed) {
+        for (i = 0; i < count; ++i)
+        {
+            if (!list->watchers[i].removed)
+            {
                 list->watchers[i].callback(list->watchers[i].userdata, event);
             }
         }
         list->dispatching = false;
 
-        if (list->removed) {
-            for (i = list->count; i--;) {
-                if (list->watchers[i].removed) {
+        if (list->removed)
+        {
+            for (i = list->count; i--;)
+            {
+                if (list->watchers[i].removed)
+                {
                     --list->count;
-                    if (i < list->count) {
-                        SDL_memmove(&list->watchers[i], &list->watchers[i + 1], (list->count - i) * sizeof(list->watchers[i]));
+                    if (i < list->count)
+                    {
+                        SDL_memmove(&list->watchers[i], &list->watchers[i + 1],
+                                    (list->count - i) * sizeof(list->watchers[i]));
                     }
                 }
             }
@@ -91,17 +104,18 @@ bool SDL_DispatchEventWatchList(SDL_EventWatchList *list, SDL_Event *event)
     return true;
 }
 
-bool SDL_AddEventWatchList(SDL_EventWatchList *list, SDL_EventFilter filter, void *userdata)
+bool SDL_AddEventWatchList(SDL_EventWatchList* list, SDL_EventFilter filter, void* userdata)
 {
     bool result = true;
 
     SDL_LockMutex(list->lock);
     {
-        SDL_EventWatcher *watchers;
+        SDL_EventWatcher* watchers;
 
-        watchers = (SDL_EventWatcher *)SDL_realloc(list->watchers, (list->count + 1) * sizeof(*watchers));
-        if (watchers) {
-            SDL_EventWatcher *watcher;
+        watchers = (SDL_EventWatcher*)SDL_realloc(list->watchers, (list->count + 1) * sizeof(*watchers));
+        if (watchers)
+        {
+            SDL_EventWatcher* watcher;
 
             list->watchers = watchers;
             watcher = &list->watchers[list->count];
@@ -109,7 +123,9 @@ bool SDL_AddEventWatchList(SDL_EventWatchList *list, SDL_EventFilter filter, voi
             watcher->userdata = userdata;
             watcher->removed = false;
             ++list->count;
-        } else {
+        }
+        else
+        {
             result = false;
         }
     }
@@ -118,21 +134,28 @@ bool SDL_AddEventWatchList(SDL_EventWatchList *list, SDL_EventFilter filter, voi
     return result;
 }
 
-void SDL_RemoveEventWatchList(SDL_EventWatchList *list, SDL_EventFilter filter, void *userdata)
+void SDL_RemoveEventWatchList(SDL_EventWatchList* list, SDL_EventFilter filter, void* userdata)
 {
     SDL_LockMutex(list->lock);
     {
         int i;
 
-        for (i = 0; i < list->count; ++i) {
-            if (list->watchers[i].callback == filter && list->watchers[i].userdata == userdata) {
-                if (list->dispatching) {
+        for (i = 0; i < list->count; ++i)
+        {
+            if (list->watchers[i].callback == filter && list->watchers[i].userdata == userdata)
+            {
+                if (list->dispatching)
+                {
                     list->watchers[i].removed = true;
                     list->removed = true;
-                } else {
+                }
+                else
+                {
                     --list->count;
-                    if (i < list->count) {
-                        SDL_memmove(&list->watchers[i], &list->watchers[i + 1], (list->count - i) * sizeof(list->watchers[i]));
+                    if (i < list->count)
+                    {
+                        SDL_memmove(&list->watchers[i], &list->watchers[i + 1],
+                                    (list->count - i) * sizeof(list->watchers[i]));
                     }
                 }
                 break;

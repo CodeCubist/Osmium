@@ -216,8 +216,8 @@ typedef enum SDL_Scancode
                                         *   LESS-THAN SIGN and GREATER-THAN SIGN
                                         *   in a Swiss German, German, or French
                                         *   layout. */
-    SDL_SCANCODE_APPLICATION = 101,    /**< windows contextual menu, compose */
-    SDL_SCANCODE_POWER = 102,          /**< The USB document says this is a status flag,
+    SDL_SCANCODE_APPLICATION = 101, /**< windows contextual menu, compose */
+    SDL_SCANCODE_POWER = 102, /**< The USB document says this is a status flag,
                                *   not a physical key - but some Mac keyboards
                                *   do have a power key. */
     SDL_SCANCODE_KP_EQUALS = 103,
@@ -237,13 +237,13 @@ typedef enum SDL_Scancode
     SDL_SCANCODE_HELP = 117, /**< AL Integrated Help Center */
     SDL_SCANCODE_MENU = 118, /**< Menu (show menu) */
     SDL_SCANCODE_SELECT = 119,
-    SDL_SCANCODE_STOP = 120,  /**< AC Stop */
+    SDL_SCANCODE_STOP = 120, /**< AC Stop */
     SDL_SCANCODE_AGAIN = 121, /**< AC Redo/Repeat */
-    SDL_SCANCODE_UNDO = 122,  /**< AC Undo */
-    SDL_SCANCODE_CUT = 123,   /**< AC Cut */
-    SDL_SCANCODE_COPY = 124,  /**< AC Copy */
+    SDL_SCANCODE_UNDO = 122, /**< AC Undo */
+    SDL_SCANCODE_CUT = 123, /**< AC Cut */
+    SDL_SCANCODE_COPY = 124, /**< AC Copy */
     SDL_SCANCODE_PASTE = 125, /**< AC Paste */
-    SDL_SCANCODE_FIND = 126,  /**< AC Find */
+    SDL_SCANCODE_FIND = 126, /**< AC Find */
     SDL_SCANCODE_MUTE = 127,
     SDL_SCANCODE_VOLUMEUP = 128,
     SDL_SCANCODE_VOLUMEDOWN = 129,
@@ -363,37 +363,37 @@ typedef enum SDL_Scancode
     /* @{ */
 
     SDL_SCANCODE_SLEEP = 258, /**< Sleep */
-    SDL_SCANCODE_WAKE = 259,  /**< Wake */
+    SDL_SCANCODE_WAKE = 259, /**< Wake */
 
     SDL_SCANCODE_CHANNEL_INCREMENT = 260, /**< Channel Increment */
     SDL_SCANCODE_CHANNEL_DECREMENT = 261, /**< Channel Decrement */
 
-    SDL_SCANCODE_MEDIA_PLAY = 262,           /**< Play */
-    SDL_SCANCODE_MEDIA_PAUSE = 263,          /**< Pause */
-    SDL_SCANCODE_MEDIA_RECORD = 264,         /**< Record */
-    SDL_SCANCODE_MEDIA_FAST_FORWARD = 265,   /**< Fast Forward */
-    SDL_SCANCODE_MEDIA_REWIND = 266,         /**< Rewind */
-    SDL_SCANCODE_MEDIA_NEXT_TRACK = 267,     /**< Next Track */
+    SDL_SCANCODE_MEDIA_PLAY = 262, /**< Play */
+    SDL_SCANCODE_MEDIA_PAUSE = 263, /**< Pause */
+    SDL_SCANCODE_MEDIA_RECORD = 264, /**< Record */
+    SDL_SCANCODE_MEDIA_FAST_FORWARD = 265, /**< Fast Forward */
+    SDL_SCANCODE_MEDIA_REWIND = 266, /**< Rewind */
+    SDL_SCANCODE_MEDIA_NEXT_TRACK = 267, /**< Next Track */
     SDL_SCANCODE_MEDIA_PREVIOUS_TRACK = 268, /**< Previous Track */
-    SDL_SCANCODE_MEDIA_STOP = 269,           /**< Stop */
-    SDL_SCANCODE_MEDIA_EJECT = 270,          /**< Eject */
-    SDL_SCANCODE_MEDIA_PLAY_PAUSE = 271,     /**< Play / Pause */
-    SDL_SCANCODE_MEDIA_SELECT = 272,         /* Media Select */
+    SDL_SCANCODE_MEDIA_STOP = 269, /**< Stop */
+    SDL_SCANCODE_MEDIA_EJECT = 270, /**< Eject */
+    SDL_SCANCODE_MEDIA_PLAY_PAUSE = 271, /**< Play / Pause */
+    SDL_SCANCODE_MEDIA_SELECT = 272, /* Media Select */
 
-    SDL_SCANCODE_AC_NEW = 273,        /**< AC New */
-    SDL_SCANCODE_AC_OPEN = 274,       /**< AC Open */
-    SDL_SCANCODE_AC_CLOSE = 275,      /**< AC Close */
-    SDL_SCANCODE_AC_EXIT = 276,       /**< AC Exit */
-    SDL_SCANCODE_AC_SAVE = 277,       /**< AC Save */
-    SDL_SCANCODE_AC_PRINT = 278,      /**< AC Print */
+    SDL_SCANCODE_AC_NEW = 273, /**< AC New */
+    SDL_SCANCODE_AC_OPEN = 274, /**< AC Open */
+    SDL_SCANCODE_AC_CLOSE = 275, /**< AC Close */
+    SDL_SCANCODE_AC_EXIT = 276, /**< AC Exit */
+    SDL_SCANCODE_AC_SAVE = 277, /**< AC Save */
+    SDL_SCANCODE_AC_PRINT = 278, /**< AC Print */
     SDL_SCANCODE_AC_PROPERTIES = 279, /**< AC Properties */
 
-    SDL_SCANCODE_AC_SEARCH = 280,    /**< AC Search */
-    SDL_SCANCODE_AC_HOME = 281,      /**< AC Home */
-    SDL_SCANCODE_AC_BACK = 282,      /**< AC Back */
-    SDL_SCANCODE_AC_FORWARD = 283,   /**< AC Forward */
-    SDL_SCANCODE_AC_STOP = 284,      /**< AC Stop */
-    SDL_SCANCODE_AC_REFRESH = 285,   /**< AC Refresh */
+    SDL_SCANCODE_AC_SEARCH = 280, /**< AC Search */
+    SDL_SCANCODE_AC_HOME = 281, /**< AC Home */
+    SDL_SCANCODE_AC_BACK = 282, /**< AC Back */
+    SDL_SCANCODE_AC_FORWARD = 283, /**< AC Forward */
+    SDL_SCANCODE_AC_STOP = 284, /**< AC Stop */
+    SDL_SCANCODE_AC_REFRESH = 285, /**< AC Refresh */
     SDL_SCANCODE_AC_BOOKMARKS = 286, /**< AC Bookmarks */
 
     /* @} */ /* Usage page 0x0C */
@@ -406,7 +406,7 @@ typedef enum SDL_Scancode
      */
     /* @{ */
 
-    SDL_SCANCODE_SOFTLEFT = 287,  /**< Usually situated below the display on phones and
+    SDL_SCANCODE_SOFTLEFT = 287, /**< Usually situated below the display on phones and
                                       used as a multi-function feature key for selecting
                                       a software defined function shown on the bottom left
                                       of the display. */
@@ -414,8 +414,8 @@ typedef enum SDL_Scancode
                                        used as a multi-function feature key for selecting
                                        a software defined function shown on the bottom right
                                        of the display. */
-    SDL_SCANCODE_CALL = 289,      /**< Used for accepting phone calls. */
-    SDL_SCANCODE_ENDCALL = 290,   /**< Used for rejecting phone calls. */
+    SDL_SCANCODE_CALL = 289, /**< Used for accepting phone calls. */
+    SDL_SCANCODE_ENDCALL = 290, /**< Used for rejecting phone calls. */
 
     /* @} */ /* Mobile keys */
 
@@ -424,7 +424,6 @@ typedef enum SDL_Scancode
     SDL_SCANCODE_RESERVED = 400, /**< 400-500 reserved for dynamic keycodes */
 
     SDL_SCANCODE_COUNT = 512 /**< not a key, just marks the number of scancodes for array bounds */
-
 } SDL_Scancode;
 
 #endif /* SDL_scancode_h_ */

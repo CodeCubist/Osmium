@@ -45,13 +45,13 @@ SDL_HapticID SDL_SYS_HapticInstanceID(int index)
     return 0;
 }
 
-const char *SDL_SYS_HapticName(int index)
+const char* SDL_SYS_HapticName(int index)
 {
     SDL_SYS_LogicError();
     return NULL;
 }
 
-bool SDL_SYS_HapticOpen(SDL_Haptic *haptic)
+bool SDL_SYS_HapticOpen(SDL_Haptic* haptic)
 {
     return SDL_SYS_LogicError();
 }
@@ -61,22 +61,22 @@ int SDL_SYS_HapticMouse(void)
     return -1;
 }
 
-bool SDL_SYS_JoystickIsHaptic(SDL_Joystick *joystick)
+bool SDL_SYS_JoystickIsHaptic(SDL_Joystick* joystick)
 {
     return false;
 }
 
-bool SDL_SYS_HapticOpenFromJoystick(SDL_Haptic *haptic, SDL_Joystick *joystick)
+bool SDL_SYS_HapticOpenFromJoystick(SDL_Haptic* haptic, SDL_Joystick* joystick)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_JoystickSameHaptic(SDL_Haptic *haptic, SDL_Joystick *joystick)
+bool SDL_SYS_JoystickSameHaptic(SDL_Haptic* haptic, SDL_Joystick* joystick)
 {
     return false;
 }
 
-void SDL_SYS_HapticClose(SDL_Haptic *haptic)
+void SDL_SYS_HapticClose(SDL_Haptic* haptic)
 {
     return;
 }
@@ -86,64 +86,64 @@ void SDL_SYS_HapticQuit(void)
     return;
 }
 
-bool SDL_SYS_HapticNewEffect(SDL_Haptic *haptic,
-                             struct haptic_effect *effect, const SDL_HapticEffect *base)
+bool SDL_SYS_HapticNewEffect(SDL_Haptic* haptic,
+                             struct haptic_effect* effect, const SDL_HapticEffect* base)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticUpdateEffect(SDL_Haptic *haptic,
-                                struct haptic_effect *effect,
-                                const SDL_HapticEffect *data)
+bool SDL_SYS_HapticUpdateEffect(SDL_Haptic* haptic,
+                                struct haptic_effect* effect,
+                                const SDL_HapticEffect* data)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticRunEffect(SDL_Haptic *haptic, struct haptic_effect *effect,
+bool SDL_SYS_HapticRunEffect(SDL_Haptic* haptic, struct haptic_effect* effect,
                              Uint32 iterations)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticStopEffect(SDL_Haptic *haptic, struct haptic_effect *effect)
+bool SDL_SYS_HapticStopEffect(SDL_Haptic* haptic, struct haptic_effect* effect)
 {
     return SDL_SYS_LogicError();
 }
 
-void SDL_SYS_HapticDestroyEffect(SDL_Haptic *haptic, struct haptic_effect *effect)
+void SDL_SYS_HapticDestroyEffect(SDL_Haptic* haptic, struct haptic_effect* effect)
 {
     SDL_SYS_LogicError();
     return;
 }
 
-int SDL_SYS_HapticGetEffectStatus(SDL_Haptic *haptic,
-                                  struct haptic_effect *effect)
+int SDL_SYS_HapticGetEffectStatus(SDL_Haptic* haptic,
+                                  struct haptic_effect* effect)
 {
     SDL_SYS_LogicError();
     return -1;
 }
 
-bool SDL_SYS_HapticSetGain(SDL_Haptic *haptic, int gain)
+bool SDL_SYS_HapticSetGain(SDL_Haptic* haptic, int gain)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticSetAutocenter(SDL_Haptic *haptic, int autocenter)
+bool SDL_SYS_HapticSetAutocenter(SDL_Haptic* haptic, int autocenter)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticPause(SDL_Haptic *haptic)
+bool SDL_SYS_HapticPause(SDL_Haptic* haptic)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticResume(SDL_Haptic *haptic)
+bool SDL_SYS_HapticResume(SDL_Haptic* haptic)
 {
     return SDL_SYS_LogicError();
 }
 
-bool SDL_SYS_HapticStopAll(SDL_Haptic *haptic)
+bool SDL_SYS_HapticStopAll(SDL_Haptic* haptic)
 {
     return SDL_SYS_LogicError();
 }

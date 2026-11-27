@@ -37,14 +37,16 @@ static int s_HIDDLLRefCount = 0;
 
 bool WIN_LoadHIDDLL(void)
 {
-    if (s_pHIDDLL) {
+    if (s_pHIDDLL)
+    {
         SDL_assert(s_HIDDLLRefCount > 0);
         s_HIDDLLRefCount++;
         return true; // already loaded
     }
 
     s_pHIDDLL = LoadLibrary(TEXT("hid.dll"));
-    if (!s_pHIDDLL) {
+    if (!s_pHIDDLL)
+    {
         return false;
     }
 
@@ -61,7 +63,8 @@ bool WIN_LoadHIDDLL(void)
     SDL_HidP_GetData = (HidP_GetData_t)GetProcAddress(s_pHIDDLL, "HidP_GetData");
     if (!SDL_HidD_GetManufacturerString || !SDL_HidD_GetProductString ||
         !SDL_HidP_GetCaps || !SDL_HidP_GetButtonCaps ||
-        !SDL_HidP_GetValueCaps || !SDL_HidP_MaxDataListLength || !SDL_HidP_GetData) {
+        !SDL_HidP_GetValueCaps || !SDL_HidP_MaxDataListLength || !SDL_HidP_GetData)
+    {
         WIN_UnloadHIDDLL();
         return false;
     }
@@ -71,13 +74,17 @@ bool WIN_LoadHIDDLL(void)
 
 void WIN_UnloadHIDDLL(void)
 {
-    if (s_pHIDDLL) {
+    if (s_pHIDDLL)
+    {
         SDL_assert(s_HIDDLLRefCount > 0);
-        if (--s_HIDDLLRefCount == 0) {
+        if (--s_HIDDLLRefCount == 0)
+        {
             FreeLibrary(s_pHIDDLL);
             s_pHIDDLL = NULL;
         }
-    } else {
+    }
+    else
+    {
         SDL_assert(s_HIDDLLRefCount == 0);
     }
 }
@@ -89,7 +96,7 @@ void WIN_UnloadHIDDLL(void)
 #define CR_SUCCESS 0
 
 DECLARE_HANDLE(HCMNOTIFICATION);
-typedef HCMNOTIFICATION *PHCMNOTIFICATION;
+typedef HCMNOTIFICATION* PHCMNOTIFICATION;
 
 typedef enum _CM_NOTIFY_FILTER_TYPE
 {
@@ -168,12 +175,14 @@ typedef struct _CM_NOTIFY_EVENT_DATA
     } u;
 } CM_NOTIFY_EVENT_DATA, *PCM_NOTIFY_EVENT_DATA;
 
-typedef DWORD (CALLBACK *PCM_NOTIFY_CALLBACK)(HCMNOTIFICATION hNotify, PVOID Context, CM_NOTIFY_ACTION Action, PCM_NOTIFY_EVENT_DATA EventData, DWORD EventDataSize);
+typedef DWORD (CALLBACK *PCM_NOTIFY_CALLBACK)(HCMNOTIFICATION hNotify, PVOID Context, CM_NOTIFY_ACTION Action,
+                                              PCM_NOTIFY_EVENT_DATA EventData, DWORD EventDataSize);
 
-typedef DWORD (WINAPI *CM_Register_NotificationFunc)(PCM_NOTIFY_FILTER pFilter, PVOID pContext, PCM_NOTIFY_CALLBACK pCallback, PHCMNOTIFICATION pNotifyContext);
+typedef DWORD (WINAPI *CM_Register_NotificationFunc)(PCM_NOTIFY_FILTER pFilter, PVOID pContext,
+                                                     PCM_NOTIFY_CALLBACK pCallback, PHCMNOTIFICATION pNotifyContext);
 typedef DWORD (WINAPI *CM_Unregister_NotificationFunc)(HCMNOTIFICATION NotifyContext);
 
-static GUID GUID_DEVINTERFACE_HID = { 0x4D1E55B2L, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+static GUID GUID_DEVINTERFACE_HID = {0x4D1E55B2L, 0xF16F, 0x11CF, {0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30}};
 
 static int s_DeviceNotificationsRequested;
 static HMODULE cfgmgr32_lib_handle;
@@ -183,35 +192,40 @@ static HCMNOTIFICATION s_DeviceNotificationFuncHandle;
 static Uint64 s_LastDeviceNotification = 1;
 static HANDLE s_HotplugEvent = INVALID_HANDLE_VALUE;
 static SDL_AtomicInt s_HotplugRunning;
-static SDL_Thread *s_HotplugThread;
+static SDL_Thread* s_HotplugThread;
 
 #ifdef SDL_VIDEO_DRIVER_WINDOWS
 // Defined in SDL_windowsevents.c
 extern void WIN_CheckKeyboardAndMouseHotplug(bool hid_loaded);
 #endif
 
-static int SDLCALL DeviceHotplugThread(void *unused)
+static int SDLCALL DeviceHotplugThread(void* unused)
 {
     bool hid_loaded = WIN_LoadHIDDLL();
 
     // Always run the initial device detection
-    do {
+    do
+    {
 #ifdef SDL_VIDEO_DRIVER_WINDOWS
         WIN_CheckKeyboardAndMouseHotplug(hid_loaded);
 #endif
         WaitForSingleObject(s_HotplugEvent, INFINITE);
-    } while (SDL_GetAtomicInt(&s_HotplugRunning));
+    }
+    while (SDL_GetAtomicInt(&s_HotplugRunning));
 
-    if (hid_loaded) {
+    if (hid_loaded)
+    {
         WIN_UnloadHIDDLL();
     }
     return 0;
 }
 
-static DWORD CALLBACK SDL_DeviceNotificationFunc(HCMNOTIFICATION hNotify, PVOID context, CM_NOTIFY_ACTION action, PCM_NOTIFY_EVENT_DATA eventData, DWORD event_data_size)
+static DWORD CALLBACK SDL_DeviceNotificationFunc(HCMNOTIFICATION hNotify, PVOID context, CM_NOTIFY_ACTION action,
+                                                 PCM_NOTIFY_EVENT_DATA eventData, DWORD event_data_size)
 {
     if (action == CM_NOTIFY_ACTION_DEVICEINTERFACEARRIVAL ||
-        action == CM_NOTIFY_ACTION_DEVICEINTERFACEREMOVAL) {
+        action == CM_NOTIFY_ACTION_DEVICEINTERFACEREMOVAL)
+    {
         s_LastDeviceNotification = SDL_GetTicksNS();
         SetEvent(s_HotplugEvent);
     }
@@ -221,7 +235,8 @@ static DWORD CALLBACK SDL_DeviceNotificationFunc(HCMNOTIFICATION hNotify, PVOID 
 void WIN_InitDeviceNotification(void)
 {
     ++s_DeviceNotificationsRequested;
-    if (s_DeviceNotificationsRequested > 1) {
+    if (s_DeviceNotificationsRequested > 1)
+    {
         return;
     }
 
@@ -231,17 +246,23 @@ void WIN_InitDeviceNotification(void)
     s_HotplugThread = SDL_CreateThread(DeviceHotplugThread, "DeviceHotplugThread", NULL);
 
     cfgmgr32_lib_handle = LoadLibraryA("cfgmgr32.dll");
-    if (cfgmgr32_lib_handle) {
-        CM_Register_Notification = (CM_Register_NotificationFunc)GetProcAddress(cfgmgr32_lib_handle, "CM_Register_Notification");
-        CM_Unregister_Notification = (CM_Unregister_NotificationFunc)GetProcAddress(cfgmgr32_lib_handle, "CM_Unregister_Notification");
-        if (CM_Register_Notification && CM_Unregister_Notification) {
+    if (cfgmgr32_lib_handle)
+    {
+        CM_Register_Notification = (CM_Register_NotificationFunc)GetProcAddress(
+            cfgmgr32_lib_handle, "CM_Register_Notification");
+        CM_Unregister_Notification = (CM_Unregister_NotificationFunc)GetProcAddress(
+            cfgmgr32_lib_handle, "CM_Unregister_Notification");
+        if (CM_Register_Notification && CM_Unregister_Notification)
+        {
             CM_NOTIFY_FILTER notify_filter;
 
             SDL_zero(notify_filter);
             notify_filter.cbSize = sizeof(notify_filter);
             notify_filter.FilterType = CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE;
             notify_filter.u.DeviceInterface.ClassGuid = GUID_DEVINTERFACE_HID;
-            if (CM_Register_Notification(&notify_filter, NULL, SDL_DeviceNotificationFunc, &s_DeviceNotificationFuncHandle) == CR_SUCCESS) {
+            if (CM_Register_Notification(&notify_filter, NULL, SDL_DeviceNotificationFunc,
+                                         &s_DeviceNotificationFuncHandle) == CR_SUCCESS)
+            {
                 return;
             }
         }
@@ -257,7 +278,8 @@ Uint64 WIN_GetLastDeviceNotification(void)
 
 void WIN_QuitDeviceNotification(void)
 {
-    if (--s_DeviceNotificationsRequested > 0) {
+    if (--s_DeviceNotificationsRequested > 0)
+    {
         return;
     }
     // Make sure we have balanced calls to init/quit
@@ -269,8 +291,10 @@ void WIN_QuitDeviceNotification(void)
     SDL_WaitThread(s_HotplugThread, NULL);
     s_HotplugThread = NULL;
 
-    if (cfgmgr32_lib_handle) {
-        if (s_DeviceNotificationFuncHandle && CM_Unregister_Notification) {
+    if (cfgmgr32_lib_handle)
+    {
+        if (s_DeviceNotificationFuncHandle && CM_Unregister_Notification)
+        {
             CM_Unregister_Notification(s_DeviceNotificationFuncHandle);
             s_DeviceNotificationFuncHandle = NULL;
         }

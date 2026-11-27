@@ -499,9 +499,10 @@ static const char GLES2_Fragment_TextureExternalOES[] =
  * Shader selector                                                                               *
  *************************************************************************************************/
 
-const char *GLES2_GetShaderPrologue(GLES2_ShaderType type)
+const char* GLES2_GetShaderPrologue(GLES2_ShaderType type)
 {
-    switch (type) {
+    switch (type)
+    {
     case GLES2_SHADER_FRAGMENT_TEXTURE_EXTERNAL_OES:
         return GLES2_Fragment_TextureExternalOES_Prologue;
     default:
@@ -509,9 +510,10 @@ const char *GLES2_GetShaderPrologue(GLES2_ShaderType type)
     }
 }
 
-const char *GLES2_GetShaderInclude(GLES2_ShaderIncludeType type)
+const char* GLES2_GetShaderInclude(GLES2_ShaderIncludeType type)
 {
-    switch (type) {
+    switch (type)
+    {
     case GLES2_SHADER_FRAGMENT_INCLUDE_UNDEF_PRECISION:
         return GLES2_Fragment_Include_Undef_Precision;
     case GLES2_SHADER_FRAGMENT_INCLUDE_BEST_TEXCOORD_PRECISION:
@@ -527,25 +529,30 @@ const char *GLES2_GetShaderInclude(GLES2_ShaderIncludeType type)
 
 GLES2_ShaderIncludeType GLES2_GetTexCoordPrecisionEnumFromHint(void)
 {
-    const char *texcoord_hint = SDL_GetHint("SDL_RENDER_OPENGLES2_TEXCOORD_PRECISION");
+    const char* texcoord_hint = SDL_GetHint("SDL_RENDER_OPENGLES2_TEXCOORD_PRECISION");
     GLES2_ShaderIncludeType value = GLES2_SHADER_FRAGMENT_INCLUDE_BEST_TEXCOORD_PRECISION;
-    if (texcoord_hint) {
-        if (SDL_strcmp(texcoord_hint, "undefined") == 0) {
+    if (texcoord_hint)
+    {
+        if (SDL_strcmp(texcoord_hint, "undefined") == 0)
+        {
             return GLES2_SHADER_FRAGMENT_INCLUDE_UNDEF_PRECISION;
         }
-        if (SDL_strcmp(texcoord_hint, "high") == 0) {
+        if (SDL_strcmp(texcoord_hint, "high") == 0)
+        {
             return GLES2_SHADER_FRAGMENT_INCLUDE_HIGH_TEXCOORD_PRECISION;
         }
-        if (SDL_strcmp(texcoord_hint, "medium") == 0) {
+        if (SDL_strcmp(texcoord_hint, "medium") == 0)
+        {
             return GLES2_SHADER_FRAGMENT_INCLUDE_MEDIUM_TEXCOORD_PRECISION;
         }
     }
     return value;
 }
 
-const char *GLES2_GetShader(GLES2_ShaderType type)
+const char* GLES2_GetShader(GLES2_ShaderType type)
 {
-    switch (type) {
+    switch (type)
+    {
     case GLES2_SHADER_VERTEX_DEFAULT:
         return GLES2_Vertex_Default;
     case GLES2_SHADER_FRAGMENT_SOLID:

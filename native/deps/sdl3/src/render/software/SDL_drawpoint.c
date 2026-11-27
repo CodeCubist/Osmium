@@ -25,25 +25,29 @@
 #include "SDL_draw.h"
 #include "SDL_drawpoint.h"
 
-bool SDL_DrawPoint(SDL_Surface *dst, int x, int y, Uint32 color)
+bool SDL_DrawPoint(SDL_Surface* dst, int x, int y, Uint32 color)
 {
-    CHECK_PARAM(!SDL_SurfaceValid(dst)) {
+    CHECK_PARAM(!SDL_SurfaceValid(dst))
+    {
         return SDL_InvalidParamError("SDL_DrawPoint(): dst");
     }
 
     // This function doesn't work on surfaces < 8 bpp
-    if (dst->fmt->bits_per_pixel < 8) {
+    if (dst->fmt->bits_per_pixel < 8)
+    {
         return SDL_SetError("SDL_DrawPoint(): Unsupported surface format");
     }
 
     // Perform clipping
     if (x < dst->clip_rect.x || y < dst->clip_rect.y ||
         x >= (dst->clip_rect.x + dst->clip_rect.w) ||
-        y >= (dst->clip_rect.y + dst->clip_rect.h)) {
+        y >= (dst->clip_rect.y + dst->clip_rect.h))
+    {
         return true;
     }
 
-    switch (dst->fmt->bytes_per_pixel) {
+    switch (dst->fmt->bytes_per_pixel)
+    {
     case 1:
         DRAW_FASTSETPIXELXY1(x, y);
         break;
@@ -59,19 +63,21 @@ bool SDL_DrawPoint(SDL_Surface *dst, int x, int y, Uint32 color)
     return true;
 }
 
-bool SDL_DrawPoints(SDL_Surface *dst, const SDL_Point *points, int count, Uint32 color)
+bool SDL_DrawPoints(SDL_Surface* dst, const SDL_Point* points, int count, Uint32 color)
 {
     int minx, miny;
     int maxx, maxy;
     int i;
     int x, y;
 
-    CHECK_PARAM(!SDL_SurfaceValid(dst)) {
+    CHECK_PARAM(!SDL_SurfaceValid(dst))
+    {
         return SDL_InvalidParamError("SDL_DrawPoints(): dst");
     }
 
     // This function doesn't work on surfaces < 8 bpp
-    if (dst->fmt->bits_per_pixel < 8) {
+    if (dst->fmt->bits_per_pixel < 8)
+    {
         return SDL_SetError("SDL_DrawPoints(): Unsupported surface format");
     }
 
@@ -80,15 +86,18 @@ bool SDL_DrawPoints(SDL_Surface *dst, const SDL_Point *points, int count, Uint32
     miny = dst->clip_rect.y;
     maxy = dst->clip_rect.y + dst->clip_rect.h - 1;
 
-    for (i = 0; i < count; ++i) {
+    for (i = 0; i < count; ++i)
+    {
         x = points[i].x;
         y = points[i].y;
 
-        if (x < minx || x > maxx || y < miny || y > maxy) {
+        if (x < minx || x > maxx || y < miny || y > maxy)
+        {
             continue;
         }
 
-        switch (dst->fmt->bytes_per_pixel) {
+        switch (dst->fmt->bytes_per_pixel)
+        {
         case 1:
             DRAW_FASTSETPIXELXY1(x, y);
             break;

@@ -37,20 +37,21 @@ typedef enum
 typedef struct SDL_ErrorInfo
 {
     SDL_ErrorCode error;
-    char *str;
+    char* str;
     size_t len;
 } SDL_ErrorInfo;
 
 typedef struct SDL_error
 {
-    SDL_ErrorInfo info[2]; // there are two, so you can do SDL_SetError("%s", SDL_GetError()) without stomping the buffer.
+    SDL_ErrorInfo info[2];
+    // there are two, so you can do SDL_SetError("%s", SDL_GetError()) without stomping the buffer.
     int current;
     SDL_realloc_func realloc_func;
     SDL_free_func free_func;
 } SDL_error;
 
 // Defined in SDL_thread.c
-extern SDL_error *SDL_GetErrBuf(bool create);
+extern SDL_error* SDL_GetErrBuf(bool create);
 
 // Macros to save and restore error values
 #define SDL_PushError() \

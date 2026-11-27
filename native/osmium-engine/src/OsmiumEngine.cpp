@@ -250,8 +250,9 @@ namespace
         settings.width = limitDimension(settings.width, config.maxWidth);
         settings.height = limitDimension(settings.height, config.maxHeight);
         settings.fps = std::clamp(settings.fps > 0 ? settings.fps : HostVideoSettings{}.fps, 10, maxFps);
-        settings.bitrateKbps = std::clamp(settings.bitrateKbps > 0 ? settings.bitrateKbps : HostVideoSettings{}.bitrateKbps,
-                                          500, maxBitrateKbps);
+        settings.bitrateKbps = std::clamp(
+            settings.bitrateKbps > 0 ? settings.bitrateKbps : HostVideoSettings{}.bitrateKbps,
+            500, maxBitrateKbps);
         return settings;
     }
 
@@ -430,12 +431,12 @@ namespace
             std::ostringstream item;
             if (i > 0) item << ",";
             item << "{\"index\":" << d.index
-                 << ",\"width\":" << d.width
-                 << ",\"height\":" << d.height
-                 << ",\"refreshRate\":" << d.refreshRate
-                 << ",\"isPrimary\":" << (d.isPrimary ? "true" : "false")
-                 << ",\"name\":\"" << EscapeJson(d.name) << "\""
-                 << ",\"deviceName\":\"" << EscapeJson(d.deviceName) << "\"}";
+                << ",\"width\":" << d.width
+                << ",\"height\":" << d.height
+                << ",\"refreshRate\":" << d.refreshRate
+                << ",\"isPrimary\":" << (d.isPrimary ? "true" : "false")
+                << ",\"name\":\"" << EscapeJson(d.name) << "\""
+                << ",\"deviceName\":\"" << EscapeJson(d.deviceName) << "\"}";
             std::string itemStr = item.str();
             if (oss.str().size() + itemStr.size() + 4 > proto::kMaxVideoChunkPayload)
             {
@@ -530,7 +531,8 @@ namespace
                         std::lock_guard<std::mutex> lock(ctx->cfgMutex);
                         path = ctx->privacyWallpaperPath;
                     }
-                    if (!ctx->captureUsesDuplication.load() || !ctx->privacyScreen.Show(std::move(path), &ctx->stopFlag))
+                    if (!ctx->captureUsesDuplication.load() || !ctx->privacyScreen.
+                                                                     Show(std::move(path), &ctx->stopFlag))
                     {
                         result = "PRIVACY_SCREEN_UNAVAILABLE";
                     }
@@ -846,7 +848,7 @@ namespace
                 const bool mildCongestion =
                     !severeCongestion &&
                     ((lossPermille >= 4U) ||
-                     (rttMs >= 70U && baselineRttMs > 0 && rttMs >= baselineRttMs + 45U));
+                        (rttMs >= 70U && baselineRttMs > 0 && rttMs >= baselineRttMs + 45U));
 
                 if (severeCongestion)
                 {
@@ -978,7 +980,8 @@ namespace
                 ctx->textFocus.SetDisplayRect(ctx->capture.GetDesktopRect());
                 const int planeRows = capFrame.height + (capFrame.isNv12 ? capFrame.height / 2 : 0);
                 if (capFrame.width <= 0 || capFrame.height <= 0 || capFrame.stride <= 0 ||
-                    (!capFrame.nv12Texture && capFrame.pixels.size() < static_cast<size_t>(capFrame.stride) * planeRows))
+                    (!capFrame.nv12Texture && capFrame.pixels.size() < static_cast<size_t>(capFrame.stride) *
+                        planeRows))
                 {
                     continue;
                 }
@@ -1016,185 +1019,190 @@ namespace
 
                 if (!skipForQueueDrain)
                 {
-                uint64_t encStartUs = NowMicros();
-                const auto inputFormat = capFrame.isNv12 ? AV_PIX_FMT_NV12 :
-                    (capFrame.isHdr10Pq ? AV_PIX_FMT_X2BGR10LE : AV_PIX_FMT_BGRA);
-                const bool encoded = ctx->encoder.EncodeFrame(capFrame.pixels.data(), capFrame.stride,
-                    inputFormat, encodedPackets, capFrame.pixelRevision, capFrame.nv12Texture.Get());
-                const uint64_t sendStartUs = NowMicros();
-                encodeTiming.Record(sendStartUs - encStartUs);
-                if (encoded)
-                {
-                    consecutiveEncodeErrors = 0;
-                    double encMs = static_cast<double>(sendStartUs - encStartUs) / 1000.0;
-                    avgEncodeMs = (avgEncodeMs * 0.85) + (encMs * 0.15);
-
-                    uint8_t cFlags = 0;
-                    if (ctx->encoder.IsPqHdrActive() && capFrame.isHdr10Pq) cFlags |= proto::kVideoFlagHdr;
-                    if (ctx->encoder.IsYuv444Active()) cFlags |= proto::kVideoFlagYuv444;
-
-                    const int32_t routeNow = ctx->transport->GetTransportRoute();
-                    const bool isRelayRoute = (routeNow == static_cast<int32_t>(TransportRoute::CloudRelay));
-                    const bool isLanRoute = (routeNow == static_cast<int32_t>(TransportRoute::LanIPv4));
-                    const size_t maxChunkPayload = isRelayRoute
-                                                       ? proto::kMaxRelayVideoChunkPayload
-                                                       : (isLanRoute
-                                                              ? proto::kMaxLanVideoChunkPayload
-                                                              : proto::kMaxWanVideoChunkPayload);
-
-                    bool sentAnyPacket = false;
-                    for (const auto& ep : encodedPackets)
+                    uint64_t encStartUs = NowMicros();
+                    const auto inputFormat = capFrame.isNv12
+                                                 ? AV_PIX_FMT_NV12
+                                                 : (capFrame.isHdr10Pq ? AV_PIX_FMT_X2BGR10LE : AV_PIX_FMT_BGRA);
+                    const bool encoded = ctx->encoder.EncodeFrame(capFrame.pixels.data(), capFrame.stride,
+                                                                  inputFormat, encodedPackets, capFrame.pixelRevision,
+                                                                  capFrame.nv12Texture.Get());
+                    const uint64_t sendStartUs = NowMicros();
+                    encodeTiming.Record(sendStartUs - encStartUs);
+                    if (encoded)
                     {
-                        if (ep.data.empty()) continue;
-                        uint32_t frameId = ctx->frameIdCounter.fetch_add(1);
-                        size_t totalChunks = (ep.data.size() + maxChunkPayload - 1) / maxChunkPayload;
-                        if (totalChunks > 65535) continue;
+                        consecutiveEncodeErrors = 0;
+                        double encMs = static_cast<double>(sendStartUs - encStartUs) / 1000.0;
+                        avgEncodeMs = (avgEncodeMs * 0.85) + (encMs * 0.15);
 
-                        const int32_t congLevel = ctx->congestionLevel.load(std::memory_order_relaxed);
-                        const bool paceUdpBurst = (!isRelayRoute && totalChunks >= 2);
-                        // Only duplicate tiny recovery keyframes on a clean link; duplicating large IDRs
-                        // floods 2.4GHz Wi-Fi AP queues and triggers multi-second RTT/loss spirals.
-                        const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 10 &&
-                            congLevel == 0 && ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
-                        if (ep.isKeyFrame && !sendKeyRedundantPass)
+                        uint8_t cFlags = 0;
+                        if (ctx->encoder.IsPqHdrActive() && capFrame.isHdr10Pq) cFlags |= proto::kVideoFlagHdr;
+                        if (ctx->encoder.IsYuv444Active()) cFlags |= proto::kVideoFlagYuv444;
+
+                        const int32_t routeNow = ctx->transport->GetTransportRoute();
+                        const bool isRelayRoute = (routeNow == static_cast<int32_t>(TransportRoute::CloudRelay));
+                        const bool isLanRoute = (routeNow == static_cast<int32_t>(TransportRoute::LanIPv4));
+                        const size_t maxChunkPayload = isRelayRoute
+                                                           ? proto::kMaxRelayVideoChunkPayload
+                                                           : (isLanRoute
+                                                                  ? proto::kMaxLanVideoChunkPayload
+                                                                  : proto::kMaxWanVideoChunkPayload);
+
+                        bool sentAnyPacket = false;
+                        for (const auto& ep : encodedPackets)
                         {
-                            ctx->idrRecoveryPending.store(false, std::memory_order_relaxed);
+                            if (ep.data.empty()) continue;
+                            uint32_t frameId = ctx->frameIdCounter.fetch_add(1);
+                            size_t totalChunks = (ep.data.size() + maxChunkPayload - 1) / maxChunkPayload;
+                            if (totalChunks > 65535) continue;
+
+                            const int32_t congLevel = ctx->congestionLevel.load(std::memory_order_relaxed);
+                            const bool paceUdpBurst = (!isRelayRoute && totalChunks >= 2);
+                            // Only duplicate tiny recovery keyframes on a clean link; duplicating large IDRs
+                            // floods 2.4GHz Wi-Fi AP queues and triggers multi-second RTT/loss spirals.
+                            const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 10 &&
+                                congLevel == 0 && ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
+                            if (ep.isKeyFrame && !sendKeyRedundantPass)
+                            {
+                                ctx->idrRecoveryPending.store(false, std::memory_order_relaxed);
+                            }
+                            const int passCount = sendKeyRedundantPass ? 2 : 1;
+
+                            // Smooth per-chunk rate-matched UDP pacing:
+                            // 1) Stays strictly below Windows NDIS NetworkThrottlingIndex (10 pkt/ms = 100us/pkt)
+                            //    which Windows activates whenever host audio (Audiosrv) starts playing.
+                            // 2) Prevents 300+ Mbps microbursts from overflowing 2.4GHz Wi-Fi / P2P router queues.
+                            const uint64_t paceRateKbps =
+                                static_cast<uint64_t>(std::max<int32_t>(8000, effectiveBitrateKbps * 3));
+                            uint64_t perChunkUs = (static_cast<uint64_t>(maxChunkPayload) * 8000ULL) / paceRateKbps;
+                            if (effectiveBitrateKbps <= 75000 || congLevel > 0)
+                            {
+                                perChunkUs = std::max<uint64_t>(perChunkUs, isLanRoute ? 110ULL : 130ULL);
+                            }
+                            else
+                            {
+                                perChunkUs = std::max<uint64_t>(perChunkUs, isLanRoute ? 45ULL : 80ULL);
+                            }
+                            if (congLevel == 1) perChunkUs = std::max<uint64_t>(perChunkUs, 155ULL);
+                            else if (congLevel >= 2) perChunkUs = std::max<uint64_t>(perChunkUs, 240ULL);
+
+                            const uint64_t maxSpanUs = ep.isKeyFrame
+                                                           ? std::min<uint64_t>(
+                                                               (frameIntervalUs * 85ULL) / 100ULL, 14000ULL)
+                                                           : std::min<uint64_t>(
+                                                               (frameIntervalUs * 72ULL) / 100ULL, 11000ULL);
+                            const uint64_t targetSpanUs = paceUdpBurst
+                                                              ? std::min<uint64_t>(
+                                                                  maxSpanUs,
+                                                                  static_cast<uint64_t>(totalChunks - 1) * perChunkUs)
+                                                              : 0ULL;
+
+                            auto waitUntilPaceUs = [](uint64_t deadlineUs)
+                            {
+                                for (;;)
+                                {
+                                    const uint64_t nowU = NowMicros();
+                                    if (nowU >= deadlineUs) break;
+                                    if (deadlineUs - nowU > 60ULL)
+                                    {
+                                        SwitchToThread();
+                                    }
+                                    else
+                                    {
+                                        _mm_pause();
+                                    }
+                                }
+                            };
+
+                            for (int pass = 0; pass < passCount; ++pass)
+                            {
+                                const uint64_t burstStartUs = paceUdpBurst ? NowMicros() : 0ULL;
+                                for (size_t ci = 0; ci < totalChunks; ++ci)
+                                {
+                                    size_t offset = ci * maxChunkPayload;
+                                    size_t sliceLen = std::min(maxChunkPayload, ep.data.size() - offset);
+
+                                    chunkBuf.resize(sizeof(proto::VideoChunkHeader) + sliceLen);
+                                    auto* hdr = reinterpret_cast<proto::VideoChunkHeader*>(chunkBuf.data());
+                                    memset(hdr, 0, sizeof(*hdr));
+                                    hdr->frameId = frameId;
+                                    hdr->chunkIndex = static_cast<uint16_t>(ci);
+                                    hdr->totalChunks = static_cast<uint16_t>(totalChunks);
+                                    hdr->codecId = static_cast<uint8_t>(ep.codecId);
+                                    hdr->isKeyFrame = ep.isKeyFrame ? 1 : 0;
+                                    hdr->width = static_cast<uint16_t>(ctx->encoder.GetOutWidth());
+                                    hdr->height = static_cast<uint16_t>(ctx->encoder.GetOutHeight());
+                                    hdr->colorFlags = cFlags;
+                                    hdr->captureTimeUs = capFrame.captureTimeUs;
+                                    memcpy(chunkBuf.data() + sizeof(proto::VideoChunkHeader), ep.data.data() + offset,
+                                           sliceLen);
+
+                                    ctx->transport->SendEncrypted(proto::AppPacketType::VideoChunk, chunkBuf.data(),
+                                                                  chunkBuf.size());
+                                    ctx->bytesSentWindow.fetch_add(chunkBuf.size());
+                                    if (paceUdpBurst && (ci + 1) < totalChunks)
+                                    {
+                                        const uint64_t targetUs = burstStartUs +
+                                        ((static_cast<uint64_t>(ci + 1) * targetSpanUs) /
+                                            static_cast<uint64_t>(totalChunks - 1));
+                                        waitUntilPaceUs(targetUs);
+                                    }
+                                }
+                                if (pass + 1 < passCount)
+                                {
+                                    waitUntilPaceUs(NowMicros() + 600ULL);
+                                }
+                            }
+
+                            ctx->framesEncodedWindow.fetch_add(1);
+                            ctx->totalEncodedFrames.fetch_add(1);
+                            if (ep.isKeyFrame)
+                            {
+                                ctx->lastKeyFrameEmitMs.store(NowMillis(), std::memory_order_relaxed);
+                            }
+                            sentAnyPacket = true;
                         }
-                        const int passCount = sendKeyRedundantPass ? 2 : 1;
 
-                        // Smooth per-chunk rate-matched UDP pacing:
-                        // 1) Stays strictly below Windows NDIS NetworkThrottlingIndex (10 pkt/ms = 100us/pkt)
-                        //    which Windows activates whenever host audio (Audiosrv) starts playing.
-                        // 2) Prevents 300+ Mbps microbursts from overflowing 2.4GHz Wi-Fi / P2P router queues.
-                        const uint64_t paceRateKbps =
-                            static_cast<uint64_t>(std::max<int32_t>(8000, effectiveBitrateKbps * 3));
-                        uint64_t perChunkUs = (static_cast<uint64_t>(maxChunkPayload) * 8000ULL) / paceRateKbps;
-                        if (effectiveBitrateKbps <= 75000 || congLevel > 0)
+                        if (sentAnyPacket)
                         {
-                            perChunkUs = std::max<uint64_t>(perChunkUs, isLanRoute ? 110ULL : 130ULL);
+                            sendTiming.Record(NowMicros() - sendStartUs);
+                            consecutiveEmptyEncodes = 0;
+                            lastEncodedPacketMs = NowMillis();
                         }
                         else
                         {
-                            perChunkUs = std::max<uint64_t>(perChunkUs, isLanRoute ? 45ULL : 80ULL);
+                            consecutiveEmptyEncodes++;
                         }
-                        if (congLevel == 1) perChunkUs = std::max<uint64_t>(perChunkUs, 155ULL);
-                        else if (congLevel >= 2) perChunkUs = std::max<uint64_t>(perChunkUs, 240ULL);
-
-                        const uint64_t maxSpanUs = ep.isKeyFrame
-                                                       ? std::min<uint64_t>((frameIntervalUs * 85ULL) / 100ULL, 14000ULL)
-                                                       : std::min<uint64_t>((frameIntervalUs * 72ULL) / 100ULL, 11000ULL);
-                        const uint64_t targetSpanUs = paceUdpBurst
-                                                          ? std::min<uint64_t>(
-                                                              maxSpanUs,
-                                                              static_cast<uint64_t>(totalChunks - 1) * perChunkUs)
-                                                          : 0ULL;
-
-                        auto waitUntilPaceUs = [](uint64_t deadlineUs)
-                        {
-                            for (;;)
-                            {
-                                const uint64_t nowU = NowMicros();
-                                if (nowU >= deadlineUs) break;
-                                if (deadlineUs - nowU > 60ULL)
-                                {
-                                    SwitchToThread();
-                                }
-                                else
-                                {
-                                    _mm_pause();
-                                }
-                            }
-                        };
-
-                        for (int pass = 0; pass < passCount; ++pass)
-                        {
-                            const uint64_t burstStartUs = paceUdpBurst ? NowMicros() : 0ULL;
-                            for (size_t ci = 0; ci < totalChunks; ++ci)
-                            {
-                                size_t offset = ci * maxChunkPayload;
-                                size_t sliceLen = std::min(maxChunkPayload, ep.data.size() - offset);
-
-                                chunkBuf.resize(sizeof(proto::VideoChunkHeader) + sliceLen);
-                                auto* hdr = reinterpret_cast<proto::VideoChunkHeader*>(chunkBuf.data());
-                                memset(hdr, 0, sizeof(*hdr));
-                                hdr->frameId = frameId;
-                                hdr->chunkIndex = static_cast<uint16_t>(ci);
-                                hdr->totalChunks = static_cast<uint16_t>(totalChunks);
-                                hdr->codecId = static_cast<uint8_t>(ep.codecId);
-                                hdr->isKeyFrame = ep.isKeyFrame ? 1 : 0;
-                                hdr->width = static_cast<uint16_t>(ctx->encoder.GetOutWidth());
-                                hdr->height = static_cast<uint16_t>(ctx->encoder.GetOutHeight());
-                                hdr->colorFlags = cFlags;
-                                hdr->captureTimeUs = capFrame.captureTimeUs;
-                                memcpy(chunkBuf.data() + sizeof(proto::VideoChunkHeader), ep.data.data() + offset,
-                                       sliceLen);
-
-                                ctx->transport->SendEncrypted(proto::AppPacketType::VideoChunk, chunkBuf.data(),
-                                                              chunkBuf.size());
-                                ctx->bytesSentWindow.fetch_add(chunkBuf.size());
-                                if (paceUdpBurst && (ci + 1) < totalChunks)
-                                {
-                                    const uint64_t targetUs = burstStartUs +
-                                        ((static_cast<uint64_t>(ci + 1) * targetSpanUs) /
-                                            static_cast<uint64_t>(totalChunks - 1));
-                                    waitUntilPaceUs(targetUs);
-                                }
-                            }
-                            if (pass + 1 < passCount)
-                            {
-                                waitUntilPaceUs(NowMicros() + 600ULL);
-                            }
-                        }
-
-                        ctx->framesEncodedWindow.fetch_add(1);
-                        ctx->totalEncodedFrames.fetch_add(1);
-                        if (ep.isKeyFrame)
-                        {
-                            ctx->lastKeyFrameEmitMs.store(NowMillis(), std::memory_order_relaxed);
-                        }
-                        sentAnyPacket = true;
-                    }
-
-                    if (sentAnyPacket)
-                    {
-                        sendTiming.Record(NowMicros() - sendStartUs);
-                        consecutiveEmptyEncodes = 0;
-                        lastEncodedPacketMs = NowMillis();
                     }
                     else
                     {
-                        consecutiveEmptyEncodes++;
+                        ctx->droppedFrames.fetch_add(1);
+                        consecutiveEncodeErrors++;
                     }
-                }
-                else
-                {
-                    ctx->droppedFrames.fetch_add(1);
-                    consecutiveEncodeErrors++;
-                }
 
-                uint64_t encNowMs = NowMillis();
-                bool encoderStalled = consecutiveEncodeErrors >= 8 ||
-                    (consecutiveEmptyEncodes >= 15 && (encNowMs - lastEncodedPacketMs) >= 1000);
-                if (encoderStalled && (encNowMs - lastEncoderRecoverMs) >= 1500)
-                {
-                    lastEncoderRecoverMs = encNowMs;
-                    std::string stalledEnc = ctx->encoder.GetEncoderName();
-                    OSM_LOG_WARN(
-                        "Host video encoder %s stalled/failed (errors=%u, empty=%u); recovering pipeline",
-                        stalledEnc.c_str(), consecutiveEncodeErrors, consecutiveEmptyEncodes);
-                    if (ctx->encoder.GetD3dInputDevice())
+                    uint64_t encNowMs = NowMillis();
+                    bool encoderStalled = consecutiveEncodeErrors >= 8 ||
+                        (consecutiveEmptyEncodes >= 15 && (encNowMs - lastEncodedPacketMs) >= 1000);
+                    if (encoderStalled && (encNowMs - lastEncoderRecoverMs) >= 1500)
                     {
-                        allowGpuEncoderInput = false;
+                        lastEncoderRecoverMs = encNowMs;
+                        std::string stalledEnc = ctx->encoder.GetEncoderName();
+                        OSM_LOG_WARN(
+                            "Host video encoder %s stalled/failed (errors=%u, empty=%u); recovering pipeline",
+                            stalledEnc.c_str(), consecutiveEncodeErrors, consecutiveEmptyEncodes);
+                        if (ctx->encoder.GetD3dInputDevice())
+                        {
+                            allowGpuEncoderInput = false;
+                        }
+                        else if (ctx->encoder.IsHardwareEncoder() && ctx->config.encoderPreference != 1 && !stalledEnc.
+                            empty())
+                        {
+                            ctx->encoder.ExcludeEncoderForSession(stalledEnc);
+                        }
+                        consecutiveEncodeErrors = 0;
+                        consecutiveEmptyEncodes = 0;
+                        lastEncodedPacketMs = encNowMs;
+                        reconfigurePipeline(false);
                     }
-                    else if (ctx->encoder.IsHardwareEncoder() && ctx->config.encoderPreference != 1 && !stalledEnc.empty())
-                    {
-                        ctx->encoder.ExcludeEncoderForSession(stalledEnc);
-                    }
-                    consecutiveEncodeErrors = 0;
-                    consecutiveEmptyEncodes = 0;
-                    lastEncodedPacketMs = encNowMs;
-                    reconfigurePipeline(false);
-                }
                 }
             }
 
@@ -1930,13 +1938,13 @@ namespace
                     const auto* hdr = reinterpret_cast<const proto::VideoChunkHeader*>(plain.data());
                     AssembledVideoFrame frame;
                     if (TryAssembleVideoChunk(
-                            pending,
-                            lastCompletedKeyFrameId,
-                            hdr,
-                            plain.data() + sizeof(proto::VideoChunkHeader),
-                            plain.size() - sizeof(proto::VideoChunkHeader),
-                            nowMs,
-                            frame))
+                        pending,
+                        lastCompletedKeyFrameId,
+                        hdr,
+                        plain.data() + sizeof(proto::VideoChunkHeader),
+                        plain.size() - sizeof(proto::VideoChunkHeader),
+                        nowMs,
+                        frame))
                     {
                         ctx->receivedFrames.fetch_add(1);
                         uint32_t queueDropped;
@@ -2116,7 +2124,9 @@ namespace
 
         auto requestIdrBackoff = [&](uint64_t curMs)
         {
-            const uint64_t gapMs = (idrRetryCount == 0) ? 200ULL : (idrRetryCount == 1 ? 400ULL : 750ULL);
+            const uint64_t gapMs = !hasRenderedFirstFrame
+                                       ? (idrRetryCount == 0 ? 110ULL : 220ULL)
+                                       : ((idrRetryCount == 0) ? 200ULL : (idrRetryCount == 1 ? 400ULL : 750ULL));
             if (lastIdrReqMs == 0 || (curMs - lastIdrReqMs) >= gapMs)
             {
                 lastIdrReqMs = curMs;
@@ -2730,7 +2740,9 @@ OSMIUM_API int32_t Osmium_PushTransportRelayBatch(
     int32_t batchLength)
 {
     if (!transport || !batchData || batchLength <= 0) return 0;
-    return static_cast<OsmiumTransport*>(transport)->PushRelayBatch(batchData, static_cast<size_t>(batchLength)) ? 1 : 0;
+    return static_cast<OsmiumTransport*>(transport)->PushRelayBatch(batchData, static_cast<size_t>(batchLength))
+               ? 1
+               : 0;
 }
 
 OSMIUM_API int32_t Osmium_SetTransportKey(void* transport, const uint8_t* aesKey32)
@@ -2776,18 +2788,21 @@ OSMIUM_API int32_t Osmium_AuthenticateClient(
 
     const uint64_t deadline = NowMillis() + static_cast<uint64_t>(std::max(1000, timeoutMs));
     uint64_t lastSend = 0;
+    int sendCount = 0;
     std::vector<uint8_t> plain;
 
     while (NowMillis() < deadline)
     {
         uint64_t now = NowMillis();
-        if (now - lastSend >= 150)
+        const uint64_t retryInterval = (sendCount < 5) ? 35ULL : 80ULL;
+        if (lastSend == 0 || now - lastSend >= retryInterval)
         {
             lastSend = now;
+            sendCount++;
             t->SendEncrypted(proto::AppPacketType::AuthRequest, &req, sizeof(req));
         }
 
-        int r = t->ReceiveEncrypted(plain, 100);
+        int r = t->ReceiveEncrypted(plain, 25);
         if (r > 0 && plain.size() >= sizeof(proto::AuthResponsePayload) &&
             static_cast<proto::AppPacketType>(plain[0]) == proto::AppPacketType::AuthResponse)
         {
@@ -2827,7 +2842,7 @@ OSMIUM_API int32_t Osmium_WaitClientAuthHost(
 
     while (NowMillis() < deadline)
     {
-        int r = t->ReceiveEncrypted(plain, 100);
+        int r = t->ReceiveEncrypted(plain, 25);
         if (r < 0) return 0;
         if (r > 0 && plain.size() >= sizeof(proto::AuthRequestPayload) &&
             static_cast<proto::AppPacketType>(plain[0]) == proto::AppPacketType::AuthRequest)
@@ -2843,9 +2858,11 @@ OSMIUM_API int32_t Osmium_WaitClientAuthHost(
                 resp.accepted = 1;
                 resp.errorCode = 0;
                 CopyStringSafe(resp.message, sizeof(resp.message), "Authenticated");
-                for (int i = 0; i < 4; ++i)
+                const bool isRelay = (t->GetTransportRoute() == static_cast<int32_t>(TransportRoute::CloudRelay));
+                const int sendCount = isRelay ? 1 : 2;
+                for (int i = 0; i < sendCount; ++i)
                 {
-                    if (i > 0) Sleep(15);
+                    if (i > 0) Sleep(2);
                     t->SendEncrypted(proto::AppPacketType::AuthResponse, &resp, sizeof(resp));
                 }
                 if (outNegotiatedProfile)
@@ -2892,9 +2909,10 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     const auto& profile = ctx->clientProfile;
     ctx->activeDisplayIndex = ctx->config.displayIndex;
     ctx->videoSettings = ApplyHostVideoLimits(ctx->config, {
-        profile.targetWidth, profile.targetHeight, profile.fps, profile.bitrateKbps,
-        profile.enableHdr != 0, profile.enableYuv444 != 0
-    });
+                                                  profile.targetWidth, profile.targetHeight, profile.fps,
+                                                  profile.bitrateKbps,
+                                                  profile.enableHdr != 0, profile.enableYuv444 != 0
+                                              });
     ctx->mouseMode = profile.mouseMode;
     ctx->hideHostCursorInHostMode = (ctx->mouseMode == 0);
 
@@ -3021,26 +3039,9 @@ OSMIUM_API int32_t Osmium_StartClientEmbedded(
     }
 
     ctx->decoder.SetOverlayVisible(config->showPerformanceOverlay != 0);
-    ctx->audioPlayer.Initialize();
 
-    int count = 0;
-    SDL_JoystickID* ids = SDL_GetJoysticks(&count);
-    if (ids)
-    {
-        int slot = 0;
-        for (int i = 0; i < count && slot < 4; ++i)
-        {
-            if (SDL_IsGamepad(ids[i]))
-            {
-                ctx->gamepads[slot] = SDL_OpenGamepad(ids[i]);
-                ctx->gamepadIds[slot] = ids[i];
-                if (ctx->gamepads[slot]) slot++;
-                if (!config->multiController) break;
-            }
-        }
-        SDL_free(ids);
-    }
-
+    // Start network recv + render threads BEFORE audio device open and gamepad enumeration
+    // so the initial VideoIdrRequest flies immediately and Keyframe #1 arrives in parallel.
     ctx->callbackThread = std::thread(EmbeddedClientCallbackLoop, ctx);
     ctx->recvThread = std::thread(EmbeddedClientRecvLoop, ctx);
     ctx->renderThread = std::thread(EmbeddedClientRenderLoop, ctx);
@@ -3059,6 +3060,26 @@ OSMIUM_API int32_t Osmium_StartClientEmbedded(
         mp.mouseMode = config->mouseMode;
         mp.hideHostCursor = (config->mouseMode == 0) ? 1 : 0;
         SendMustExecuteAction(ctx, proto::AppPacketType::ControlMouseMode, &mp, sizeof(mp));
+    }
+
+    ctx->audioPlayer.Initialize();
+
+    int count = 0;
+    SDL_JoystickID* ids = SDL_GetJoysticks(&count);
+    if (ids)
+    {
+        int slot = 0;
+        for (int i = 0; i < count && slot < 4; ++i)
+        {
+            if (SDL_IsGamepad(ids[i]))
+            {
+                ctx->gamepads[slot] = SDL_OpenGamepad(ids[i]);
+                ctx->gamepadIds[slot] = ids[i];
+                if (ctx->gamepads[slot]) slot++;
+                if (!config->multiController) break;
+            }
+        }
+        SDL_free(ids);
     }
 
     *outClientHandle = ctx;
@@ -3512,13 +3533,13 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 const auto* hdr = reinterpret_cast<const proto::VideoChunkHeader*>(plain.data());
                 AssembledVideoFrame frame;
                 if (TryAssembleVideoChunk(
-                        pending,
-                        lastCompletedKeyFrameId,
-                        hdr,
-                        plain.data() + sizeof(proto::VideoChunkHeader),
-                        plain.size() - sizeof(proto::VideoChunkHeader),
-                        nowMs,
-                        frame))
+                    pending,
+                    lastCompletedKeyFrameId,
+                    hdr,
+                    plain.data() + sizeof(proto::VideoChunkHeader),
+                    plain.size() - sizeof(proto::VideoChunkHeader),
+                    nowMs,
+                    frame))
                 {
                     receivedFrames.fetch_add(1);
                     uint32_t queueDropped;

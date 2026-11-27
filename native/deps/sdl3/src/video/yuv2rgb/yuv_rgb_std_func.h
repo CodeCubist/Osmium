@@ -95,11 +95,11 @@
 
 void STD_FUNCTION_NAME(
     uint32_t width, uint32_t height,
-    const YUV_TYPE *Y, const YUV_TYPE *U, const YUV_TYPE *V, uint32_t Y_stride, uint32_t UV_stride,
-    uint8_t *RGB, uint32_t RGB_stride,
+    const YUV_TYPE* Y, const YUV_TYPE* U, const YUV_TYPE* V, uint32_t Y_stride, uint32_t UV_stride,
+    uint8_t* RGB, uint32_t RGB_stride,
     YCbCrType yuv_type)
 {
-    const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+    const YUV2RGBParam* const param = &(YUV2RGB[yuv_type]);
 #if YUV_FORMAT == YUV_FORMAT_420
 #define y_pixel_stride 1
 #define uv_pixel_stride 1
@@ -121,22 +121,24 @@ void STD_FUNCTION_NAME(
     UV_stride /= sizeof(YUV_TYPE);
 
     uint32_t x, y;
-    for (y = 0; y < (height - (uv_y_sample_interval - 1)); y += uv_y_sample_interval) {
+    for (y = 0; y < (height - (uv_y_sample_interval - 1)); y += uv_y_sample_interval)
+    {
         const YUV_TYPE *y_ptr1 = Y + y * Y_stride,
                        *u_ptr = U + (y / uv_y_sample_interval) * UV_stride,
                        *v_ptr = V + (y / uv_y_sample_interval) * UV_stride;
 
 #if uv_y_sample_interval > 1
-        const YUV_TYPE *y_ptr2 = Y + (y + 1) * Y_stride;
+        const YUV_TYPE* y_ptr2 = Y + (y + 1) * Y_stride;
 #endif
 
-        uint8_t *rgb_ptr1 = RGB + y * RGB_stride;
+        uint8_t* rgb_ptr1 = RGB + y * RGB_stride;
 
 #if uv_y_sample_interval > 1
-        uint8_t *rgb_ptr2 = RGB + (y + 1) * RGB_stride;
+        uint8_t* rgb_ptr2 = RGB + (y + 1) * RGB_stride;
 #endif
 
-        for (x = 0; x < (width - (uv_x_sample_interval - 1)); x += uv_x_sample_interval) {
+        for (x = 0; x < (width - (uv_x_sample_interval - 1)); x += uv_x_sample_interval)
+        {
             // Compute U and V contributions, common to the four pixels
 
             int32_t u_tmp = (GET(*u_ptr) - UV_OFFSET);
@@ -172,7 +174,8 @@ void STD_FUNCTION_NAME(
 
         /* Catch the last pixel, if needed */
 #if uv_x_sample_interval == 2
-        if (x == (width - 1)) {
+        if (x == (width - 1))
+        {
             // Compute U and V contributions, common to the four pixels
 
             int32_t u_tmp = (GET(*u_ptr) - UV_OFFSET);
@@ -197,14 +200,16 @@ void STD_FUNCTION_NAME(
 
     /* Catch the last line, if needed */
 #if uv_y_sample_interval == 2
-    if (y == (height - 1)) {
+    if (y == (height - 1))
+    {
         const YUV_TYPE *y_ptr1 = Y + y * Y_stride,
                        *u_ptr = U + (y / uv_y_sample_interval) * UV_stride,
                        *v_ptr = V + (y / uv_y_sample_interval) * UV_stride;
 
-        uint8_t *rgb_ptr1 = RGB + y * RGB_stride;
+        uint8_t* rgb_ptr1 = RGB + y * RGB_stride;
 
-        for (x = 0; x < (width - (uv_x_sample_interval - 1)); x += uv_x_sample_interval) {
+        for (x = 0; x < (width - (uv_x_sample_interval - 1)); x += uv_x_sample_interval)
+        {
             // Compute U and V contributions, common to the four pixels
 
             int32_t u_tmp = (GET(*u_ptr) - UV_OFFSET);
@@ -229,7 +234,8 @@ void STD_FUNCTION_NAME(
 
         /* Catch the last pixel, if needed */
 #if uv_x_sample_interval == 2
-        if (x == (width - 1)) {
+        if (x == (width - 1))
+        {
             // Compute U and V contributions, common to the four pixels
 
             int32_t u_tmp = (GET(*u_ptr) - UV_OFFSET);

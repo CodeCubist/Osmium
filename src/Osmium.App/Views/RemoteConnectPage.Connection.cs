@@ -53,7 +53,8 @@ public sealed partial class RemoteConnectPage : Page
 
     private async Task StartConnectAsync()
     {
-        if (_isConnecting || App.Engine.Coordinator.IsHostStreaming || App.Engine.Coordinator.RemainingConnectCooldownMs > 0)
+        if (_isConnecting || App.Engine.Coordinator.IsHostStreaming ||
+            App.Engine.Coordinator.RemainingConnectCooldownMs > 0)
         {
             UpdateConnectButtonState();
             return;

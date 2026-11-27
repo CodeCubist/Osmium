@@ -124,12 +124,15 @@ public sealed partial class AccountPage : Page
             {
                 ShowStatus(
                     InfoBarSeverity.Warning,
-                    LocalizationService.GetString(acc.HasEmail ? "Acc_OAuthNeedPwdToast" : "Acc_OAuthNeedEmailPwdToast"));
+                    LocalizationService.GetString(acc.HasEmail
+                        ? "Acc_OAuthNeedPwdToast"
+                        : "Acc_OAuthNeedEmailPwdToast"));
             }
             else
             {
                 ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgLoginSuccess"));
             }
+
             RefreshViewState();
             _ = RefreshAllAccountDataAsync();
             _ = App.Engine.SyncSignalingStatusAsync();
@@ -394,7 +397,8 @@ public sealed partial class AccountPage : Page
                     var startRes = await acc.StartTwoFaSetupAsync(pwd);
                     if (!startRes.Ok || startRes.Data == null || string.IsNullOrWhiteSpace(startRes.Data.OtpAuthUri))
                     {
-                        feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                        feedbackText.Text =
+                            acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
                         return;
                     }
 
@@ -422,7 +426,8 @@ public sealed partial class AccountPage : Page
                 if (!confirmRes.Ok)
                 {
                     args.Cancel = true;
-                    feedbackText.Text = acc.FormatFriendlyError(confirmRes.Code, confirmRes.HttpStatusCode, confirmRes.RetryAfter);
+                    feedbackText.Text = acc.FormatFriendlyError(confirmRes.Code, confirmRes.HttpStatusCode,
+                        confirmRes.RetryAfter);
                     return;
                 }
 
@@ -590,7 +595,8 @@ public sealed partial class AccountPage : Page
                     };
 
                     var rowGrid = new Grid { ColumnSpacing = 12 };
-                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition
+                        { Width = new GridLength(1, GridUnitType.Star) });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                     var infoStack = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
@@ -635,7 +641,8 @@ public sealed partial class AccountPage : Page
                         if (!delRes.Ok)
                         {
                             removeBtn.IsEnabled = true;
-                            feedbackText.Text = acc.FormatFriendlyError(delRes.Code, delRes.HttpStatusCode, delRes.RetryAfter);
+                            feedbackText.Text =
+                                acc.FormatFriendlyError(delRes.Code, delRes.HttpStatusCode, delRes.RetryAfter);
                             return;
                         }
 
@@ -802,7 +809,8 @@ public sealed partial class AccountPage : Page
 
             if (!startRes.RequiresCaptcha || startRes.Challenge == null)
             {
-                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                feedbackText.Text =
+                    acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
                 return false;
             }
 
@@ -880,7 +888,8 @@ public sealed partial class AccountPage : Page
                 if (!createRes.Ok || createRes.Data == null || string.IsNullOrWhiteSpace(createRes.Data.LoginKey))
                 {
                     args.Cancel = true;
-                    feedbackText.Text = acc.FormatFriendlyError(createRes.Code, createRes.HttpStatusCode, createRes.RetryAfter);
+                    feedbackText.Text =
+                        acc.FormatFriendlyError(createRes.Code, createRes.HttpStatusCode, createRes.RetryAfter);
                     return;
                 }
 

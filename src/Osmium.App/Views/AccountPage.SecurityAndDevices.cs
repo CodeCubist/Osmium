@@ -236,7 +236,8 @@ public sealed partial class AccountPage : Page
 
             if (!startRes.RequiresCaptcha || startRes.Challenge == null)
             {
-                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                feedbackText.Text =
+                    acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
                 return false;
             }
 
@@ -529,7 +530,8 @@ public sealed partial class AccountPage : Page
 
             if (!startRes.RequiresCaptcha || startRes.Challenge == null)
             {
-                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                feedbackText.Text =
+                    acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
                 return false;
             }
 
@@ -1091,7 +1093,8 @@ public sealed partial class AccountPage : Page
                     };
                     if (!profileComplete)
                     {
-                        ToolTipService.SetToolTip(wakeBtn, LocalizationService.GetString("Power_ProfileIncompleteHint"));
+                        ToolTipService.SetToolTip(wakeBtn,
+                            LocalizationService.GetString("Power_ProfileIncompleteHint"));
                     }
                     else if (!hasMacs)
                     {
@@ -1296,7 +1299,8 @@ public sealed partial class AccountPage : Page
         foreach (var rec in records)
         {
             bool isHost = string.Equals(rec.Role, "host", StringComparison.OrdinalIgnoreCase);
-            string localName = App.Engine.AccountService.ResolveAccountDeviceName(rec.LocalDeviceId, rec.LocalDeviceName);
+            string localName =
+                App.Engine.AccountService.ResolveAccountDeviceName(rec.LocalDeviceId, rec.LocalDeviceName);
             string peerBaseName = rec.SameAccount
                 ? App.Engine.AccountService.ResolveAccountDeviceName(rec.PeerDeviceId, rec.PeerDeviceName)
                 : rec.PeerDeviceName;
@@ -1365,12 +1369,14 @@ public sealed partial class AccountPage : Page
                 ? LocalizationService.Format("Acc_WaitHoursMinsFmt", hours, mins)
                 : LocalizationService.Format("Acc_WaitHoursFmt", hours);
         }
+
         if (mins > 0)
         {
             return secs > 0
                 ? LocalizationService.Format("Acc_DurationMinsSecsFmt", mins, secs)
                 : LocalizationService.Format("Acc_WaitMinsFmt", mins);
         }
+
         return LocalizationService.Format("Acc_WaitSecsFmt", secs);
     }
 

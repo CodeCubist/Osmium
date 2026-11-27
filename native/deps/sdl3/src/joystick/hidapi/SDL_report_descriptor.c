@@ -99,7 +99,7 @@ typedef struct
     Uint32 usage_maximum;
     int usage_maxcount;
     int usage_count;
-    Uint32 *usages;
+    Uint32* usages;
 } DescriptorLocalState;
 
 typedef struct
@@ -110,21 +110,23 @@ typedef struct
     int field_maxcount;
     int field_count;
     int field_offset;
-    DescriptorInputField *fields;
+    DescriptorInputField* fields;
 } DescriptorContext;
 
-static void DebugDescriptor(DescriptorContext *ctx, const char *fmt, ...)
+static void DebugDescriptor(DescriptorContext* ctx, const char* fmt, ...)
 {
 #ifdef DEBUG_DESCRIPTOR
     va_list ap;
     va_start(ap, fmt);
-    char *message = NULL;
+    char* message = NULL;
     SDL_vasprintf(&message, fmt, ap);
     va_end(ap);
-    if (ctx->collection_depth > 0) {
+    if (ctx->collection_depth > 0)
+    {
         size_t len = 4 * ctx->collection_depth + SDL_strlen(message) + 1;
-        char *output = (char *)SDL_malloc(len);
-        if (output) {
+        char* output = (char*)SDL_malloc(len);
+        if (output)
+        {
             SDL_memset(output, ' ', 4 * ctx->collection_depth);
             output[4 * ctx->collection_depth] = '\0';
             SDL_strlcat(output, message, len);
@@ -137,56 +139,83 @@ static void DebugDescriptor(DescriptorContext *ctx, const char *fmt, ...)
 #endif // DEBUG_DESCRIPTOR
 }
 
-static void DebugMainTag(DescriptorContext *ctx, const char *tag, Uint32 flags)
+static void DebugMainTag(DescriptorContext* ctx, const char* tag, Uint32 flags)
 {
 #ifdef DEBUG_DESCRIPTOR
-    char message[1024] = { 0 };
+    char message[1024] = {0};
 
     SDL_strlcat(message, tag, sizeof(message));
     SDL_strlcat(message, "(", sizeof(message));
-    if (flags & MainFlagConstant) {
+    if (flags & MainFlagConstant)
+    {
         SDL_strlcat(message, " Constant", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Data", sizeof(message));
     }
-    if (flags & MainFlagVariable) {
+    if (flags & MainFlagVariable)
+    {
         SDL_strlcat(message, " Variable", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Array", sizeof(message));
     }
-    if (flags & MainFlagRelative) {
+    if (flags & MainFlagRelative)
+    {
         SDL_strlcat(message, " Relative", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Absolute", sizeof(message));
     }
-    if (flags & MainFlagWrap) {
+    if (flags & MainFlagWrap)
+    {
         SDL_strlcat(message, " Wrap", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " No Wrap", sizeof(message));
     }
-    if (flags & MainFlagNonLinear) {
+    if (flags & MainFlagNonLinear)
+    {
         SDL_strlcat(message, " Non Linear", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Linear", sizeof(message));
     }
-    if (flags & MainFlagNoPreferred) {
+    if (flags & MainFlagNoPreferred)
+    {
         SDL_strlcat(message, " No Preferred", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Preferred State", sizeof(message));
     }
-    if (flags & MainFlagNullState) {
+    if (flags & MainFlagNullState)
+    {
         SDL_strlcat(message, " Null State", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " No Null Position", sizeof(message));
     }
-    if (flags & MainFlagVolatile) {
+    if (flags & MainFlagVolatile)
+    {
         SDL_strlcat(message, " Volatile", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Non Volatile", sizeof(message));
     }
-    if (flags & MainFlagBufferedBytes) {
+    if (flags & MainFlagBufferedBytes)
+    {
         SDL_strlcat(message, " Buffered Bytes", sizeof(message));
-    } else {
+    }
+    else
+    {
         SDL_strlcat(message, " Bit Field", sizeof(message));
     }
     SDL_strlcat(message, " )", sizeof(message));
@@ -196,96 +225,113 @@ static void DebugMainTag(DescriptorContext *ctx, const char *tag, Uint32 flags)
 #endif // DEBUG_DESCRIPTOR
 }
 
-static Uint32 ReadValue(const Uint8 *data, int size)
+static Uint32 ReadValue(const Uint8* data, int size)
 {
     Uint32 value = 0;
 
     int shift = 0;
-    while (size--) {
+    while (size--)
+    {
         value |= ((Uint32)(*data++)) << shift;
         shift += 8;
     }
     return value;
 }
 
-static void ResetLocalState(DescriptorContext *ctx)
+static void ResetLocalState(DescriptorContext* ctx)
 {
     ctx->local.usage_minimum = 0;
     ctx->local.usage_maximum = 0;
     ctx->local.usage_count = 0;
 }
 
-static bool AddUsage(DescriptorContext *ctx, Uint32 usage)
+static bool AddUsage(DescriptorContext* ctx, Uint32 usage)
 {
-    if (ctx->local.usage_count == ctx->local.usage_maxcount) {
+    if (ctx->local.usage_count == ctx->local.usage_maxcount)
+    {
         int usage_maxcount = ctx->local.usage_maxcount + 4;
-        Uint32 *usages = (Uint32 *)SDL_realloc(ctx->local.usages, usage_maxcount * sizeof(*usages));
-        if (!usages) {
+        Uint32* usages = (Uint32*)SDL_realloc(ctx->local.usages, usage_maxcount * sizeof(*usages));
+        if (!usages)
+        {
             return false;
         }
         ctx->local.usages = usages;
         ctx->local.usage_maxcount = usage_maxcount;
     }
 
-    if (usage <= 0xFFFF) {
+    if (usage <= 0xFFFF)
+    {
         usage |= (ctx->global.usage_page << 16);
     }
     ctx->local.usages[ctx->local.usage_count++] = usage;
     return true;
 }
 
-static bool AddInputField(DescriptorContext *ctx, Uint32 usage, int bit_size)
+static bool AddInputField(DescriptorContext* ctx, Uint32 usage, int bit_size)
 {
-    if (ctx->field_count == ctx->field_maxcount) {
+    if (ctx->field_count == ctx->field_maxcount)
+    {
         int field_maxcount = ctx->field_maxcount + 4;
-        DescriptorInputField *fields = (DescriptorInputField *)SDL_realloc(ctx->fields, field_maxcount * sizeof(*fields));
-        if (!fields) {
+        DescriptorInputField* fields = (DescriptorInputField*)
+            SDL_realloc(ctx->fields, field_maxcount * sizeof(*fields));
+        if (!fields)
+        {
             return false;
         }
         ctx->fields = fields;
         ctx->field_maxcount = field_maxcount;
     }
 
-    DescriptorInputField *field = &ctx->fields[ctx->field_count++];
+    DescriptorInputField* field = &ctx->fields[ctx->field_count++];
     field->report_id = (Uint8)ctx->global.report_id;
     field->usage = usage;
     field->bit_offset = ctx->field_offset;
     field->bit_size = bit_size;
 
-    DebugDescriptor(ctx, "Adding report %d field 0x%.8x size %d bits at bit offset %d", field->report_id, field->usage, field->bit_size, field->bit_offset);
+    DebugDescriptor(ctx, "Adding report %d field 0x%.8x size %d bits at bit offset %d", field->report_id, field->usage,
+                    field->bit_size, field->bit_offset);
     return true;
 }
 
-static bool AddInputFields(DescriptorContext *ctx)
+static bool AddInputFields(DescriptorContext* ctx)
 {
     Uint32 usage = 0;
 
-    if (ctx->global.report_count == 0 || ctx->global.report_size == 0) {
+    if (ctx->global.report_count == 0 || ctx->global.report_size == 0)
+    {
         return true;
     }
 
     if (ctx->local.usage_count == 0 &&
         ctx->local.usage_minimum > 0 &&
-        ctx->local.usage_maximum >= ctx->local.usage_minimum) {
-        for (usage = ctx->local.usage_minimum; usage <= ctx->local.usage_maximum; ++usage) {
-            if (!AddUsage(ctx, usage)) {
+        ctx->local.usage_maximum >= ctx->local.usage_minimum)
+    {
+        for (usage = ctx->local.usage_minimum; usage <= ctx->local.usage_maximum; ++usage)
+        {
+            if (!AddUsage(ctx, usage))
+            {
                 return false;
             }
         }
     }
 
     int usage_index = 0;
-    for (Uint32 i = 0; i < ctx->global.report_count; ++i) {
-        if (usage_index < ctx->local.usage_count) {
+    for (Uint32 i = 0; i < ctx->global.report_count; ++i)
+    {
+        if (usage_index < ctx->local.usage_count)
+        {
             usage = ctx->local.usages[usage_index];
-            if (usage_index < (ctx->local.usage_count - 1)) {
+            if (usage_index < (ctx->local.usage_count - 1))
+            {
                 ++usage_index;
             }
         }
 
         int size = (int)ctx->global.report_size;
-        if (usage > 0) {
-            if (!AddInputField(ctx, usage, size)) {
+        if (usage > 0)
+        {
+            if (!AddInputField(ctx, usage, size))
+            {
                 return false;
             }
         }
@@ -294,11 +340,12 @@ static bool AddInputFields(DescriptorContext *ctx)
     return true;
 }
 
-static bool ParseMainItem(DescriptorContext *ctx, int tag, int size, const Uint8 *data)
+static bool ParseMainItem(DescriptorContext* ctx, int tag, int size, const Uint8* data)
 {
     Uint32 flags;
 
-    switch (tag) {
+    switch (tag)
+    {
     case MainTagInput:
         flags = ReadValue(data, size);
         DebugMainTag(ctx, "MainTagInput", flags);
@@ -314,7 +361,8 @@ static bool ParseMainItem(DescriptorContext *ctx, int tag, int size, const Uint8
         break;
     case MainTagCollection:
         DebugDescriptor(ctx, "MainTagCollection");
-        switch (*data) {
+        switch (*data)
+        {
         case 0x00:
             DebugDescriptor(ctx, "Physical");
             break;
@@ -342,7 +390,8 @@ static bool ParseMainItem(DescriptorContext *ctx, int tag, int size, const Uint8
         ++ctx->collection_depth;
         break;
     case MainTagEndCollection:
-        if (ctx->collection_depth > 0) {
+        if (ctx->collection_depth > 0)
+        {
             --ctx->collection_depth;
         }
         DebugDescriptor(ctx, "MainTagEndCollection");
@@ -357,11 +406,12 @@ static bool ParseMainItem(DescriptorContext *ctx, int tag, int size, const Uint8
     return true;
 }
 
-static bool ParseGlobalItem(DescriptorContext *ctx, int tag, int size, const Uint8 *data)
+static bool ParseGlobalItem(DescriptorContext* ctx, int tag, int size, const Uint8* data)
 {
     Uint32 value;
 
-    switch (tag) {
+    switch (tag)
+    {
     case GlobalTagUsagePage:
         ctx->global.usage_page = ReadValue(data, size);
         DebugDescriptor(ctx, "GlobalTagUsagePage: 0x%.4x", ctx->global.usage_page);
@@ -414,11 +464,12 @@ static bool ParseGlobalItem(DescriptorContext *ctx, int tag, int size, const Uin
     return true;
 }
 
-static bool ParseLocalItem(DescriptorContext *ctx, int tag, int size, const Uint8 *data)
+static bool ParseLocalItem(DescriptorContext* ctx, int tag, int size, const Uint8* data)
 {
     Uint32 value;
 
-    switch (tag) {
+    switch (tag)
+    {
     case LocalTagUsage:
         value = ReadValue(data, size);
         AddUsage(ctx, value);
@@ -460,37 +511,43 @@ static bool ParseLocalItem(DescriptorContext *ctx, int tag, int size, const Uint
     return true;
 }
 
-static bool ParseDescriptor(DescriptorContext *ctx, const Uint8 *descriptor, int descriptor_size)
+static bool ParseDescriptor(DescriptorContext* ctx, const Uint8* descriptor, int descriptor_size)
 {
     SDL_zerop(ctx);
 
-    for (const Uint8 *here = descriptor; here < descriptor + descriptor_size;) {
-        static const int sizes[4] = { 0, 1, 2, 4 };
+    for (const Uint8* here = descriptor; here < descriptor + descriptor_size;)
+    {
+        static const int sizes[4] = {0, 1, 2, 4};
         Uint8 data = *here++;
         int size = sizes[(data & 0x3)];
         int type = ((data >> 2) & 0x3);
         int tag = (data >> 4);
 
-        if ((here + size) > (descriptor + descriptor_size)) {
+        if ((here + size) > (descriptor + descriptor_size))
+        {
             return SDL_SetError("Invalid descriptor");
         }
 
 #ifdef DEBUG_DESCRIPTOR
         SDL_Log("Data: 0x%.2x, size: %d, type: %d, tag: %d", data, size, type, tag);
 #endif
-        switch (type) {
+        switch (type)
+        {
         case DescriptorItemTypeMain:
-            if (!ParseMainItem(ctx, tag, size, here)) {
+            if (!ParseMainItem(ctx, tag, size, here))
+            {
                 return false;
             }
             break;
         case DescriptorItemTypeGlobal:
-            if (!ParseGlobalItem(ctx, tag, size, here)) {
+            if (!ParseGlobalItem(ctx, tag, size, here))
+            {
                 return false;
             }
             break;
         case DescriptorItemTypeLocal:
-            if (!ParseLocalItem(ctx, tag, size, here)) {
+            if (!ParseLocalItem(ctx, tag, size, here))
+            {
                 return false;
             }
             break;
@@ -504,20 +561,22 @@ static bool ParseDescriptor(DescriptorContext *ctx, const Uint8 *descriptor, int
     return true;
 }
 
-static void CleanupContext(DescriptorContext *ctx)
+static void CleanupContext(DescriptorContext* ctx)
 {
     SDL_free(ctx->local.usages);
     SDL_free(ctx->fields);
 }
 
-SDL_ReportDescriptor *SDL_ParseReportDescriptor(const Uint8 *descriptor, int descriptor_size)
+SDL_ReportDescriptor* SDL_ParseReportDescriptor(const Uint8* descriptor, int descriptor_size)
 {
-    SDL_ReportDescriptor *result = NULL;
+    SDL_ReportDescriptor* result = NULL;
 
     DescriptorContext ctx;
-    if (ParseDescriptor(&ctx, descriptor, descriptor_size)) {
-        result = (SDL_ReportDescriptor *)SDL_malloc(sizeof(*result));
-        if (result) {
+    if (ParseDescriptor(&ctx, descriptor, descriptor_size))
+    {
+        result = (SDL_ReportDescriptor*)SDL_malloc(sizeof(*result));
+        if (result)
+        {
             result->field_count = ctx.field_count;
             result->fields = ctx.fields;
             ctx.fields = NULL;
@@ -528,33 +587,38 @@ SDL_ReportDescriptor *SDL_ParseReportDescriptor(const Uint8 *descriptor, int des
     return result;
 }
 
-bool SDL_DescriptorHasUsage(SDL_ReportDescriptor *descriptor, Uint16 usage_page, Uint16 usage)
+bool SDL_DescriptorHasUsage(SDL_ReportDescriptor* descriptor, Uint16 usage_page, Uint16 usage)
 {
-    if (!descriptor) {
+    if (!descriptor)
+    {
         return false;
     }
 
     Uint32 full_usage = (((Uint32)usage_page << 16) | usage);
-    for (int i = 0; i < descriptor->field_count; ++i) {
-        if (descriptor->fields[i].usage == full_usage) {
+    for (int i = 0; i < descriptor->field_count; ++i)
+    {
+        if (descriptor->fields[i].usage == full_usage)
+        {
             return true;
         }
     }
     return false;
 }
 
-void SDL_DestroyDescriptor(SDL_ReportDescriptor *descriptor)
+void SDL_DestroyDescriptor(SDL_ReportDescriptor* descriptor)
 {
-    if (descriptor) {
+    if (descriptor)
+    {
         SDL_free(descriptor->fields);
         SDL_free(descriptor);
     }
 }
 
-bool SDL_ReadReportData(const Uint8 *data, int size, int bit_offset, int bit_size, Uint32 *value)
+bool SDL_ReadReportData(const Uint8* data, int size, int bit_offset, int bit_size, Uint32* value)
 {
     int offset = (bit_offset / 8);
-    if (offset >= size) {
+    if (offset >= size)
+    {
         *value = 0;
         return SDL_SetError("Out of bounds reading report data");
     }
@@ -562,11 +626,13 @@ bool SDL_ReadReportData(const Uint8 *data, int size, int bit_offset, int bit_siz
     *value = ReadValue(data + offset, (bit_size + 7) / 8);
 
     int shift = (bit_offset % 8);
-    if (shift > 0) {
+    if (shift > 0)
+    {
         *value >>= shift;
     }
 
-    switch (bit_size) {
+    switch (bit_size)
+    {
     case 1:
         *value &= 0x1;
         break;
@@ -590,23 +656,26 @@ bool SDL_ReadReportData(const Uint8 *data, int size, int bit_offset, int bit_siz
 
 #include <SDL3/SDL_main.h>
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-    const char *file = argv[1];
-    if (argc < 2) {
+    const char* file = argv[1];
+    if (argc < 2)
+    {
         SDL_Log("Usage: %s file", argv[0]);
         return 1;
     }
 
     size_t descriptor_size = 0;
-    Uint8 *descriptor = SDL_LoadFile(argv[1], &descriptor_size);
-    if (!descriptor) {
+    Uint8* descriptor = SDL_LoadFile(argv[1], &descriptor_size);
+    if (!descriptor)
+    {
         SDL_Log("Couldn't load %s: %s", argv[1], SDL_GetError());
         return 2;
     }
 
     DescriptorContext ctx;
-    if (!ParseDescriptor(&ctx, descriptor, descriptor_size)) {
+    if (!ParseDescriptor(&ctx, descriptor, descriptor_size))
+    {
         SDL_Log("Couldn't parse %s: %s", argv[1], SDL_GetError());
         return 3;
     }

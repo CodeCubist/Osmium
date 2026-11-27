@@ -38,6 +38,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /** @defgroup opus_errorcodes Error codes

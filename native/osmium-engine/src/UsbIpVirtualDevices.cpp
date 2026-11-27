@@ -927,11 +927,14 @@ namespace osmium
                                 }
                                 else if (sel == 0x02)
                                 {
-                                    if (req == 0x01 && outBuf.size() >= 2) volume = static_cast<int16_t>(outBuf[0] | (
-                                        outBuf[1] << 8));
-                                    else if (req == 0x81) resp = {
-                                        static_cast<uint8_t>(volume & 0xFF), static_cast<uint8_t>((volume >> 8) & 0xFF)
-                                    };
+                                    if (req == 0x01 && outBuf.size() >= 2)
+                                        volume = static_cast<int16_t>(outBuf[0] | (
+                                            outBuf[1] << 8));
+                                    else if (req == 0x81)
+                                        resp = {
+                                            static_cast<uint8_t>(volume & 0xFF),
+                                            static_cast<uint8_t>((volume >> 8) & 0xFF)
+                                        };
                                     else if (req == 0x82)
                                     {
                                         int16_t v = -60 * 256;
@@ -951,7 +954,8 @@ namespace osmium
                         else
                         {
                             if (!sendReply(hdr, status, static_cast<uint32_t>(resp.size()),
-                                           resp.empty() ? nullptr : resp.data(), {})) break;
+                                           resp.empty() ? nullptr : resp.data(), {}))
+                                break;
                         }
                     }
                     else
@@ -1004,7 +1008,8 @@ namespace osmium
                                 p.status = 0;
                             }
                             if (!sendReply(hdr, 0, totalBytes, inData.empty() ? nullptr : inData.data(),
-                                           isoPkts)) break;
+                                           isoPkts))
+                                break;
                         }
                         else
                         {

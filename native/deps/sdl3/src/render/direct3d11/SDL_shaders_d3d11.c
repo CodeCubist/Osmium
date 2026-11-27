@@ -53,24 +53,25 @@
 
 static struct
 {
-    const void *shader_data;
+    const void* shader_data;
     SIZE_T shader_size;
 } D3D11_shaders[] = {
-    { NULL, 0 },
-    { D3D11_PixelShader_Colors, sizeof(D3D11_PixelShader_Colors) },
-    { D3D11_PixelShader_Textures, sizeof(D3D11_PixelShader_Textures) },
-    { D3D11_PixelShader_Advanced, sizeof(D3D11_PixelShader_Advanced) },
+    {NULL, 0},
+    {D3D11_PixelShader_Colors, sizeof(D3D11_PixelShader_Colors)},
+    {D3D11_PixelShader_Textures, sizeof(D3D11_PixelShader_Textures)},
+    {D3D11_PixelShader_Advanced, sizeof(D3D11_PixelShader_Advanced)},
 };
 
 SDL_COMPILE_TIME_ASSERT(D3D11_shaders, SDL_arraysize(D3D11_shaders) == NUM_SHADERS);
 
-bool D3D11_CreateVertexShader(ID3D11Device1 *d3dDevice, ID3D11VertexShader **vertexShader, ID3D11InputLayout **inputLayout)
+bool D3D11_CreateVertexShader(ID3D11Device1* d3dDevice, ID3D11VertexShader** vertexShader,
+                              ID3D11InputLayout** inputLayout)
 {
     // Declare how the input layout for SDL's vertex shader will be setup:
     const D3D11_INPUT_ELEMENT_DESC vertexDesc[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     HRESULT result;
 
@@ -80,7 +81,8 @@ bool D3D11_CreateVertexShader(ID3D11Device1 *d3dDevice, ID3D11VertexShader **ver
                                              sizeof(D3D11_VertexShader),
                                              NULL,
                                              vertexShader);
-    if (FAILED(result)) {
+    if (FAILED(result))
+    {
         return WIN_SetErrorFromHRESULT("ID3D11Device1::CreateVertexShader", result);
     }
 
@@ -91,13 +93,14 @@ bool D3D11_CreateVertexShader(ID3D11Device1 *d3dDevice, ID3D11VertexShader **ver
                                             D3D11_VertexShader,
                                             sizeof(D3D11_VertexShader),
                                             inputLayout);
-    if (FAILED(result)) {
+    if (FAILED(result))
+    {
         return WIN_SetErrorFromHRESULT("ID3D11Device1::CreateInputLayout", result);
     }
     return true;
 }
 
-bool D3D11_CreatePixelShader(ID3D11Device1 *d3dDevice, D3D11_Shader shader, ID3D11PixelShader **pixelShader)
+bool D3D11_CreatePixelShader(ID3D11Device1* d3dDevice, D3D11_Shader shader, ID3D11PixelShader** pixelShader)
 {
     HRESULT result;
 
@@ -106,7 +109,8 @@ bool D3D11_CreatePixelShader(ID3D11Device1 *d3dDevice, D3D11_Shader shader, ID3D
                                             D3D11_shaders[shader].shader_size,
                                             NULL,
                                             pixelShader);
-    if (FAILED(result)) {
+    if (FAILED(result))
+    {
         return WIN_SetErrorFromHRESULT("ID3D11Device1::CreatePixelShader", result);
     }
     return true;

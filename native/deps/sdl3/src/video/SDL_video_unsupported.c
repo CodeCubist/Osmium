@@ -26,7 +26,7 @@
 
 #if defined(SDL_PLATFORM_WINDOWS)
 
-bool SDL_RegisterApp(const char *name, Uint32 style, void *hInst)
+bool SDL_RegisterApp(const char* name, Uint32 style, void* hInst)
 {
     (void)name;
     (void)style;
@@ -38,13 +38,13 @@ void SDL_UnregisterApp(void)
 {
 }
 
-void SDL_SetWindowsMessageHook(SDL_WindowsMessageHook callback, void *userdata)
+void SDL_SetWindowsMessageHook(SDL_WindowsMessageHook callback, void* userdata)
 {
 }
 
 #endif // defined(SDL_PLATFORM_WINDOWS)
 
-bool SDL_GetDXGIOutputInfo(SDL_DisplayID displayID, int *adapterIndex, int *outputIndex)
+bool SDL_GetDXGIOutputInfo(SDL_DisplayID displayID, int* adapterIndex, int* outputIndex)
 {
     (void)displayID;
     (void)adapterIndex;
@@ -72,7 +72,7 @@ int SDL_GetDirect3D9AdapterIndex(SDL_DisplayID displayID)
 
 #ifndef SDL_PLATFORM_GDK
 
-bool SDL_GetGDKTaskQueue(XTaskQueueHandle *outTaskQueue)
+bool SDL_GetGDKTaskQueue(XTaskQueueHandle* outTaskQueue)
 {
     (void)outTaskQueue;
     return SDL_Unsupported();
@@ -91,7 +91,8 @@ void SDL_OnApplicationDidChangeStatusBarOrientation(void)
 
 #ifndef SDL_VIDEO_DRIVER_UIKIT
 
-bool SDL_SetiOSAnimationCallback(SDL_Window *window, int interval, SDL_iOSAnimationCallback callback, void *callbackParam)
+bool SDL_SetiOSAnimationCallback(SDL_Window* window, int interval, SDL_iOSAnimationCallback callback,
+                                 void* callbackParam)
 {
     (void)window;
     (void)interval;

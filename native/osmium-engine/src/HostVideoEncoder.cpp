@@ -5,7 +5,9 @@
 #include <cmath>
 #include <cstring>
 #include <d3d11_4.h>
+#include <dxgi.h>
 #include <mutex>
+#include <unordered_map>
 
 extern "C" {
 #include <libavutil/hwcontext.h>
@@ -16,6 +18,40 @@ namespace osmium
 {
     namespace
     {
+        std::mutex g_WorkingEncoderCacheMutex;
+        std::unordered_map<uint64_t, std::string> g_WorkingEncoderCache;
+
+        uint64_t MakeEncoderCacheKey(int codecPref, int encoderPref, bool enableHdr, bool enableYuv444)
+        {
+            return (static_cast<uint64_t>(codecPref & 0xFF) << 16) |
+                (static_cast<uint64_t>(encoderPref & 0xFF) << 8) |
+                (enableHdr ? 2ULL : 0ULL) |
+                (enableYuv444 ? 1ULL : 0ULL);
+        }
+
+        UINT DetectD3d11VendorId(ID3D11Device* device)
+        {
+            if (!device) return 0;
+            IDXGIDevice* dxgiDev = nullptr;
+            if (FAILED(device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDev))) || !dxgiDev)
+            {
+                return 0;
+            }
+            IDXGIAdapter* adapter = nullptr;
+            UINT vendorId = 0;
+            if (SUCCEEDED(dxgiDev->GetAdapter(&adapter)) && adapter)
+            {
+                DXGI_ADAPTER_DESC desc{};
+                if (SUCCEEDED(adapter->GetDesc(&desc)))
+                {
+                    vendorId = desc.VendorId;
+                }
+                adapter->Release();
+            }
+            dxgiDev->Release();
+            return vendorId;
+        }
+
         AVBufferRef* CreateD3D11Nv12Frames(ID3D11Device* device, int width, int height)
         {
             ID3D11Multithread* multithread = nullptr;
@@ -133,15 +169,31 @@ namespace osmium
                     if (codecId == proto::VideoCodecId::H264)
                     {
                         const uint8_t nalType = data[nalStart] & 0x1FU;
-                        if (nalType == 7) { isParam = true; hasSps = true; }
-                        else if (nalType == 8) { isParam = true; hasPps = true; }
+                        if (nalType == 7)
+                        {
+                            isParam = true;
+                            hasSps = true;
+                        }
+                        else if (nalType == 8)
+                        {
+                            isParam = true;
+                            hasPps = true;
+                        }
                     }
                     else if (codecId == proto::VideoCodecId::HEVC)
                     {
                         const uint8_t nalType = (data[nalStart] >> 1) & 0x3FU;
                         if (nalType == 32) { isParam = true; }
-                        else if (nalType == 33) { isParam = true; hasSps = true; }
-                        else if (nalType == 34) { isParam = true; hasPps = true; }
+                        else if (nalType == 33)
+                        {
+                            isParam = true;
+                            hasSps = true;
+                        }
+                        else if (nalType == 34)
+                        {
+                            isParam = true;
+                            hasPps = true;
+                        }
                     }
                     if (isParam)
                     {
@@ -183,7 +235,8 @@ namespace osmium
         const int64_t bps = static_cast<int64_t>(clamped) * 1000LL;
         m_CodecCtx->bit_rate = bps;
         m_CodecCtx->rc_max_rate = bps;
-        m_CodecCtx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, (bps * 5) / (std::max(1, m_ActiveFps) * 4)));
+        m_CodecCtx->rc_buffer_size = static_cast<int>(std::max<int64_t>(
+            16000, (bps * 5) / (std::max(1, m_ActiveFps) * 4)));
         m_ActiveBitrateKbps = clamped;
     }
 
@@ -293,6 +346,64 @@ namespace osmium
             return std::find(m_ExcludedEncoders.begin(), m_ExcludedEncoders.end(), name) != m_ExcludedEncoders.end();
         };
 
+        // Prioritize the GPU vendor matching the active capture adapter so AMD/Intel hosts
+        // don't burn 150-400ms probing unavailable NVENC/AMF/QSV DLLs on every cold connect.
+        const UINT gpuVendorId = DetectD3d11VendorId(captureDevice);
+        const char* preferredVendorTag = nullptr;
+        if (gpuVendorId == 0x10DE) preferredVendorTag = "_nvenc";
+        else if (gpuVendorId == 0x1002) preferredVendorTag = "_amf";
+        else if (gpuVendorId == 0x8086) preferredVendorTag = "_qsv";
+
+        if (preferredVendorTag != nullptr)
+        {
+            auto vendorPriority = [preferredVendorTag](const EncoderCandidate& c) -> int
+            {
+                if (!c.isHardware) return 2;
+                return (std::strstr(c.ffmpegName, preferredVendorTag) != nullptr) ? 0 : 1;
+            };
+            // Preserve codec priority groups while putting the host's actual GPU vendor first within each codec.
+            size_t groupStart = 0;
+            while (groupStart < ordered.size())
+            {
+                size_t groupEnd = groupStart + 1;
+                while (groupEnd < ordered.size() &&
+                    ordered[groupEnd].codecId == ordered[groupStart].codecId &&
+                    ordered[groupEnd].isHardware == ordered[groupStart].isHardware)
+                {
+                    ++groupEnd;
+                }
+                std::stable_sort(ordered.begin() + static_cast<ptrdiff_t>(groupStart),
+                                 ordered.begin() + static_cast<ptrdiff_t>(groupEnd),
+                                 [&](const EncoderCandidate& a, const EncoderCandidate& b)
+                                 {
+                                     return vendorPriority(a) < vendorPriority(b);
+                                 });
+                groupStart = groupEnd;
+            }
+        }
+
+        // Put the last-known working encoder for this profile first for instant reconnect startup.
+        const uint64_t encCacheKey = MakeEncoderCacheKey(codecPreference, encoderPreference, enableHdr, enableYuv444);
+        std::string cachedEncName;
+        {
+            std::lock_guard<std::mutex> cl(g_WorkingEncoderCacheMutex);
+            auto it = g_WorkingEncoderCache.find(encCacheKey);
+            if (it != g_WorkingEncoderCache.end()) cachedEncName = it->second;
+        }
+        if (!cachedEncName.empty() && !isExcluded(cachedEncName.c_str()))
+        {
+            auto it = std::find_if(ordered.begin(), ordered.end(), [&](const EncoderCandidate& c)
+            {
+                return cachedEncName == c.ffmpegName;
+            });
+            if (it != ordered.end() && it != ordered.begin())
+            {
+                EncoderCandidate fastHit = *it;
+                ordered.erase(it);
+                ordered.insert(ordered.begin(), fastHit);
+            }
+        }
+
         std::vector<EncoderCandidate> candidatePasses[2];
         for (const auto& cand : ordered)
         {
@@ -305,6 +416,10 @@ namespace osmium
             {
                 if (TryOpenCandidate(cand, fps, bitrateKbps, enableHdr, enableYuv444, captureDevice))
                 {
+                    {
+                        std::lock_guard<std::mutex> cl(g_WorkingEncoderCacheMutex);
+                        g_WorkingEncoderCache[encCacheKey] = cand.ffmpegName;
+                    }
                     m_YuvFrame = av_frame_alloc();
                     if (m_CodecCtx->hw_frames_ctx) m_HardwareFrame = av_frame_alloc();
                     if (!m_YuvFrame || (m_CodecCtx->hw_frames_ctx && !m_HardwareFrame))
@@ -333,7 +448,8 @@ namespace osmium
                             m_HdrColumns[x] = static_cast<int>(static_cast<int64_t>(x) * m_SrcWidth / m_OutWidth);
                         for (int y = 0; y < m_OutHeight; ++y)
                             m_HdrRows[y] = static_cast<int>(static_cast<int64_t>(y) * m_SrcHeight / m_OutHeight);
-                        if (AVMasteringDisplayMetadata* mdm = av_mastering_display_metadata_create_side_data(m_YuvFrame))
+                        if (AVMasteringDisplayMetadata* mdm =
+                            av_mastering_display_metadata_create_side_data(m_YuvFrame))
                         {
                             mdm->display_primaries[0][0] = av_make_q(708, 1000);
                             mdm->display_primaries[0][1] = av_make_q(292, 1000);
@@ -362,9 +478,10 @@ namespace osmium
                         return false;
                     }
 
-                    OSM_LOG_INFO("HostVideoEncoder initialized: %s (%s, %dx%d @ %dfps, %d kbps, hdr=%d, pq=%d, yuv444=%d, D3D11 input=%d)",
-                                 m_EncoderName.c_str(), m_CodecName.c_str(), m_OutWidth, m_OutHeight, fps, bitrateKbps,
-                                 m_HdrActive ? 1 : 0, m_PqHdrActive ? 1 : 0, m_Yuv444Active ? 1 : 0, m_HardwareFrame ? 1 : 0);
+                    OSM_LOG_INFO(
+                        "HostVideoEncoder initialized: %s (%s, %dx%d @ %dfps, %d kbps, hdr=%d, pq=%d, yuv444=%d, D3D11 input=%d)",
+                        m_EncoderName.c_str(), m_CodecName.c_str(), m_OutWidth, m_OutHeight, fps, bitrateKbps,
+                        m_HdrActive ? 1 : 0, m_PqHdrActive ? 1 : 0, m_Yuv444Active ? 1 : 0, m_HardwareFrame ? 1 : 0);
                     return true;
                 }
             }
@@ -391,7 +508,8 @@ namespace osmium
         ctx->rc_max_rate = ctx->bit_rate;
         // Tight ~1.25-frame VBV smooths scene-change/keyframe spikes so 2.4GHz Wi-Fi AP
         // queues don't overflow on sudden motion or IDR keyframes.
-        ctx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, (ctx->bit_rate * 5) / (ctx->framerate.num * 4)));
+        ctx->rc_buffer_size = static_cast<int>(std::max<
+            int64_t>(16000, (ctx->bit_rate * 5) / (ctx->framerate.num * 4)));
         // Long periodic GOP (10s instead of 2s) eliminates frequent unsolicited keyframe
         // spikes on Wi-Fi/P2P/Relay while on-demand VideoIdrRequest handles loss recovery.
         ctx->gop_size = std::max(1, fps * 10);
@@ -780,7 +898,8 @@ namespace osmium
                 EncodedPacket pkt;
                 pkt.isKeyFrame = (m_Pkt->flags & AV_PKT_FLAG_KEY) != 0;
                 pkt.codecId = m_CodecId;
-                if (pkt.isKeyFrame && (m_CodecId == proto::VideoCodecId::H264 || m_CodecId == proto::VideoCodecId::HEVC))
+                if (pkt.isKeyFrame && (m_CodecId == proto::VideoCodecId::H264 || m_CodecId ==
+                    proto::VideoCodecId::HEVC))
                 {
                     std::vector<uint8_t> inlinePs;
                     if (ExtractAnnexBParamSets(m_CodecId, m_Pkt->data, static_cast<size_t>(m_Pkt->size), inlinePs))

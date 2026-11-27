@@ -786,6 +786,12 @@ public sealed partial class SignalingClient : IDisposable
         private set;
     } = string.Empty;
 
+    public string ResolvedServerIp
+    {
+        get;
+        private set;
+    } = string.Empty;
+
     public string LastError
     {
         get;
@@ -1053,7 +1059,8 @@ public sealed partial class SignalingClient : IDisposable
 
     public async Task SendWebRtcIceAsync(string sessionId, string candidate, string? sdpMid, int sdpMLineIndex)
     {
-        if (!_isTransportRegistered || string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(candidate)) return;
+        if (!_isTransportRegistered || string.IsNullOrWhiteSpace(sessionId) ||
+            string.IsNullOrWhiteSpace(candidate)) return;
         await SendJsonAsync(new
         {
             type = "webrtc_ice",

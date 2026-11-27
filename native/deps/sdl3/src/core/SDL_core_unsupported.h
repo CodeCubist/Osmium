@@ -20,7 +20,7 @@
 */
 
 #ifndef SDL_VIDEO_DRIVER_X11
-extern SDL_DECLSPEC void SDLCALL SDL_SetX11EventHook(SDL_X11EventHook callback, void *userdata);
+extern SDL_DECLSPEC void SDLCALL SDL_SetX11EventHook(SDL_X11EventHook callback, void* userdata);
 #endif
 
 #ifndef SDL_PLATFORM_LINUX
@@ -32,34 +32,36 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetLinuxThreadPriorityAndPolicy(Sint64 thre
 typedef struct XUserHandle XUserHandle;
 
 extern SDL_DECLSPEC void SDLCALL SDL_GDKSuspendComplete(void);
-extern SDL_DECLSPEC bool SDLCALL SDL_GetGDKDefaultUser(XUserHandle *outUserHandle);
-extern SDL_DECLSPEC void SDLCALL SDL_GDKSuspendGPU(SDL_GPUDevice *device);
-extern SDL_DECLSPEC void SDLCALL SDL_GDKResumeGPU(SDL_GPUDevice *device);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetGDKDefaultUser(XUserHandle* outUserHandle);
+extern SDL_DECLSPEC void SDLCALL SDL_GDKSuspendGPU(SDL_GPUDevice* device);
+extern SDL_DECLSPEC void SDLCALL SDL_GDKResumeGPU(SDL_GPUDevice* device);
 #endif /* !SDL_PLATFORM_GDK */
 
 #if !defined(SDL_PLATFORM_WINDOWS)
-extern SDL_DECLSPEC bool SDLCALL SDL_RegisterApp(const char *name, Uint32 style, void *hInst);
-extern SDL_DECLSPEC void SDLCALL SDL_SetWindowsMessageHook(void *callback, void *userdata);
+extern SDL_DECLSPEC bool SDLCALL SDL_RegisterApp(const char* name, Uint32 style, void* hInst);
+extern SDL_DECLSPEC void SDLCALL SDL_SetWindowsMessageHook(void* callback, void* userdata);
 extern SDL_DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 #endif /* !SDL_PLATFORM_WINDOWS */
 
 #if !defined(SDL_PLATFORM_ANDROID)
 
-typedef void *SDL_RequestAndroidPermissionCallback;
-typedef void *JavaVM;
+typedef void* SDL_RequestAndroidPermissionCallback;
+typedef void* JavaVM;
 
 extern SDL_DECLSPEC void SDLCALL SDL_SendAndroidBackButton(void);
-extern SDL_DECLSPEC void * SDLCALL SDL_GetAndroidActivity(void);
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetAndroidCachePath(void);
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetAndroidExternalStoragePath(void);
+extern SDL_DECLSPEC void* SDLCALL SDL_GetAndroidActivity(void);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetAndroidCachePath(void);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetAndroidExternalStoragePath(void);
 extern SDL_DECLSPEC Uint32 SDLCALL SDL_GetAndroidExternalStorageState(void);
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetAndroidInternalStoragePath(void);
-extern SDL_DECLSPEC void * SDLCALL SDL_GetAndroidJNIEnv(void);
-extern SDL_DECLSPEC bool SDLCALL SDL_RequestAndroidPermission(const char *permission, SDL_RequestAndroidPermissionCallback cb, void *userdata);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetAndroidInternalStoragePath(void);
+extern SDL_DECLSPEC void* SDLCALL SDL_GetAndroidJNIEnv(void);
+extern SDL_DECLSPEC bool SDLCALL SDL_RequestAndroidPermission(const char* permission,
+                                                              SDL_RequestAndroidPermissionCallback cb, void* userdata);
 extern SDL_DECLSPEC bool SDLCALL SDL_SendAndroidMessage(Uint32 command, int param);
-extern SDL_DECLSPEC bool SDLCALL SDL_ShowAndroidToast(const char *message, int duration, int gravity, int xoffset, int yoffset);
+extern SDL_DECLSPEC bool SDLCALL SDL_ShowAndroidToast(const char* message, int duration, int gravity, int xoffset,
+                                                      int yoffset);
 extern SDL_DECLSPEC int SDLCALL SDL_GetAndroidSDKVersion(void);
 extern SDL_DECLSPEC bool SDLCALL SDL_IsChromebook(void);
 extern SDL_DECLSPEC bool SDLCALL SDL_IsDeXMode(void);
-extern SDL_DECLSPEC Sint32 SDLCALL JNI_OnLoad(JavaVM *vm, void *reserved);
+extern SDL_DECLSPEC Sint32 SDLCALL JNI_OnLoad(JavaVM* vm, void* reserved);
 #endif /* !SDL_PLATFORM_ANDROID */

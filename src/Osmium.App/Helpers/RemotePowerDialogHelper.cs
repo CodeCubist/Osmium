@@ -20,7 +20,8 @@ public static class RemotePowerDialogHelper
         if (requireConfirm)
         {
             string confirmTitleKey = action == "restart" ? "Power_ConfirmRestartTitle" : "Power_ConfirmShutdownTitle";
-            string confirmBodyKey = action == "restart" ? "Power_ConfirmRestartBodyFmt" : "Power_ConfirmShutdownBodyFmt";
+            string confirmBodyKey =
+                action == "restart" ? "Power_ConfirmRestartBodyFmt" : "Power_ConfirmShutdownBodyFmt";
             string confirmBtnKey = action == "restart" ? "Power_ActionRestart" : "Power_ActionShutdown";
 
             var confirmDlg = new ContentDialog

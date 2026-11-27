@@ -40,6 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 #if defined(CUSTOM_MODES) || defined(ENABLE_OPUS_CUSTOM_API)

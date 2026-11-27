@@ -27,7 +27,7 @@
 #if SDL_DYNAMIC_API
 #define SDL_memset SDL_memset_REAL
 #endif
-void *SDL_memset(SDL_OUT_BYTECAP(len) void *dst, int c, size_t len)
+void* SDL_memset(SDL_OUT_BYTECAP(len) void* dst, int c, size_t len)
 {
 #if defined(__GNUC__) && (defined(HAVE_LIBC) && HAVE_LIBC)
     return __builtin_memset(dst, c, len);
@@ -35,8 +35,8 @@ void *SDL_memset(SDL_OUT_BYTECAP(len) void *dst, int c, size_t len)
     return memset(dst, c, len);
 #else
     size_t left;
-    Uint32 *dstp4;
-    Uint8 *dstp1 = (Uint8 *)dst;
+    Uint32* dstp4;
+    Uint8* dstp1 = (Uint8*)dst;
     Uint8 value1;
     Uint32 value4;
 
@@ -47,24 +47,30 @@ void *SDL_memset(SDL_OUT_BYTECAP(len) void *dst, int c, size_t len)
      * execute a 32-bit set. Set first bytes manually if needed until it is
      * aligned. */
     value1 = (Uint8)c;
-    while ((uintptr_t)dstp1 & 0x3) {
-        if (len--) {
+    while ((uintptr_t)dstp1 & 0x3)
+    {
+        if (len--)
+        {
             *dstp1++ = value1;
-        } else {
+        }
+        else
+        {
             return dst;
         }
     }
 
     value4 = ((Uint32)c | ((Uint32)c << 8) | ((Uint32)c << 16) | ((Uint32)c << 24));
-    dstp4 = (Uint32 *)dstp1;
+    dstp4 = (Uint32*)dstp1;
     left = (len % 4);
     len /= 4;
-    while (len--) {
+    while (len--)
+    {
         *dstp4++ = value4;
     }
 
-    dstp1 = (Uint8 *)dstp4;
-    switch (left) {
+    dstp1 = (Uint8*)dstp4;
+    switch (left)
+    {
     case 3:
         *dstp1++ = value1;
         SDL_FALLTHROUGH;
@@ -80,7 +86,7 @@ void *SDL_memset(SDL_OUT_BYTECAP(len) void *dst, int c, size_t len)
 }
 
 // Note that memset() is a byte assignment and this is a 32-bit assignment, so they're not directly equivalent.
-void *SDL_memset4(void *dst, Uint32 val, size_t dwords)
+void* SDL_memset4(void* dst, Uint32 val, size_t dwords)
 {
 #if defined(__APPLE__) && defined(HAVE_STRING_H)
     memset_pattern4(dst, &val, dwords * 4);
@@ -94,14 +100,17 @@ void *SDL_memset4(void *dst, Uint32 val, size_t dwords)
         : "memory");
 #else
     size_t _n = (dwords + 3) / 4;
-    Uint32 *_p = SDL_static_cast(Uint32 *, dst);
+    Uint32* _p = SDL_static_cast(Uint32 *, dst);
     Uint32 _val = (val);
-    if (dwords == 0) {
+    if (dwords == 0)
+    {
         return dst;
     }
-    switch (dwords % 4) {
+    switch (dwords % 4)
+    {
     case 0:
-        do {
+        do
+        {
             *_p++ = _val;
             SDL_FALLTHROUGH;
         case 3:
@@ -112,7 +121,8 @@ void *SDL_memset4(void *dst, Uint32 val, size_t dwords)
             SDL_FALLTHROUGH;
         case 1:
             *_p++ = _val;
-        } while (--_n);
+        }
+        while (--_n);
     }
 #endif
     return dst;
@@ -122,7 +132,7 @@ void *SDL_memset4(void *dst, Uint32 val, size_t dwords)
    We will provide our own implementation if we're not building with a C runtime. */
 #ifndef HAVE_LIBC
 // NOLINTNEXTLINE(readability-redundant-declaration)
-extern void *memset(void *dst, int c, size_t len);
+extern void* memset(void* dst, int c, size_t len);
 #if defined(_MSC_VER) && !defined(__INTEL_LLVM_COMPILER)
 #pragma intrinsic(memset)
 #endif
@@ -131,7 +141,7 @@ extern void *memset(void *dst, int c, size_t len);
 #pragma function(memset)
 #endif
 // NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name)
-void *memset(void *dst, int c, size_t len)
+void* memset(void* dst, int c, size_t len)
 {
     return SDL_memset(dst, c, len);
 }

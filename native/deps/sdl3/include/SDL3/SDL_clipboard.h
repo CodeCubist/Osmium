@@ -84,6 +84,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /* Function prototypes */
@@ -102,7 +103,7 @@ extern "C" {
  * \sa SDL_GetClipboardText
  * \sa SDL_HasClipboardText
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardText(const char *text);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardText(const char* text);
 
 /**
  * Get UTF-8 text from the clipboard.
@@ -121,7 +122,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardText(const char *text);
  * \sa SDL_HasClipboardText
  * \sa SDL_SetClipboardText
  */
-extern SDL_DECLSPEC char * SDLCALL SDL_GetClipboardText(void);
+extern SDL_DECLSPEC char* SDLCALL SDL_GetClipboardText(void);
 
 /**
  * Query whether the clipboard exists and contains a non-empty text string.
@@ -151,7 +152,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_HasClipboardText(void);
  * \sa SDL_GetPrimarySelectionText
  * \sa SDL_HasPrimarySelectionText
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetPrimarySelectionText(const char *text);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetPrimarySelectionText(const char* text);
 
 /**
  * Get UTF-8 text from the primary selection.
@@ -170,7 +171,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetPrimarySelectionText(const char *text);
  * \sa SDL_HasPrimarySelectionText
  * \sa SDL_SetPrimarySelectionText
  */
-extern SDL_DECLSPEC char * SDLCALL SDL_GetPrimarySelectionText(void);
+extern SDL_DECLSPEC char* SDLCALL SDL_GetPrimarySelectionText(void);
 
 /**
  * Query whether the primary selection exists and contains a non-empty text
@@ -208,7 +209,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_HasPrimarySelectionText(void);
  *
  * \sa SDL_SetClipboardData
  */
-typedef const void *(SDLCALL *SDL_ClipboardDataCallback)(void *userdata, const char *mime_type, size_t *size);
+typedef const void*(SDLCALL *SDL_ClipboardDataCallback)(void* userdata, const char* mime_type, size_t* size);
 
 /**
  * Callback function that will be called when the clipboard is cleared, or
@@ -220,7 +221,7 @@ typedef const void *(SDLCALL *SDL_ClipboardDataCallback)(void *userdata, const c
  *
  * \sa SDL_SetClipboardData
  */
-typedef void (SDLCALL *SDL_ClipboardCleanupCallback)(void *userdata);
+typedef void (SDLCALL *SDL_ClipboardCleanupCallback)(void* userdata);
 
 /**
  * Offer clipboard data to the OS.
@@ -253,7 +254,9 @@ typedef void (SDLCALL *SDL_ClipboardCleanupCallback)(void *userdata);
  * \sa SDL_GetClipboardData
  * \sa SDL_HasClipboardData
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardData(SDL_ClipboardDataCallback callback, SDL_ClipboardCleanupCallback cleanup, void *userdata, const char *const *mime_types, size_t num_mime_types);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardData(SDL_ClipboardDataCallback callback,
+                                                      SDL_ClipboardCleanupCallback cleanup, void* userdata,
+                                                      const char* const * mime_types, size_t num_mime_types);
 
 /**
  * Clear the clipboard data.
@@ -288,7 +291,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ClearClipboardData(void);
  * \sa SDL_HasClipboardData
  * \sa SDL_SetClipboardData
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_GetClipboardData(const char *mime_type, size_t *size);
+extern SDL_DECLSPEC void* SDLCALL SDL_GetClipboardData(const char* mime_type, size_t* size);
 
 /**
  * Query whether there is data in the clipboard for the provided mime type.
@@ -304,7 +307,7 @@ extern SDL_DECLSPEC void * SDLCALL SDL_GetClipboardData(const char *mime_type, s
  * \sa SDL_SetClipboardData
  * \sa SDL_GetClipboardData
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_HasClipboardData(const char *mime_type);
+extern SDL_DECLSPEC bool SDLCALL SDL_HasClipboardData(const char* mime_type);
 
 /**
  * Retrieve the list of mime types available in the clipboard.
@@ -321,7 +324,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_HasClipboardData(const char *mime_type);
  *
  * \sa SDL_SetClipboardData
  */
-extern SDL_DECLSPEC char ** SDLCALL SDL_GetClipboardMimeTypes(size_t *num_mime_types);
+extern SDL_DECLSPEC char** SDLCALL SDL_GetClipboardMimeTypes(size_t* num_mime_types);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

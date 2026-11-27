@@ -136,7 +136,8 @@ public sealed class DeviceWallpaperStore
             {
                 if (Directory.Exists(_directory))
                 {
-                    var latestByDevice = new Dictionary<string, (string Path, DateTime WriteUtc)>(StringComparer.OrdinalIgnoreCase);
+                    var latestByDevice =
+                        new Dictionary<string, (string Path, DateTime WriteUtc)>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (string file in Directory.EnumerateFiles(_directory))
                     {

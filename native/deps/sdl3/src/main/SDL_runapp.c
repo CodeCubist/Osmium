@@ -31,7 +31,7 @@
     !defined(SDL_PLATFORM_PS2) && \
     !defined(SDL_PLATFORM_3DS)
 
-int SDL_RunApp(int argc, char *argv[], SDL_main_func mainFunction, void *reserved)
+int SDL_RunApp(int argc, char* argv[], SDL_main_func mainFunction, void* reserved)
 {
     (void)reserved;
     return SDL_CallMainFunction(argc, argv, mainFunction);

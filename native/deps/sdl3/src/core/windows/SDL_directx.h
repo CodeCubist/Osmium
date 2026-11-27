@@ -94,6 +94,7 @@
 #define DIRECTSOUND_VERSION 0x0800
 #define DIRECTINPUT_VERSION 0x0800 // Need version 7 for force feedback. Need version 8 so IDirectInput8_EnumDevices doesn't leak like a sieve...
 
+
 #ifdef HAVE_DDRAW_H
 #include <ddraw.h>
 #endif

@@ -40,7 +40,7 @@ extern int SDL_uclibc_isnan(double x);
 extern int SDL_uclibc_isnanf(float x);
 extern double SDL_uclibc_log(double x);
 extern double SDL_uclibc_log10(double x);
-extern double SDL_uclibc_modf(double x, double *y);
+extern double SDL_uclibc_modf(double x, double* y);
 extern double SDL_uclibc_pow(double x, double y);
 extern double SDL_uclibc_scalbn(double x, int n);
 extern double SDL_uclibc_sin(double x);

@@ -70,40 +70,46 @@
 
 static struct
 {
-    const void *ps_shader_data;
+    const void* ps_shader_data;
     SIZE_T ps_shader_size;
-    const void *vs_shader_data;
+    const void* vs_shader_data;
     SIZE_T vs_shader_size;
     D3D12_RootSignature root_sig;
 } D3D12_shaders[NUM_SHADERS] = {
-    { D3D12_PixelShader_Colors, sizeof(D3D12_PixelShader_Colors),
-      D3D12_VertexShader_Colors, sizeof(D3D12_VertexShader_Colors),
-      ROOTSIG_COLOR },
-    { D3D12_PixelShader_Textures, sizeof(D3D12_PixelShader_Textures),
-      D3D12_VertexShader_Textures, sizeof(D3D12_VertexShader_Textures),
-      ROOTSIG_TEXTURE },
-    { D3D12_PixelShader_Advanced, sizeof(D3D12_PixelShader_Advanced),
-      D3D12_VertexShader_Advanced, sizeof(D3D12_VertexShader_Advanced),
-      ROOTSIG_ADVANCED },
+    {
+        D3D12_PixelShader_Colors, sizeof(D3D12_PixelShader_Colors),
+        D3D12_VertexShader_Colors, sizeof(D3D12_VertexShader_Colors),
+        ROOTSIG_COLOR
+    },
+    {
+        D3D12_PixelShader_Textures, sizeof(D3D12_PixelShader_Textures),
+        D3D12_VertexShader_Textures, sizeof(D3D12_VertexShader_Textures),
+        ROOTSIG_TEXTURE
+    },
+    {
+        D3D12_PixelShader_Advanced, sizeof(D3D12_PixelShader_Advanced),
+        D3D12_VertexShader_Advanced, sizeof(D3D12_VertexShader_Advanced),
+        ROOTSIG_ADVANCED
+    },
 };
 
 static struct
 {
-    const void *rs_shader_data;
+    const void* rs_shader_data;
     SIZE_T rs_shader_size;
 } D3D12_rootsigs[NUM_ROOTSIGS] = {
-    { D3D12_RootSig_Color, sizeof(D3D12_RootSig_Color) },
-    { D3D12_RootSig_Texture, sizeof(D3D12_RootSig_Texture) },
-    { D3D12_RootSig_Advanced, sizeof(D3D12_RootSig_Advanced) },
+    {D3D12_RootSig_Color, sizeof(D3D12_RootSig_Color)},
+    {D3D12_RootSig_Texture, sizeof(D3D12_RootSig_Texture)},
+    {D3D12_RootSig_Advanced, sizeof(D3D12_RootSig_Advanced)},
 };
 
-void D3D12_GetVertexShader(D3D12_Shader shader, D3D12_SHADER_BYTECODE *outBytecode)
+void D3D12_GetVertexShader(D3D12_Shader shader, D3D12_SHADER_BYTECODE* outBytecode)
 {
     outBytecode->pShaderBytecode = D3D12_shaders[shader].vs_shader_data;
     outBytecode->BytecodeLength = D3D12_shaders[shader].vs_shader_size;
 }
 
-void D3D12_GetPixelShader(D3D12_Shader shader, D3D12_SHADER_BYTECODE *outBytecode)
+void D3D12_GetPixelShader(D3D12_Shader shader, D3D12_SHADER_BYTECODE* outBytecode)
 {
     outBytecode->pShaderBytecode = D3D12_shaders[shader].ps_shader_data;
     outBytecode->BytecodeLength = D3D12_shaders[shader].ps_shader_size;
@@ -114,7 +120,7 @@ D3D12_RootSignature D3D12_GetRootSignatureType(D3D12_Shader shader)
     return D3D12_shaders[shader].root_sig;
 }
 
-void D3D12_GetRootSignatureData(D3D12_RootSignature rootSig, D3D12_SHADER_BYTECODE *outBytecode)
+void D3D12_GetRootSignatureData(D3D12_RootSignature rootSig, D3D12_SHADER_BYTECODE* outBytecode)
 {
     outBytecode->pShaderBytecode = D3D12_rootsigs[rootSig].rs_shader_data;
     outBytecode->BytecodeLength = D3D12_rootsigs[rootSig].rs_shader_size;

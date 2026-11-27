@@ -46,6 +46,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -96,7 +97,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_HasKeyboard(void);
  * \sa SDL_GetKeyboardNameForID
  * \sa SDL_HasKeyboard
  */
-extern SDL_DECLSPEC SDL_KeyboardID * SDLCALL SDL_GetKeyboards(int *count);
+extern SDL_DECLSPEC SDL_KeyboardID* SDLCALL SDL_GetKeyboards(int* count);
 
 /**
  * Get the name of a keyboard.
@@ -113,7 +114,7 @@ extern SDL_DECLSPEC SDL_KeyboardID * SDLCALL SDL_GetKeyboards(int *count);
  *
  * \sa SDL_GetKeyboards
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetKeyboardNameForID(SDL_KeyboardID instance_id);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetKeyboardNameForID(SDL_KeyboardID instance_id);
 
 /**
  * Query the window which currently has keyboard focus.
@@ -124,7 +125,7 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetKeyboardNameForID(SDL_KeyboardID
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_Window * SDLCALL SDL_GetKeyboardFocus(void);
+extern SDL_DECLSPEC SDL_Window* SDLCALL SDL_GetKeyboardFocus(void);
 
 /**
  * Get a snapshot of the current state of the keyboard.
@@ -164,7 +165,7 @@ extern SDL_DECLSPEC SDL_Window * SDLCALL SDL_GetKeyboardFocus(void);
  * \sa SDL_PumpEvents
  * \sa SDL_ResetKeyboard
  */
-extern SDL_DECLSPEC const bool * SDLCALL SDL_GetKeyboardState(int *numkeys);
+extern SDL_DECLSPEC const bool* SDLCALL SDL_GetKeyboardState(int* numkeys);
 
 /**
  * Clear the state of the keyboard.
@@ -236,7 +237,8 @@ extern SDL_DECLSPEC void SDLCALL SDL_SetModState(SDL_Keymod modstate);
  * \sa SDL_GetKeyName
  * \sa SDL_GetScancodeFromKey
  */
-extern SDL_DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromScancode(SDL_Scancode scancode, SDL_Keymod modstate, bool key_event);
+extern SDL_DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromScancode(SDL_Scancode scancode, SDL_Keymod modstate,
+                                                               bool key_event);
 
 /**
  * Get the scancode corresponding to the given key code according to the
@@ -257,7 +259,7 @@ extern SDL_DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromScancode(SDL_Scancode scan
  * \sa SDL_GetKeyFromScancode
  * \sa SDL_GetScancodeName
  */
-extern SDL_DECLSPEC SDL_Scancode SDLCALL SDL_GetScancodeFromKey(SDL_Keycode key, SDL_Keymod *modstate);
+extern SDL_DECLSPEC SDL_Scancode SDLCALL SDL_GetScancodeFromKey(SDL_Keycode key, SDL_Keymod* modstate);
 
 /**
  * Set a human-readable name for a scancode.
@@ -275,7 +277,7 @@ extern SDL_DECLSPEC SDL_Scancode SDLCALL SDL_GetScancodeFromKey(SDL_Keycode key,
  *
  * \sa SDL_GetScancodeName
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetScancodeName(SDL_Scancode scancode, const char *name);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetScancodeName(SDL_Scancode scancode, const char* name);
 
 /**
  * Get a human-readable name for a scancode.
@@ -301,7 +303,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetScancodeName(SDL_Scancode scancode, cons
  * \sa SDL_GetScancodeFromName
  * \sa SDL_SetScancodeName
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetScancodeName(SDL_Scancode scancode);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetScancodeName(SDL_Scancode scancode);
 
 /**
  * Get a scancode from a human-readable name.
@@ -318,7 +320,7 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetScancodeName(SDL_Scancode scanco
  * \sa SDL_GetScancodeFromKey
  * \sa SDL_GetScancodeName
  */
-extern SDL_DECLSPEC SDL_Scancode SDLCALL SDL_GetScancodeFromName(const char *name);
+extern SDL_DECLSPEC SDL_Scancode SDLCALL SDL_GetScancodeFromName(const char* name);
 
 /**
  * Get a human-readable name for a key.
@@ -338,7 +340,7 @@ extern SDL_DECLSPEC SDL_Scancode SDLCALL SDL_GetScancodeFromName(const char *nam
  * \sa SDL_GetKeyFromScancode
  * \sa SDL_GetScancodeFromKey
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetKeyName(SDL_Keycode key);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetKeyName(SDL_Keycode key);
 
 /**
  * Get a key code from a human-readable name.
@@ -355,7 +357,7 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetKeyName(SDL_Keycode key);
  * \sa SDL_GetKeyName
  * \sa SDL_GetScancodeFromName
  */
-extern SDL_DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromName(const char *name);
+extern SDL_DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromName(const char* name);
 
 /**
  * Start accepting Unicode text input events in a window.
@@ -383,7 +385,7 @@ extern SDL_DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromName(const char *name);
  * \sa SDL_StopTextInput
  * \sa SDL_TextInputActive
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_StartTextInput(SDL_Window *window);
+extern SDL_DECLSPEC bool SDLCALL SDL_StartTextInput(SDL_Window* window);
 
 /**
  * Text input type.
@@ -398,13 +400,13 @@ extern SDL_DECLSPEC bool SDLCALL SDL_StartTextInput(SDL_Window *window);
  */
 typedef enum SDL_TextInputType
 {
-    SDL_TEXTINPUT_TYPE_TEXT,                   /**< The input is text */
-    SDL_TEXTINPUT_TYPE_TEXT_NAME,              /**< The input is a person's name */
-    SDL_TEXTINPUT_TYPE_TEXT_EMAIL,             /**< The input is an e-mail address */
-    SDL_TEXTINPUT_TYPE_TEXT_USERNAME,          /**< The input is a username */
-    SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_HIDDEN,   /**< The input is a secure password that is hidden */
-    SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_VISIBLE,  /**< The input is a secure password that is visible */
-    SDL_TEXTINPUT_TYPE_NUMBER,                 /**< The input is a number */
+    SDL_TEXTINPUT_TYPE_TEXT, /**< The input is text */
+    SDL_TEXTINPUT_TYPE_TEXT_NAME, /**< The input is a person's name */
+    SDL_TEXTINPUT_TYPE_TEXT_EMAIL, /**< The input is an e-mail address */
+    SDL_TEXTINPUT_TYPE_TEXT_USERNAME, /**< The input is a username */
+    SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_HIDDEN, /**< The input is a secure password that is hidden */
+    SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_VISIBLE, /**< The input is a secure password that is visible */
+    SDL_TEXTINPUT_TYPE_NUMBER, /**< The input is a number */
     SDL_TEXTINPUT_TYPE_NUMBER_PASSWORD_HIDDEN, /**< The input is a secure PIN that is hidden */
     SDL_TEXTINPUT_TYPE_NUMBER_PASSWORD_VISIBLE /**< The input is a secure PIN that is visible */
 } SDL_TextInputType;
@@ -422,10 +424,10 @@ typedef enum SDL_TextInputType
  */
 typedef enum SDL_Capitalization
 {
-    SDL_CAPITALIZE_NONE,      /**< No auto-capitalization will be done */
+    SDL_CAPITALIZE_NONE, /**< No auto-capitalization will be done */
     SDL_CAPITALIZE_SENTENCES, /**< The first letter of sentences will be capitalized */
-    SDL_CAPITALIZE_WORDS,     /**< The first letter of words will be capitalized */
-    SDL_CAPITALIZE_LETTERS    /**< All letters will be capitalized */
+    SDL_CAPITALIZE_WORDS, /**< The first letter of words will be capitalized */
+    SDL_CAPITALIZE_LETTERS /**< All letters will be capitalized */
 } SDL_Capitalization;
 
 /**
@@ -478,7 +480,7 @@ typedef enum SDL_Capitalization
  * \sa SDL_StopTextInput
  * \sa SDL_TextInputActive
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_StartTextInputWithProperties(SDL_Window *window, SDL_PropertiesID props);
+extern SDL_DECLSPEC bool SDLCALL SDL_StartTextInputWithProperties(SDL_Window* window, SDL_PropertiesID props);
 
 #define SDL_PROP_TEXTINPUT_TYPE_NUMBER                  "SDL.textinput.type"
 #define SDL_PROP_TEXTINPUT_CAPITALIZATION_NUMBER        "SDL.textinput.capitalization"
@@ -498,7 +500,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_StartTextInputWithProperties(SDL_Window *wi
  *
  * \sa SDL_StartTextInput
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_TextInputActive(SDL_Window *window);
+extern SDL_DECLSPEC bool SDLCALL SDL_TextInputActive(SDL_Window* window);
 
 /**
  * Stop receiving any text input events in a window.
@@ -516,7 +518,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_TextInputActive(SDL_Window *window);
  *
  * \sa SDL_StartTextInput
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_StopTextInput(SDL_Window *window);
+extern SDL_DECLSPEC bool SDLCALL SDL_StopTextInput(SDL_Window* window);
 
 /**
  * Dismiss the composition window/IME without disabling the subsystem.
@@ -532,7 +534,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_StopTextInput(SDL_Window *window);
  * \sa SDL_StartTextInput
  * \sa SDL_StopTextInput
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ClearComposition(SDL_Window *window);
+extern SDL_DECLSPEC bool SDLCALL SDL_ClearComposition(SDL_Window* window);
 
 /**
  * Set the area used to type Unicode text input.
@@ -555,7 +557,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ClearComposition(SDL_Window *window);
  * \sa SDL_GetTextInputArea
  * \sa SDL_StartTextInput
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetTextInputArea(SDL_Window *window, const SDL_Rect *rect, int cursor);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetTextInputArea(SDL_Window* window, const SDL_Rect* rect, int cursor);
 
 /**
  * Get the area used to type Unicode text input.
@@ -576,7 +578,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetTextInputArea(SDL_Window *window, const 
  *
  * \sa SDL_SetTextInputArea
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetTextInputArea(SDL_Window *window, SDL_Rect *rect, int *cursor);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetTextInputArea(SDL_Window* window, SDL_Rect* rect, int* cursor);
 
 /**
  * Check whether the platform has screen keyboard support.
@@ -605,7 +607,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_HasScreenKeyboardSupport(void);
  *
  * \sa SDL_HasScreenKeyboardSupport
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ScreenKeyboardShown(SDL_Window *window);
+extern SDL_DECLSPEC bool SDLCALL SDL_ScreenKeyboardShown(SDL_Window* window);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

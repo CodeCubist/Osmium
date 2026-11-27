@@ -29,16 +29,18 @@
 #define DUMMY_SURFACE "SDL.internal.window.surface"
 
 
-bool SDL_DUMMY_CreateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch)
+bool SDL_DUMMY_CreateWindowFramebuffer(SDL_VideoDevice* _this, SDL_Window* window, SDL_PixelFormat* format,
+                                       void** pixels, int* pitch)
 {
-    SDL_Surface *surface;
+    SDL_Surface* surface;
     const SDL_PixelFormat surface_format = SDL_PIXELFORMAT_XRGB8888;
     int w, h;
 
     // Create a new framebuffer
     SDL_GetWindowSizeInPixels(window, &w, &h);
     surface = SDL_CreateSurface(w, h, surface_format);
-    if (!surface) {
+    if (!surface)
+    {
         return false;
     }
 
@@ -50,18 +52,20 @@ bool SDL_DUMMY_CreateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *windo
     return true;
 }
 
-bool SDL_DUMMY_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
+bool SDL_DUMMY_UpdateWindowFramebuffer(SDL_VideoDevice* _this, SDL_Window* window, const SDL_Rect* rects, int numrects)
 {
     static int frame_number;
-    SDL_Surface *surface;
+    SDL_Surface* surface;
 
-    surface = (SDL_Surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), DUMMY_SURFACE, NULL);
-    if (!surface) {
+    surface = (SDL_Surface*)SDL_GetPointerProperty(SDL_GetWindowProperties(window), DUMMY_SURFACE, NULL);
+    if (!surface)
+    {
         return SDL_SetError("Couldn't find dummy surface for window");
     }
 
     // Send the data to the display
-    if (SDL_GetHintBoolean(SDL_HINT_VIDEO_DUMMY_SAVE_FRAMES, false)) {
+    if (SDL_GetHintBoolean(SDL_HINT_VIDEO_DUMMY_SAVE_FRAMES, false))
+    {
         char file[128];
         (void)SDL_snprintf(file, sizeof(file), "SDL_window%" SDL_PRIu32 "-%8.8d.bmp",
                            SDL_GetWindowID(window), ++frame_number);
@@ -70,7 +74,7 @@ bool SDL_DUMMY_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *windo
     return true;
 }
 
-void SDL_DUMMY_DestroyWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window)
+void SDL_DUMMY_DestroyWindowFramebuffer(SDL_VideoDevice* _this, SDL_Window* window)
 {
     SDL_ClearProperty(SDL_GetWindowProperties(window), DUMMY_SURFACE);
 }

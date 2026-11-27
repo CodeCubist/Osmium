@@ -82,7 +82,8 @@ namespace osmium
                 for (HWND prev = GetWindow(window, GW_HWNDPREV); prev; prev = GetWindow(prev, GW_HWNDPREV))
                 {
                     RECT other{}, overlap{};
-                    if (IsWindowVisible(prev) && GetWindowRect(prev, &other) && IntersectRect(&overlap, &bounds, &other))
+                    if (IsWindowVisible(prev) && GetWindowRect(prev, &other) &&
+                        IntersectRect(&overlap, &bounds, &other))
                     {
                         needsRaise = true;
                         break;
@@ -107,22 +108,22 @@ namespace osmium
                                   reinterpret_cast<LONG_PTR>(reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams));
                 break;
             case WM_PAINT:
-            {
-                PAINTSTRUCT paint{};
-                HDC dc = BeginPaint(window, &paint);
-                FillRect(dc, &paint.rcPaint, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
-                auto* data = reinterpret_cast<WindowState*>(GetWindowLongPtrW(window, GWLP_USERDATA));
-                if (data && data->wallpaper)
                 {
-                    Gdiplus::Graphics graphics(dc);
-                    graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBilinear);
-                    WallpaperPaint state{graphics, *data->wallpaper, {}};
-                    GetWindowRect(window, &state.window);
-                    EnumDisplayMonitors(nullptr, nullptr, PaintMonitor, reinterpret_cast<LPARAM>(&state));
+                    PAINTSTRUCT paint{};
+                    HDC dc = BeginPaint(window, &paint);
+                    FillRect(dc, &paint.rcPaint, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+                    auto* data = reinterpret_cast<WindowState*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+                    if (data && data->wallpaper)
+                    {
+                        Gdiplus::Graphics graphics(dc);
+                        graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBilinear);
+                        WallpaperPaint state{graphics, *data->wallpaper, {}};
+                        GetWindowRect(window, &state.window);
+                        EnumDisplayMonitors(nullptr, nullptr, PaintMonitor, reinterpret_cast<LPARAM>(&state));
+                    }
+                    EndPaint(window, &paint);
+                    return 0;
                 }
-                EndPaint(window, &paint);
-                return 0;
-            }
             case WM_DISPLAYCHANGE:
                 if (!CoverDesktop(window, false)) DestroyWindow(window);
                 else InvalidateRect(window, nullptr, FALSE);
@@ -131,12 +132,12 @@ namespace osmium
                 InvalidateRect(window, nullptr, FALSE);
                 return 0;
             case WM_TIMER:
-            {
-                auto* data = reinterpret_cast<WindowState*>(GetWindowLongPtrW(window, GWLP_USERDATA));
-                if ((data && data->sessionEnded && data->sessionEnded->load()) || !CoverDesktop(window, false))
-                    DestroyWindow(window);
-                return 0;
-            }
+                {
+                    auto* data = reinterpret_cast<WindowState*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+                    if ((data && data->sessionEnded && data->sessionEnded->load()) || !CoverDesktop(window, false))
+                        DestroyWindow(window);
+                    return 0;
+                }
             case WM_HOTKEY:
                 if (wParam == kExitHotkey) DestroyWindow(window);
                 return 0;
@@ -157,7 +158,8 @@ namespace osmium
                 if (Gdiplus::GdiplusStartup(&token, &input, nullptr) == Gdiplus::Ok)
                 {
                     image.reset(Gdiplus::Image::FromFile(path.c_str(), FALSE));
-                    if (image && image->GetLastStatus() == Gdiplus::Ok && image->GetWidth() && image->GetHeight()) return;
+                    if (image && image->GetLastStatus() == Gdiplus::Ok && image->GetWidth() && image->GetHeight())
+                        return;
                     image.reset();
                 }
                 OSM_LOG_WARN("Privacy screen wallpaper unavailable; using black");
@@ -231,7 +233,8 @@ namespace osmium
             }
             else
             {
-                OSM_LOG_WARN("Privacy screen could not be shown (Win32 error %lu, affinity=0x%lx)", GetLastError(), affinity);
+                OSM_LOG_WARN("Privacy screen could not be shown (Win32 error %lu, affinity=0x%lx)", GetLastError(),
+                             affinity);
                 ready.set_value(0);
             }
             if (IsWindow(window)) DestroyWindow(window);

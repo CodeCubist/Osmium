@@ -3,6 +3,7 @@
 #include <d3dcompiler.h>
 #include <algorithm>
 #include <cstring>
+#include <mutex>
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -143,6 +144,40 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
             float sdrRefNits;
             float pad[2];
         };
+
+        const std::vector<uint8_t>& GetQuadVsBytecode()
+        {
+            static std::vector<uint8_t> bytecode;
+            static std::once_flag once;
+            std::call_once(once, []()
+            {
+                ComPtr<ID3DBlob> blob, err;
+                if (SUCCEEDED(D3DCompile(kQuadVsSource, strlen(kQuadVsSource), nullptr, nullptr, nullptr,
+                    "main", "vs_5_0", 0, 0, &blob, &err)) && blob)
+                {
+                    const auto* p = static_cast<const uint8_t*>(blob->GetBufferPointer());
+                    bytecode.assign(p, p + blob->GetBufferSize());
+                }
+            });
+            return bytecode;
+        }
+
+        const std::vector<uint8_t>& GetQuadPsBytecode()
+        {
+            static std::vector<uint8_t> bytecode;
+            static std::once_flag once;
+            std::call_once(once, []()
+            {
+                ComPtr<ID3DBlob> blob, err;
+                if (SUCCEEDED(D3DCompile(kQuadPsSource, strlen(kQuadPsSource), nullptr, nullptr, nullptr,
+                    "main", "ps_5_0", 0, 0, &blob, &err)) && blob)
+                {
+                    const auto* p = static_cast<const uint8_t*>(blob->GetBufferPointer());
+                    bytecode.assign(p, p + blob->GetBufferSize());
+                }
+            });
+            return bytecode;
+        }
 
         DXGI_HDR_METADATA_HDR10 BuildStandardHdr10Metadata()
         {
@@ -308,15 +343,20 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
         m_Device.As(&m_VideoDevice);
         m_Context.As(&m_VideoContext);
 
-        D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, m_D2DFactory.GetAddressOf());
-        DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
-                            reinterpret_cast<IUnknown**>(m_DWriteFactory.GetAddressOf()));
-        if (m_DWriteFactory)
+        // Embedded WinUI3 sessions render OSD in XAML; skip creating D2D/DWrite factories
+        // and loading system fonts when running in Composition mode (~25-50ms faster startup).
+        if (!m_IsComposition)
         {
-            m_DWriteFactory->CreateTextFormat(
-                L"Consolas", nullptr, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                13.0f, L"en-us", &m_TextFormat);
+            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, m_D2DFactory.GetAddressOf());
+            DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+                                reinterpret_cast<IUnknown**>(m_DWriteFactory.GetAddressOf()));
+            if (m_DWriteFactory)
+            {
+                m_DWriteFactory->CreateTextFormat(
+                    L"Consolas", nullptr, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL,
+                    DWRITE_FONT_STRETCH_NORMAL,
+                    13.0f, L"en-us", &m_TextFormat);
+            }
         }
         return true;
     }
@@ -511,21 +551,14 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
     bool ClientVideoDecoder::InitQuadRenderer()
     {
         if (!m_Device) return false;
-        ComPtr<ID3DBlob> vsBlob, psBlob, errBlob;
-        if (FAILED(
-            D3DCompile(kQuadVsSource, strlen(kQuadVsSource), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob,
-                &errBlob)))
+        const auto& vsBytes = GetQuadVsBytecode();
+        const auto& psBytes = GetQuadPsBytecode();
+        if (vsBytes.empty() || psBytes.empty())
         {
             return false;
         }
-        if (FAILED(
-            D3DCompile(kQuadPsSource, strlen(kQuadPsSource), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob,
-                &errBlob)))
-        {
-            return false;
-        }
-        if (FAILED(m_Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_VS)) ||
-            FAILED(m_Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_PS)))
+        if (FAILED(m_Device->CreateVertexShader(vsBytes.data(), vsBytes.size(), nullptr, &m_VS)) ||
+            FAILED(m_Device->CreatePixelShader(psBytes.data(), psBytes.size(), nullptr, &m_PS)))
         {
             return false;
         }

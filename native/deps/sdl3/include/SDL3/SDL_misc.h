@@ -37,6 +37,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -70,7 +71,7 @@ extern "C" {
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_OpenURL(const char *url);
+extern SDL_DECLSPEC bool SDLCALL SDL_OpenURL(const char* url);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

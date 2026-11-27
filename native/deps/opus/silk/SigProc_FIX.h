@@ -517,6 +517,7 @@ static OPUS_INLINE opus_int32 silk_ROR32(opus_int32 a32, opus_int rot)
 
 #define silk_LSHIFT_ovflw(a, shift)         ((opus_int32)((opus_uint32)(a) << (shift)))     /* shift >= 0, allowed to overflow */
 
+
 #define silk_LSHIFT_uint(a, shift)          ((a) << (shift))                                /* shift >= 0 */
 #define silk_RSHIFT_uint(a, shift)          ((a) >> (shift))                                /* shift >= 0 */
 
@@ -594,6 +595,7 @@ static OPUS_INLINE opus_int64 silk_max_64(opus_int64 a, opus_int64 b)
 #define silk_LIMIT_32                       silk_LIMIT
 
 #define silk_abs(a)                         (((a) >  0)  ? (a) : -(a))            /* Be careful, silk_abs returns wrong when input equals to silk_intXX_MIN */
+
 
 #define silk_abs_int(a)                     (((a) ^ ((a) >> (8 * sizeof(a) - 1))) - ((a) >> (8 * sizeof(a) - 1)))
 #define silk_abs_int32(a)                   (((a) ^ ((a) >> 31)) - ((a) >> 31))

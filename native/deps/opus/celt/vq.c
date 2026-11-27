@@ -41,7 +41,8 @@
 #include "SigProc_FIX.h"
 
 #if defined(FIXED_POINT)
-void norm_scaleup(celt_norm *X, int N, int shift) 
+void norm_scaleup(celt_norm *X, int N, int shift)
+
 {
     int i;
     celt_assert(shift >= 0);
@@ -49,7 +50,8 @@ void norm_scaleup(celt_norm *X, int N, int shift)
     for (i = 0; i < N; i++) X[i] = SHL32(X[i], shift);
 }
 
-void norm_scaledown(celt_norm *X, int N, int shift) 
+void norm_scaledown(celt_norm *X, int N, int shift)
+
 {
     int i;
     celt_assert(shift >= 0);
@@ -448,7 +450,7 @@ up_iy[1] = up * K - abs(up_iy[0]);
    }
 * refine = offset;
 #ifdef FIXED_POINT
-return (up_iy[0] *(opus_val64)up_iy[0]+ up_iy[1]*(opus_val64)up_iy[1]+ (1<<2* shift>>1))>>2* shift;
+return (up_iy[0]  *(opus_val64)up_iy[0]+ up_iy[1]*(opus_val64)up_iy[1]+ (1<<2* shift>>1))>>2* shift;
 #else
 return up_iy[0]*(opus_val64)up_iy[0]+ up_iy[1]*(opus_val64)up_iy[1];
 #endif

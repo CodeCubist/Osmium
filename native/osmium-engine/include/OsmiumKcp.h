@@ -31,9 +31,9 @@ namespace osmium::kcp
     {
         if (!data || len < kOverhead) return 0;
         return static_cast<uint32_t>(data[0]) |
-               (static_cast<uint32_t>(data[1]) << 8) |
-               (static_cast<uint32_t>(data[2]) << 16) |
-               (static_cast<uint32_t>(data[3]) << 24);
+            (static_cast<uint32_t>(data[1]) << 8) |
+            (static_cast<uint32_t>(data[2]) << 16) |
+            (static_cast<uint32_t>(data[3]) << 24);
     }
 
     class KcpSession
@@ -561,9 +561,9 @@ namespace osmium::kcp
         static uint32_t ReadU32(const uint8_t* p)
         {
             return static_cast<uint32_t>(p[0]) |
-                   (static_cast<uint32_t>(p[1]) << 8) |
-                   (static_cast<uint32_t>(p[2]) << 16) |
-                   (static_cast<uint32_t>(p[3]) << 24);
+                (static_cast<uint32_t>(p[1]) << 8) |
+                (static_cast<uint32_t>(p[2]) << 16) |
+                (static_cast<uint32_t>(p[3]) << 24);
         }
 
         static void WriteU16(uint8_t* p, uint16_t v)
@@ -620,7 +620,7 @@ namespace osmium::kcp
                 if (m_RxSrtt < 1) m_RxSrtt = 1;
             }
             const uint32_t rto = static_cast<uint32_t>(m_RxSrtt) +
-                                 std::max<uint32_t>(m_Interval, static_cast<uint32_t>(4 * m_RxRttVal));
+                std::max<uint32_t>(m_Interval, static_cast<uint32_t>(4 * m_RxRttVal));
             m_RxRto = std::clamp<uint32_t>(rto, m_RxMinRto, kRtoMax);
         }
 

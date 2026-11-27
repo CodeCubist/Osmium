@@ -45,15 +45,18 @@
 #define SDL_PATH_DEV_AUDIO "/dev/audio"
 #endif
 
-static void test_device(const bool recording, const char *fname, int flags, bool (*test)(int fd))
+static void test_device(const bool recording, const char* fname, int flags, bool (*test)(int fd))
 {
     struct stat sb;
     const int audio_fd = open(fname, flags | O_CLOEXEC, 0);
-    if (audio_fd >= 0) {
-        if ((fstat(audio_fd, &sb) == 0) && (S_ISCHR(sb.st_mode))) {
+    if (audio_fd >= 0)
+    {
+        if ((fstat(audio_fd, &sb) == 0) && (S_ISCHR(sb.st_mode)))
+        {
             const bool okay = test(audio_fd);
             close(audio_fd);
-            if (okay) {
+            if (okay)
+            {
                 static size_t dummyhandle = 0;
                 dummyhandle++;
                 SDL_assert(dummyhandle != 0);
@@ -63,9 +66,11 @@ static void test_device(const bool recording, const char *fname, int flags, bool
                  * information,  making this information inaccessible at
                  * enumeration time
                  */
-                SDL_AddAudioDevice(recording, fname, NULL, (void *)(uintptr_t)dummyhandle);
+                SDL_AddAudioDevice(recording, fname, NULL, (void*)(uintptr_t)dummyhandle);
             }
-        } else {
+        }
+        else
+        {
             close(audio_fd);
         }
     }
@@ -79,34 +84,45 @@ static bool test_stub(int fd)
 static void SDL_EnumUnixAudioDevices_Internal(const bool recording, const bool classic, bool (*test)(int))
 {
     const int flags = recording ? OPEN_FLAGS_INPUT : OPEN_FLAGS_OUTPUT;
-    const char *audiodev;
+    const char* audiodev;
     char audiopath[1024];
 
-    if (!test) {
+    if (!test)
+    {
         test = test_stub;
     }
 
     // Figure out what our audio device is
     audiodev = SDL_getenv("AUDIODEV");
-    if (!audiodev) {
-        if (classic) {
+    if (!audiodev)
+    {
+        if (classic)
+        {
             audiodev = SDL_PATH_DEV_AUDIO;
-        } else {
+        }
+        else
+        {
             struct stat sb;
 
             // Added support for /dev/sound/\* in Linux 2.4
-            if (((stat("/dev/sound", &sb) == 0) && S_ISDIR(sb.st_mode)) && ((stat(SDL_PATH_DEV_DSP24, &sb) == 0) && S_ISCHR(sb.st_mode))) {
+            if (((stat("/dev/sound", &sb) == 0) && S_ISDIR(sb.st_mode)) && ((stat(SDL_PATH_DEV_DSP24, &sb) == 0) &&
+                S_ISCHR(sb.st_mode)))
+            {
                 audiodev = SDL_PATH_DEV_DSP24;
-            } else {
+            }
+            else
+            {
                 audiodev = SDL_PATH_DEV_DSP;
             }
         }
     }
     test_device(recording, audiodev, flags, test);
 
-    if (SDL_strlen(audiodev) < (sizeof(audiopath) - 3)) {
+    if (SDL_strlen(audiodev) < (sizeof(audiopath) - 3))
+    {
         int instance = 0;
-        while (instance <= 64) {
+        while (instance <= 64)
+        {
             (void)SDL_snprintf(audiopath, SDL_arraysize(audiopath),
                                "%s%d", audiodev, instance);
             instance++;

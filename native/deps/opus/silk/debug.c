@@ -83,6 +83,7 @@ opus_int64 silk_Timer_depth[silk_NUM_TIMERS_MAX];
 #ifdef _WIN32
 void silk_TimerSave(char *file_name)
 
+
 {
     if (silk_Timer_nTimers > 0)
     {
@@ -148,6 +149,7 @@ void silk_TimerSave(char *file_name)
 }
 #else
 void silk_TimerSave(char *file_name)
+
 
 {
     if (silk_Timer_nTimers > 0)

@@ -42,7 +42,7 @@
 #include "D3D9_PixelShader_YUV.h"
 #undef g_ps20_main
 
-static const BYTE *D3D9_shaders[] = {
+static const BYTE* D3D9_shaders[] = {
     NULL,
     D3D9_PixelShader_Palette_Nearest,
     D3D9_PixelShader_Palette_Linear,
@@ -50,7 +50,7 @@ static const BYTE *D3D9_shaders[] = {
 };
 SDL_COMPILE_TIME_ASSERT(D3D9_shaders, SDL_arraysize(D3D9_shaders) == NUM_SHADERS);
 
-HRESULT D3D9_CreatePixelShader(IDirect3DDevice9 *d3dDevice, D3D9_Shader shader, IDirect3DPixelShader9 **pixelShader)
+HRESULT D3D9_CreatePixelShader(IDirect3DDevice9* d3dDevice, D3D9_Shader shader, IDirect3DPixelShader9** pixelShader)
 {
     return IDirect3DDevice9_CreatePixelShader(d3dDevice, (const DWORD *)D3D9_shaders[shader], pixelShader);
 }

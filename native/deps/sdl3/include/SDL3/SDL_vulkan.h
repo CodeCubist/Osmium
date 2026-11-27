@@ -50,6 +50,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /* Avoid including vulkan_core.h, don't define VkInstance if it's already included */
@@ -131,7 +132,7 @@ struct VkAllocationCallbacks;
  * \sa SDL_Vulkan_GetVkGetInstanceProcAddr
  * \sa SDL_Vulkan_UnloadLibrary
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_Vulkan_LoadLibrary(const char *path);
+extern SDL_DECLSPEC bool SDLCALL SDL_Vulkan_LoadLibrary(const char* path);
 
 /**
  * Get the address of the `vkGetInstanceProcAddr` function.
@@ -198,7 +199,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_Vulkan_UnloadLibrary(void);
  *
  * \sa SDL_Vulkan_CreateSurface
  */
-extern SDL_DECLSPEC char const *const * SDLCALL SDL_Vulkan_GetInstanceExtensions(Uint32 *count);
+extern SDL_DECLSPEC char const* const * SDLCALL SDL_Vulkan_GetInstanceExtensions(Uint32* count);
 
 /**
  * Create a Vulkan rendering surface for a window.
@@ -224,10 +225,10 @@ extern SDL_DECLSPEC char const *const * SDLCALL SDL_Vulkan_GetInstanceExtensions
  * \sa SDL_Vulkan_GetInstanceExtensions
  * \sa SDL_Vulkan_DestroySurface
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_Vulkan_CreateSurface(SDL_Window *window,
+extern SDL_DECLSPEC bool SDLCALL SDL_Vulkan_CreateSurface(SDL_Window* window,
                                                           VkInstance instance,
-                                                          const struct VkAllocationCallbacks *allocator,
-                                                          VkSurfaceKHR *surface);
+                                                          const struct VkAllocationCallbacks* allocator,
+                                                          VkSurfaceKHR* surface);
 
 /**
  * Destroy the Vulkan rendering surface of a window.
@@ -254,7 +255,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_Vulkan_CreateSurface(SDL_Window *window,
  */
 extern SDL_DECLSPEC void SDLCALL SDL_Vulkan_DestroySurface(VkInstance instance,
                                                            VkSurfaceKHR surface,
-                                                           const struct VkAllocationCallbacks *allocator);
+                                                           const struct VkAllocationCallbacks* allocator);
 
 /**
  * Query support for presentation via a given physical device and queue

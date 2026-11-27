@@ -25,46 +25,52 @@
 #include "SDL_windows.h"
 #include "SDL_gameinput.h"
 
-static SDL_SharedObject *g_hGameInputDLL;
-static IGameInput *g_pGameInput;
+static SDL_SharedObject* g_hGameInputDLL;
+static IGameInput* g_pGameInput;
 static int g_nGameInputRefCount;
 
 
-bool SDL_InitGameInput(IGameInput **ppGameInput)
+bool SDL_InitGameInput(IGameInput** ppGameInput)
 {
-    if (g_nGameInputRefCount == 0) {
+    if (g_nGameInputRefCount == 0)
+    {
         g_hGameInputDLL = SDL_LoadObject("gameinput.dll");
-        if (!g_hGameInputDLL) {
+        if (!g_hGameInputDLL)
+        {
             return false;
         }
 
-        if (WIN_HasBrokenEZFRD64DLL()) {
+        if (WIN_HasBrokenEZFRD64DLL())
+        {
             return SDL_SetError("GameInput disabled to prevent application crashing");
         }
 
-        typedef HRESULT (WINAPI *pfnGameInputCreate)(IGameInput **gameInput);
+        typedef HRESULT (WINAPI *pfnGameInputCreate)(IGameInput** gameInput);
         pfnGameInputCreate pGameInputCreate = (pfnGameInputCreate)SDL_LoadFunction(g_hGameInputDLL, "GameInputCreate");
-        if (!pGameInputCreate) {
+        if (!pGameInputCreate)
+        {
             SDL_UnloadObject(g_hGameInputDLL);
             return false;
         }
 
-        IGameInput *pGameInput = NULL;
+        IGameInput* pGameInput = NULL;
         HRESULT hr = pGameInputCreate(&pGameInput);
-        if (FAILED(hr)) {
+        if (FAILED(hr))
+        {
             SDL_UnloadObject(g_hGameInputDLL);
             return WIN_SetErrorFromHRESULT("GameInputCreate failed", hr);
         }
 
 #ifdef SDL_PLATFORM_WIN32
 #if GAMEINPUT_API_VERSION >= 1
-        hr = pGameInput->QueryInterface(IID_IGameInput, (void **)&g_pGameInput);
+        hr = pGameInput->QueryInterface(IID_IGameInput, (void**)&g_pGameInput);
 #else
         // We require GameInput v1.1 or newer
         hr = E_NOINTERFACE;
 #endif
         pGameInput->Release();
-        if (FAILED(hr)) {
+        if (FAILED(hr))
+        {
             SDL_UnloadObject(g_hGameInputDLL);
             return WIN_SetErrorFromHRESULT("GameInput QueryInterface failed", hr);
         }
@@ -75,7 +81,8 @@ bool SDL_InitGameInput(IGameInput **ppGameInput)
     }
     ++g_nGameInputRefCount;
 
-    if (ppGameInput) {
+    if (ppGameInput)
+    {
         *ppGameInput = g_pGameInput;
     }
     return true;
@@ -86,12 +93,15 @@ void SDL_QuitGameInput(void)
     SDL_assert(g_nGameInputRefCount > 0);
 
     --g_nGameInputRefCount;
-    if (g_nGameInputRefCount == 0) {
-        if (g_pGameInput) {
+    if (g_nGameInputRefCount == 0)
+    {
+        if (g_pGameInput)
+        {
             g_pGameInput->Release();
             g_pGameInput = NULL;
         }
-        if (g_hGameInputDLL) {
+        if (g_hGameInputDLL)
+        {
             SDL_UnloadObject(g_hGameInputDLL);
             g_hGameInputDLL = NULL;
         }

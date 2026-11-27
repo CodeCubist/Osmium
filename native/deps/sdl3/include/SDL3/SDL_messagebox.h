@@ -48,6 +48,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -83,8 +84,8 @@ typedef Uint32 SDL_MessageBoxButtonFlags;
 typedef struct SDL_MessageBoxButtonData
 {
     SDL_MessageBoxButtonFlags flags;
-    int buttonID;     /**< User defined button id (value returned via SDL_ShowMessageBox) */
-    const char *text; /**< The UTF-8 button text */
+    int buttonID; /**< User defined button id (value returned via SDL_ShowMessageBox) */
+    const char* text; /**< The UTF-8 button text */
 } SDL_MessageBoxButtonData;
 
 /**
@@ -129,14 +130,14 @@ typedef struct SDL_MessageBoxColorScheme
 typedef struct SDL_MessageBoxData
 {
     SDL_MessageBoxFlags flags;
-    SDL_Window *window;  /**< Parent window, can be NULL */
-    const char *title;   /**< UTF-8 title */
-    const char *message; /**< UTF-8 message text */
+    SDL_Window* window; /**< Parent window, can be NULL */
+    const char* title; /**< UTF-8 title */
+    const char* message; /**< UTF-8 message text */
 
     int numbuttons;
-    const SDL_MessageBoxButtonData *buttons;
+    const SDL_MessageBoxButtonData* buttons;
 
-    const SDL_MessageBoxColorScheme *colorScheme; /**< SDL_MessageBoxColorScheme, can be NULL to use system settings */
+    const SDL_MessageBoxColorScheme* colorScheme; /**< SDL_MessageBoxColorScheme, can be NULL to use system settings */
 } SDL_MessageBoxData;
 
 /**
@@ -175,7 +176,7 @@ typedef struct SDL_MessageBoxData
  *
  * \sa SDL_ShowSimpleMessageBox
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid);
+extern SDL_DECLSPEC bool SDLCALL SDL_ShowMessageBox(const SDL_MessageBoxData* messageboxdata, int* buttonid);
 
 /**
  * Display a simple modal message box.
@@ -219,7 +220,8 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ShowMessageBox(const SDL_MessageBoxData *me
  *
  * \sa SDL_ShowMessageBox
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ShowSimpleMessageBox(SDL_MessageBoxFlags flags, const char *title, const char *message, SDL_Window *window);
+extern SDL_DECLSPEC bool SDLCALL SDL_ShowSimpleMessageBox(SDL_MessageBoxFlags flags, const char* title,
+                                                          const char* message, SDL_Window* window);
 
 
 /* Ends C function definitions when using C++ */

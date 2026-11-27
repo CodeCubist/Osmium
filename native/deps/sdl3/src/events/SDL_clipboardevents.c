@@ -26,21 +26,23 @@
 #include "SDL_clipboardevents_c.h"
 #include "../video/SDL_clipboard_c.h"
 
-void SDL_SendClipboardUpdate(bool owner, char **mime_types, size_t num_mime_types)
+void SDL_SendClipboardUpdate(bool owner, char** mime_types, size_t num_mime_types)
 {
-    if (!owner) {
+    if (!owner)
+    {
         SDL_CancelClipboardData(0);
-        SDL_SaveClipboardMimeTypes((const char **)mime_types, num_mime_types);
+        SDL_SaveClipboardMimeTypes((const char**)mime_types, num_mime_types);
     }
 
-    if (SDL_EventEnabled(SDL_EVENT_CLIPBOARD_UPDATE)) {
+    if (SDL_EventEnabled(SDL_EVENT_CLIPBOARD_UPDATE))
+    {
         SDL_Event event;
         event.type = SDL_EVENT_CLIPBOARD_UPDATE;
 
-        SDL_ClipboardEvent *cevent = &event.clipboard;
+        SDL_ClipboardEvent* cevent = &event.clipboard;
         cevent->timestamp = 0;
         cevent->owner = owner;
-        cevent->mime_types = (const char **)mime_types;
+        cevent->mime_types = (const char**)mime_types;
         cevent->num_mime_types = (Uint32)num_mime_types;
         SDL_PushEvent(&event);
     }

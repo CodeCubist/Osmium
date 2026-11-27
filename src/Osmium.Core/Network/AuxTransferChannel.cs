@@ -86,17 +86,20 @@ public sealed class AuxTransferChannel : IDisposable
 
     private int _nextTransferSeq;
     private volatile bool _disposed;
-    
+
     private readonly object _configLock = new();
     private uint _pendingConfigSeq;
     private uint _ackedConfigSeq;
     private AuxFeatureConfig? _pendingConfig;
     private long _lastConfigSendMs;
     private uint _lastRecvConfigSeq;
-    
+
     private readonly ConcurrentDictionary<uint, OutgoingTransfer> _outgoing = new();
     private readonly ConcurrentDictionary<uint, IncomingTransfer> _incoming = new();
-    private readonly ConcurrentDictionary<uint, (uint TotalChunks, long CompletedAtMs)> _recentlyCompletedIncoming = new();
+
+    private readonly ConcurrentDictionary<uint, (uint TotalChunks, long CompletedAtMs)> _recentlyCompletedIncoming =
+        new();
+
     private readonly object _laneLock = new();
     private uint _activeClipboardOutId;
     private uint _activeFileOutId;
@@ -105,8 +108,17 @@ public sealed class AuxTransferChannel : IDisposable
     private readonly Thread _pumpThread;
     private readonly AutoResetEvent _pumpWake = new(false);
 
-    public Func<AuxTransferType, long, AuxTransferRejectReason>? ValidateIncomingTransfer { get; set; }
-    public Func<bool>? GetHostAllowsFileTransfer { get; set; }
+    public Func<AuxTransferType, long, AuxTransferRejectReason>? ValidateIncomingTransfer
+    {
+        get;
+        set;
+    }
+
+    public Func<bool>? GetHostAllowsFileTransfer
+    {
+        get;
+        set;
+    }
 
     public event Action<AuxFeatureConfig>? RemoteFeatureConfigReceived;
     public event Action<bool>? HostFileTransferPolicyReceived;
@@ -390,7 +402,7 @@ public sealed class AuxTransferChannel : IDisposable
             bool didWork = false;
             long now = Environment.TickCount64;
 
-            
+
             AuxFeatureConfig? cfgToSend = null;
             uint cfgSeq = 0;
             lock (_configLock)
@@ -409,7 +421,7 @@ public sealed class AuxTransferChannel : IDisposable
                 TransmitFeatureConfigPacket(cfgSeq, cfgToSend);
                 didWork = true;
             }
-            
+
             foreach (var kv in _outgoing)
             {
                 var tr = kv.Value;
@@ -443,13 +455,13 @@ public sealed class AuxTransferChannel : IDisposable
                         continue;
                     }
 
-                    
+
                     int sentInTick = 0;
                     int maxBurst = _maxBurst;
 
                     uint windowEnd = (uint)Math.Min((long)tr.TotalChunks, (long)tr.BaseSeq + WindowSize);
 
-                    
+
                     for (uint seq = tr.BaseSeq; seq < tr.NextReadSeq && sentInTick < maxBurst; seq++)
                     {
                         if (tr.InFlight.TryGetValue(seq, out var entry) && !entry.Acked &&
@@ -462,14 +474,13 @@ public sealed class AuxTransferChannel : IDisposable
                         }
                     }
 
-                    
+
                     while (tr.NextReadSeq < windowEnd && sentInTick < maxBurst)
                     {
                         uint seq = tr.NextReadSeq;
                         byte[]? chunk = ReadNextChunkFromStream(tr.SourceStream, ChunkPayloadSize);
                         if (chunk == null || chunk.Length == 0)
                         {
-                            
                             FailOutgoingLocked(tr, AuxTransferRejectReason.IoError, "Unexpected end of stream");
                             break;
                         }
@@ -484,7 +495,7 @@ public sealed class AuxTransferChannel : IDisposable
                 }
             }
 
-            
+
             foreach (var kv in _incoming)
             {
                 var inc = kv.Value;
@@ -522,7 +533,7 @@ public sealed class AuxTransferChannel : IDisposable
                 }
             }
 
-            
+
             foreach (var kv in _recentlyCompletedIncoming)
             {
                 if (now - kv.Value.CompletedAtMs > 30000)
@@ -1024,13 +1035,13 @@ public sealed class AuxTransferChannel : IDisposable
 
         _recentlyCompletedIncoming[inc.TransferId] = (inc.TotalChunks, Environment.TickCount64);
 
-        
+
         for (int i = 0; i < 3; i++)
         {
             TransmitTransferAckPacket(inc.TransferId, inc.TotalChunks, 0, complete: true);
         }
 
-        
+
         _ = Task.Run(() =>
         {
             if (_disposed) return;
@@ -1123,7 +1134,9 @@ public sealed class AuxTransferChannel : IDisposable
                 ItemCount: tr.ItemCount,
                 TransferredBytes: tr.AckedBytes,
                 TotalBytes: tr.TotalBytes,
-                State: reason == AuxTransferRejectReason.Cancelled ? AuxTransferState.Cancelled : AuxTransferState.Failed,
+                State: reason == AuxTransferRejectReason.Cancelled
+                    ? AuxTransferState.Cancelled
+                    : AuxTransferState.Failed,
                 RejectReason: reason));
         }
     }
@@ -1153,7 +1166,9 @@ public sealed class AuxTransferChannel : IDisposable
                 ItemCount: inc.ItemCount,
                 TransferredBytes: inc.ReceivedBytes,
                 TotalBytes: inc.TotalBytes,
-                State: reason == AuxTransferRejectReason.Cancelled ? AuxTransferState.Cancelled : AuxTransferState.Failed,
+                State: reason == AuxTransferRejectReason.Cancelled
+                    ? AuxTransferState.Cancelled
+                    : AuxTransferState.Failed,
                 RejectReason: reason));
         }
     }
@@ -1432,7 +1447,8 @@ public sealed class AuxTransferChannel : IDisposable
             bool isDir = !isFile && Directory.Exists(fullPath);
             if (!isFile && !isDir) continue;
 
-            string leaf = Path.GetFileName(fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            string leaf =
+                Path.GetFileName(fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             if (string.IsNullOrWhiteSpace(leaf)) continue;
 
             string rootName = MakeUniqueName(leaf, usedRootNames);
@@ -1567,10 +1583,27 @@ public sealed class AuxTransferChannel : IDisposable
 
     private sealed class SentChunkEntry
     {
-        public byte[] Payload { get; }
-        public uint Crc32 { get; }
-        public long LastSentMs { get; set; }
-        public bool Acked { get; set; }
+        public byte[] Payload
+        {
+            get;
+        }
+
+        public uint Crc32
+        {
+            get;
+        }
+
+        public long LastSentMs
+        {
+            get;
+            set;
+        }
+
+        public bool Acked
+        {
+            get;
+            set;
+        }
 
         public SentChunkEntry(byte[] payload, uint crc32, long lastSentMs)
         {
@@ -1582,24 +1615,103 @@ public sealed class AuxTransferChannel : IDisposable
 
     private sealed class OutgoingTransfer : IDisposable
     {
-        public object Sync { get; } = new();
-        public uint TransferId { get; }
-        public AuxTransferType TransferType { get; }
-        public Stream SourceStream { get; }
-        public long TotalBytes { get; }
-        public uint TotalChunks { get; }
-        public int ItemCount { get; }
-        public string SummaryName { get; }
-        public long CreatedMs { get; }
-        public long LastStartSendMs { get; set; }
-        public long LastActivityMs { get; set; }
-        public long LastProgressReportMs { get; set; }
-        public bool StartAccepted { get; set; }
-        public bool IsDone { get; set; }
-        public uint BaseSeq { get; set; }
-        public uint NextReadSeq { get; set; }
-        public long AckedBytes { get; set; }
-        public Dictionary<uint, SentChunkEntry> InFlight { get; } = new();
+        public object Sync
+        {
+            get;
+        } = new();
+
+        public uint TransferId
+        {
+            get;
+        }
+
+        public AuxTransferType TransferType
+        {
+            get;
+        }
+
+        public Stream SourceStream
+        {
+            get;
+        }
+
+        public long TotalBytes
+        {
+            get;
+        }
+
+        public uint TotalChunks
+        {
+            get;
+        }
+
+        public int ItemCount
+        {
+            get;
+        }
+
+        public string SummaryName
+        {
+            get;
+        }
+
+        public long CreatedMs
+        {
+            get;
+        }
+
+        public long LastStartSendMs
+        {
+            get;
+            set;
+        }
+
+        public long LastActivityMs
+        {
+            get;
+            set;
+        }
+
+        public long LastProgressReportMs
+        {
+            get;
+            set;
+        }
+
+        public bool StartAccepted
+        {
+            get;
+            set;
+        }
+
+        public bool IsDone
+        {
+            get;
+            set;
+        }
+
+        public uint BaseSeq
+        {
+            get;
+            set;
+        }
+
+        public uint NextReadSeq
+        {
+            get;
+            set;
+        }
+
+        public long AckedBytes
+        {
+            get;
+            set;
+        }
+
+        public Dictionary<uint, SentChunkEntry> InFlight
+        {
+            get;
+        } = new();
 
         public OutgoingTransfer(
             uint transferId,
@@ -1639,22 +1751,93 @@ public sealed class AuxTransferChannel : IDisposable
 
     private sealed class IncomingTransfer
     {
-        public object Sync { get; } = new();
-        public uint TransferId { get; }
-        public AuxTransferType TransferType { get; }
-        public long TotalBytes { get; }
-        public uint TotalChunks { get; }
-        public int ItemCount { get; }
-        public string SummaryName { get; }
-        public long LastActivityMs { get; set; }
-        public long LastAckSentMs { get; set; }
-        public long LastProgressReportMs { get; set; }
-        public bool AckDirty { get; set; }
-        public int ChunksSinceLastAck { get; set; }
-        public bool IsDone { get; set; }
-        public uint BaseSeq { get; set; }
-        public long ReceivedBytes { get; set; }
-        public Dictionary<uint, byte[]> OutOfOrder { get; } = new();
+        public object Sync
+        {
+            get;
+        } = new();
+
+        public uint TransferId
+        {
+            get;
+        }
+
+        public AuxTransferType TransferType
+        {
+            get;
+        }
+
+        public long TotalBytes
+        {
+            get;
+        }
+
+        public uint TotalChunks
+        {
+            get;
+        }
+
+        public int ItemCount
+        {
+            get;
+        }
+
+        public string SummaryName
+        {
+            get;
+        }
+
+        public long LastActivityMs
+        {
+            get;
+            set;
+        }
+
+        public long LastAckSentMs
+        {
+            get;
+            set;
+        }
+
+        public long LastProgressReportMs
+        {
+            get;
+            set;
+        }
+
+        public bool AckDirty
+        {
+            get;
+            set;
+        }
+
+        public int ChunksSinceLastAck
+        {
+            get;
+            set;
+        }
+
+        public bool IsDone
+        {
+            get;
+            set;
+        }
+
+        public uint BaseSeq
+        {
+            get;
+            set;
+        }
+
+        public long ReceivedBytes
+        {
+            get;
+            set;
+        }
+
+        public Dictionary<uint, byte[]> OutOfOrder
+        {
+            get;
+        } = new();
 
         private MemoryStream? _memoryDest;
         private FileBatchWriteSink? _fileSink;
@@ -1767,22 +1950,42 @@ public sealed class AuxTransferChannel : IDisposable
     private sealed class FileBatchManifest
     {
         [JsonPropertyName("roots")]
-        public List<string> Roots { get; set; } = [];
+        public List<string> Roots
+        {
+            get;
+            set;
+        } = [];
 
         [JsonPropertyName("items")]
-        public List<FileBatchItem> Items { get; set; } = [];
+        public List<FileBatchItem> Items
+        {
+            get;
+            set;
+        } = [];
     }
 
     private sealed class FileBatchItem
     {
         [JsonPropertyName("rel")]
-        public string RelPath { get; set; } = string.Empty;
+        public string RelPath
+        {
+            get;
+            set;
+        } = string.Empty;
 
         [JsonPropertyName("size")]
-        public long Size { get; set; }
+        public long Size
+        {
+            get;
+            set;
+        }
 
         [JsonPropertyName("dir")]
-        public bool IsDirectory { get; set; }
+        public bool IsDirectory
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class FileBatchReadStream : Stream
@@ -1810,6 +2013,7 @@ public sealed class AuxTransferChannel : IDisposable
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => _totalLength;
+
         public override long Position
         {
             get => _position;
@@ -1850,7 +2054,6 @@ public sealed class AuxTransferChannel : IDisposable
                 int n = _currentFileStream.Read(buffer, offset + written, toRead);
                 if (n <= 0)
                 {
-                    
                     Array.Clear(buffer, offset + written, toRead);
                     n = toRead;
                 }
@@ -1881,7 +2084,10 @@ public sealed class AuxTransferChannel : IDisposable
             base.Dispose(disposing);
         }
 
-        public override void Flush() { }
+        public override void Flush()
+        {
+        }
+
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
@@ -1889,7 +2095,11 @@ public sealed class AuxTransferChannel : IDisposable
 
     private sealed class FileBatchWriteSink : IDisposable
     {
-        public string BatchRootDir { get; }
+        public string BatchRootDir
+        {
+            get;
+        }
+
         private readonly string _batchRootPrefix;
         private readonly long _expectedTotalBytes;
 
@@ -2062,7 +2272,8 @@ public sealed class AuxTransferChannel : IDisposable
             if (relPath.Contains(':') || relPath.Contains('\0'))
                 throw new InvalidDataException("Forbidden character in path");
 
-            string normalized = relPath.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+            string normalized = relPath.Replace('/', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
             foreach (string seg in normalized.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
             {
                 if (seg == "." || seg == "..")

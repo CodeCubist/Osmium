@@ -23,7 +23,7 @@
 #include "../../core/windows/SDL_windows.h"
 #include "../SDL_syslocale.h"
 
-typedef BOOL (WINAPI *pfnGetUserPreferredUILanguages)(DWORD, PULONG, WCHAR *, PULONG);
+typedef BOOL (WINAPI *pfnGetUserPreferredUILanguages)(DWORD, PULONG, WCHAR*, PULONG);
 #ifndef MUI_LANGUAGE_NAME
 #define MUI_LANGUAGE_NAME 0x8
 #endif
@@ -32,7 +32,7 @@ static pfnGetUserPreferredUILanguages pGetUserPreferredUILanguages = NULL;
 static HMODULE kernel32 = 0;
 
 // this is the fallback for WinXP...one language, not a list.
-static bool SDL_SYS_GetPreferredLocales_winxp(char *buf, size_t buflen)
+static bool SDL_SYS_GetPreferredLocales_winxp(char* buf, size_t buflen)
 {
     char lang[16];
     char country[16];
@@ -46,19 +46,22 @@ static bool SDL_SYS_GetPreferredLocales_winxp(char *buf, size_t buflen)
                                       country, sizeof(country));
 
     /* Win95 systems will fail, because they don't have LOCALE_SISO*NAME ... */
-    if (langrc == 0) {
+    if (langrc == 0)
+    {
         return SDL_SetError("Couldn't obtain language info");
-    } else {
+    }
+    else
+    {
         (void)SDL_snprintf(buf, buflen, "%s%s%s", lang, ctryrc ? "_" : "", ctryrc ? country : "");
         return true;
     }
 }
 
 // this works on Windows Vista and later.
-static bool SDL_SYS_GetPreferredLocales_vista(char *buf, size_t buflen)
+static bool SDL_SYS_GetPreferredLocales_vista(char* buf, size_t buflen)
 {
     ULONG numlangs = 0;
-    WCHAR *wbuf = NULL;
+    WCHAR* wbuf = NULL;
     ULONG wbuflen = 0;
     bool isstack;
 
@@ -66,24 +69,34 @@ static bool SDL_SYS_GetPreferredLocales_vista(char *buf, size_t buflen)
     pGetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numlangs, NULL, &wbuflen);
 
     wbuf = SDL_small_alloc(WCHAR, wbuflen, &isstack);
-    if (!wbuf) {
+    if (!wbuf)
+    {
         return false;
     }
 
-    if (!pGetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numlangs, wbuf, &wbuflen)) {
+    if (!pGetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numlangs, wbuf, &wbuflen))
+    {
         SDL_SYS_GetPreferredLocales_winxp(buf, buflen); // oh well, try the fallback.
-    } else {
+    }
+    else
+    {
         const ULONG endidx = (ULONG)SDL_min(buflen, wbuflen - 1);
         ULONG str_start = 0;
         ULONG i;
-        for (i = 0; i < endidx; i++) {
+        for (i = 0; i < endidx; i++)
+        {
             const char ch = (char)wbuf[i]; // these should all be low-ASCII, safe to cast
-            if (ch == '\0') {
+            if (ch == '\0')
+            {
                 buf[i] = ','; // change null separators to commas
                 str_start = i;
-            } else if (ch == '-') {
+            }
+            else if (ch == '-')
+            {
                 buf[i] = '_'; // change '-' to '_'
-            } else {
+            }
+            else
+            {
                 buf[i] = ch; // copy through as-is.
             }
         }
@@ -94,18 +107,24 @@ static bool SDL_SYS_GetPreferredLocales_vista(char *buf, size_t buflen)
     return true;
 }
 
-bool SDL_SYS_GetPreferredLocales(char *buf, size_t buflen)
+bool SDL_SYS_GetPreferredLocales(char* buf, size_t buflen)
 {
-    if (!kernel32) {
+    if (!kernel32)
+    {
         kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
-        if (kernel32) {
-            pGetUserPreferredUILanguages = (pfnGetUserPreferredUILanguages)GetProcAddress(kernel32, "GetUserPreferredUILanguages");
+        if (kernel32)
+        {
+            pGetUserPreferredUILanguages = (pfnGetUserPreferredUILanguages)GetProcAddress(
+                kernel32, "GetUserPreferredUILanguages");
         }
     }
 
-    if (!pGetUserPreferredUILanguages) {
+    if (!pGetUserPreferredUILanguages)
+    {
         return SDL_SYS_GetPreferredLocales_winxp(buf, buflen); // this is always available
-    } else {
+    }
+    else
+    {
         return SDL_SYS_GetPreferredLocales_vista(buf, buflen); // available on Vista and later.
     }
 }

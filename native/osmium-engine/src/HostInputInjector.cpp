@@ -196,7 +196,8 @@ namespace osmium
             if (!m_LoggedAgentErr)
             {
                 m_LoggedAgentErr = true;
-                OSM_LOG_WARN("HostInputInjector write to SYSTEM input agent failed (err=%lu), falling back locally", err);
+                OSM_LOG_WARN("HostInputInjector write to SYSTEM input agent failed (err=%lu), falling back locally",
+                             err);
             }
             const uint64_t nowMs = NowMillis();
             m_LastAgentProbeMs = (nowMs > 1200) ? (nowMs - 1200) : 0;

@@ -74,9 +74,11 @@ public sealed partial class MainWindow : Window
 
         App.Engine.Coordinator.ConfirmIncomingConnectionAsync = ConfirmIncomingConnectionOnUiAsync;
         App.Engine.Coordinator.ConfirmDriverActionAsync = ConfirmDriverActionOnUiAsync;
-        App.Engine.Coordinator.HostSessionStarted += info => DispatcherQueue.TryEnqueue(() => OnHostSessionStarted(info));
+        App.Engine.Coordinator.HostSessionStarted += info =>
+            DispatcherQueue.TryEnqueue(() => OnHostSessionStarted(info));
         App.Engine.Coordinator.HostSessionEnded += _ => DispatcherQueue.TryEnqueue(OnHostSessionEnded);
-        App.Engine.QuickLaunch.AppLaunchedOnHost += args => DispatcherQueue.TryEnqueue(() => OnQuickLaunchAppStartedOnHost(args));
+        App.Engine.QuickLaunch.AppLaunchedOnHost += args =>
+            DispatcherQueue.TryEnqueue(() => OnQuickLaunchAppStartedOnHost(args));
         App.Engine.AccountService.SessionChanged += () => DispatcherQueue.TryEnqueue(() =>
         {
             ApplyLocalization();
@@ -468,7 +470,8 @@ public sealed partial class MainWindow : Window
     {
         EnsureTrayIcon();
         var s = App.Engine.SettingsService.Settings;
-        bool show = s.CloseToTray || s.HideToTrayOnMinimize || _isHiddenInTray || App.Engine.Coordinator.IsHostStreaming;
+        bool show = s.CloseToTray || s.HideToTrayOnMinimize || _isHiddenInTray ||
+                    App.Engine.Coordinator.IsHostStreaming;
         _trayIcon?.SetVisible(show, BuildTrayTooltip());
     }
 

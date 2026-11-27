@@ -68,6 +68,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 static void SDL_InitDynamicAPI(void);
@@ -262,7 +263,7 @@ SDL_DYNAPI_VARARGS(, , )
 
 #define ENABLE_SDL_CALL_LOGGING 0
 #if ENABLE_SDL_CALL_LOGGING
-static bool SDLCALL SDL_SetError_LOGSDLCALLS(SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static bool SDLCALL SDL_SetError_LOGSDLCALLS(SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     char buf[512]; // !!! FIXME: dynamic allocation
     va_list ap;
@@ -272,7 +273,7 @@ static bool SDLCALL SDL_SetError_LOGSDLCALLS(SDL_PRINTF_FORMAT_STRING const char
     va_end(ap);
     return SDL_SetError_REAL("%s", buf);
 }
-static int SDLCALL SDL_sscanf_LOGSDLCALLS(const char *buf, SDL_SCANF_FORMAT_STRING const char *fmt, ...)
+static int SDLCALL SDL_sscanf_LOGSDLCALLS(const char* buf, SDL_SCANF_FORMAT_STRING const char* fmt, ...)
 {
     int result;
     va_list ap;
@@ -282,7 +283,8 @@ static int SDLCALL SDL_sscanf_LOGSDLCALLS(const char *buf, SDL_SCANF_FORMAT_STRI
     va_end(ap);
     return result;
 }
-static int SDLCALL SDL_snprintf_LOGSDLCALLS(SDL_OUT_Z_CAP(maxlen) char *buf, size_t maxlen, SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static int SDLCALL SDL_snprintf_LOGSDLCALLS(SDL_OUT_Z_CAP(maxlen) char* buf, size_t maxlen,
+                                            SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     int result;
     va_list ap;
@@ -292,7 +294,7 @@ static int SDLCALL SDL_snprintf_LOGSDLCALLS(SDL_OUT_Z_CAP(maxlen) char *buf, siz
     va_end(ap);
     return result;
 }
-static int SDLCALL SDL_asprintf_LOGSDLCALLS(char **strp, SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static int SDLCALL SDL_asprintf_LOGSDLCALLS(char** strp, SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     int result;
     va_list ap;
@@ -302,7 +304,8 @@ static int SDLCALL SDL_asprintf_LOGSDLCALLS(char **strp, SDL_PRINTF_FORMAT_STRIN
     va_end(ap);
     return result;
 }
-static int SDLCALL SDL_swprintf_LOGSDLCALLS(SDL_OUT_Z_CAP(maxlen) wchar_t *buf, size_t maxlen, SDL_PRINTF_FORMAT_STRING const wchar_t *fmt, ...)
+static int SDLCALL SDL_swprintf_LOGSDLCALLS(SDL_OUT_Z_CAP(maxlen) wchar_t* buf, size_t maxlen,
+                                            SDL_PRINTF_FORMAT_STRING const wchar_t * fmt, ...)
 {
     int result;
     va_list ap;
@@ -312,7 +315,7 @@ static int SDLCALL SDL_swprintf_LOGSDLCALLS(SDL_OUT_Z_CAP(maxlen) wchar_t *buf, 
     va_end(ap);
     return result;
 }
-static size_t SDLCALL SDL_IOprintf_LOGSDLCALLS(SDL_IOStream *context, SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static size_t SDLCALL SDL_IOprintf_LOGSDLCALLS(SDL_IOStream* context, SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     size_t result;
     va_list ap;
@@ -322,7 +325,8 @@ static size_t SDLCALL SDL_IOprintf_LOGSDLCALLS(SDL_IOStream *context, SDL_PRINTF
     va_end(ap);
     return result;
 }
-static bool SDLCALL SDL_RenderDebugTextFormat_LOGSDLCALLS(SDL_Renderer *renderer, float x, float y, SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static bool SDLCALL SDL_RenderDebugTextFormat_LOGSDLCALLS(SDL_Renderer* renderer, float x, float y,
+                                                          SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     char buf[128], *str = buf;
     int result;
@@ -331,22 +335,25 @@ static bool SDLCALL SDL_RenderDebugTextFormat_LOGSDLCALLS(SDL_Renderer *renderer
     va_start(ap, fmt);
     result = jump_table.SDL_vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    if (result >= 0 && (size_t)result >= sizeof(buf)) {
+    if (result >= 0 && (size_t)result >= sizeof(buf))
+    {
         str = NULL;
         va_start(ap, fmt);
         result = SDL_vasprintf_REAL(&str, fmt, ap);
         va_end(ap);
     }
     bool retval = false;
-    if (result >= 0) {
+    if (result >= 0)
+    {
         retval = SDL_RenderDebugTextFormat_REAL(renderer, x, y, "%s", str);
     }
-    if (str != buf) {
+    if (str != buf)
+    {
         jump_table.SDL_free(str);
     }
     return retval;
 }
-static void SDLCALL SDL_Log_LOGSDLCALLS(SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static void SDLCALL SDL_Log_LOGSDLCALLS(SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     va_list ap;
     SDL_Log_REAL("SDL3CALL SDL_Log");
@@ -354,7 +361,8 @@ static void SDLCALL SDL_Log_LOGSDLCALLS(SDL_PRINTF_FORMAT_STRING const char *fmt
     SDL_LogMessageV_REAL(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, fmt, ap);
     va_end(ap);
 }
-static void SDLCALL SDL_LogMessage_LOGSDLCALLS(int category, SDL_LogPriority priority, SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
+static void SDLCALL SDL_LogMessage_LOGSDLCALLS(int category, SDL_LogPriority priority,
+                                               SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
 {
     va_list ap;
     SDL_Log_REAL("SDL3CALL SDL_LogMessage");
@@ -392,14 +400,17 @@ SDL_DYNAPI_VARARGS_LOGFN_LOGSDLCALLS(Critical, CRITICAL)
 
 /* we make this a static function so we can call the correct one without the
    system's dynamic linker resolving to the wrong version of this. */
-static Sint32 initialize_jumptable(Uint32 apiver, void *table, Uint32 tablesize)
+static Sint32 initialize_jumptable(Uint32 apiver, void* table, Uint32 tablesize)
 {
-    SDL_DYNAPI_jump_table *output_jump_table = (SDL_DYNAPI_jump_table *)table;
+    SDL_DYNAPI_jump_table* output_jump_table = (SDL_DYNAPI_jump_table*)table;
 
-    if (apiver != SDL_DYNAPI_VERSION) {
+    if (apiver != SDL_DYNAPI_VERSION)
+    {
         // !!! FIXME: can maybe handle older versions?
         return -1; // not compatible.
-    } else if (tablesize > sizeof(jump_table)) {
+    }
+    else if (tablesize > sizeof(jump_table))
+    {
         return -1; // newer version of SDL with functions we can't provide.
     }
 
@@ -436,10 +447,10 @@ if (output_jump_table!= &jump_table) {
 
 // Here's the exported entry point that fills in the jump table.
 // Use specific types when an "int" might suffice to keep this sane.
-typedef Sint32(SDLCALL *SDL_DYNAPI_ENTRYFN)(Uint32 apiver, void *table, Uint32 tablesize);
-extern SDL_DECLSPEC Sint32 SDLCALL SDL_DYNAPI_entry(Uint32, void *, Uint32);
+typedef Sint32(SDLCALL* SDL_DYNAPI_ENTRYFN)(Uint32 apiver, void* table, Uint32 tablesize);
+extern SDL_DECLSPEC Sint32 SDLCALL SDL_DYNAPI_entry(Uint32, void*, Uint32);
 
-Sint32 SDL_DYNAPI_entry(Uint32 apiver, void *table, Uint32 tablesize)
+Sint32 SDL_DYNAPI_entry(Uint32 apiver, void* table, Uint32 tablesize)
 {
     return initialize_jumptable(apiver, table, tablesize);
 }
@@ -451,13 +462,15 @@ Sint32 SDL_DYNAPI_entry(Uint32 apiver, void *table, Uint32 tablesize)
 // Obviously we can't use SDL_LoadObject() to load SDL.  :)
 // Also obviously, we never close the loaded library.
 #if defined(WIN32) || defined(_WIN32) || defined(SDL_PLATFORM_CYGWIN)
-static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
+static SDL_INLINE void* get_sdlapi_entry(const char* fname, const char* sym)
 {
     HMODULE lib = LoadLibraryA(fname);
-    void *result = NULL;
-    if (lib) {
-        result = (void *)GetProcAddress(lib, sym);
-        if (!result) {
+    void* result = NULL;
+    if (lib)
+    {
+        result = (void*)GetProcAddress(lib, sym);
+        if (!result)
+        {
             FreeLibrary(lib);
         }
     }
@@ -466,13 +479,15 @@ static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
 
 #elif defined(SDL_PLATFORM_UNIX) || defined(SDL_PLATFORM_APPLE) || defined(SDL_PLATFORM_HAIKU)
 #include <dlfcn.h>
-static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
+static SDL_INLINE void* get_sdlapi_entry(const char* fname, const char* sym)
 {
-    void *lib = dlopen(fname, RTLD_NOW | RTLD_LOCAL);
-    void *result = NULL;
-    if (lib) {
+    void* lib = dlopen(fname, RTLD_NOW | RTLD_LOCAL);
+    void* result = NULL;
+    if (lib)
+    {
         result = dlsym(lib, sym);
-        if (!result) {
+        if (!result)
+        {
             dlclose(lib);
         }
     }
@@ -483,9 +498,9 @@ static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
 #error Please define your platform.
 #endif
 
-static void dynapi_warn(const char *msg)
+static void dynapi_warn(const char* msg)
 {
-    const char *caption = "SDL Dynamic API Failure!";
+    const char* caption = "SDL Dynamic API Failure!";
     (void)caption;
 // SDL_ShowSimpleMessageBox() is a too heavy for here.
 #if (defined(WIN32) || defined(_WIN32) || defined(SDL_PLATFORM_CYGWIN)) && !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
@@ -502,6 +517,7 @@ fflush(stderr);
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 extern SDL_NORETURN void SDL_ExitProcess(int exitcode);
 #ifdef __cplusplus
@@ -511,14 +527,16 @@ extern SDL_NORETURN void SDL_ExitProcess(int exitcode);
 static void SDL_InitDynamicAPILocked(void)
 {
 
+
 // this can't use SDL_getenv_unsafe_REAL, because it might allocate memory before the app can set their allocator.
 #if defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 // We've always used LoadLibraryA for this, so this has never worked with Unicode paths on Windows. Sorry.
-char envbuf[512]; // overflows will just report as environment variable being unset, but LoadLibraryA has a MAX_PATH of 260 anyhow, apparently.
+char envbuf[512];
+// overflows will just report as environment variable being unset, but LoadLibraryA has a MAX_PATH of 260 anyhow, apparently.
 const DWORD rc = GetEnvironmentVariableA(SDL_DYNAMIC_API_ENVVAR, envbuf, (DWORD)sizeof (envbuf));
-char *libname = ((rc != 0) && (rc < sizeof (envbuf))) ? envbuf : NULL;
+char* libname = ((rc != 0) && (rc < sizeof (envbuf))) ? envbuf : NULL;
 #else
-char *libname = getenv(SDL_DYNAMIC_API_ENVVAR); // This should NOT be SDL_getenv()
+char* libname = getenv(SDL_DYNAMIC_API_ENVVAR); // This should NOT be SDL_getenv()
 #endif
 
 SDL_DYNAPI_ENTRYFN entry = NULL; // funcs from here by default.
@@ -526,34 +544,47 @@ bool use_internal = true;
 
     if (libname)
 {
-    while (*libname && !entry) {
+    while (*libname && !entry)
+    {
         // This is evil, but we're not making any permanent changes...
-        char *ptr = (char *)libname;
-        while (true) {
+        char* ptr = (char*)libname;
+        while (true)
+        {
             char ch = *ptr;
-            if ((ch == ',') || (ch == '\0')) {
+            if ((ch == ',') || (ch == '\0'))
+            {
                 *ptr = '\0';
                 entry = (SDL_DYNAPI_ENTRYFN)get_sdlapi_entry(libname, "SDL_DYNAPI_entry");
                 *ptr = ch;
                 libname = (ch == '\0') ? ptr : (ptr + 1);
                 break;
-            } else {
+            }
+            else
+            {
                 ptr++;
             }
         }
     }
-    if (!entry) {
-        dynapi_warn("Couldn't load an overriding SDL library. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
+    if (!entry)
+    {
+        dynapi_warn(
+            "Couldn't load an overriding SDL library. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR
+            " environment variable. Using the default SDL.");
         // Just fill in the function pointers from this library, later.
     }
 }
 
     if (entry)
 {
-    if (entry(SDL_DYNAPI_VERSION, &jump_table, sizeof(jump_table)) < 0) {
-        dynapi_warn("Couldn't override SDL library. Using a newer SDL build might help. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
+    if (entry(SDL_DYNAPI_VERSION, &jump_table, sizeof(jump_table)) < 0)
+    {
+        dynapi_warn(
+            "Couldn't override SDL library. Using a newer SDL build might help. Please fix or remove the "
+            SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
         // Just fill in the function pointers from this library, later.
-    } else {
+    }
+    else
+    {
         use_internal = false; // We overrode SDL! Don't use the internal version!
     }
 }
@@ -561,7 +592,8 @@ bool use_internal = true;
 // Just fill in the function pointers from this library.
     if (use_internal)
 {
-    if (initialize_jumptable(SDL_DYNAPI_VERSION, &jump_table, sizeof(jump_table)) < 0) {
+    if (initialize_jumptable(SDL_DYNAPI_VERSION, &jump_table, sizeof(jump_table)) < 0)
+    {
         // Now we're screwed. Should definitely abort now.
         dynapi_warn("Failed to initialize internal SDL dynapi. As this would otherwise crash, we have to abort now.");
 #ifndef NDEBUG
@@ -592,7 +624,8 @@ static void SDL_InitDynamicAPI(void)
     static SDL_SpinLock lock = 0;
     SDL_LockSpinlock_REAL(&lock);
 
-    if (!already_initialized) {
+    if (!already_initialized)
+    {
         SDL_InitDynamicAPILocked();
         already_initialized = true;
     }
@@ -604,9 +637,9 @@ static void SDL_InitDynamicAPI(void)
 
 #include <SDL3/SDL.h>
 
-Sint32 SDL_DYNAPI_entry(Uint32 apiver, void *table, Uint32 tablesize);
+Sint32 SDL_DYNAPI_entry(Uint32 apiver, void* table, Uint32 tablesize);
 
-Sint32 SDL_DYNAPI_entry(Uint32 apiver, void *table, Uint32 tablesize)
+Sint32 SDL_DYNAPI_entry(Uint32 apiver, void* table, Uint32 tablesize)
 {
     (void)apiver;
     (void)table;

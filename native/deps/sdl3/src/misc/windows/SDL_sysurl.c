@@ -26,26 +26,28 @@
 #include <shellapi.h>
 
 #if defined(SDL_PLATFORM_XBOXONE) || defined(SDL_PLATFORM_XBOXSERIES)
-bool SDL_SYS_OpenURL(const char *url)
+bool SDL_SYS_OpenURL(const char* url)
 {
     // Not supported
     return SDL_Unsupported();
 }
 #else
 // https://msdn.microsoft.com/en-us/library/windows/desktop/bb762153%28v=vs.85%29.aspx
-bool SDL_SYS_OpenURL(const char *url)
+bool SDL_SYS_OpenURL(const char* url)
 {
-    WCHAR *wurl;
+    WCHAR* wurl;
     HINSTANCE rc;
 
     // MSDN says for safety's sake, make sure COM is initialized.
     const HRESULT hr = WIN_CoInitialize();
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         return WIN_SetErrorFromHRESULT("CoInitialize failed", hr);
     }
 
     wurl = WIN_UTF8ToStringW(url);
-    if (!wurl) {
+    if (!wurl)
+    {
         WIN_CoUninitialize();
         return false;
     }
@@ -54,7 +56,8 @@ bool SDL_SYS_OpenURL(const char *url)
     rc = ShellExecuteW(NULL, L"open", wurl, NULL, NULL, SW_SHOWNORMAL);
     SDL_free(wurl);
     WIN_CoUninitialize();
-    if (rc <= ((HINSTANCE)32)) {
+    if (rc <= ((HINSTANCE)32))
+    {
         return WIN_SetError("Couldn't open given URL.");
     }
     return true;

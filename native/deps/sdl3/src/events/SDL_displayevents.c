@@ -24,17 +24,20 @@
 
 #include "SDL_events_c.h"
 
-void SDL_SendDisplayEvent(SDL_VideoDisplay *display, SDL_EventType displayevent, int data1, int data2)
+void SDL_SendDisplayEvent(SDL_VideoDisplay* display, SDL_EventType displayevent, int data1, int data2)
 {
-    SDL_VideoDevice *_this;
+    SDL_VideoDevice* _this;
     bool post_event = true;
 
-    if (!display || display->id == 0) {
+    if (!display || display->id == 0)
+    {
         return;
     }
-    switch (displayevent) {
+    switch (displayevent)
+    {
     case SDL_EVENT_DISPLAY_ORIENTATION:
-        if (data1 == SDL_ORIENTATION_UNKNOWN || data1 == display->current_orientation) {
+        if (data1 == SDL_ORIENTATION_UNKNOWN || data1 == display->current_orientation)
+        {
             return;
         }
         display->current_orientation = (SDL_DisplayOrientation)data1;
@@ -45,12 +48,14 @@ void SDL_SendDisplayEvent(SDL_VideoDisplay *display, SDL_EventType displayevent,
 
     // Only post if we are not currently quitting
     _this = SDL_GetVideoDevice();
-    if (_this == NULL || _this->is_quitting) {
+    if (_this == NULL || _this->is_quitting)
+    {
         post_event = false;
     }
 
     // Post the event, if desired
-    if (post_event && SDL_EventEnabled(displayevent)) {
+    if (post_event && SDL_EventEnabled(displayevent))
+    {
         SDL_Event event;
         event.type = displayevent;
         event.common.timestamp = 0;
@@ -60,7 +65,8 @@ void SDL_SendDisplayEvent(SDL_VideoDisplay *display, SDL_EventType displayevent,
         SDL_PushEvent(&event);
     }
 
-    switch (displayevent) {
+    switch (displayevent)
+    {
     case SDL_EVENT_DISPLAY_ADDED:
         SDL_OnDisplayAdded(display);
         break;

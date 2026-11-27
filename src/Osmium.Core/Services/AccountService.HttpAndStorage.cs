@@ -91,9 +91,11 @@ public sealed partial class AccountService : IDisposable
                 or OsmiumErrorCode.TicketExpired
                 => Tr("Acc_ErrCaptchaFailed", "Security verification failed or expired"),
             OsmiumErrorCode.GeetestNotConfigured
-                => Tr("Acc_ErrGeetestNotConfigured", "Security verification is temporarily unavailable; please try again later"),
+                => Tr("Acc_ErrGeetestNotConfigured",
+                    "Security verification is temporarily unavailable; please try again later"),
             OsmiumErrorCode.SmtpNotConfigured
-                => Tr("Acc_ErrSmtpNotConfigured", "Email verification service is temporarily unavailable; please try again later"),
+                => Tr("Acc_ErrSmtpNotConfigured",
+                    "Email verification service is temporarily unavailable; please try again later"),
             OsmiumErrorCode.SmtpSendFailed or OsmiumErrorCode.SmtpTimeout
                 => Tr("Acc_ErrSmtpSendFailed", "Failed to send verification email; please try again later"),
             OsmiumErrorCode.DeviceLimitExceeded
@@ -124,7 +126,8 @@ public sealed partial class AccountService : IDisposable
             OsmiumErrorCode.OAuthFailed
                 => Tr("Acc_ErrOAuthFailed", "Sign-in was not completed; please try again"),
             OsmiumErrorCode.OAuthNotConfigured
-                => Tr("Acc_ErrOAuthNotConfigured", "This sign-in method is currently unavailable; please try again later or sign in with email"),
+                => Tr("Acc_ErrOAuthNotConfigured",
+                    "This sign-in method is currently unavailable; please try again later or sign in with email"),
             OsmiumErrorCode.TwoFaInvalid
                 => Tr("Acc_ErrTwoFaInvalid", "Incorrect 2FA verification code"),
             OsmiumErrorCode.TwoFaExpired
@@ -150,25 +153,33 @@ public sealed partial class AccountService : IDisposable
             OsmiumErrorCode.PowerDisabled
                 => Tr("Power_ErrDisabled", "Remote power control is not enabled in the target computer's settings"),
             OsmiumErrorCode.PowerUnsupported
-                => Tr("Power_ErrUnsupported", "Target device does not support this power operation or has no recorded NIC MAC address"),
+                => Tr("Power_ErrUnsupported",
+                    "Target device does not support this power operation or has no recorded NIC MAC address"),
             OsmiumErrorCode.PowerCooldown
                 => Tr("Power_ErrCooldown", "Power command sent too frequently; please wait a few seconds"),
             OsmiumErrorCode.UsernameChangeCooldown
                 => string.IsNullOrEmpty(waitText)
-                    ? Tr("Acc_ErrUsernameCooldown", "Username can only be changed once per hour; please try again later")
-                    : TrFmt("Acc_ErrUsernameCooldownFmt", "Username can only be changed once per hour; please try again in {0}", waitText),
+                    ? Tr("Acc_ErrUsernameCooldown",
+                        "Username can only be changed once per hour; please try again later")
+                    : TrFmt("Acc_ErrUsernameCooldownFmt",
+                        "Username can only be changed once per hour; please try again in {0}", waitText),
             OsmiumErrorCode.AvatarChangeCooldown
                 => string.IsNullOrEmpty(waitText)
                     ? Tr("Acc_ErrAvatarCooldown", "Avatar can only be changed once per hour; please try again later")
-                    : TrFmt("Acc_ErrAvatarCooldownFmt", "Avatar can only be changed once per hour; please try again in {0}", waitText),
+                    : TrFmt("Acc_ErrAvatarCooldownFmt",
+                        "Avatar can only be changed once per hour; please try again in {0}", waitText),
             OsmiumErrorCode.EmailChangeCooldown
                 => string.IsNullOrEmpty(waitText)
-                    ? Tr("Acc_ErrEmailCooldown", "Email can only be changed once every 24 hours; please try again later")
-                    : TrFmt("Acc_ErrEmailCooldownFmt", "Email can only be changed once every 24 hours; please try again in {0}", waitText),
+                    ? Tr("Acc_ErrEmailCooldown",
+                        "Email can only be changed once every 24 hours; please try again later")
+                    : TrFmt("Acc_ErrEmailCooldownFmt",
+                        "Email can only be changed once every 24 hours; please try again in {0}", waitText),
             OsmiumErrorCode.PasswordResetCooldown
                 => string.IsNullOrEmpty(waitText)
-                    ? Tr("Acc_ErrPasswordResetCooldown", "Password can only be reset once every 24 hours; please try again later")
-                    : TrFmt("Acc_ErrPasswordResetCooldownFmt", "Password can only be reset once every 24 hours; please try again in {0}", waitText),
+                    ? Tr("Acc_ErrPasswordResetCooldown",
+                        "Password can only be reset once every 24 hours; please try again later")
+                    : TrFmt("Acc_ErrPasswordResetCooldownFmt",
+                        "Password can only be reset once every 24 hours; please try again in {0}", waitText),
             OsmiumErrorCode.ServiceQuotaExceeded or OsmiumErrorCode.ServerMisconfigured or OsmiumErrorCode.InternalError
                 => Tr("Acc_ErrServiceBusy", "Service is temporarily unavailable; please try again later"),
             OsmiumErrorCode.NetworkError

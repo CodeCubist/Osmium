@@ -69,11 +69,14 @@ public sealed partial class SignalingClient : IDisposable
                 }
                 case "registered":
                 {
-                    string assignedId = root.TryGetProperty("deviceId", out var did) && did.ValueKind == JsonValueKind.String
+                    string assignedId = root.TryGetProperty("deviceId", out var did) &&
+                                        did.ValueKind == JsonValueKind.String
                         ? DeviceIdentity.NormalizeDeviceId(did.GetString())
                         : string.Empty;
-                    bool reassigned = root.TryGetProperty("deviceIdReassigned", out var dr) && dr.ValueKind == JsonValueKind.True;
-                    bool useFallbackSecret = root.TryGetProperty("useFallbackSecret", out var ufs) && ufs.ValueKind == JsonValueKind.True;
+                    bool reassigned = root.TryGetProperty("deviceIdReassigned", out var dr) &&
+                                      dr.ValueKind == JsonValueKind.True;
+                    bool useFallbackSecret = root.TryGetProperty("useFallbackSecret", out var ufs) &&
+                                             ufs.ValueKind == JsonValueKind.True;
                     if (assignedId.Length is >= 6 and <= 12 &&
                         (reassigned || !string.Equals(assignedId, _deviceId, StringComparison.Ordinal)))
                     {
@@ -148,28 +151,35 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new PowerCommandEventArgs
                     {
-                        CommandId = root.TryGetProperty("commandId", out var cid) && cid.ValueKind == JsonValueKind.String
+                        CommandId = root.TryGetProperty("commandId", out var cid) &&
+                                    cid.ValueKind == JsonValueKind.String
                             ? cid.GetString() ?? string.Empty
                             : string.Empty,
                         Action = root.TryGetProperty("action", out var act) && act.ValueKind == JsonValueKind.String
                             ? act.GetString() ?? string.Empty
                             : string.Empty,
-                        TargetDeviceId = root.TryGetProperty("targetDeviceId", out var tid) && tid.ValueKind == JsonValueKind.String
+                        TargetDeviceId = root.TryGetProperty("targetDeviceId", out var tid) &&
+                                         tid.ValueKind == JsonValueKind.String
                             ? tid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) &&
+                                          ruid.ValueKind == JsonValueKind.String
                             ? ruid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) &&
+                                            rdid.ValueKind == JsonValueKind.String
                             ? rdid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterDeviceName = root.TryGetProperty("requesterDeviceName", out var rdn) && rdn.ValueKind == JsonValueKind.String
+                        RequesterDeviceName = root.TryGetProperty("requesterDeviceName", out var rdn) &&
+                                              rdn.ValueKind == JsonValueKind.String
                             ? rdn.GetString() ?? string.Empty
                             : string.Empty,
-                        DelaySeconds = root.TryGetProperty("delaySeconds", out var ds) && ds.ValueKind == JsonValueKind.Number
+                        DelaySeconds = root.TryGetProperty("delaySeconds", out var ds) &&
+                                       ds.ValueKind == JsonValueKind.Number
                             ? ds.GetInt32()
                             : 3,
-                        IssuedAtUnixMs = root.TryGetProperty("issuedAt", out var ia) && ia.ValueKind == JsonValueKind.Number
+                        IssuedAtUnixMs = root.TryGetProperty("issuedAt", out var ia) &&
+                                         ia.ValueKind == JsonValueKind.Number
                             ? ia.GetInt64()
                             : 0
                     };
@@ -225,25 +235,31 @@ public sealed partial class SignalingClient : IDisposable
 
                     var args = new PowerWolRelayEventArgs
                     {
-                        CommandId = root.TryGetProperty("commandId", out var cid) && cid.ValueKind == JsonValueKind.String
+                        CommandId = root.TryGetProperty("commandId", out var cid) &&
+                                    cid.ValueKind == JsonValueKind.String
                             ? cid.GetString() ?? string.Empty
                             : string.Empty,
-                        TargetDeviceId = root.TryGetProperty("targetDeviceId", out var tid) && tid.ValueKind == JsonValueKind.String
+                        TargetDeviceId = root.TryGetProperty("targetDeviceId", out var tid) &&
+                                         tid.ValueKind == JsonValueKind.String
                             ? tid.GetString() ?? string.Empty
                             : string.Empty,
-                        TargetDeviceName = root.TryGetProperty("targetDeviceName", out var tdn) && tdn.ValueKind == JsonValueKind.String
+                        TargetDeviceName = root.TryGetProperty("targetDeviceName", out var tdn) &&
+                                           tdn.ValueKind == JsonValueKind.String
                             ? tdn.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) &&
+                                          ruid.ValueKind == JsonValueKind.String
                             ? ruid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) &&
+                                            rdid.ValueKind == JsonValueKind.String
                             ? rdid.GetString() ?? string.Empty
                             : string.Empty,
                         Macs = macs,
                         Broadcasts = broadcasts,
                         Ports = ports,
-                        IssuedAtUnixMs = root.TryGetProperty("issuedAt", out var ia) && ia.ValueKind == JsonValueKind.Number
+                        IssuedAtUnixMs = root.TryGetProperty("issuedAt", out var ia) &&
+                                         ia.ValueKind == JsonValueKind.Number
                             ? ia.GetInt64()
                             : 0
                     };
@@ -259,13 +275,16 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new QuickLaunchBrowseRequestEventArgs
                     {
-                        RequestId = root.TryGetProperty("requestId", out var rid) && rid.ValueKind == JsonValueKind.String
+                        RequestId = root.TryGetProperty("requestId", out var rid) &&
+                                    rid.ValueKind == JsonValueKind.String
                             ? rid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) &&
+                                            rdid.ValueKind == JsonValueKind.String
                             ? rdid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) &&
+                                          ruid.ValueKind == JsonValueKind.String
                             ? ruid.GetString() ?? string.Empty
                             : string.Empty,
                         Path = root.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String
@@ -282,19 +301,23 @@ public sealed partial class SignalingClient : IDisposable
                     {
                         QuickLaunchBrowseResponseReceived?.Invoke(res);
                     }
+
                     break;
                 }
                 case "quick_launch_validate_req":
                 {
                     var args = new QuickLaunchValidateRequestEventArgs
                     {
-                        RequestId = root.TryGetProperty("requestId", out var rid) && rid.ValueKind == JsonValueKind.String
+                        RequestId = root.TryGetProperty("requestId", out var rid) &&
+                                    rid.ValueKind == JsonValueKind.String
                             ? rid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) &&
+                                            rdid.ValueKind == JsonValueKind.String
                             ? rdid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) &&
+                                          ruid.ValueKind == JsonValueKind.String
                             ? ruid.GetString() ?? string.Empty
                             : string.Empty,
                         Path = root.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String
@@ -311,19 +334,23 @@ public sealed partial class SignalingClient : IDisposable
                     {
                         QuickLaunchValidateResponseReceived?.Invoke(res);
                     }
+
                     break;
                 }
                 case "quick_launch_start_req":
                 {
                     var args = new QuickLaunchStartRequestEventArgs
                     {
-                        RequestId = root.TryGetProperty("requestId", out var rid) && rid.ValueKind == JsonValueKind.String
+                        RequestId = root.TryGetProperty("requestId", out var rid) &&
+                                    rid.ValueKind == JsonValueKind.String
                             ? rid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) && rdid.ValueKind == JsonValueKind.String
+                        RequesterDeviceId = root.TryGetProperty("requesterDeviceId", out var rdid) &&
+                                            rdid.ValueKind == JsonValueKind.String
                             ? rdid.GetString() ?? string.Empty
                             : string.Empty,
-                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) && ruid.ValueKind == JsonValueKind.String
+                        RequesterUserId = root.TryGetProperty("requesterUserId", out var ruid) &&
+                                          ruid.ValueKind == JsonValueKind.String
                             ? ruid.GetString() ?? string.Empty
                             : string.Empty,
                         AppId = root.TryGetProperty("appId", out var aid) && aid.ValueKind == JsonValueKind.String
@@ -346,6 +373,7 @@ public sealed partial class SignalingClient : IDisposable
                     {
                         QuickLaunchStartResponseReceived?.Invoke(res);
                     }
+
                     break;
                 }
                 case "quick_launch_cancel":
@@ -353,7 +381,8 @@ public sealed partial class SignalingClient : IDisposable
                     string rid = root.TryGetProperty("requestId", out var r) && r.ValueKind == JsonValueKind.String
                         ? r.GetString() ?? string.Empty
                         : string.Empty;
-                    string rdid = root.TryGetProperty("requesterDeviceId", out var d) && d.ValueKind == JsonValueKind.String
+                    string rdid = root.TryGetProperty("requesterDeviceId", out var d) &&
+                                  d.ValueKind == JsonValueKind.String
                         ? d.GetString() ?? string.Empty
                         : string.Empty;
                     QuickLaunchCancelReceived?.Invoke(rid, rdid);
@@ -495,10 +524,12 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new WebRtcSdpEventArgs
                     {
-                        SessionId = root.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String
+                        SessionId = root.TryGetProperty("sessionId", out var sid) &&
+                                    sid.ValueKind == JsonValueKind.String
                             ? sid.GetString() ?? string.Empty
                             : string.Empty,
-                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) && fid.ValueKind == JsonValueKind.String
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) &&
+                                       fid.ValueKind == JsonValueKind.String
                             ? fid.GetString() ?? string.Empty
                             : string.Empty,
                         Sdp = root.TryGetProperty("sdp", out var sdp) && sdp.ValueKind == JsonValueKind.String
@@ -512,10 +543,12 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new WebRtcSdpEventArgs
                     {
-                        SessionId = root.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String
+                        SessionId = root.TryGetProperty("sessionId", out var sid) &&
+                                    sid.ValueKind == JsonValueKind.String
                             ? sid.GetString() ?? string.Empty
                             : string.Empty,
-                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) && fid.ValueKind == JsonValueKind.String
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) &&
+                                       fid.ValueKind == JsonValueKind.String
                             ? fid.GetString() ?? string.Empty
                             : string.Empty,
                         Sdp = root.TryGetProperty("sdp", out var sdp) && sdp.ValueKind == JsonValueKind.String
@@ -529,19 +562,23 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new WebRtcIceEventArgs
                     {
-                        SessionId = root.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String
+                        SessionId = root.TryGetProperty("sessionId", out var sid) &&
+                                    sid.ValueKind == JsonValueKind.String
                             ? sid.GetString() ?? string.Empty
                             : string.Empty,
-                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) && fid.ValueKind == JsonValueKind.String
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var fid) &&
+                                       fid.ValueKind == JsonValueKind.String
                             ? fid.GetString() ?? string.Empty
                             : string.Empty,
-                        Candidate = root.TryGetProperty("candidate", out var cand) && cand.ValueKind == JsonValueKind.String
+                        Candidate = root.TryGetProperty("candidate", out var cand) &&
+                                    cand.ValueKind == JsonValueKind.String
                             ? cand.GetString() ?? string.Empty
                             : string.Empty,
                         SdpMid = root.TryGetProperty("sdpMid", out var mid) && mid.ValueKind == JsonValueKind.String
                             ? mid.GetString()
                             : null,
-                        SdpMLineIndex = root.TryGetProperty("sdpMLineIndex", out var idx) && idx.ValueKind == JsonValueKind.Number
+                        SdpMLineIndex = root.TryGetProperty("sdpMLineIndex", out var idx) &&
+                                        idx.ValueKind == JsonValueKind.Number
                             ? idx.GetInt32()
                             : 0
                     };
@@ -563,7 +600,8 @@ public sealed partial class SignalingClient : IDisposable
                         StunPort = root.TryGetProperty("stunPort", out var up) && up.ValueKind == JsonValueKind.Number
                             ? (ushort)up.GetInt32()
                             : AdvertisedStunPort,
-                        RelayToken = root.TryGetProperty("relayToken", out var rt) && rt.ValueKind == JsonValueKind.String
+                        RelayToken = root.TryGetProperty("relayToken", out var rt) &&
+                                     rt.ValueKind == JsonValueKind.String
                             ? rt.GetString() ?? string.Empty
                             : string.Empty,
                         RelayPath = root.TryGetProperty("relayPath", out var rp) && rp.ValueKind == JsonValueKind.String
@@ -578,16 +616,20 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new RelayFallbackEventArgs
                     {
-                        SessionId = root.TryGetProperty("sessionId", out var rsid) && rsid.ValueKind == JsonValueKind.String
+                        SessionId = root.TryGetProperty("sessionId", out var rsid) &&
+                                    rsid.ValueKind == JsonValueKind.String
                             ? rsid.GetString() ?? string.Empty
                             : string.Empty,
-                        RelayToken = root.TryGetProperty("relayToken", out var rtok) && rtok.ValueKind == JsonValueKind.String
+                        RelayToken = root.TryGetProperty("relayToken", out var rtok) &&
+                                     rtok.ValueKind == JsonValueKind.String
                             ? rtok.GetString() ?? string.Empty
                             : string.Empty,
-                        RelayPath = root.TryGetProperty("relayPath", out var rpath) && rpath.ValueKind == JsonValueKind.String
+                        RelayPath = root.TryGetProperty("relayPath", out var rpath) &&
+                                    rpath.ValueKind == JsonValueKind.String
                             ? rpath.GetString() ?? "/relay"
                             : "/relay",
-                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var rfid) && rfid.ValueKind == JsonValueKind.String
+                        FromDeviceId = root.TryGetProperty("fromDeviceId", out var rfid) &&
+                                       rfid.ValueKind == JsonValueKind.String
                             ? rfid.GetString() ?? string.Empty
                             : string.Empty
                     };
@@ -598,16 +640,20 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     var args = new SessionEstablishedEventArgs
                     {
-                        SessionId = root.TryGetProperty("sessionId", out var esid) && esid.ValueKind == JsonValueKind.String
+                        SessionId = root.TryGetProperty("sessionId", out var esid) &&
+                                    esid.ValueKind == JsonValueKind.String
                             ? esid.GetString() ?? string.Empty
                             : string.Empty,
-                        StartedAtUnixMs = root.TryGetProperty("startedAt", out var esa) && esa.ValueKind == JsonValueKind.Number
+                        StartedAtUnixMs = root.TryGetProperty("startedAt", out var esa) &&
+                                          esa.ValueKind == JsonValueKind.Number
                             ? esa.GetInt64()
                             : 0,
-                        ClientDeviceId = root.TryGetProperty("clientDeviceId", out var ecid) && ecid.ValueKind == JsonValueKind.String
+                        ClientDeviceId = root.TryGetProperty("clientDeviceId", out var ecid) &&
+                                         ecid.ValueKind == JsonValueKind.String
                             ? ecid.GetString() ?? string.Empty
                             : string.Empty,
-                        HostDeviceId = root.TryGetProperty("hostDeviceId", out var ehid) && ehid.ValueKind == JsonValueKind.String
+                        HostDeviceId = root.TryGetProperty("hostDeviceId", out var ehid) &&
+                                       ehid.ValueKind == JsonValueKind.String
                             ? ehid.GetString() ?? string.Empty
                             : string.Empty
                     };
@@ -1083,6 +1129,11 @@ public sealed partial class SignalingClient : IDisposable
                             }
                         }
 
+                        if (addresses.Length > 0)
+                        {
+                            ResolvedServerIp = addresses[0].ToString();
+                        }
+
                         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
                         {
                             NoDelay = true
@@ -1114,7 +1165,8 @@ public sealed partial class SignalingClient : IDisposable
                 {
                     await ws.ConnectAsync(serverUri, invoker, connectCts.Token);
                 }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested && connectWakeCts.IsCancellationRequested)
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested &&
+                                                         connectWakeCts.IsCancellationRequested)
                 {
                     continue;
                 }
@@ -1166,7 +1218,8 @@ public sealed partial class SignalingClient : IDisposable
 
                 using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var pingTask = Task.Run(
-                    () => RunHeartbeatLoopAsync(ws, registerTcs, () => Volatile.Write(ref heartbeatAborted, 1), pingCts.Token),
+                    () => RunHeartbeatLoopAsync(ws, registerTcs, () => Volatile.Write(ref heartbeatAborted, 1),
+                        pingCts.Token),
                     pingCts.Token);
 
                 try

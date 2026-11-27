@@ -25,29 +25,34 @@
 /* There's no float version of this at the moment, because it's not a public API
    and internally we only need the int version. */
 bool SDL_GetSpanEnclosingRect(int width, int height,
-                              int numrects, const SDL_Rect *rects, SDL_Rect *span)
+                              int numrects, const SDL_Rect* rects, SDL_Rect* span)
 {
     int i;
     int span_y1, span_y2;
     int rect_y1, rect_y2;
 
-    CHECK_PARAM(width < 1) {
+    CHECK_PARAM(width < 1)
+    {
         SDL_InvalidParamError("width");
         return false;
     }
-    CHECK_PARAM(height < 1) {
+    CHECK_PARAM(height < 1)
+    {
         SDL_InvalidParamError("height");
         return false;
     }
-    CHECK_PARAM(!rects) {
+    CHECK_PARAM(!rects)
+    {
         SDL_InvalidParamError("rects");
         return false;
     }
-    CHECK_PARAM(!span) {
+    CHECK_PARAM(!span)
+    {
         SDL_InvalidParamError("span");
         return false;
     }
-    CHECK_PARAM(numrects < 1) {
+    CHECK_PARAM(numrects < 1)
+    {
         SDL_InvalidParamError("numrects");
         return false;
     }
@@ -56,23 +61,31 @@ bool SDL_GetSpanEnclosingRect(int width, int height,
     span_y1 = height;
     span_y2 = 0;
 
-    for (i = 0; i < numrects; ++i) {
+    for (i = 0; i < numrects; ++i)
+    {
         rect_y1 = rects[i].y;
         rect_y2 = rect_y1 + rects[i].h;
 
         // Clip out of bounds rectangles, and expand span rect
-        if (rect_y1 < 0) {
+        if (rect_y1 < 0)
+        {
             span_y1 = 0;
-        } else if (rect_y1 < span_y1) {
+        }
+        else if (rect_y1 < span_y1)
+        {
             span_y1 = rect_y1;
         }
-        if (rect_y2 > height) {
+        if (rect_y2 > height)
+        {
             span_y2 = height;
-        } else if (rect_y2 > span_y2) {
+        }
+        else if (rect_y2 > span_y2)
+        {
             span_y2 = rect_y2;
         }
     }
-    if (span_y2 > span_y1) {
+    if (span_y2 > span_y1)
+    {
         span->x = 0;
         span->y = span_y1;
         span->w = width;

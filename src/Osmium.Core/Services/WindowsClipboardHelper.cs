@@ -15,7 +15,10 @@ public static class WindowsClipboardHelper
 
     private static readonly uint CfPreferredDropEffect = RegisterClipboardFormatW("Preferred DropEffect");
 
-    public static string StagingRootDir { get; } = Path.Combine(Path.GetTempPath(), "OsmiumFileTransfer");
+    public static string StagingRootDir
+    {
+        get;
+    } = Path.Combine(Path.GetTempPath(), "OsmiumFileTransfer");
 
     public static uint GetSequenceNumber() => GetClipboardSequenceNumber();
 
@@ -332,6 +335,7 @@ public static class WindowsClipboardHelper
             sb.Append(p);
             sb.Append('\0');
         }
+
         sb.Append('\0');
 
         byte[] pathBytes = Encoding.Unicode.GetBytes(sb.ToString());

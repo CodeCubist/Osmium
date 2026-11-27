@@ -39,6 +39,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -46,7 +47,7 @@ extern "C" {
  *
  * \since This datatype is available since SDL 3.2.0.
  */
-typedef void *SDL_MetalView;
+typedef void* SDL_MetalView;
 
 /**
  *  \name Metal support functions
@@ -73,7 +74,7 @@ typedef void *SDL_MetalView;
  * \sa SDL_Metal_DestroyView
  * \sa SDL_Metal_GetLayer
  */
-extern SDL_DECLSPEC SDL_MetalView SDLCALL SDL_Metal_CreateView(SDL_Window *window);
+extern SDL_DECLSPEC SDL_MetalView SDLCALL SDL_Metal_CreateView(SDL_Window* window);
 
 /**
  * Destroy an existing SDL_MetalView object.
@@ -101,7 +102,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_Metal_DestroyView(SDL_MetalView view);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_Metal_GetLayer(SDL_MetalView view);
+extern SDL_DECLSPEC void* SDLCALL SDL_Metal_GetLayer(SDL_MetalView view);
 
 /* @} */ /* Metal support functions */
 

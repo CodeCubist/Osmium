@@ -66,11 +66,15 @@ double SDL_acos(double val)
     return acos(val);
 #else
     double result;
-    if (val == -1.0) {
+    if (val == -1.0)
+    {
         result = SDL_PI_D;
-    } else {
+    }
+    else
+    {
         result = SDL_atan(SDL_sqrt(1.0 - val * val) / val);
-        if (result < 0.0) {
+        if (result < 0.0)
+        {
             result += SDL_PI_D;
         }
     }
@@ -93,9 +97,12 @@ double SDL_asin(double val)
     return asin(val);
 #else
     double result;
-    if (val == -1.0) {
+    if (val == -1.0)
+    {
         result = -(SDL_PI_D / 2.0);
-    } else {
+    }
+    else
+    {
         result = (SDL_PI_D / 2.0) - SDL_acos(val);
     }
     return result;
@@ -118,7 +125,8 @@ double SDL_ceil(double x)
 #else
     double integer = SDL_floor(x);
     double fraction = x - integer;
-    if (fraction > 0.0) {
+    if (fraction > 0.0)
+    {
         integer += 1.0;
     }
     return integer;
@@ -231,9 +239,12 @@ double SDL_trunc(double x)
 #ifdef HAVE_TRUNC
     return trunc(x);
 #else
-    if (x >= 0.0f) {
+    if (x >= 0.0f)
+    {
         return SDL_floor(x);
-    } else {
+    }
+    else
+    {
         return SDL_ceil(x);
     }
 #endif
@@ -342,7 +353,7 @@ float SDL_log10f(float x)
 #endif
 }
 
-double SDL_modf(double x, double *y)
+double SDL_modf(double x, double* y)
 {
 #ifdef HAVE_MODF
     return modf(x, y);
@@ -351,7 +362,7 @@ double SDL_modf(double x, double *y)
 #endif
 }
 
-float SDL_modff(float x, float *y)
+float SDL_modff(float x, float* y)
 {
 #ifdef HAVE_MODFF
     return modff(x, y);
@@ -386,9 +397,12 @@ double SDL_round(double arg)
 #if defined HAVE_ROUND
     return round(arg);
 #else
-    if (arg >= 0.0) {
+    if (arg >= 0.0)
+    {
         return SDL_floor(arg + 0.5);
-    } else {
+    }
+    else
+    {
         return SDL_ceil(arg - 0.5);
     }
 #endif
@@ -513,7 +527,12 @@ int SDL_isalnum(int x) { return (SDL_isalpha(x)) || (SDL_isdigit(x)); }
 int SDL_isdigit(int x) { return ((x) >= '0') && ((x) <= '9'); }
 int SDL_isxdigit(int x) { return (((x) >= 'A') && ((x) <= 'F')) || (((x) >= 'a') && ((x) <= 'f')) || (SDL_isdigit(x)); }
 int SDL_ispunct(int x) { return (SDL_isgraph(x)) && (!SDL_isalnum(x)); }
-int SDL_isspace(int x) { return ((x) == ' ') || ((x) == '\t') || ((x) == '\r') || ((x) == '\n') || ((x) == '\f') || ((x) == '\v'); }
+
+int SDL_isspace(int x)
+{
+    return ((x) == ' ') || ((x) == '\t') || ((x) == '\r') || ((x) == '\n') || ((x) == '\f') || ((x) == '\v');
+}
+
 int SDL_isupper(int x) { return ((x) >= 'A') && ((x) <= 'Z'); }
 int SDL_islower(int x) { return ((x) >= 'a') && ((x) <= 'z'); }
 int SDL_isprint(int x) { return ((x) >= ' ') && ((x) < '\x7f'); }
@@ -523,24 +542,27 @@ int SDL_toupper(int x) { return ((x) >= 'a') && ((x) <= 'z') ? ('A' + ((x) - 'a'
 int SDL_tolower(int x) { return ((x) >= 'A') && ((x) <= 'Z') ? ('a' + ((x) - 'A')) : (x); }
 int SDL_isblank(int x) { return ((x) == ' ') || ((x) == '\t'); }
 
-void *SDL_aligned_alloc(size_t alignment, size_t size)
+void* SDL_aligned_alloc(size_t alignment, size_t size)
 {
     size_t padding;
-    Uint8 *result = NULL;
+    Uint8* result = NULL;
     size_t requested_size = size;
 
-    if (alignment < sizeof(void *)) {
-        alignment = sizeof(void *);
+    if (alignment < sizeof(void*))
+    {
+        alignment = sizeof(void*);
     }
     padding = (alignment - (size % alignment));
 
     if (SDL_size_add_check_overflow(size, alignment, &size) &&
-        SDL_size_add_check_overflow(size, sizeof(void *), &size) &&
-        SDL_size_add_check_overflow(size, padding, &size)) {
-        void *original = SDL_malloc(size);
-        if (original) {
+        SDL_size_add_check_overflow(size, sizeof(void*), &size) &&
+        SDL_size_add_check_overflow(size, padding, &size))
+    {
+        void* original = SDL_malloc(size);
+        if (original)
+        {
             // Make sure we have enough space to store the original pointer
-            result = (Uint8 *)original + sizeof(original);
+            result = (Uint8*)original + sizeof(original);
 
             // Align the pointer we're going to return
             result += alignment - (((size_t)result) % alignment);
@@ -549,7 +571,8 @@ void *SDL_aligned_alloc(size_t alignment, size_t size)
             SDL_memcpy(result - sizeof(original), &original, sizeof(original));
 
             // Initialize the padding to zero
-            if (padding > 0) {
+            if (padding > 0)
+            {
                 SDL_memset(result + requested_size, 0, padding);
             }
         }
@@ -557,11 +580,12 @@ void *SDL_aligned_alloc(size_t alignment, size_t size)
     return result;
 }
 
-void SDL_aligned_free(void *mem)
+void SDL_aligned_free(void* mem)
 {
-    if (mem) {
-        void *original;
-        SDL_memcpy(&original, ((Uint8 *)mem - sizeof(original)), sizeof(original));
+    if (mem)
+    {
+        void* original;
+        SDL_memcpy(&original, ((Uint8*)mem - sizeof(original)), sizeof(original));
         SDL_free(original);
     }
 }

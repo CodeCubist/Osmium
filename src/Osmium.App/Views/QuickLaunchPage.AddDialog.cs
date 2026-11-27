@@ -23,16 +23,44 @@ public sealed partial class QuickLaunchPage : Page
 
     private sealed class SelectableHostPc
     {
-        public required string DeviceId { get; init; }
-        public required string DisplayName { get; init; }
-        public required string Subtitle { get; init; }
+        public required string DeviceId
+        {
+            get;
+            init;
+        }
+
+        public required string DisplayName
+        {
+            get;
+            init;
+        }
+
+        public required string Subtitle
+        {
+            get;
+            init;
+        }
     }
 
     private sealed class BrowserListItem
     {
-        public required string Name { get; init; }
-        public required string FullPath { get; init; }
-        public required bool IsDirectory { get; init; }
+        public required string Name
+        {
+            get;
+            init;
+        }
+
+        public required string FullPath
+        {
+            get;
+            init;
+        }
+
+        public required bool IsDirectory
+        {
+            get;
+            init;
+        }
     }
 
     private bool _inAddWizard;
@@ -170,7 +198,8 @@ public sealed partial class QuickLaunchPage : Page
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
-            if (Application.Current.Resources.TryGetValue("FluentIconsFont", out object? ffObj) && ffObj is FontFamily ff)
+            if (Application.Current.Resources.TryGetValue("FluentIconsFont", out object? ffObj) &&
+                ffObj is FontFamily ff)
             {
                 pcIcon.FontFamily = ff;
             }

@@ -14,12 +14,12 @@
         <Grid x:Name="VideoStageGrid"
               Grid.Row="1"
               Background="#0B0D12">
-            
+
             <SwapChainPanel x:Name="VideoSwapChainPanel"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             IsHitTestVisible="False" />
-            
+
             <controls:CursorLockGrid x:Name="VideoInputSurface"
                                      Background="#01000000"
                                      ManipulationMode="None"
@@ -345,7 +345,8 @@
                                 <MenuFlyoutSubItem.Icon>
                                     <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xEB43;" />
                                 </MenuFlyoutSubItem.Icon>
-                                <ToggleMenuFlyoutItem x:Name="VirtualSpeakerMenuItem" Click="VirtualAudioMenuItem_Click" />
+                                <ToggleMenuFlyoutItem x:Name="VirtualSpeakerMenuItem"
+                                                      Click="VirtualAudioMenuItem_Click" />
                                 <ToggleMenuFlyoutItem x:Name="VirtualMicMenuItem" Click="VirtualAudioMenuItem_Click" />
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutSubItem x:Name="MenuSubLocalMic" />
@@ -355,7 +356,8 @@
                                 <MenuFlyoutSubItem.Icon>
                                     <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="&#xF4C8;" />
                                 </MenuFlyoutSubItem.Icon>
-                                <ToggleMenuFlyoutItem x:Name="SharedClipboardMenuItem" Click="SharedClipboardMenuItem_Click" />
+                                <ToggleMenuFlyoutItem x:Name="SharedClipboardMenuItem"
+                                                      Click="SharedClipboardMenuItem_Click" />
                                 <ToggleMenuFlyoutItem x:Name="FileTransferMenuItem" Click="FileTransferMenuItem_Click" />
                                 <MenuFlyoutItem x:Name="TransferStatusMenuItem"
                                                 IsEnabled="False"

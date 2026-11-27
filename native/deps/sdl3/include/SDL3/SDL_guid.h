@@ -40,6 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -79,7 +80,7 @@ typedef struct SDL_GUID
  *
  * \sa SDL_StringToGUID
  */
-extern SDL_DECLSPEC void SDLCALL SDL_GUIDToString(SDL_GUID guid, char *pszGUID, int cbGUID);
+extern SDL_DECLSPEC void SDLCALL SDL_GUIDToString(SDL_GUID guid, char* pszGUID, int cbGUID);
 
 /**
  * Convert a GUID string into a SDL_GUID structure.
@@ -97,7 +98,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_GUIDToString(SDL_GUID guid, char *pszGUID, 
  *
  * \sa SDL_GUIDToString
  */
-extern SDL_DECLSPEC SDL_GUID SDLCALL SDL_StringToGUID(const char *pchGUID);
+extern SDL_DECLSPEC SDL_GUID SDLCALL SDL_StringToGUID(const char* pchGUID);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

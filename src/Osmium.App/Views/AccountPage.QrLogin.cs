@@ -75,7 +75,6 @@ public sealed partial class AccountPage : Page
         }
         catch
         {
-            // Ignore disposal races.
         }
 
         var oldSession = _activeQrSession;
@@ -100,7 +99,8 @@ public sealed partial class AccountPage : Page
 
     private void UpdateQrCountdownText()
     {
-        if (!_inQrLoginFlow || _activeQrSession == null || _qrVisualState is not ("pending" or "scanned" or "awaiting_confirm"))
+        if (!_inQrLoginFlow || _activeQrSession == null ||
+            _qrVisualState is not ("pending" or "scanned" or "awaiting_confirm"))
         {
             _qrCountdownTimer?.Stop();
             QrCountdownText.Visibility = Visibility.Collapsed;
@@ -116,6 +116,7 @@ public sealed partial class AccountPage : Page
             {
                 ApplyQrOverlayState("expired");
             }
+
             return;
         }
 
@@ -229,7 +230,6 @@ public sealed partial class AccountPage : Page
         }
         catch (OperationCanceledException)
         {
-            // Expected on cancel/refresh/back.
         }
         catch (Exception ex)
         {
@@ -271,6 +271,7 @@ public sealed partial class AccountPage : Page
                         App.Engine.AccountService.FormatFriendlyError(pollRes.Code, pollRes.HttpStatusCode));
                     return;
                 }
+
                 continue;
             }
 
@@ -286,6 +287,7 @@ public sealed partial class AccountPage : Page
                 {
                     ApplyQrOverlayState("expired");
                 }
+
                 return;
             }
 
@@ -304,6 +306,7 @@ public sealed partial class AccountPage : Page
                         QrOverlayBorder.Visibility = Visibility.Collapsed;
                         QrStatusText.Text = LocalizationService.GetString("Acc_QrWaitingScan");
                     }
+
                     break;
 
                 case "scanned":
@@ -329,6 +332,7 @@ public sealed partial class AccountPage : Page
                     {
                         ApplyQrOverlayState("expired");
                     }
+
                     return;
 
                 case "cancelled":
@@ -429,7 +433,7 @@ public sealed partial class AccountPage : Page
         int height = width;
 
         byte[] bgra = new byte[width * height * 4];
-        // Fill crisp white background
+
         Array.Fill(bgra, (byte)255);
 
         for (int my = 0; my < modules; my++)
@@ -445,7 +449,7 @@ public sealed partial class AccountPage : Page
                     for (int dx = 0; dx < scale; dx++)
                     {
                         int idx = rowOffset + (px0 + dx) * 4;
-                        // Dark charcoal (#111111) BGRA
+
                         bgra[idx] = 0x11;
                         bgra[idx + 1] = 0x11;
                         bgra[idx + 2] = 0x11;

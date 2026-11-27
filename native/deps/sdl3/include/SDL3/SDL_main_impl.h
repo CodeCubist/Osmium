@@ -52,7 +52,7 @@
 /* this define makes the normal SDL_main entry point stuff work...we just provide SDL_main() instead of the app. */
 #define SDL_MAIN_CALLBACK_STANDARD 1
 
-int SDL_main(int argc, char **argv)
+int SDL_main(int argc, char** argv)
 {
     return SDL_EnterAppMainCallbacks(argc, argv, SDL_AppInit, SDL_AppIterate, SDL_AppEvent, SDL_AppQuit);
 }
@@ -77,16 +77,16 @@ int SDL_main(int argc, char **argv)
 #define WINAPI __stdcall
 #endif
 
-typedef struct HINSTANCE__ *HINSTANCE;
-typedef char *LPSTR;
-typedef wchar_t *PWSTR;
+typedef struct HINSTANCE__* HINSTANCE;
+typedef char* LPSTR;
+typedef wchar_t* PWSTR;
 
 /* The VC++ compiler needs main/wmain defined, but not for GDK */
 #if defined(_MSC_VER) && !defined(SDL_PLATFORM_GDK)
 
 /* This is where execution begins [console apps] */
 #if defined(UNICODE) && UNICODE
-int wmain(int argc, wchar_t *wargv[], wchar_t *wenvp)
+int wmain(int argc, wchar_t* wargv[], wchar_t* wenvp)
 {
     (void)argc;
     (void)wargv;
@@ -94,7 +94,7 @@ int wmain(int argc, wchar_t *wargv[], wchar_t *wenvp)
     return SDL_RunApp(0, NULL, SDL_main, NULL);
 }
 #else /* ANSI */
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     (void)argc;
     (void)argv;
@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 
 #ifdef __cplusplus
 extern "C" {
+
 
 #endif
 
@@ -131,7 +132,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
 /* end of SDL_PLATFORM_WINDOWS impls */
 
 #else /* platforms that use a standard main() and just call SDL_RunApp(), like iOS and 3DS */
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     return SDL_RunApp(argc, argv, SDL_main, NULL);
 }

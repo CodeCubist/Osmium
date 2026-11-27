@@ -64,6 +64,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -91,7 +92,7 @@ typedef struct SDL_SharedObject SDL_SharedObject;
  * \sa SDL_LoadFunction
  * \sa SDL_UnloadObject
  */
-extern SDL_DECLSPEC SDL_SharedObject * SDLCALL SDL_LoadObject(const char *sofile);
+extern SDL_DECLSPEC SDL_SharedObject* SDLCALL SDL_LoadObject(const char* sofile);
 
 /**
  * Look up the address of the named function in a shared object.
@@ -119,7 +120,7 @@ extern SDL_DECLSPEC SDL_SharedObject * SDLCALL SDL_LoadObject(const char *sofile
  *
  * \sa SDL_LoadObject
  */
-extern SDL_DECLSPEC SDL_FunctionPointer SDLCALL SDL_LoadFunction(SDL_SharedObject *handle, const char *name);
+extern SDL_DECLSPEC SDL_FunctionPointer SDLCALL SDL_LoadFunction(SDL_SharedObject* handle, const char* name);
 
 /**
  * Unload a shared object from memory.
@@ -135,7 +136,7 @@ extern SDL_DECLSPEC SDL_FunctionPointer SDLCALL SDL_LoadFunction(SDL_SharedObjec
  *
  * \sa SDL_LoadObject
  */
-extern SDL_DECLSPEC void SDLCALL SDL_UnloadObject(SDL_SharedObject *handle);
+extern SDL_DECLSPEC void SDLCALL SDL_UnloadObject(SDL_SharedObject* handle);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

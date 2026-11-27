@@ -54,7 +54,8 @@ extern "C" {
  * \param assertCondition Evaluated condition or variable to assert; fail (==0) or pass (!=0).
  * \param assertDescription Message to log with the assert describing it.
  */
-void SDLCALL SDLTest_Assert(int assertCondition, SDL_PRINTF_FORMAT_STRING const char *assertDescription, ...) SDL_PRINTF_VARARG_FUNC(2);
+void SDLCALL SDLTest_Assert(int assertCondition, SDL_PRINTF_FORMAT_STRING const char* assertDescription, ...)
+SDL_PRINTF_VARARG_FUNC(2);
 
 /*
  * Assert for test cases that logs but does not break execution flow on failures. Updates assertion counters.
@@ -64,14 +65,15 @@ void SDLCALL SDLTest_Assert(int assertCondition, SDL_PRINTF_FORMAT_STRING const 
  *
  * \returns the assertCondition so it can be used to externally to break execution flow if desired.
  */
-int SDLCALL SDLTest_AssertCheck(int assertCondition, SDL_PRINTF_FORMAT_STRING const char *assertDescription, ...) SDL_PRINTF_VARARG_FUNC(2);
+int SDLCALL SDLTest_AssertCheck(int assertCondition, SDL_PRINTF_FORMAT_STRING const char* assertDescription, ...)
+SDL_PRINTF_VARARG_FUNC(2);
 
 /*
  * Explicitly pass without checking an assertion condition. Updates assertion counter.
  *
  * \param assertDescription Message to log with the assert describing it.
  */
-void SDLCALL SDLTest_AssertPass(SDL_PRINTF_FORMAT_STRING const char *assertDescription, ...) SDL_PRINTF_VARARG_FUNC(1);
+void SDLCALL SDLTest_AssertPass(SDL_PRINTF_FORMAT_STRING const char* assertDescription, ...) SDL_PRINTF_VARARG_FUNC(1);
 
 /*
  * Resets the assert summary counters to zero.

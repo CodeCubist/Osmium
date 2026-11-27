@@ -7,6 +7,7 @@
 #include <cstring>
 #include <regex>
 #include <sstream>
+#include <unordered_map>
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "iphlpapi.lib")
@@ -65,11 +66,13 @@ namespace osmium
         bool IsPublicDynamicIPv6(const in6_addr& a6)
         {
             if ((a6.u.Byte[0] & 0xE0) != 0x20) return false;
-            if (a6.u.Byte[0] == 0x20 && a6.u.Byte[1] == 0x01 && a6.u.Byte[2] == 0x00 && a6.u.Byte[3] == 0x00) return
-                false;
+            if (a6.u.Byte[0] == 0x20 && a6.u.Byte[1] == 0x01 && a6.u.Byte[2] == 0x00 && a6.u.Byte[3] == 0x00)
+                return
+                    false;
             if (a6.u.Byte[0] == 0x20 && a6.u.Byte[1] == 0x02) return false;
-            if (a6.u.Byte[0] == 0x20 && a6.u.Byte[1] == 0x01 && a6.u.Byte[2] == 0x0D && a6.u.Byte[3] == 0xB8) return
-                false;
+            if (a6.u.Byte[0] == 0x20 && a6.u.Byte[1] == 0x01 && a6.u.Byte[2] == 0x0D && a6.u.Byte[3] == 0xB8)
+                return
+                    false;
             return true;
         }
 
@@ -106,6 +109,15 @@ namespace osmium
             p[0] = static_cast<uint8_t>((v >> 8) & 0xff);
             p[1] = static_cast<uint8_t>(v & 0xff);
         }
+
+        struct CachedIpv4Dns
+        {
+            in_addr addr{};
+            uint64_t expiresMs = 0;
+        };
+
+        std::mutex g_StunDnsCacheMutex;
+        std::unordered_map<std::string, CachedIpv4Dns> g_StunDnsCache;
     }
 
     OsmiumTransport::OsmiumTransport()
@@ -191,6 +203,18 @@ namespace osmium
             return true;
         }
 
+        const uint64_t nowMs = NowMillis();
+        const std::string key(host);
+        {
+            std::lock_guard<std::mutex> dl(g_StunDnsCacheMutex);
+            auto it = g_StunDnsCache.find(key);
+            if (it != g_StunDnsCache.end() && nowMs < it->second.expiresMs)
+            {
+                outAddr.sin_addr = it->second.addr;
+                return true;
+            }
+        }
+
         addrinfo hints{};
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_DGRAM;
@@ -202,6 +226,10 @@ namespace osmium
         auto* ipv4 = reinterpret_cast<sockaddr_in*>(res->ai_addr);
         outAddr.sin_addr = ipv4->sin_addr;
         freeaddrinfo(res);
+        {
+            std::lock_guard<std::mutex> dl(g_StunDnsCacheMutex);
+            g_StunDnsCache[key] = CachedIpv4Dns{outAddr.sin_addr, NowMillis() + 300000ULL};
+        }
         return true;
     }
 
@@ -352,12 +380,14 @@ namespace osmium
         {
             std::string host;
             uint16_t port;
-            int maxAttempts;
+            bool tryBothFormats;
+            sockaddr_in addr4{};
+            bool resolved = false;
         };
         std::vector<StunProbeTarget> stunTargets;
         if (stunHost && *stunHost && stunPort > 0)
         {
-            stunTargets.push_back({stunHost, stunPort, 3});
+            stunTargets.push_back({stunHost, stunPort, stunPort != 19302});
         }
         auto addFallbackStun = [&](const char* h, uint16_t p)
         {
@@ -365,169 +395,191 @@ namespace osmium
             {
                 if (_stricmp(t.host.c_str(), h) == 0 && t.port == p) return;
             }
-            stunTargets.push_back({h, p, 2});
+            stunTargets.push_back({h, p, false});
         };
         addFallbackStun("stun.miwifi.com", 3478);
         addFallbackStun("stun.qq.com", 3478);
         addFallbackStun("stun.l.google.com", 19302);
 
-        bool stunResolved = false;
-        const uint64_t totalStunDeadline = NowMillis() + 2400ULL;
-        for (const auto& target : stunTargets)
+        uint8_t osmReq[16]{};
+        uint64_t reqId = NowMicros();
+        memcpy(osmReq, proto::kMagic, 4);
+        osmReq[4] = proto::kVersion;
+        osmReq[5] = static_cast<uint8_t>(proto::WireMsgType::StunReq);
+        memcpy(osmReq + 8, &reqId, 8);
+
+        uint8_t rfcReq[20]{};
+        rfcReq[0] = 0x00;
+        rfcReq[1] = 0x01;
+        rfcReq[2] = 0x00;
+        rfcReq[3] = 0x00;
+        rfcReq[4] = 0x21;
+        rfcReq[5] = 0x12;
+        rfcReq[6] = 0xA4;
+        rfcReq[7] = 0x42;
+        memcpy(rfcReq + 8, &reqId, 8);
+        memcpy(rfcReq + 16, m_NoncePrefix, 4);
+
+        auto sendStunTo = [&](const StunProbeTarget& target)
         {
-            if (stunResolved || NowMillis() >= totalStunDeadline) break;
-
-            sockaddr_in stunAddr4{};
-            if (!ResolveIPv4(target.host.c_str(), target.port, stunAddr4)) continue;
-            if (!m_HasStunKeepaliveAddr)
-            {
-                m_StunKeepaliveAddr = stunAddr4;
-                m_HasStunKeepaliveAddr = true;
-            }
-
+            if (!target.resolved) return;
             sockaddr_storage stunSs{};
-            memcpy(&stunSs, &stunAddr4, sizeof(sockaddr_in));
-
-            const bool useRfc5389 = (target.port == 3478 || target.port == 19302);
-            uint8_t osmReq[16]{};
-            uint64_t reqId = NowMicros();
-            memcpy(osmReq, proto::kMagic, 4);
-            osmReq[4] = proto::kVersion;
-            osmReq[5] = static_cast<uint8_t>(proto::WireMsgType::StunReq);
-            memcpy(osmReq + 8, &reqId, 8);
-
-            uint8_t rfcReq[20]{};
-            rfcReq[0] = 0x00;
-            rfcReq[1] = 0x01;
-            rfcReq[2] = 0x00;
-            rfcReq[3] = 0x00;
-            rfcReq[4] = 0x21;
-            rfcReq[5] = 0x12;
-            rfcReq[6] = 0xA4;
-            rfcReq[7] = 0x42;
-            memcpy(rfcReq + 8, &reqId, 8);
-            memcpy(rfcReq + 16, m_NoncePrefix, 4);
-
-            static constexpr uint64_t kStunWaitBudgetsMs[] = {240, 340, 460};
-            for (int attempt = 0; attempt < target.maxAttempts && !stunResolved; ++attempt)
+            memcpy(&stunSs, &target.addr4, sizeof(sockaddr_in));
+            RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), rfcReq, sizeof(rfcReq));
+            if (target.tryBothFormats)
             {
-                if (NowMillis() >= totalStunDeadline) break;
+                RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), osmReq, sizeof(osmReq));
+            }
+        };
 
-                if (useRfc5389)
+        bool stunResolved = false;
+        auto waitStunReply = [&](uint64_t waitDeadlineMs)
+        {
+            while (!stunResolved)
+            {
+                uint64_t nowMs = NowMillis();
+                if (nowMs >= waitDeadlineMs) break;
+                uint64_t remMs = waitDeadlineMs - nowMs;
+
+                fd_set rfds;
+                FD_ZERO(&rfds);
+                FD_SET(m_Sock4, &rfds);
+                timeval tv{};
+                tv.tv_sec = static_cast<long>(remMs / 1000);
+                tv.tv_usec = static_cast<long>((remMs % 1000) * 1000);
+                int sel = select(0, &rfds, nullptr, nullptr, &tv);
+                if (sel <= 0) break;
+
+                uint8_t resp[256]{};
+                sockaddr_in from{};
+                int fromLen = sizeof(from);
+                int n = recvfrom(m_Sock4, reinterpret_cast<char*>(resp), sizeof(resp), 0,
+                                 reinterpret_cast<sockaddr*>(&from), &fromLen);
+                if (n <= 0) continue;
+
+                uint16_t mappedPort = 0;
+                uint8_t mappedIpBytes[4]{};
+
+                if (n >= 24 && memcmp(resp, proto::kMagic, 4) == 0 &&
+                    resp[5] == static_cast<uint8_t>(proto::WireMsgType::StunResp) &&
+                    memcmp(resp + 8, &reqId, 8) == 0)
                 {
-                    RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), rfcReq, sizeof(rfcReq));
+                    mappedPort = ReadBE16(resp + 20);
+                    memcpy(mappedIpBytes, resp + 16, 4);
                 }
-                else
+                else if (n >= 20 && resp[0] == 0x01 && resp[1] == 0x01 &&
+                    resp[4] == 0x21 && resp[5] == 0x12 && resp[6] == 0xA4 && resp[7] == 0x42 &&
+                    memcmp(resp + 8, rfcReq + 8, 12) == 0)
                 {
-                    RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), osmReq, sizeof(osmReq));
-                }
-
-                const uint64_t budget = kStunWaitBudgetsMs[std::min(attempt, 2)];
-                const uint64_t attemptDeadline = std::min(NowMillis() + budget, totalStunDeadline);
-                while (!stunResolved)
-                {
-                    uint64_t nowMs = NowMillis();
-                    if (nowMs >= attemptDeadline) break;
-                    uint64_t remMs = attemptDeadline - nowMs;
-
-                    fd_set rfds;
-                    FD_ZERO(&rfds);
-                    FD_SET(m_Sock4, &rfds);
-                    timeval tv{};
-                    tv.tv_sec = static_cast<long>(remMs / 1000);
-                    tv.tv_usec = static_cast<long>((remMs % 1000) * 1000);
-                    int sel = select(0, &rfds, nullptr, nullptr, &tv);
-                    if (sel <= 0) break;
-
-                    uint8_t resp[256]{};
-                    sockaddr_in from{};
-                    int fromLen = sizeof(from);
-                    int n = recvfrom(m_Sock4, reinterpret_cast<char*>(resp), sizeof(resp), 0,
-                                     reinterpret_cast<sockaddr*>(&from), &fromLen);
-                    if (n <= 0) continue;
-
-                    uint16_t mappedPort = 0;
-                    uint8_t mappedIpBytes[4]{};
-
-                    if (n >= 24 && memcmp(resp, proto::kMagic, 4) == 0 &&
-                        resp[5] == static_cast<uint8_t>(proto::WireMsgType::StunResp) &&
-                        memcmp(resp + 8, &reqId, 8) == 0)
+                    uint16_t attrTotalLen = ReadBE16(resp + 2);
+                    int pos = 20;
+                    int limit = (std::min)(n, 20 + static_cast<int>(attrTotalLen));
+                    while (pos + 4 <= limit)
                     {
-                        mappedPort = ReadBE16(resp + 20);
-                        memcpy(mappedIpBytes, resp + 16, 4);
-                    }
-                    else if (n >= 20 && resp[0] == 0x01 && resp[1] == 0x01 &&
-                        resp[4] == 0x21 && resp[5] == 0x12 && resp[6] == 0xA4 && resp[7] == 0x42 &&
-                        memcmp(resp + 8, rfcReq + 8, 12) == 0)
-                    {
-                        uint16_t attrTotalLen = ReadBE16(resp + 2);
-                        int pos = 20;
-                        int limit = (std::min)(n, 20 + static_cast<int>(attrTotalLen));
-                        while (pos + 4 <= limit)
+                        uint16_t attrType = ReadBE16(resp + pos);
+                        uint16_t attrLen = ReadBE16(resp + pos + 2);
+                        const uint8_t* val = resp + pos + 4;
+                        if (pos + 4 + attrLen > limit) break;
+
+                        if (attrType == 0x0020 && attrLen >= 8 && val[1] == 0x01)
                         {
-                            uint16_t attrType = ReadBE16(resp + pos);
-                            uint16_t attrLen = ReadBE16(resp + pos + 2);
-                            const uint8_t* val = resp + pos + 4;
-                            if (pos + 4 + attrLen > limit) break;
+                            mappedPort = static_cast<uint16_t>(ReadBE16(val + 2) ^ 0x2112U);
+                            mappedIpBytes[0] = val[4] ^ 0x21;
+                            mappedIpBytes[1] = val[5] ^ 0x12;
+                            mappedIpBytes[2] = val[6] ^ 0xA4;
+                            mappedIpBytes[3] = val[7] ^ 0x42;
+                            break;
+                        }
+                        else if (attrType == 0x0001 && attrLen >= 8 && val[1] == 0x01 && mappedPort == 0)
+                        {
+                            mappedPort = ReadBE16(val + 2);
+                            memcpy(mappedIpBytes, val + 4, 4);
+                        }
+                        pos += 4 + ((attrLen + 3) & ~3);
+                    }
+                }
 
-                            if (attrType == 0x0020 && attrLen >= 8 && val[1] == 0x01)
+                if (mappedPort > 0)
+                {
+                    sockaddr_in mapped4{};
+                    mapped4.sin_family = AF_INET;
+                    memcpy(&mapped4.sin_addr, mappedIpBytes, 4);
+                    mapped4.sin_port = htons(mappedPort);
+                    uint32_t mappedHostIp = ntohl(mapped4.sin_addr.s_addr);
+
+                    if (ClassifyIPv4(mappedHostIp) != IPv4Class::Invalid)
+                    {
+                        CandidateEndpoint srflx;
+                        memcpy(&srflx.addr, &mapped4, sizeof(sockaddr_in));
+                        srflx.addrLen = sizeof(sockaddr_in);
+                        srflx.type = "srflx";
+                        srflx.tier = 3;
+
+                        bool dup = false;
+                        for (const auto& c : candidates)
+                        {
+                            if (IsSameAddr(c.addr, srflx.addr))
                             {
-                                mappedPort = static_cast<uint16_t>(ReadBE16(val + 2) ^ 0x2112U);
-                                mappedIpBytes[0] = val[4] ^ 0x21;
-                                mappedIpBytes[1] = val[5] ^ 0x12;
-                                mappedIpBytes[2] = val[6] ^ 0xA4;
-                                mappedIpBytes[3] = val[7] ^ 0x42;
+                                dup = true;
                                 break;
                             }
-                            else if (attrType == 0x0001 && attrLen >= 8 && val[1] == 0x01 && mappedPort == 0)
-                            {
-                                mappedPort = ReadBE16(val + 2);
-                                memcpy(mappedIpBytes, val + 4, 4);
-                            }
-                            pos += 4 + ((attrLen + 3) & ~3);
                         }
+                        if (!dup)
+                        {
+                            candidates.push_back(srflx);
+                        }
+                        m_StunKeepaliveAddr = from;
+                        m_HasStunKeepaliveAddr = true;
+                        OSM_LOG_INFO("STUN reflexive IPv4 endpoint discovered -> %s",
+                                     SockAddrToString(srflx.addr).c_str());
                     }
-
-                    if (mappedPort > 0)
+                    else
                     {
-                        sockaddr_in mapped4{};
-                        mapped4.sin_family = AF_INET;
-                        memcpy(&mapped4.sin_addr, mappedIpBytes, 4);
-                        mapped4.sin_port = htons(mappedPort);
-                        uint32_t mappedHostIp = ntohl(mapped4.sin_addr.s_addr);
-
-                        if (ClassifyIPv4(mappedHostIp) != IPv4Class::Invalid)
-                        {
-                            CandidateEndpoint srflx;
-                            memcpy(&srflx.addr, &mapped4, sizeof(sockaddr_in));
-                            srflx.addrLen = sizeof(sockaddr_in);
-                            srflx.type = "srflx";
-                            srflx.tier = 3;
-
-                            bool dup = false;
-                            for (const auto& c : candidates)
-                            {
-                                if (IsSameAddr(c.addr, srflx.addr))
-                                {
-                                    dup = true;
-                                    break;
-                                }
-                            }
-                            if (!dup)
-                            {
-                                candidates.push_back(srflx);
-                            }
-                            OSM_LOG_INFO("STUN reflexive IPv4 endpoint discovered via %s:%u -> %s",
-                                         target.host.c_str(), target.port, SockAddrToString(srflx.addr).c_str());
-                        }
-                        else
-                        {
-                            OSM_LOG_WARN("Ignored STUN mapped address inside carrier/reserved NAT range");
-                        }
-                        stunResolved = true;
+                        OSM_LOG_WARN("Ignored STUN mapped address inside carrier/reserved NAT range");
                     }
+                    stunResolved = true;
                 }
             }
+        };
+
+        const uint64_t stunStartMs = NowMillis();
+        const uint64_t totalStunDeadline = stunStartMs + 950ULL;
+        if (!stunTargets.empty() && ResolveIPv4(stunTargets[0].host.c_str(), stunTargets[0].port, stunTargets[0].addr4))
+        {
+            stunTargets[0].resolved = true;
+            m_StunKeepaliveAddr = stunTargets[0].addr4;
+            m_HasStunKeepaliveAddr = true;
+            sendStunTo(stunTargets[0]);
+            waitStunReply((std::min)(NowMillis() + 160ULL, totalStunDeadline));
+        }
+
+        if (!stunResolved && NowMillis() < totalStunDeadline)
+        {
+            for (size_t i = 0; i < stunTargets.size(); ++i)
+            {
+                if (NowMillis() >= totalStunDeadline) break;
+                if (!stunTargets[i].resolved &&
+                    ResolveIPv4(stunTargets[i].host.c_str(), stunTargets[i].port, stunTargets[i].addr4))
+                {
+                    stunTargets[i].resolved = true;
+                    if (!m_HasStunKeepaliveAddr)
+                    {
+                        m_StunKeepaliveAddr = stunTargets[i].addr4;
+                        m_HasStunKeepaliveAddr = true;
+                    }
+                }
+                sendStunTo(stunTargets[i]);
+            }
+            waitStunReply((std::min)(NowMillis() + 340ULL, totalStunDeadline));
+        }
+
+        if (!stunResolved && NowMillis() < totalStunDeadline)
+        {
+            for (const auto& t : stunTargets)
+            {
+                sendStunTo(t);
+            }
+            waitStunReply(totalStunDeadline);
         }
 
         {
@@ -672,7 +724,7 @@ namespace osmium
         }
 
         auto peerCandidates = ParseCandidatesJson(peerCandidatesJson);
-        if (attempt >= 3 && !peerCandidates.empty())
+        if (attempt >= 2 && !peerCandidates.empty())
         {
             std::vector<CandidateEndpoint> expanded;
             for (const auto& c : peerCandidates)
@@ -782,11 +834,12 @@ namespace osmium
         memcpy(punchAckPkt + 8, m_SessionToken, 16);
 
         const uint64_t tStart = NowMillis();
-        const uint64_t tStartTier2 = (attempt == 1 && hasTier1) ? 80ULL : 0ULL;
-        const uint64_t tStartTier3 = (attempt == 1) ? (tStartTier2 + (hasTier2 ? 180ULL : 0ULL)) : 0ULL;
-        const uint64_t deadline = tStart + static_cast<uint64_t>(std::max(600, punchTimeoutMs));
+        const uint64_t tStartTier2 = (attempt == 1 && hasTier1) ? 35ULL : 0ULL;
+        const uint64_t tStartTier3 = (attempt == 1) ? (tStartTier2 + (hasTier2 ? 70ULL : 0ULL)) : 0ULL;
+        const uint64_t deadline = tStart + static_cast<uint64_t>(std::max(500, punchTimeoutMs));
 
         uint64_t lastBlastMs = 0;
+        uint64_t lastStunKaMs = 0;
         uint64_t ackGraceDeadline = 0;
         bool receivedPunch = false;
         bool receivedAck = false;
@@ -802,7 +855,7 @@ namespace osmium
             if (ackGraceDeadline > 0 && now >= ackGraceDeadline) break;
 
             uint64_t elapsed = now - tStart;
-            const uint64_t blastIntervalMs = elapsed < 1000ULL ? 35ULL : (elapsed < 2200ULL ? 65ULL : 110ULL);
+            const uint64_t blastIntervalMs = elapsed < 300ULL ? 20ULL : (elapsed < 1000ULL ? 40ULL : 80ULL);
             if (lastBlastMs == 0 || now - lastBlastMs >= blastIntervalMs)
             {
                 lastBlastMs = now;
@@ -817,6 +870,22 @@ namespace osmium
                         RawSendTo(txSock, cand.addr, cand.addrLen, punchPkt, sizeof(punchPkt));
                     }
                 }
+                if (m_HasStunKeepaliveAddr && elapsed >= 450ULL && (lastStunKaMs == 0 || now - lastStunKaMs >= 350ULL))
+                {
+                    lastStunKaMs = now;
+                    uint8_t keepReq[20]{};
+                    uint64_t reqId = NowMicros();
+                    keepReq[1] = 0x01;
+                    keepReq[4] = 0x21;
+                    keepReq[5] = 0x12;
+                    keepReq[6] = 0xA4;
+                    keepReq[7] = 0x42;
+                    memcpy(keepReq + 8, &reqId, 8);
+                    memcpy(keepReq + 16, m_NoncePrefix, 4);
+                    sockaddr_storage stunSs{};
+                    memcpy(&stunSs, &m_StunKeepaliveAddr, sizeof(sockaddr_in));
+                    RawSendTo(m_Sock4, stunSs, sizeof(sockaddr_in), keepReq, sizeof(keepReq));
+                }
                 if (receivedPunch && bestSock != INVALID_SOCKET)
                 {
                     RawSendTo(bestSock, bestPeer, bestPeerLen, punchAckPkt, sizeof(punchAckPkt));
@@ -828,7 +897,7 @@ namespace osmium
             FD_SET(m_Sock4, &rfds);
             if (m_Sock6 != INVALID_SOCKET)
                 FD_SET(m_Sock6, &rfds);
-            timeval tv{0, 20000};
+            timeval tv{0, 10000};
             int sel = select(0, &rfds, nullptr, nullptr, &tv);
             if (sel > 0)
             {
@@ -888,7 +957,7 @@ namespace osmium
                                     }
                                     else if (ackGraceDeadline == 0)
                                     {
-                                        ackGraceDeadline = NowMillis() + 50;
+                                        ackGraceDeadline = NowMillis() + 35;
                                     }
                                 }
                             }
@@ -905,9 +974,9 @@ namespace osmium
             return false;
         }
 
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 3; ++i)
         {
-            if (i > 0) Sleep(10);
+            if (i > 0) Sleep(2);
             RawSendTo(bestSock, bestPeer, bestPeerLen, punchAckPkt, sizeof(punchAckPkt));
         }
 
@@ -1273,7 +1342,7 @@ namespace osmium
         const uint64_t winTotal = m_WinRecv + m_PrevWinRecv + m_WinLost + m_PrevWinLost;
         const uint32_t pctX100 = (winTotal > 0)
                                      ? static_cast<uint32_t>((std::min<uint64_t>)(
-                                           10000ULL, ((m_WinLost + m_PrevWinLost) * 10000ULL) / winTotal))
+                                         10000ULL, ((m_WinLost + m_PrevWinLost) * 10000ULL) / winTotal))
                                      : 0U;
         m_RecentLossX100.store(pctX100, std::memory_order_relaxed);
         return true;
@@ -1496,7 +1565,7 @@ namespace osmium
             while (pos + 2 <= batchLen)
             {
                 const uint16_t pktLen = static_cast<uint16_t>(batchData[pos]) |
-                                        (static_cast<uint16_t>(batchData[pos + 1]) << 8);
+                    (static_cast<uint16_t>(batchData[pos + 1]) << 8);
                 pos += 2;
                 if (pktLen == 0 || pos + pktLen > batchLen) break;
                 if (pktLen < 8 || pktLen > 32768)
@@ -1968,9 +2037,9 @@ namespace osmium
                     {
                         if (nonBlocking) return 0;
                         if (!m_RelayRecvCv.wait_until(ql, deadline, [this]
-                            {
-                                return m_Closed.load() || !m_RelayRecvQueue.empty();
-                            }))
+                        {
+                            return m_Closed.load() || !m_RelayRecvQueue.empty();
+                        }))
                         {
                             return 0;
                         }
@@ -2117,9 +2186,9 @@ namespace osmium
                 {
                     std::vector<uint8_t> kcpRaw = std::move(outPlaintext);
                     if (HandleIncomingKcpSegment(
-                            kcpRaw.data() + sizeof(proto::AppPacketHeader),
-                            kcpRaw.size() - sizeof(proto::AppPacketHeader),
-                            outPlaintext))
+                        kcpRaw.data() + sizeof(proto::AppPacketHeader),
+                        kcpRaw.size() - sizeof(proto::AppPacketHeader),
+                        outPlaintext))
                     {
                         return static_cast<int>(outPlaintext.size());
                     }

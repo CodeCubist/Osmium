@@ -90,10 +90,10 @@ public static class WindowsWallpaperHelper
 
             byte[] rawBytes;
             await using (var fs = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete))
+                             path,
+                             FileMode.Open,
+                             FileAccess.Read,
+                             FileShare.ReadWrite | FileShare.Delete))
             {
                 if (fs.Length <= 0 || fs.Length > MaxSourceFileBytes)
                 {

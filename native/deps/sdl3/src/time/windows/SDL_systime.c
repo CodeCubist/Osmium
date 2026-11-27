@@ -30,16 +30,19 @@
 #define WINDOWS_TICK          10000000ULL
 #define UNIX_EPOCH_OFFSET_SEC 11644473600ULL
 
-typedef void (WINAPI *pfnGetSystemTimePreciseAsFileTime)(FILETIME *);
+typedef void (WINAPI *pfnGetSystemTimePreciseAsFileTime)(FILETIME*);
 
-void SDL_GetSystemTimeLocalePreferences(SDL_DateFormat *df, SDL_TimeFormat *tf)
+void SDL_GetSystemTimeLocalePreferences(SDL_DateFormat* df, SDL_TimeFormat* tf)
 {
     WCHAR str[80]; // Per the docs, the time and short date format strings can be a max of 80 characters.
 
-    if (df && GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_SSHORTDATE, str, SDL_arraysize(str))) {
+    if (df && GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_SSHORTDATE, str, SDL_arraysize(str)))
+    {
         LPWSTR s = str;
-        while (*s) {
-            switch (*s++) {
+        while (*s)
+        {
+            switch (*s++)
+            {
             case L'y':
                 *df = SDL_DATE_FORMAT_YYYYMMDD;
                 goto found_date;
@@ -58,10 +61,13 @@ void SDL_GetSystemTimeLocalePreferences(SDL_DateFormat *df, SDL_TimeFormat *tf)
 found_date:
 
     // Figure out the preferred system date format.
-    if (tf && GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_STIMEFORMAT, str, SDL_arraysize(str))) {
+    if (tf && GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_STIMEFORMAT, str, SDL_arraysize(str)))
+    {
         LPWSTR s = str;
-        while (*s) {
-            switch (*s++) {
+        while (*s)
+        {
+            switch (*s++)
+            {
             case L'H':
                 *tf = SDL_TIME_FORMAT_24HR;
                 return;
@@ -75,11 +81,12 @@ found_date:
     }
 }
 
-bool SDL_GetCurrentTime(SDL_Time *ticks)
+bool SDL_GetCurrentTime(SDL_Time* ticks)
 {
     FILETIME ft;
 
-    CHECK_PARAM(!ticks) {
+    CHECK_PARAM(!ticks)
+    {
         return SDL_InvalidParamError("ticks");
     }
 
@@ -89,17 +96,23 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
     static bool load_attempted = false;
 
     // Only available in Win8/Server 2012 or higher.
-    if (!pGetSystemTimePreciseAsFileTime && !load_attempted) {
+    if (!pGetSystemTimePreciseAsFileTime && !load_attempted)
+    {
         HMODULE kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
-        if (kernel32) {
-            pGetSystemTimePreciseAsFileTime = (pfnGetSystemTimePreciseAsFileTime)GetProcAddress(kernel32, "GetSystemTimePreciseAsFileTime");
+        if (kernel32)
+        {
+            pGetSystemTimePreciseAsFileTime = (pfnGetSystemTimePreciseAsFileTime)GetProcAddress(
+                kernel32, "GetSystemTimePreciseAsFileTime");
         }
         load_attempted = true;
     }
 
-    if (pGetSystemTimePreciseAsFileTime) {
+    if (pGetSystemTimePreciseAsFileTime)
+    {
         pGetSystemTimePreciseAsFileTime(&ft);
-    } else {
+    }
+    else
+    {
         GetSystemTimeAsFileTime(&ft);
     }
 
@@ -108,21 +121,24 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
     return true;
 }
 
-bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime)
+bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime* dt, bool localTime)
 {
     FILETIME ft, local_ft;
     SYSTEMTIME utc_st, local_st;
-    SYSTEMTIME *st = NULL;
+    SYSTEMTIME* st = NULL;
     Uint32 low, high;
 
-    CHECK_PARAM(!dt) {
+    CHECK_PARAM(!dt)
+    {
         return SDL_InvalidParamError("dt");
     }
 
     int rem_ns = (int)(ticks % SDL_NS_PER_SECOND);
-    if (rem_ns < 0) {
+    if (rem_ns < 0)
+    {
         // Prevent rounding errors if the remaining nanoseconds are less than one unit of system time.
-        if (-rem_ns < 100) {
+        if (-rem_ns < 100)
+        {
             ticks -= 100;
         }
         rem_ns += SDL_NS_PER_SECOND;
@@ -132,21 +148,27 @@ bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime)
     ft.dwLowDateTime = (DWORD)low;
     ft.dwHighDateTime = (DWORD)high;
 
-    if (FileTimeToSystemTime(&ft, &utc_st)) {
-        if (localTime) {
-            if (SystemTimeToTzSpecificLocalTime(NULL, &utc_st, &local_st)) {
+    if (FileTimeToSystemTime(&ft, &utc_st))
+    {
+        if (localTime)
+        {
+            if (SystemTimeToTzSpecificLocalTime(NULL, &utc_st, &local_st))
+            {
                 // Calculate the difference for the UTC offset.
                 SystemTimeToFileTime(&local_st, &local_ft);
                 const SDL_Time local_ticks = SDL_TimeFromWindows(local_ft.dwLowDateTime, local_ft.dwHighDateTime);
                 dt->utc_offset = (int)SDL_NS_TO_SECONDS(local_ticks - ticks);
                 st = &local_st;
             }
-        } else {
+        }
+        else
+        {
             dt->utc_offset = 0;
             st = &utc_st;
         }
 
-        if (st) {
+        if (st)
+        {
             dt->year = st->wYear;
             dt->month = st->wMonth;
             dt->day = st->wDay;

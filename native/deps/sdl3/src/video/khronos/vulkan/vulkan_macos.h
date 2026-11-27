@@ -27,19 +27,22 @@ typedef VkFlags VkMacOSSurfaceCreateFlagsMVK;
 typedef struct VkMacOSSurfaceCreateInfoMVK
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkMacOSSurfaceCreateFlagsMVK flags;
-    const void *pView;
+    const void* pView;
 } VkMacOSSurfaceCreateInfoMVK;
 
-typedef VkResult(VKAPI_PTR *PFN_vkCreateMacOSSurfaceMVK)(VkInstance instance, const VkMacOSSurfaceCreateInfoMVK *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface);
+typedef VkResult(VKAPI_PTR* PFN_vkCreateMacOSSurfaceMVK)(VkInstance instance,
+                                                         const VkMacOSSurfaceCreateInfoMVK* pCreateInfo,
+                                                         const VkAllocationCallbacks* pAllocator,
+                                                         VkSurfaceKHR* pSurface);
 
 #ifndef VK_NO_PROTOTYPES
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateMacOSSurfaceMVK(
     VkInstance instance,
-    const VkMacOSSurfaceCreateInfoMVK *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkSurfaceKHR *pSurface);
+    const VkMacOSSurfaceCreateInfoMVK* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkSurfaceKHR* pSurface);
 #endif
 
 #ifdef __cplusplus

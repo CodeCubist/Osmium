@@ -86,7 +86,8 @@ typedef struct
     float accelScale;
     float gyroScale;
     Uint8 last_state[USB_PACKET_LENGTH];
-    Uint64 sensor_timestamp; // Nanoseconds.  Simulate onboard clock. Different models have different rates vs different connection styles.
+    Uint64 sensor_timestamp;
+    // Nanoseconds.  Simulate onboard clock. Different models have different rates vs different connection styles.
     Uint64 sensor_timestamp_interval;
     Uint8 rumble_left_value;
     Uint8 rumble_right_value;
@@ -127,32 +128,38 @@ typedef struct
 #pragma pack(pop)
 
 
-static void HIDAPI_Driver8BitDo_RegisterHints(SDL_HintCallback callback, void *userdata)
+static void HIDAPI_Driver8BitDo_RegisterHints(SDL_HintCallback callback, void* userdata)
 {
     SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_8BITDO, callback, userdata);
 }
 
-static void HIDAPI_Driver8BitDo_UnregisterHints(SDL_HintCallback callback, void *userdata)
+static void HIDAPI_Driver8BitDo_UnregisterHints(SDL_HintCallback callback, void* userdata)
 {
     SDL_RemoveHintCallback(SDL_HINT_JOYSTICK_HIDAPI_8BITDO, callback, userdata);
 }
 
 static bool HIDAPI_Driver8BitDo_IsEnabled(void)
 {
-    return SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_8BITDO, SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI, SDL_HIDAPI_DEFAULT));
+    return SDL_GetHintBoolean(
+        SDL_HINT_JOYSTICK_HIDAPI_8BITDO, SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI, SDL_HIDAPI_DEFAULT));
 }
 
-static int ReadFeatureReport(SDL_hid_device *dev, Uint8 report_id, Uint8 *report, size_t length)
+static int ReadFeatureReport(SDL_hid_device* dev, Uint8 report_id, Uint8* report, size_t length)
 {
     SDL_memset(report, 0, length);
     report[0] = report_id;
     return SDL_hid_get_feature_report(dev, report, length);
 }
 
-static bool HIDAPI_Driver8BitDo_IsSupportedDevice(SDL_HIDAPI_Device *device, const char *name, SDL_GamepadType type, Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number, int interface_class, int interface_subclass, int interface_protocol)
+static bool HIDAPI_Driver8BitDo_IsSupportedDevice(SDL_HIDAPI_Device* device, const char* name, SDL_GamepadType type,
+                                                  Uint16 vendor_id, Uint16 product_id, Uint16 version,
+                                                  int interface_number, int interface_class, int interface_subclass,
+                                                  int interface_protocol)
 {
-    if (vendor_id == USB_VENDOR_8BITDO) {
-        switch (product_id) {
+    if (vendor_id == USB_VENDOR_8BITDO)
+    {
+        switch (product_id)
+        {
         case USB_PRODUCT_8BITDO_SF30_PRO:
         case USB_PRODUCT_8BITDO_SF30_PRO_BT:
         case USB_PRODUCT_8BITDO_SN30_PRO:
@@ -171,36 +178,45 @@ static bool HIDAPI_Driver8BitDo_IsSupportedDevice(SDL_HIDAPI_Device *device, con
     return false;
 }
 
-static bool HIDAPI_Driver8BitDo_InitDevice(SDL_HIDAPI_Device *device)
+static bool HIDAPI_Driver8BitDo_InitDevice(SDL_HIDAPI_Device* device)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)SDL_calloc(1, sizeof(*ctx));
-    if (!ctx) {
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)SDL_calloc(1, sizeof(*ctx));
+    if (!ctx)
+    {
         return false;
     }
     device->context = ctx;
 
-    if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS) {
+    if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS)
+    {
         // The Ultimate 2 Wireless v1.02 firmware has 12 byte reports, v1.03 firmware has 34 byte reports
         const int ULTIMATE2_WIRELESS_V103_REPORT_SIZE = 34;
         const int MAX_ATTEMPTS = 3;
 
-        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt) {
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt)
+        {
             Uint8 data[USB_PACKET_LENGTH];
             int size = SDL_hid_read_timeout(device->dev, data, sizeof(data), 80);
-            if (size == 0) {
+            if (size == 0)
+            {
                 // Try again
                 continue;
             }
-            if (size >= ULTIMATE2_WIRELESS_V103_REPORT_SIZE) {
+            if (size >= ULTIMATE2_WIRELESS_V103_REPORT_SIZE)
+            {
                 ctx->sensors_supported = true;
                 ctx->rumble_supported = true;
                 ctx->powerstate_supported = true;
             }
             break;
         }
-    } else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2C_WIRELESS) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2C_WIRELESS)
+    {
         // The Ultimate 2C Wireless controller has an 11 byte report with no sensor or rumble support
-    } else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE3) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE3)
+    {
         // Supported by default
         ctx->sensors_supported = true;
         ctx->rumble_supported = true;
@@ -208,22 +224,28 @@ static bool HIDAPI_Driver8BitDo_InitDevice(SDL_HIDAPI_Device *device)
         ctx->sensor_timestamp_supported = true;
         Uint8 data[USB_PACKET_LENGTH];
         const int MAX_ATTEMPTS = 5;
-        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt) {
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt)
+        {
             int size = ReadFeatureReport(device->dev, SDL_8BITDO_FEATURE_REPORTID, data, sizeof(data));
-            if (size > 0) {
-                if (data[3] == 0) {
+            if (size > 0)
+            {
+                if (data[3] == 0)
+                {
                     ctx->rumble_supported = false;
                     ctx->trigger_rumble_supported = false;
                 }
-                if (data[3] & 0x02) {
+                if (data[3] & 0x02)
+                {
                     ctx->trigger_rumble_supported = true;
                 }
 
-                if (data[4] == 0) {
+                if (data[4] == 0)
+                {
                     ctx->sensors_supported = false;
                     ctx->sensor_timestamp_supported = false;
                 }
-                if (size >= 17 && data[11] != 0) {
+                if (size >= 17 && data[11] != 0)
+                {
                     char serial[18];
                     (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
                                        data[16], data[15], data[14], data[13], data[12], data[11]);
@@ -233,12 +255,17 @@ static bool HIDAPI_Driver8BitDo_InitDevice(SDL_HIDAPI_Device *device)
             }
             SDL_Delay(10);
         }
-    } else {
+    }
+    else
+    {
         Uint8 data[USB_PACKET_LENGTH];
         const int MAX_ATTEMPTS = 5;
-        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt) {
-            int size = ReadFeatureReport(device->dev, SDL_8BITDO_FEATURE_REPORTID_ENABLE_SDL_REPORTID, data, sizeof(data));
-            if (size > 0) {
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt)
+        {
+            int size = ReadFeatureReport(device->dev, SDL_8BITDO_FEATURE_REPORTID_ENABLE_SDL_REPORTID, data,
+                                         sizeof(data));
+            if (size > 0)
+            {
 #ifdef DEBUG_8BITDO_PROTOCOL
                 HIDAPI_DumpPacket("8BitDo features packet: size = %d", data, size);
 #endif
@@ -246,12 +273,14 @@ static bool HIDAPI_Driver8BitDo_InitDevice(SDL_HIDAPI_Device *device)
                 ctx->rumble_supported = true;
                 ctx->powerstate_supported = true;
 
-                if (size >= 14 && data[13] == SDL_8BITDO_SENSOR_TIMESTAMP_ENABLE) {
+                if (size >= 14 && data[13] == SDL_8BITDO_SENSOR_TIMESTAMP_ENABLE)
+                {
                     ctx->sensor_timestamp_supported = true;
                 }
 
                 // Set the serial number to the Bluetooth MAC address
-                if (size >= 12 && data[10] != 0) {
+                if (size >= 12 && data[10] != 0)
+                {
                     char serial[18];
                     (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
                                        data[10], data[9], data[8], data[7], data[6], data[5]);
@@ -265,66 +294,88 @@ static bool HIDAPI_Driver8BitDo_InitDevice(SDL_HIDAPI_Device *device)
         }
     }
 
-    if (device->product_id == USB_PRODUCT_8BITDO_SF30_PRO || device->product_id == USB_PRODUCT_8BITDO_SF30_PRO_BT) {
+    if (device->product_id == USB_PRODUCT_8BITDO_SF30_PRO || device->product_id == USB_PRODUCT_8BITDO_SF30_PRO_BT)
+    {
         HIDAPI_SetDeviceName(device, "8BitDo SF30 Pro");
-    } else if (device->product_id == USB_PRODUCT_8BITDO_SN30_PRO || device->product_id == USB_PRODUCT_8BITDO_SN30_PRO_BT) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_SN30_PRO || device->product_id == USB_PRODUCT_8BITDO_SN30_PRO_BT)
+    {
         HIDAPI_SetDeviceName(device, "8BitDo SN30 Pro");
-    } else if (device->product_id == USB_PRODUCT_8BITDO_PRO_2 || device->product_id == USB_PRODUCT_8BITDO_PRO_2_BT) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_PRO_2 || device->product_id == USB_PRODUCT_8BITDO_PRO_2_BT)
+    {
         HIDAPI_SetDeviceName(device, "8BitDo Pro 2");
-    } else if (device->product_id == USB_PRODUCT_8BITDO_PRO_3) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_PRO_3)
+    {
         HIDAPI_SetDeviceName(device, "8BitDo Pro 3");
     }
 
     return HIDAPI_JoystickConnected(device, NULL);
 }
 
-static int HIDAPI_Driver8BitDo_GetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id)
+static int HIDAPI_Driver8BitDo_GetDevicePlayerIndex(SDL_HIDAPI_Device* device, SDL_JoystickID instance_id)
 {
     return -1;
 }
 
-static void HIDAPI_Driver8BitDo_SetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id, int player_index)
+static void HIDAPI_Driver8BitDo_SetDevicePlayerIndex(SDL_HIDAPI_Device* device, SDL_JoystickID instance_id,
+                                                     int player_index)
 {
 }
 
-static Uint64 HIDAPI_Driver8BitDo_GetIMURateForProductID(SDL_HIDAPI_Device *device)
+static Uint64 HIDAPI_Driver8BitDo_GetIMURateForProductID(SDL_HIDAPI_Device* device)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
 
     // TODO: If sensor time stamp is sent, these fixed settings from observation can be replaced
-    switch (device->product_id) {
+    switch (device->product_id)
+    {
     case USB_PRODUCT_8BITDO_SF30_PRO:
     case USB_PRODUCT_8BITDO_SF30_PRO_BT:
     case USB_PRODUCT_8BITDO_SN30_PRO:
     case USB_PRODUCT_8BITDO_SN30_PRO_BT:
-        if (device->is_bluetooth) {
+        if (device->is_bluetooth)
+        {
             // Note, This is estimated by observation of Bluetooth packets received in the testcontroller tool
             return 70; // Observed to be anywhere between 60-90 hz. Possibly lossy in current state
-        } else if (ctx->sensor_timestamp_supported) {
+        }
+        else if (ctx->sensor_timestamp_supported)
+        {
             // This firmware appears to update at 200 Hz over USB
             return 200;
-        } else {
+        }
+        else
+        {
             // This firmware appears to update at 100 Hz over USB
             return 100;
         }
     case USB_PRODUCT_8BITDO_PRO_2:
     case USB_PRODUCT_8BITDO_PRO_2_BT: // Note, labeled as "BT" but appears this way when wired.
     case USB_PRODUCT_8BITDO_PRO_3:
-        if (device->is_bluetooth) {
+        if (device->is_bluetooth)
+        {
             // Note, This is estimated by observation of Bluetooth packets received in the testcontroller tool
             return 85; // Observed Bluetooth packet rate seems to be 80-90hz
-        } else if (ctx->sensor_timestamp_supported) {
+        }
+        else if (ctx->sensor_timestamp_supported)
+        {
             // This firmware appears to update at 200 Hz over USB
             return 200;
-        } else {
+        }
+        else
+        {
             // This firmware appears to update at 100 Hz over USB
             return 100;
         }
     case USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS:
-        if (device->is_bluetooth) {
+        if (device->is_bluetooth)
+        {
             // Note, This is estimated by observation of Bluetooth packets received in the testcontroller tool
             return 120; // Observed Bluetooth packet rate seems to be 120hz
-        } else {
+        }
+        else
+        {
             // This firmware appears to update at 1000 Hz over USB dongle
             return 1000;
         }
@@ -339,9 +390,9 @@ static Uint64 HIDAPI_Driver8BitDo_GetIMURateForProductID(SDL_HIDAPI_Device *devi
 #define DEG2RAD(x) ((float)(x) * (float)(SDL_PI_F / 180.f))
 #endif
 
-static bool HIDAPI_Driver8BitDo_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static bool HIDAPI_Driver8BitDo_OpenJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
 
     SDL_AssertJoysticksLocked();
 
@@ -351,21 +402,28 @@ static bool HIDAPI_Driver8BitDo_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joys
     if (device->product_id == USB_PRODUCT_8BITDO_PRO_2 ||
         device->product_id == USB_PRODUCT_8BITDO_PRO_2_BT ||
         device->product_id == USB_PRODUCT_8BITDO_PRO_3 ||
-        device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS) {
+        device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS)
+    {
         // This controller has additional buttons
         joystick->nbuttons = SDL_GAMEPAD_NUM_8BITDO_BUTTONS;
-    } else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2C_WIRELESS) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE2C_WIRELESS)
+    {
         joystick->nbuttons = SDL_GAMEPAD_NUM_8BITDO_ULTIMATE2C_BUTTONS;
-    } else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE3) {
+    }
+    else if (device->product_id == USB_PRODUCT_8BITDO_ULTIMATE3)
+    {
         joystick->nbuttons = SDL_GAMEPAD_NUM_8BITDO_ULTIMATE3_BUTTONS;
-    } else {
+    }
+    else
+    {
         joystick->nbuttons = 11;
     }
     joystick->naxes = SDL_GAMEPAD_AXIS_COUNT;
     joystick->nhats = 1;
 
-    if (ctx->sensors_supported) {
-
+    if (ctx->sensors_supported)
+    {
         // Different 8Bitdo controllers in different connection modes have different polling rates.
         const Uint64 imu_polling_rate = HIDAPI_Driver8BitDo_GetIMURateForProductID(device);
         ctx->sensor_timestamp_interval = SDL_NS_PER_SECOND / imu_polling_rate;
@@ -381,94 +439,115 @@ static bool HIDAPI_Driver8BitDo_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joys
     return true;
 }
 
-static bool HIDAPI_Driver8BitDo_RumbleJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
+static bool HIDAPI_Driver8BitDo_RumbleJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                               Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
-    if (ctx->rumble_supported) {
-        Uint8 rumble_packet[5] = { 0x05, 0x00, 0x00, 0x00, 0x00 };
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
+    if (ctx->rumble_supported)
+    {
+        Uint8 rumble_packet[5] = {0x05, 0x00, 0x00, 0x00, 0x00};
         rumble_packet[1] = low_frequency_rumble >> 8;
         rumble_packet[2] = high_frequency_rumble >> 8;
-        if (ctx->trigger_rumble_supported) {
+        if (ctx->trigger_rumble_supported)
+        {
             rumble_packet[3] = ctx->trigger_rumble_left_value;
             rumble_packet[4] = ctx->trigger_rumble_right_value;
             ctx->rumble_left_value = rumble_packet[1];
             ctx->rumble_right_value = rumble_packet[2];
         }
 
-        if (SDL_HIDAPI_SendRumble(device, rumble_packet, sizeof(rumble_packet)) != sizeof(rumble_packet)) {
+        if (SDL_HIDAPI_SendRumble(device, rumble_packet, sizeof(rumble_packet)) != sizeof(rumble_packet))
+        {
             return SDL_SetError("Couldn't send rumble packet");
         }
         return true;
-    } else {
+    }
+    else
+    {
         return SDL_Unsupported();
     }
 }
 
-static bool HIDAPI_Driver8BitDo_RumbleJoystickTriggers(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
+static bool HIDAPI_Driver8BitDo_RumbleJoystickTriggers(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                       Uint16 left_rumble, Uint16 right_rumble)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
-    if (ctx->trigger_rumble_supported) {
-        Uint8 rumble_packet[5] = { 0x05, 0x00, 0x00, 0x00, 0x00 };
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
+    if (ctx->trigger_rumble_supported)
+    {
+        Uint8 rumble_packet[5] = {0x05, 0x00, 0x00, 0x00, 0x00};
         rumble_packet[3] = left_rumble >> 8;
         rumble_packet[4] = right_rumble >> 8;
-        if (ctx->rumble_supported) {
+        if (ctx->rumble_supported)
+        {
             rumble_packet[1] = ctx->rumble_left_value;
             rumble_packet[2] = ctx->rumble_right_value;
             ctx->trigger_rumble_left_value = rumble_packet[3];
             ctx->trigger_rumble_right_value = rumble_packet[4];
         }
 
-        if (SDL_HIDAPI_SendRumble(device, rumble_packet, sizeof(rumble_packet)) != sizeof(rumble_packet)) {
+        if (SDL_HIDAPI_SendRumble(device, rumble_packet, sizeof(rumble_packet)) != sizeof(rumble_packet))
+        {
             return SDL_SetError("Couldn't send rumble packet");
         }
         return true;
-    } else {
+    }
+    else
+    {
         return SDL_Unsupported();
     }
 }
 
-static Uint32 HIDAPI_Driver8BitDo_GetJoystickCapabilities(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static Uint32 HIDAPI_Driver8BitDo_GetJoystickCapabilities(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
     Uint32 caps = 0;
-    if (ctx->rumble_supported) {
+    if (ctx->rumble_supported)
+    {
         caps |= SDL_JOYSTICK_CAP_RUMBLE;
     }
-    if (ctx->rgb_supported) {
+    if (ctx->rgb_supported)
+    {
         caps |= SDL_JOYSTICK_CAP_RGB_LED;
     }
     return caps;
 }
 
-static bool HIDAPI_Driver8BitDo_SetJoystickLED(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
+static bool HIDAPI_Driver8BitDo_SetJoystickLED(SDL_HIDAPI_Device* device, SDL_Joystick* joystick, Uint8 red,
+                                               Uint8 green, Uint8 blue)
 {
     return SDL_Unsupported();
 }
 
-static bool HIDAPI_Driver8BitDo_SendJoystickEffect(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, const void *data, int size)
+static bool HIDAPI_Driver8BitDo_SendJoystickEffect(SDL_HIDAPI_Device* device, SDL_Joystick* joystick, const void* data,
+                                                   int size)
 {
     return SDL_Unsupported();
 }
 
-static bool HIDAPI_Driver8BitDo_SetJoystickSensorsEnabled(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, bool enabled)
+static bool HIDAPI_Driver8BitDo_SetJoystickSensorsEnabled(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                          bool enabled)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
-    if (ctx->sensors_supported) {
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
+    if (ctx->sensors_supported)
+    {
         ctx->sensors_enabled = enabled;
         return true;
     }
     return SDL_Unsupported();
 }
 
-static void HIDAPI_Driver8BitDo_HandleOldStatePacket(SDL_Joystick *joystick, SDL_Driver8BitDo_Context *ctx, Uint8 *data, int size)
+static void HIDAPI_Driver8BitDo_HandleOldStatePacket(SDL_Joystick* joystick, SDL_Driver8BitDo_Context* ctx, Uint8* data,
+                                                     int size)
 {
     Sint16 axis;
     Uint64 timestamp = SDL_GetTicksNS();
 
-    if (ctx->last_state[2] != data[2]) {
+    if (ctx->last_state[2] != data[2])
+    {
         Uint8 hat;
 
-        switch (data[2]) {
+        switch (data[2])
+        {
         case 0:
             hat = SDL_HAT_UP;
             break;
@@ -500,7 +579,8 @@ static void HIDAPI_Driver8BitDo_HandleOldStatePacket(SDL_Joystick *joystick, SDL
         SDL_SendJoystickHat(timestamp, joystick, 0, hat);
     }
 
-    if (ctx->last_state[0] != data[0]) {
+    if (ctx->last_state[0] != data[0])
+    {
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_SOUTH, ((data[0] & 0x01) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_EAST, ((data[0] & 0x02) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_WEST, ((data[0] & 0x08) != 0));
@@ -509,15 +589,18 @@ static void HIDAPI_Driver8BitDo_HandleOldStatePacket(SDL_Joystick *joystick, SDL
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, ((data[0] & 0x80) != 0));
     }
 
-    if (ctx->last_state[1] != data[1]) {
+    if (ctx->last_state[1] != data[1])
+    {
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_GUIDE, ((data[1] & 0x10) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_BACK, ((data[1] & 0x04) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_START, ((data[1] & 0x08) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_LEFT_STICK, ((data[1] & 0x20) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_RIGHT_STICK, ((data[1] & 0x40) != 0));
 
-        SDL_SendJoystickAxis(timestamp, joystick, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, (data[1] & 0x01) ? SDL_MAX_SINT16 : SDL_MIN_SINT16);
-        SDL_SendJoystickAxis(timestamp, joystick, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, (data[1] & 0x02) ? SDL_MAX_SINT16 : SDL_MIN_SINT16);
+        SDL_SendJoystickAxis(timestamp, joystick, SDL_GAMEPAD_AXIS_LEFT_TRIGGER,
+                             (data[1] & 0x01) ? SDL_MAX_SINT16 : SDL_MIN_SINT16);
+        SDL_SendJoystickAxis(timestamp, joystick, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
+                             (data[1] & 0x02) ? SDL_MAX_SINT16 : SDL_MIN_SINT16);
     }
 
 #define READ_STICK_AXIS(offset) \
@@ -537,25 +620,29 @@ static void HIDAPI_Driver8BitDo_HandleOldStatePacket(SDL_Joystick *joystick, SDL
     SDL_memcpy(ctx->last_state, data, SDL_min(size, sizeof(ctx->last_state)));
 }
 
-static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Driver8BitDo_Context *ctx, Uint8 *data, int size)
+static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick* joystick, SDL_Driver8BitDo_Context* ctx, Uint8* data,
+                                                  int size)
 {
     Sint16 axis;
     Uint64 timestamp = SDL_GetTicksNS();
 
-    switch (data[0]) {
+    switch (data[0])
+    {
     case SDL_8BITDO_REPORTID_NOT_SUPPORTED_SDL_REPORTID: // Firmware without enhanced mode
-    case SDL_8BITDO_REPORTID_SDL_REPORTID:               // Enhanced mode USB report
-    case SDL_8BITDO_BT_REPORTID_SDL_REPORTID:            // Enhanced mode Bluetooth report
+    case SDL_8BITDO_REPORTID_SDL_REPORTID: // Enhanced mode USB report
+    case SDL_8BITDO_BT_REPORTID_SDL_REPORTID: // Enhanced mode Bluetooth report
         break;
     default:
         // We don't know how to handle this report
         return;
     }
 
-    if (ctx->last_state[1] != data[1]) {
+    if (ctx->last_state[1] != data[1])
+    {
         Uint8 hat;
 
-        switch (data[1]) {
+        switch (data[1])
+        {
         case 0:
             hat = SDL_HAT_UP;
             break;
@@ -587,7 +674,8 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
         SDL_SendJoystickHat(timestamp, joystick, 0, hat);
     }
 
-    if (ctx->last_state[8] != data[8]) {
+    if (ctx->last_state[8] != data[8])
+    {
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_SOUTH, ((data[8] & 0x01) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_EAST, ((data[8] & 0x02) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_WEST, ((data[8] & 0x08) != 0));
@@ -595,27 +683,33 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, ((data[8] & 0x40) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, ((data[8] & 0x80) != 0));
 
-        if (joystick->nbuttons > SDL_GAMEPAD_BUTTON_8BITDO_PR) {
+        if (joystick->nbuttons > SDL_GAMEPAD_BUTTON_8BITDO_PR)
+        {
             SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_PL, ((data[8] & 0x20) != 0));
             SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_PR, ((data[8] & 0x04) != 0));
-        } else if (joystick->nbuttons > SDL_GAMEPAD_BUTTON_8BITDO_R4) {
+        }
+        else if (joystick->nbuttons > SDL_GAMEPAD_BUTTON_8BITDO_R4)
+        {
             SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_L4, ((data[8] & 0x04) != 0));
             SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_R4, ((data[8] & 0x20) != 0));
         }
     }
 
-    if (ctx->last_state[9] != data[9]) {
+    if (ctx->last_state[9] != data[9])
+    {
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_GUIDE, ((data[9] & 0x10) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_BACK, ((data[9] & 0x04) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_START, ((data[9] & 0x08) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_LEFT_STICK, ((data[9] & 0x20) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_RIGHT_STICK, ((data[9] & 0x40) != 0));
-        if (joystick->nbuttons >= SDL_GAMEPAD_NUM_8BITDO_ULTIMATE3_BUTTONS) {
+        if (joystick->nbuttons >= SDL_GAMEPAD_NUM_8BITDO_ULTIMATE3_BUTTONS)
+        {
             SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_SHARE, ((data[9] & 0x80) != 0));
         }
     }
 
-    if (size > 10 && ctx->last_state[10] != data[10]) {
+    if (size > 10 && ctx->last_state[10] != data[10])
+    {
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_L4, ((data[10] & 0x01) != 0));
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_8BITDO_R4, ((data[10] & 0x02) != 0));
     }
@@ -644,15 +738,18 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
     }
 #undef READ_TRIGGER_AXIS
 
-    if (ctx->powerstate_supported) {
+    if (ctx->powerstate_supported)
+    {
         SDL_PowerState state;
         int percent;
         Uint8 status = data[14] >> 7;
         Uint8 level = (data[14] & 0x7f);
-        if (level == 100) {
+        if (level == 100)
+        {
             status = 2;
         }
-        switch (status) {
+        switch (status)
+        {
         case 0:
             state = SDL_POWERSTATE_ON_BATTERY;
             percent = level;
@@ -673,23 +770,30 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
         SDL_SendJoystickPowerInfo(joystick, state, percent);
     }
 
-    if (ctx->sensors_enabled) {
+    if (ctx->sensors_enabled)
+    {
         Uint64 sensor_timestamp;
         float values[3];
-        ABITDO_SENSORS *sensors = (ABITDO_SENSORS *)&data[15];
+        ABITDO_SENSORS* sensors = (ABITDO_SENSORS*)&data[15];
 
-        if (ctx->sensor_timestamp_supported) {
+        if (ctx->sensor_timestamp_supported)
+        {
             Uint32 delta;
             Uint32 tick = LOAD32(data[27], data[28], data[29], data[30]);
 
-            if (ctx->last_tick) {
-                if (ctx->last_tick <= tick) {
+            if (ctx->last_tick)
+            {
+                if (ctx->last_tick <= tick)
+                {
                     delta = (tick - ctx->last_tick);
-                } else {
+                }
+                else
+                {
                     delta = (SDL_MAX_UINT32 - ctx->last_tick + tick + 1);
                 }
                 // Sanity check the delta value
-                if (delta < 100000) {
+                if (delta < 100000)
+                {
                     ctx->sensor_timestamp_interval = SDL_US_TO_NS(delta);
                 }
             }
@@ -711,7 +815,7 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
         // Hardware y is reporting pitch (rotation about the horizontal axis)
         // Hardware z is reporting yaw (rotation about the joysticks' center axis)
         values[0] = -sensors->sGyroY * ctx->gyroScale; // Rotation around pitch axis
-        values[1] = sensors->sGyroZ * ctx->gyroScale;  // Rotation around yaw axis
+        values[1] = sensors->sGyroZ * ctx->gyroScale; // Rotation around yaw axis
         values[2] = -sensors->sGyroX * ctx->gyroScale; // Rotation around roll axis
         SDL_SendJoystickSensor(timestamp, joystick, SDL_SENSOR_GYRO, sensor_timestamp, values, 3);
 
@@ -720,7 +824,7 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
         // Accelerometer y is positive when left side of the controller points toward the sky.
         // Accelerometer Z is positive when sticks point toward the sky.
         values[0] = -sensors->sAccelY * ctx->accelScale; // Acceleration along pitch axis
-        values[1] = sensors->sAccelZ * ctx->accelScale;  // Acceleration along yaw axis
+        values[1] = sensors->sAccelZ * ctx->accelScale; // Acceleration along yaw axis
         values[2] = -sensors->sAccelX * ctx->accelScale; // Acceleration along roll axis
         SDL_SendJoystickSensor(timestamp, joystick, SDL_SENSOR_ACCEL, sensor_timestamp, values, 3);
     }
@@ -728,47 +832,56 @@ static void HIDAPI_Driver8BitDo_HandleStatePacket(SDL_Joystick *joystick, SDL_Dr
     SDL_memcpy(ctx->last_state, data, SDL_min(size, sizeof(ctx->last_state)));
 }
 
-static bool HIDAPI_Driver8BitDo_UpdateDevice(SDL_HIDAPI_Device *device)
+static bool HIDAPI_Driver8BitDo_UpdateDevice(SDL_HIDAPI_Device* device)
 {
-    SDL_Driver8BitDo_Context *ctx = (SDL_Driver8BitDo_Context *)device->context;
-    SDL_Joystick *joystick = NULL;
+    SDL_Driver8BitDo_Context* ctx = (SDL_Driver8BitDo_Context*)device->context;
+    SDL_Joystick* joystick = NULL;
     Uint8 data[USB_PACKET_LENGTH];
     int size = 0;
 
-    if (device->num_joysticks > 0) {
+    if (device->num_joysticks > 0)
+    {
         joystick = SDL_GetJoystickFromID(device->joysticks[0]);
-    } else {
+    }
+    else
+    {
         return false;
     }
 
-    while ((size = SDL_hid_read_timeout(device->dev, data, sizeof(data), 0)) > 0) {
+    while ((size = SDL_hid_read_timeout(device->dev, data, sizeof(data), 0)) > 0)
+    {
 #ifdef DEBUG_8BITDO_PROTOCOL
         HIDAPI_DumpPacket("8BitDo packet: size = %d", data, size);
 #endif
-        if (!joystick) {
+        if (!joystick)
+        {
             continue;
         }
 
-        if (size == 9) {
+        if (size == 9)
+        {
             // Old firmware USB report for the SF30 Pro and SN30 Pro controllers
             HIDAPI_Driver8BitDo_HandleOldStatePacket(joystick, ctx, data, size);
-        } else {
+        }
+        else
+        {
             HIDAPI_Driver8BitDo_HandleStatePacket(joystick, ctx, data, size);
         }
     }
 
-    if (size < 0) {
+    if (size < 0)
+    {
         // Read error, device is disconnected
         HIDAPI_JoystickDisconnected(device, device->joysticks[0]);
     }
     return (size >= 0);
 }
 
-static void HIDAPI_Driver8BitDo_CloseJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static void HIDAPI_Driver8BitDo_CloseJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
 }
 
-static void HIDAPI_Driver8BitDo_FreeDevice(SDL_HIDAPI_Device *device)
+static void HIDAPI_Driver8BitDo_FreeDevice(SDL_HIDAPI_Device* device)
 {
 }
 

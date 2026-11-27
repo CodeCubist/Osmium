@@ -54,7 +54,7 @@ extern int FONT_CHARACTER_SIZE;
  *
  *  \returns true on success, false on failure.
  */
-bool SDLCALL SDLTest_DrawCharacter(SDL_Renderer *renderer, float x, float y, Uint32 c);
+bool SDLCALL SDLTest_DrawCharacter(SDL_Renderer* renderer, float x, float y, Uint32 c);
 
 /*
  *  Draw a UTF-8 string in the currently set font.
@@ -68,7 +68,7 @@ bool SDLCALL SDLTest_DrawCharacter(SDL_Renderer *renderer, float x, float y, Uin
  *
  *  \returns true on success, false on failure.
  */
-bool SDLCALL SDLTest_DrawString(SDL_Renderer *renderer, float x, float y, const char *s);
+bool SDLCALL SDLTest_DrawString(SDL_Renderer* renderer, float x, float y, const char* s);
 
 /*
  *  Data used for multi-line text output
@@ -78,7 +78,7 @@ typedef struct SDLTest_TextWindow
     SDL_FRect rect;
     int current;
     int numlines;
-    char **lines;
+    char** lines;
 } SDLTest_TextWindow;
 
 /*
@@ -93,7 +93,7 @@ typedef struct SDLTest_TextWindow
  *
  *  \since This function is available since SDL 3.2.0.
  */
-SDLTest_TextWindow * SDLCALL SDLTest_TextWindowCreate(float x, float y, float w, float h);
+SDLTest_TextWindow* SDLCALL SDLTest_TextWindowCreate(float x, float y, float w, float h);
 
 /*
  *  Display a multi-line text output window
@@ -105,7 +105,7 @@ SDLTest_TextWindow * SDLCALL SDLTest_TextWindowCreate(float x, float y, float w,
  *
  *  \since This function is available since SDL 3.2.0.
  */
-void SDLCALL SDLTest_TextWindowDisplay(SDLTest_TextWindow *textwin, SDL_Renderer *renderer);
+void SDLCALL SDLTest_TextWindowDisplay(SDLTest_TextWindow* textwin, SDL_Renderer* renderer);
 
 /*
  *  Add text to a multi-line text output window
@@ -120,7 +120,8 @@ void SDLCALL SDLTest_TextWindowDisplay(SDLTest_TextWindow *textwin, SDL_Renderer
  *
  *  \since This function is available since SDL 3.2.0.
  */
-void SDLCALL SDLTest_TextWindowAddText(SDLTest_TextWindow *textwin, SDL_PRINTF_FORMAT_STRING const char *fmt, ...) SDL_PRINTF_VARARG_FUNC(2);
+void SDLCALL SDLTest_TextWindowAddText(SDLTest_TextWindow* textwin, SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
+SDL_PRINTF_VARARG_FUNC(2);
 
 /*
  *  Add text to a multi-line text output window
@@ -135,7 +136,7 @@ void SDLCALL SDLTest_TextWindowAddText(SDLTest_TextWindow *textwin, SDL_PRINTF_F
  *
  *  \since This function is available since SDL 3.2.0.
  */
-void SDLCALL SDLTest_TextWindowAddTextWithLength(SDLTest_TextWindow *textwin, const char *text, size_t len);
+void SDLCALL SDLTest_TextWindowAddTextWithLength(SDLTest_TextWindow* textwin, const char* text, size_t len);
 
 /*
  *  Clear the text in a multi-line text output window
@@ -144,7 +145,7 @@ void SDLCALL SDLTest_TextWindowAddTextWithLength(SDLTest_TextWindow *textwin, co
  *
  *  \since This function is available since SDL 3.2.0.
  */
-void SDLCALL SDLTest_TextWindowClear(SDLTest_TextWindow *textwin);
+void SDLCALL SDLTest_TextWindowClear(SDLTest_TextWindow* textwin);
 
 /*
  *  Free the storage associated with a multi-line text output window
@@ -153,7 +154,7 @@ void SDLCALL SDLTest_TextWindowClear(SDLTest_TextWindow *textwin);
  *
  *  \since This function is available since SDL 3.2.0.
  */
-void SDLCALL SDLTest_TextWindowDestroy(SDLTest_TextWindow *textwin);
+void SDLCALL SDLTest_TextWindowDestroy(SDLTest_TextWindow* textwin);
 
 /*
  *  Cleanup textures used by font drawing functions.

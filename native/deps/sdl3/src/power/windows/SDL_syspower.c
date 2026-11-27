@@ -25,44 +25,58 @@
 
 #include "../../core/windows/SDL_windows.h"
 
-bool SDL_GetPowerInfo_Windows(SDL_PowerState *state, int *seconds, int *percent)
+bool SDL_GetPowerInfo_Windows(SDL_PowerState* state, int* seconds, int* percent)
 {
     SYSTEM_POWER_STATUS status;
     bool need_details = false;
 
     // This API should exist back to Win95.
-    if (!GetSystemPowerStatus(&status)) {
+    if (!GetSystemPowerStatus(&status))
+    {
         // !!! FIXME: push GetLastError() into SDL_GetError()
         *state = SDL_POWERSTATE_UNKNOWN;
-    } else if (status.BatteryFlag == 0xFF) {
+    }
+    else if (status.BatteryFlag == 0xFF)
+    {
         // unknown state
         *state = SDL_POWERSTATE_UNKNOWN;
-    } else if (status.BatteryFlag & (1 << 7)) {
+    }
+    else if (status.BatteryFlag & (1 << 7))
+    {
         // no battery
         *state = SDL_POWERSTATE_NO_BATTERY;
-    } else if (status.BatteryFlag & (1 << 3)) {
+    }
+    else if (status.BatteryFlag & (1 << 3))
+    {
         // charging
         *state = SDL_POWERSTATE_CHARGING;
         need_details = true;
-    } else if (status.ACLineStatus == 1) {
+    }
+    else if (status.ACLineStatus == 1)
+    {
         *state = SDL_POWERSTATE_CHARGED; // on AC, not charging.
         need_details = true;
-    } else {
+    }
+    else
+    {
         *state = SDL_POWERSTATE_ON_BATTERY; // not on AC.
         need_details = true;
     }
 
     *percent = -1;
     *seconds = -1;
-    if (need_details) {
+    if (need_details)
+    {
         const int pct = (int)status.BatteryLifePercent;
         const int secs = (int)status.BatteryLifeTime;
 
-        if (pct != 255) {
+        if (pct != 255)
+        {
             // 255 == unknown
             *percent = (pct > 100) ? 100 : pct; // clamp between 0%, 100%
         }
-        if (secs != 0xFFFFFFFF) {
+        if (secs != 0xFFFFFFFF)
+        {
             // ((DWORD)-1) == unknown
             *seconds = secs;
         }

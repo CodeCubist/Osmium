@@ -39,8 +39,8 @@ class _ConnectTransitionOverlayState extends State<ConnectTransitionOverlay>
     super.initState();
     _fade = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
-      reverseDuration: const Duration(milliseconds: 360),
+      duration: const Duration(milliseconds: 220),
+      reverseDuration: const Duration(milliseconds: 160),
       value: 1,
     );
     _breathe = AnimationController(

@@ -69,13 +69,15 @@ public static partial class ServiceAutoStartHelper
     private static extern bool ConvertSidToStringSidW(IntPtr sid, out IntPtr stringSid);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateMutexW(ref SecurityAttributes lpMutexAttributes, bool bInitialOwner, string lpName);
+    private static extern IntPtr CreateMutexW(ref SecurityAttributes lpMutexAttributes, bool bInitialOwner,
+        string lpName);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr OpenMutexW(uint dwDesiredAccess, bool bInheritHandle, string lpName);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateEventW(ref SecurityAttributes lpEventAttributes, bool bManualReset, bool bInitialState, string lpName);
+    private static extern IntPtr CreateEventW(ref SecurityAttributes lpEventAttributes, bool bManualReset,
+        bool bInitialState, string lpName);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr OpenEventW(uint dwDesiredAccess, bool bInheritHandle, string lpName);
@@ -197,7 +199,8 @@ public static partial class ServiceAutoStartHelper
 
             if (!string.IsNullOrWhiteSpace(sourceDataDir) && Directory.Exists(sourceDataDir))
             {
-                CopyFileAtomicSafe(Path.Combine(sourceDataDir, "settings.json"), Path.Combine(profileDir, "settings.json"));
+                CopyFileAtomicSafe(Path.Combine(sourceDataDir, "settings.json"),
+                    Path.Combine(profileDir, "settings.json"));
                 string wallpaper = WindowsWallpaperHelper.PrivacyWallpaperFileName;
                 CopyFileAtomicSafe(Path.Combine(sourceDataDir, wallpaper), Path.Combine(profileDir, wallpaper));
 
@@ -464,7 +467,8 @@ public static partial class ServiceAutoStartHelper
         var psi = new ProcessStartInfo
         {
             FileName = File.Exists(icaclsExe) ? icaclsExe : "icacls.exe",
-            Arguments = $"\"{dirPath}\" /inheritance:r /grant:r \"*S-1-5-18:(OI)(CI)F\" /grant:r \"*S-1-5-32-544:(OI)(CI)F\"{sidArg}",
+            Arguments =
+                $"\"{dirPath}\" /inheritance:r /grant:r \"*S-1-5-18:(OI)(CI)F\" /grant:r \"*S-1-5-32-544:(OI)(CI)F\"{sidArg}",
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <mutex>
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -163,6 +164,59 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             int32_t pad0;
             int32_t pad1;
         };
+
+        // Process-wide compiled HLSL bytecode cache (plain byte vectors, zero static COM objects)
+        // so reconnects skip D3DCompile overhead completely.
+        const std::vector<uint8_t>& GetFullscreenQuadVsBytecode()
+        {
+            static std::vector<uint8_t> bytecode;
+            static std::once_flag once;
+            std::call_once(once, []()
+            {
+                ComPtr<ID3DBlob> blob, err;
+                if (SUCCEEDED(D3DCompile(kHdrTonemapVsSource, strlen(kHdrTonemapVsSource), nullptr, nullptr, nullptr,
+                    "main", "vs_5_0", 0, 0, &blob, &err)) && blob)
+                {
+                    const auto* p = static_cast<const uint8_t*>(blob->GetBufferPointer());
+                    bytecode.assign(p, p + blob->GetBufferSize());
+                }
+            });
+            return bytecode;
+        }
+
+        const std::vector<uint8_t>& GetHdrTonemapPsBytecode()
+        {
+            static std::vector<uint8_t> bytecode;
+            static std::once_flag once;
+            std::call_once(once, []()
+            {
+                ComPtr<ID3DBlob> blob, err;
+                if (SUCCEEDED(D3DCompile(kHdrTonemapPsSource, strlen(kHdrTonemapPsSource), nullptr, nullptr, nullptr,
+                    "main", "ps_5_0", 0, 0, &blob, &err)) && blob)
+                {
+                    const auto* p = static_cast<const uint8_t*>(blob->GetBufferPointer());
+                    bytecode.assign(p, p + blob->GetBufferSize());
+                }
+            });
+            return bytecode;
+        }
+
+        const std::vector<uint8_t>& GetCursorCompositePsBytecode()
+        {
+            static std::vector<uint8_t> bytecode;
+            static std::once_flag once;
+            std::call_once(once, []()
+            {
+                ComPtr<ID3DBlob> blob, err;
+                if (SUCCEEDED(D3DCompile(kCursorCompositePsSource, strlen(kCursorCompositePsSource), nullptr, nullptr,
+                    nullptr, "main", "ps_5_0", 0, 0, &blob, &err)) && blob)
+                {
+                    const auto* p = static_cast<const uint8_t*>(blob->GetBufferPointer());
+                    bytecode.assign(p, p + blob->GetBufferSize());
+                }
+            });
+            return bytecode;
+        }
 
         std::wstring ResolveMonitorDeviceName(const wchar_t* gdiDeviceName)
         {
@@ -686,7 +740,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                     }
                     else
                     {
-                        m_DxgiPointerBlack[idx] = uint32_t(sb) | (uint32_t(sg) << 8) | (uint32_t(sr) << 16) | 0xFF000000U;
+                        m_DxgiPointerBlack[idx] = uint32_t(sb) | (uint32_t(sg) << 8) | (uint32_t(sr) << 16) |
+                            0xFF000000U;
                         m_DxgiPointerWhite[idx] = uint32_t(255U - sb) | (uint32_t(255U - sg) << 8) |
                             (uint32_t(255U - sr) << 16) | 0xFF000000U;
                     }
@@ -828,28 +883,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
 
         if (!m_TonemapVs || !m_TonemapPs || !m_TonemapCb)
         {
-            ComPtr<ID3DBlob> vsBlob, psBlob, errBlob;
-            if (FAILED(
-                D3DCompile(kHdrTonemapVsSource, strlen(kHdrTonemapVsSource), nullptr, nullptr, nullptr, "main", "vs_5_0"
-                    , 0, 0, &vsBlob, &errBlob)))
+            const auto& vsBytes = GetFullscreenQuadVsBytecode();
+            const auto& psBytes = GetHdrTonemapPsBytecode();
+            if (vsBytes.empty() || psBytes.empty())
             {
-                OSM_LOG_ERROR("HDR tonemap VS compile failed");
+                OSM_LOG_ERROR("HDR tonemap shader compile failed");
                 return false;
             }
-            if (FAILED(
-                D3DCompile(kHdrTonemapPsSource, strlen(kHdrTonemapPsSource), nullptr, nullptr, nullptr, "main", "ps_5_0"
-                    , 0, 0, &psBlob, &errBlob)))
-            {
-                OSM_LOG_ERROR("HDR tonemap PS compile failed: %s",
-                              errBlob ? static_cast<const char*>(errBlob->GetBufferPointer()) : "unknown");
-                return false;
-            }
-            if (FAILED(
-                    m_Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &
-                        m_TonemapVs)) ||
-                FAILED(
-                    m_Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &
-                        m_TonemapPs)))
+            if (FAILED(m_Device->CreateVertexShader(vsBytes.data(), vsBytes.size(), nullptr, &m_TonemapVs)) ||
+                FAILED(m_Device->CreatePixelShader(psBytes.data(), psBytes.size(), nullptr, &m_TonemapPs)))
             {
                 return false;
             }
@@ -1203,7 +1245,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         bool inputSupportsRtv = false;
         if (SUCCEEDED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.input)) &&
             SUCCEEDED(m_Device->CreateRenderTargetView(nv12.input.Get(), nullptr, &nv12.inputRtv)) &&
-            SUCCEEDED(videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)))
+            SUCCEEDED(
+                videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)))
         {
             inputSupportsRtv = true;
         }
@@ -1214,7 +1257,9 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             nv12.input.Reset();
             desc.BindFlags = 0;
             if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.input)) ||
-                FAILED(videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView)))
+                FAILED(
+                    videoDevice->CreateVideoProcessorInputView(nv12.input.Get(), formats.Get(), &inView, &nv12.inputView
+                    )))
             {
                 return false;
             }
@@ -1248,7 +1293,9 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
         if (FAILED(m_Device->CreateTexture2D(&desc, nullptr, &nv12.readback))) return false;
 
-        if (FAILED(videoDevice->CreateVideoProcessorOutputView(nv12.output.Get(), formats.Get(), &outView, &nv12.outputView)) ||
+        if (FAILED(
+                videoDevice->CreateVideoProcessorOutputView(nv12.output.Get(), formats.Get(), &outView, &nv12.outputView
+                )) ||
             FAILED(videoDevice->CreateVideoProcessor(formats.Get(), 0, &nv12.processor)))
         {
             return false;
@@ -1331,18 +1378,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             return true;
         }
 
-        ComPtr<ID3DBlob> vsBlob, psBlob, errBlob;
-        if (FAILED(D3DCompile(kHdrTonemapVsSource, strlen(kHdrTonemapVsSource), nullptr, nullptr, nullptr,
-                              "main", "vs_5_0", 0, 0, &vsBlob, &errBlob)) ||
-            FAILED(D3DCompile(kCursorCompositePsSource, strlen(kCursorCompositePsSource), nullptr, nullptr, nullptr,
-                              "main", "ps_5_0", 0, 0, &psBlob, &errBlob)))
+        const auto& vsBytes = GetFullscreenQuadVsBytecode();
+        const auto& psBytes = GetCursorCompositePsBytecode();
+        if (vsBytes.empty() || psBytes.empty())
         {
-            OSM_LOG_WARN("HostCapture GPU cursor shader compile failed: %s",
-                         errBlob ? static_cast<const char*>(errBlob->GetBufferPointer()) : "unknown");
+            OSM_LOG_WARN("HostCapture GPU cursor shader compile failed");
             return false;
         }
-        if (FAILED(m_Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &nv12.cursorVs)) ||
-            FAILED(m_Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &nv12.cursorPs)))
+        if (FAILED(m_Device->CreateVertexShader(vsBytes.data(), vsBytes.size(), nullptr, &nv12.cursorVs)) ||
+            FAILED(m_Device->CreatePixelShader(psBytes.data(), psBytes.size(), nullptr, &nv12.cursorPs)))
         {
             return false;
         }
@@ -1459,7 +1503,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                     const UINT prevStep = m_GdiAniStep;
                     const UINT aniStep = ResolveGdiAniStep(ci.hCursor, curW, curH, nowMs);
                     const bool aniAdvanced = (!handleChanged && aniStep != prevStep);
-                    const bool periodicCheck = (!handleChanged && !aniAdvanced && (nowMs - nv12.uploadedCursorMs) >= 120ULL);
+                    const bool periodicCheck = (!handleChanged && !aniAdvanced && (nowMs - nv12.uploadedCursorMs) >=
+                        120ULL);
 
                     if (handleChanged || aniAdvanced || periodicCheck)
                     {
@@ -1470,8 +1515,10 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                         const int stride = m_CursorScratchSize;
                         for (int y = 0; y < curH; ++y)
                         {
-                            std::memset(m_CursorBlackBits + static_cast<size_t>(y) * stride, 0x00, static_cast<size_t>(curW) * 4);
-                            std::memset(m_CursorWhiteBits + static_cast<size_t>(y) * stride, 0xFF, static_cast<size_t>(curW) * 4);
+                            std::memset(m_CursorBlackBits + static_cast<size_t>(y) * stride, 0x00,
+                                        static_cast<size_t>(curW) * 4);
+                            std::memset(m_CursorWhiteBits + static_cast<size_t>(y) * stride, 0xFF,
+                                        static_cast<size_t>(curW) * 4);
                         }
                         DrawIconEx(m_CursorBlackDc, 0, 0, ci.hCursor, 0, 0, aniStep, nullptr, DI_NORMAL);
                         DrawIconEx(m_CursorWhiteDc, 0, 0, ci.hCursor, 0, 0, aniStep, nullptr, DI_NORMAL);
@@ -1634,7 +1681,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             if (!DrawGpuCursorOntoInput(false, changed)) return false;
         }
         else if (nv12.hasDrawnCursor &&
-                 nv12.lastBoxRight > nv12.lastBoxLeft && nv12.lastBoxBottom > nv12.lastBoxTop)
+            nv12.lastBoxRight > nv12.lastBoxLeft && nv12.lastBoxBottom > nv12.lastBoxTop)
         {
             D3D11_BOX oldBox{};
             oldBox.left = static_cast<UINT>(nv12.lastBoxLeft);
@@ -1784,7 +1831,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         const bool hasUsableCache = m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPq &&
             (!m_LastFrameInGpu || wantGpuFrame) &&
             (!m_LastFrameIsNv12 || (wantNv12 && m_LastFrameWidth == m_Nv12Width && m_LastFrameHeight == m_Nv12Height &&
-                                    (!captureCursor || m_Nv12.hasCleanInput)));
+                (!captureCursor || m_Nv12.hasCleanInput)));
         auto copyCachedFrame = [&](bool updated)
         {
             if (m_LastFrameIsNv12 && !updated)
@@ -1812,7 +1859,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         };
 
         // The host loop already paces frame sampling. Reuse the cached desktop if no update is ready.
-        const int minWaitMs = !m_HasLastFrame && m_OutputIsHdr ? 100 : 0;
+        const int minWaitMs = !m_HasLastFrame && m_OutputIsHdr ? 40 : 0;
         const UINT effectiveTimeout = hasUsableCache ? 0 : static_cast<UINT>(std::max(initialWaitMs, minWaitMs));
 
         DXGI_OUTDUPL_FRAME_INFO frameInfo{};
@@ -1851,7 +1898,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
             {
                 return false;
             }
-            if (m_OutputIsHdr && ++m_InitialHdrTimeouts < 8)
+            if (m_OutputIsHdr && ++m_InitialHdrTimeouts < 4)
             {
                 return false;
             }
@@ -2040,7 +2087,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         }
 
         HGDIOBJ oldObj = SelectObject(hMem, hBmp);
-        if (!BitBlt(hMem, 0, 0, m_Width, m_Height, hScreen, m_DesktopRect.left, m_DesktopRect.top, SRCCOPY | CAPTUREBLT))
+        if (!BitBlt(hMem, 0, 0, m_Width, m_Height, hScreen, m_DesktopRect.left, m_DesktopRect.top,
+                    SRCCOPY | CAPTUREBLT))
         {
             SelectObject(hMem, oldObj);
             DeleteObject(hBmp);
@@ -2199,7 +2247,8 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         int cx = ci.ptScreenPos.x - m_DesktopRect.left;
         int cy = ci.ptScreenPos.y - m_DesktopRect.top;
         if (cx < -kMaxCursorBoxSize || cy < -kMaxCursorBoxSize ||
-            cx >= frame.width + kMaxCursorBoxSize || cy >= frame.height + kMaxCursorBoxSize) return;
+            cx >= frame.width + kMaxCursorBoxSize || cy >= frame.height + kMaxCursorBoxSize)
+            return;
 
         int hotX = 0, hotY = 0, curW = 0, curH = 0;
         if (!QueryGdiCursorMetrics(ci.hCursor, hotX, hotY, curW, curH)) return;

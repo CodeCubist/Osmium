@@ -21,7 +21,7 @@
 #include "SDL_internal.h"
 
 
-char *SDL_strtok_r(char *s1, const char *s2, char **ptr)
+char* SDL_strtok_r(char* s1, const char* s2, char** ptr)
 {
 #ifdef HAVE_STRTOK_R
     return strtok_r(s1, s2, ptr);
@@ -45,17 +45,21 @@ char *SDL_strtok_r(char *s1, const char *s2, char **ptr)
      * commercial purposes, all without asking permission. See Other
      * Information below.
      */
-    const char *p = s2;
+    const char* p = s2;
 
     if (!s2 || !ptr || (!s1 && !*ptr))
         return NULL;
 
-    if (s1 != NULL) {
+    if (s1 != NULL)
+    {
         /* new string */
         *ptr = s1;
-    } else {
+    }
+    else
+    {
         /* old string continued */
-        if (*ptr == NULL) {
+        if (*ptr == NULL)
+        {
             /* No old string, no new string, nothing to do */
             return NULL;
         }
@@ -63,8 +67,10 @@ char *SDL_strtok_r(char *s1, const char *s2, char **ptr)
     }
 
     /* skip leading s2 characters */
-    while (*p && *s1) {
-        if (*s1 == *p) {
+    while (*p && *s1)
+    {
+        if (*s1 == *p)
+        {
             /* found separator; skip and start over */
             ++s1;
             p = s2;
@@ -73,7 +79,8 @@ char *SDL_strtok_r(char *s1, const char *s2, char **ptr)
         ++p;
     }
 
-    if (!*s1) {
+    if (!*s1)
+    {
         /* no more to parse */
         *ptr = s1;
         return NULL;
@@ -81,10 +88,13 @@ char *SDL_strtok_r(char *s1, const char *s2, char **ptr)
 
     /* skipping non-s2 characters */
     *ptr = s1;
-    while (**ptr) {
+    while (**ptr)
+    {
         p = s2;
-        while (*p) {
-            if (**ptr == *p++) {
+        while (*p)
+        {
+            if (**ptr == *p++)
+            {
                 /* found separator; overwrite with '\0', position *ptr, return */
                 *((*ptr)++) = '\0';
                 return s1;

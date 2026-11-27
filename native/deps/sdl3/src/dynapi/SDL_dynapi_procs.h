@@ -37,85 +37,88 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_Log, (SDL_PRINTF_FORMAT_STRING const char *a, ...), (a), 
+SDL_DYNAPI_PROC(void, SDL_Log, (SDL_PRINTF_FORMAT_STRING const char* a, ...), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_LogCritical, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
+SDL_DYNAPI_PROC(void, SDL_LogCritical, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_LogDebug, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
+SDL_DYNAPI_PROC(void, SDL_LogDebug, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_LogError, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
+SDL_DYNAPI_PROC(void, SDL_LogError, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_LogInfo, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
+SDL_DYNAPI_PROC(void, SDL_LogInfo, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_LogMessage, (int a, SDL_LogPriority b, SDL_PRINTF_FORMAT_STRING const char *c, ...), (a
-,
-b
-,
-c
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_LogTrace, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_LogVerbose, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_LogWarn, (int a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(bool, SDL_SetError, (SDL_PRINTF_FORMAT_STRING const char *a, ...), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_asprintf, (char **a, SDL_PRINTF_FORMAT_STRING const char *b, ...), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(int, SDL_snprintf, (SDL_OUT_Z_CAP(b) char *a, size_t b, SDL_PRINTF_FORMAT_STRING const char *c, ...), (a
+SDL_DYNAPI_PROC(void, SDL_LogMessage, (int a, SDL_LogPriority b, SDL_PRINTF_FORMAT_STRING const char* c, ...), (a
 ,
 b
 ,
 c
 )
 ,
+)
+SDL_DYNAPI_PROC(void, SDL_LogTrace, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_LogVerbose, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_LogWarn, (int a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(bool, SDL_SetError, (SDL_PRINTF_FORMAT_STRING const char* a, ...), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_sscanf, (const char *a, SDL_SCANF_FORMAT_STRING const char *b, ...), (a
+SDL_DYNAPI_PROC(int, SDL_asprintf, (char** a, SDL_PRINTF_FORMAT_STRING const char* b, ...), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_swprintf, (SDL_OUT_Z_CAP(b) wchar_t *a, size_t b, SDL_PRINTF_FORMAT_STRING const wchar_t *c, ...), (a
+SDL_DYNAPI_PROC(int, SDL_snprintf, (SDL_OUT_Z_CAP(b) char* a, size_t b, SDL_PRINTF_FORMAT_STRING const char* c, ...), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(int, SDL_sscanf, (const char* a, SDL_SCANF_FORMAT_STRING const char* b, ...), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(int, SDL_swprintf, (SDL_OUT_Z_CAP(b) wchar_t* a, size_t b, SDL_PRINTF_FORMAT_STRING const wchar_t* c,
+                ...), (a
 ,
 b
 ,
@@ -127,17 +130,19 @@ return
 #endif
 
 /* New API symbols are added at the end */
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_AcquireCameraFrame, (SDL_Camera *a, Uint64 *b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_AcquireCameraFrame, (SDL_Camera* a, Uint64* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUCommandBuffer *, SDL_AcquireGPUCommandBuffer, (SDL_GPUDevice *a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUCommandBuffer*, SDL_AcquireGPUCommandBuffer, (SDL_GPUDevice* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AcquireGPUSwapchainTexture, (SDL_GPUCommandBuffer *a, SDL_Window *b, SDL_GPUTexture **c, Uint32 *d, Uint32 *e), (a
+SDL_DYNAPI_PROC(bool, SDL_AcquireGPUSwapchainTexture, (SDL_GPUCommandBuffer* a, SDL_Window* b, SDL_GPUTexture** c,
+                Uint32* d, Uint32* e), (a
 ,
 b
 ,
@@ -150,34 +155,36 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_AddAtomicInt, (SDL_AtomicInt *a, int b), (a
+SDL_DYNAPI_PROC(int, SDL_AddAtomicInt, (SDL_AtomicInt* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AddEventWatch, (SDL_EventFilter a, void *b), (a
+SDL_DYNAPI_PROC(bool, SDL_AddEventWatch, (SDL_EventFilter a, void* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_AddGamepadMapping, (const char *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_AddGamepadMapping, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_AddGamepadMappingsFromFile, (const char *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_AddGamepadMappingsFromFile, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_AddGamepadMappingsFromIO, (SDL_IOStream *a, bool b), (a
+SDL_DYNAPI_PROC(int, SDL_AddGamepadMappingsFromIO, (SDL_IOStream* a, bool b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AddHintCallback, (const char *a, SDL_HintCallback b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_AddHintCallback, (const char* a, SDL_HintCallback b, void* c), (a
 ,
 b
 ,
@@ -186,7 +193,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AddSurfaceAlternateImage, (SDL_Surface *a, SDL_Surface *b), (a
+SDL_DYNAPI_PROC(bool, SDL_AddSurfaceAlternateImage, (SDL_Surface* a, SDL_Surface* b), (a
 ,
 b
 )
@@ -211,7 +218,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AddVulkanRenderSemaphores, (SDL_Renderer *a, Uint32 b, Sint64 c, Sint64 d), (a
+SDL_DYNAPI_PROC(bool, SDL_AddVulkanRenderSemaphores, (SDL_Renderer* a, Uint32 b, Sint64 c, Sint64 d), (a
 ,
 b
 ,
@@ -222,13 +229,17 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickID, SDL_AttachVirtualJoystick, (const SDL_VirtualJoystickDesc *a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickID, SDL_AttachVirtualJoystick, (const SDL_VirtualJoystickDesc*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AudioDevicePaused, (SDL_AudioDeviceID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_AudioDevicePaused, (SDL_AudioDeviceID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUComputePass *, SDL_BeginGPUComputePass, (SDL_GPUCommandBuffer *a, const SDL_GPUStorageTextureReadWriteBinding *b, Uint32 c, const SDL_GPUStorageBufferReadWriteBinding *d, Uint32 e), (a
+SDL_DYNAPI_PROC(SDL_GPUComputePass*, SDL_BeginGPUComputePass, (SDL_GPUCommandBuffer* a,
+                const SDL_GPUStorageTextureReadWriteBinding* b, Uint32 c, const SDL_GPUStorageBufferReadWriteBinding* d,
+                Uint32 e), (a
 ,
 b
 ,
@@ -241,163 +252,12 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUCopyPass *, SDL_BeginGPUCopyPass, (SDL_GPUCommandBuffer *a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUCopyPass*, SDL_BeginGPUCopyPass, (SDL_GPUCommandBuffer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPURenderPass *, SDL_BeginGPURenderPass, (SDL_GPUCommandBuffer *a, const SDL_GPUColorTargetInfo *b, Uint32 c, const SDL_GPUDepthStencilTargetInfo *d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_BindAudioStream, (SDL_AudioDeviceID a, SDL_AudioStream *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_BindAudioStreams, (SDL_AudioDeviceID a, SDL_AudioStream *const *b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUComputePipeline, (SDL_GPUComputePass *a, SDL_GPUComputePipeline *b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUComputeSamplers, (SDL_GPUComputePass *a, Uint32 b, const SDL_GPUTextureSamplerBinding *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUComputeStorageBuffers, (SDL_GPUComputePass *a, Uint32 b, SDL_GPUBuffer *const *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUComputeStorageTextures, (SDL_GPUComputePass *a, Uint32 b, SDL_GPUTexture *const *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUFragmentSamplers, (SDL_GPURenderPass *a, Uint32 b, const SDL_GPUTextureSamplerBinding *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUFragmentStorageBuffers, (SDL_GPURenderPass *a, Uint32 b, SDL_GPUBuffer *const *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUFragmentStorageTextures, (SDL_GPURenderPass *a, Uint32 b, SDL_GPUTexture *const *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUGraphicsPipeline, (SDL_GPURenderPass *a, SDL_GPUGraphicsPipeline *b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUIndexBuffer, (SDL_GPURenderPass *a, const SDL_GPUBufferBinding *b, SDL_GPUIndexElementSize c), (a
-,
-b
-,
-c
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUVertexBuffers, (SDL_GPURenderPass *a, Uint32 b, const SDL_GPUBufferBinding *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUVertexSamplers, (SDL_GPURenderPass *a, Uint32 b, const SDL_GPUTextureSamplerBinding *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUVertexStorageBuffers, (SDL_GPURenderPass *a, Uint32 b, SDL_GPUBuffer *const *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BindGPUVertexStorageTextures, (SDL_GPURenderPass *a, Uint32 b, SDL_GPUTexture *const *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_BlitGPUTexture, (SDL_GPUCommandBuffer *a, const SDL_GPUBlitInfo *b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(bool, SDL_BlitSurface, (SDL_Surface *a, const SDL_Rect *b, SDL_Surface *c, const SDL_Rect *d), (a
+SDL_DYNAPI_PROC(SDL_GPURenderPass*, SDL_BeginGPURenderPass, (SDL_GPUCommandBuffer* a, const SDL_GPUColorTargetInfo* b,
+                Uint32 c, const SDL_GPUDepthStencilTargetInfo* d), (a
 ,
 b
 ,
@@ -408,7 +268,172 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_BlitSurface9Grid, (SDL_Surface *a, const SDL_Rect *b, int c, int d, int e, int f, float g, SDL_ScaleMode h, SDL_Surface *i, const SDL_Rect *j), (a
+SDL_DYNAPI_PROC(bool, SDL_BindAudioStream, (SDL_AudioDeviceID a, SDL_AudioStream* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_BindAudioStreams, (SDL_AudioDeviceID a, SDL_AudioStream* const * b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUComputePipeline, (SDL_GPUComputePass* a, SDL_GPUComputePipeline* b), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUComputeSamplers, (SDL_GPUComputePass* a, Uint32 b,
+                const SDL_GPUTextureSamplerBinding* c, Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUComputeStorageBuffers, (SDL_GPUComputePass* a, Uint32 b, SDL_GPUBuffer* const * c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUComputeStorageTextures, (SDL_GPUComputePass* a, Uint32 b, SDL_GPUTexture* const * c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUFragmentSamplers, (SDL_GPURenderPass* a, Uint32 b,
+                const SDL_GPUTextureSamplerBinding* c, Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUFragmentStorageBuffers, (SDL_GPURenderPass* a, Uint32 b, SDL_GPUBuffer* const * c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUFragmentStorageTextures, (SDL_GPURenderPass* a, Uint32 b, SDL_GPUTexture* const * c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUGraphicsPipeline, (SDL_GPURenderPass* a, SDL_GPUGraphicsPipeline* b), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUIndexBuffer, (SDL_GPURenderPass* a, const SDL_GPUBufferBinding* b,
+                SDL_GPUIndexElementSize c), (a
+,
+b
+,
+c
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUVertexBuffers, (SDL_GPURenderPass* a, Uint32 b, const SDL_GPUBufferBinding* c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUVertexSamplers, (SDL_GPURenderPass* a, Uint32 b, const SDL_GPUTextureSamplerBinding* c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUVertexStorageBuffers, (SDL_GPURenderPass* a, Uint32 b, SDL_GPUBuffer* const * c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BindGPUVertexStorageTextures, (SDL_GPURenderPass* a, Uint32 b, SDL_GPUTexture* const * c,
+                Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_BlitGPUTexture, (SDL_GPUCommandBuffer* a, const SDL_GPUBlitInfo* b), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(bool, SDL_BlitSurface, (SDL_Surface* a, const SDL_Rect* b, SDL_Surface* c, const SDL_Rect* d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_BlitSurface9Grid, (SDL_Surface* a, const SDL_Rect* b, int c, int d, int e, int f, float g,
+                SDL_ScaleMode h, SDL_Surface* i, const SDL_Rect* j), (a
 ,
 b
 ,
@@ -431,7 +456,8 @@ j
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceScaled, (SDL_Surface *a, const SDL_Rect *b, SDL_Surface *c, const SDL_Rect *d, SDL_ScaleMode e), (a
+SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceScaled, (SDL_Surface* a, const SDL_Rect* b, SDL_Surface* c, const SDL_Rect* d,
+                SDL_ScaleMode e), (a
 ,
 b
 ,
@@ -444,7 +470,7 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceTiled, (SDL_Surface *a, const SDL_Rect *b, SDL_Surface *c, const SDL_Rect *d), (a
+SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceTiled, (SDL_Surface* a, const SDL_Rect* b, SDL_Surface* c, const SDL_Rect* d), (a
 ,
 b
 ,
@@ -455,7 +481,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceTiledWithScale, (SDL_Surface *a, const SDL_Rect *b, float c, SDL_ScaleMode d, SDL_Surface *e, const SDL_Rect *f), (a
+SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceTiledWithScale, (SDL_Surface* a, const SDL_Rect* b, float c, SDL_ScaleMode d,
+                SDL_Surface* e, const SDL_Rect* f), (a
 ,
 b
 ,
@@ -470,7 +497,8 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceUnchecked, (SDL_Surface *a, const SDL_Rect *b, SDL_Surface *c, const SDL_Rect *d), (a
+SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceUnchecked, (SDL_Surface* a, const SDL_Rect* b, SDL_Surface* c,
+                const SDL_Rect* d), (a
 ,
 b
 ,
@@ -481,7 +509,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceUncheckedScaled, (SDL_Surface *a, const SDL_Rect *b, SDL_Surface *c, const SDL_Rect *d, SDL_ScaleMode e), (a
+SDL_DYNAPI_PROC(bool, SDL_BlitSurfaceUncheckedScaled, (SDL_Surface* a, const SDL_Rect* b, SDL_Surface* c,
+                const SDL_Rect* d, SDL_ScaleMode e), (a
 ,
 b
 ,
@@ -494,12 +523,14 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_BroadcastCondition, (SDL_Condition *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_BroadcastCondition, (SDL_Condition* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_CaptureMouse, (bool a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_CaptureMouse, (bool a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ClaimWindowForGPUDevice, (SDL_GPUDevice *a, SDL_Window *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ClaimWindowForGPUDevice, (SDL_GPUDevice* a, SDL_Window* b), (a
 ,
 b
 )
@@ -509,86 +540,30 @@ return
 SDL_DYNAPI_PROC(void, SDL_CleanupTLS, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_ClearAudioStream, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ClearAudioStream, (SDL_AudioStream* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_ClearClipboardData, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ClearComposition, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ClearComposition, (SDL_Window* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_ClearError, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ClearProperty, (SDL_PropertiesID a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ClearProperty, (SDL_PropertiesID a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ClearSurface, (SDL_Surface *a, float b, float c, float d, float e), (a
-,
-b
-,
-c
-,
-d
-,
-e
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_CloseAudioDevice, (SDL_AudioDeviceID a), (a), 
-)
-SDL_DYNAPI_PROC(void, SDL_CloseCamera, (SDL_Camera *a), (a), 
-)
-SDL_DYNAPI_PROC(void, SDL_CloseGamepad, (SDL_Gamepad *a), (a), 
-)
-SDL_DYNAPI_PROC(void, SDL_CloseHaptic, (SDL_Haptic *a), (a), 
-)
-SDL_DYNAPI_PROC(bool, SDL_CloseIO, (SDL_IOStream *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(void, SDL_CloseJoystick, (SDL_Joystick *a), (a), 
-)
-SDL_DYNAPI_PROC(void, SDL_CloseSensor, (SDL_Sensor *a), (a), 
-)
-SDL_DYNAPI_PROC(bool, SDL_CloseStorage, (SDL_Storage *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_CompareAndSwapAtomicInt, (SDL_AtomicInt *a, int b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_CompareAndSwapAtomicPointer, (void **a, void *b, void *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_CompareAndSwapAtomicU32, (SDL_AtomicU32 *a, Uint32 b, Uint32 c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_BlendMode, SDL_ComposeCustomBlendMode, (SDL_BlendFactor a, SDL_BlendFactor b, SDL_BlendOperation c, SDL_BlendFactor d, SDL_BlendFactor e, SDL_BlendOperation f), (a
+SDL_DYNAPI_PROC(bool, SDL_ClearSurface, (SDL_Surface* a, float b, float c, float d, float e), (a
 ,
 b
 ,
@@ -597,13 +572,65 @@ c
 d
 ,
 e
-,
-f
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ConvertAudioSamples, (const SDL_AudioSpec *a, const Uint8 *b, int c, const SDL_AudioSpec *d, Uint8 **e, int *f), (a
+SDL_DYNAPI_PROC(void, SDL_CloseAudioDevice, (SDL_AudioDeviceID a), (a),
+
+)
+SDL_DYNAPI_PROC(void, SDL_CloseCamera, (SDL_Camera* a), (a),
+
+)
+SDL_DYNAPI_PROC(void, SDL_CloseGamepad, (SDL_Gamepad* a), (a),
+
+)
+SDL_DYNAPI_PROC(void, SDL_CloseHaptic, (SDL_Haptic* a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_CloseIO, (SDL_IOStream* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(void, SDL_CloseJoystick, (SDL_Joystick* a), (a),
+
+)
+SDL_DYNAPI_PROC(void, SDL_CloseSensor, (SDL_Sensor* a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_CloseStorage, (SDL_Storage* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_CompareAndSwapAtomicInt, (SDL_AtomicInt* a, int b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_CompareAndSwapAtomicPointer, (void** a, void* b, void* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_CompareAndSwapAtomicU32, (SDL_AtomicU32* a, Uint32 b, Uint32 c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_BlendMode, SDL_ComposeCustomBlendMode, (SDL_BlendFactor a, SDL_BlendFactor b, SDL_BlendOperation c,
+                SDL_BlendFactor d, SDL_BlendFactor e, SDL_BlendOperation f), (a
 ,
 b
 ,
@@ -618,14 +645,31 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ConvertEventToRenderCoordinates, (SDL_Renderer *a, SDL_Event *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ConvertAudioSamples, (const SDL_AudioSpec* a, const Uint8* b, int c, const SDL_AudioSpec* d,
+                Uint8** e, int* f), (a
+,
+b
+,
+c
+,
+d
+,
+e
+,
+f
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_ConvertEventToRenderCoordinates, (SDL_Renderer* a, SDL_Event* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ConvertPixels, (int a, int b, SDL_PixelFormat c, const void *d, int e, SDL_PixelFormat f, void *g, int h), (a
+SDL_DYNAPI_PROC(bool, SDL_ConvertPixels, (int a, int b, SDL_PixelFormat c, const void* d, int e, SDL_PixelFormat f,
+                void* g, int h), (a
 ,
 b
 ,
@@ -644,7 +688,9 @@ h
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ConvertPixelsAndColorspace, (int a, int b, SDL_PixelFormat c, SDL_Colorspace d, SDL_PropertiesID e, const void *f, int g, SDL_PixelFormat h, SDL_Colorspace i, SDL_PropertiesID j, void *k, int l), (a
+SDL_DYNAPI_PROC(bool, SDL_ConvertPixelsAndColorspace, (int a, int b, SDL_PixelFormat c, SDL_Colorspace d,
+                SDL_PropertiesID e, const void* f, int g, SDL_PixelFormat h, SDL_Colorspace i, SDL_PropertiesID j,
+                void* k, int l), (a
 ,
 b
 ,
@@ -671,14 +717,15 @@ l
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_ConvertSurface, (SDL_Surface *a, SDL_PixelFormat b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_ConvertSurface, (SDL_Surface* a, SDL_PixelFormat b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_ConvertSurfaceAndColorspace, (SDL_Surface *a, SDL_PixelFormat b, SDL_Palette *c, SDL_Colorspace d, SDL_PropertiesID e), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_ConvertSurfaceAndColorspace, (SDL_Surface* a, SDL_PixelFormat b, SDL_Palette* c,
+                SDL_Colorspace d, SDL_PropertiesID e), (a
 ,
 b
 ,
@@ -691,14 +738,15 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_CopyFile, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_CopyFile, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_CopyGPUBufferToBuffer, (SDL_GPUCopyPass *a, const SDL_GPUBufferLocation *b, const SDL_GPUBufferLocation *c, Uint32 d, bool e), (a
+SDL_DYNAPI_PROC(void, SDL_CopyGPUBufferToBuffer, (SDL_GPUCopyPass* a, const SDL_GPUBufferLocation* b,
+                const SDL_GPUBufferLocation* c, Uint32 d, bool e), (a
 ,
 b
 ,
@@ -710,7 +758,8 @@ e
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_CopyGPUTextureToTexture, (SDL_GPUCopyPass *a, const SDL_GPUTextureLocation *b, const SDL_GPUTextureLocation *c, Uint32 d, Uint32 e, Uint32 f, bool g), (a
+SDL_DYNAPI_PROC(void, SDL_CopyGPUTextureToTexture, (SDL_GPUCopyPass* a, const SDL_GPUTextureLocation* b,
+                const SDL_GPUTextureLocation* c, Uint32 d, Uint32 e, Uint32 f, bool g), (a
 ,
 b
 ,
@@ -733,7 +782,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_CopyStorageFile, (SDL_Storage *a, const char *b, const char *c), (a
+SDL_DYNAPI_PROC(bool, SDL_CopyStorageFile, (SDL_Storage* a, const char* b, const char* c), (a
 ,
 b
 ,
@@ -742,14 +791,14 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_AudioStream *, SDL_CreateAudioStream, (const SDL_AudioSpec *a, const SDL_AudioSpec *b), (a
+SDL_DYNAPI_PROC(SDL_AudioStream*, SDL_CreateAudioStream, (const SDL_AudioSpec* a, const SDL_AudioSpec* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Cursor *, SDL_CreateColorCursor, (SDL_Surface *a, int b, int c), (a
+SDL_DYNAPI_PROC(SDL_Cursor*, SDL_CreateColorCursor, (SDL_Surface* a, int b, int c), (a
 ,
 b
 ,
@@ -758,11 +807,11 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Condition *, SDL_CreateCondition, (void), ()
+SDL_DYNAPI_PROC(SDL_Condition*, SDL_CreateCondition, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Cursor *, SDL_CreateCursor, (const Uint8 *a, const Uint8 *b, int c, int d, int e, int f), (a
+SDL_DYNAPI_PROC(SDL_Cursor*, SDL_CreateCursor, (const Uint8* a, const Uint8* b, int c, int d, int e, int f), (a
 ,
 b
 ,
@@ -777,27 +826,30 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_CreateDirectory, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_CreateDirectory, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Environment *, SDL_CreateEnvironment, (bool a), (a), 
+SDL_DYNAPI_PROC(SDL_Environment*, SDL_CreateEnvironment, (bool a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUBuffer *, SDL_CreateGPUBuffer, (SDL_GPUDevice *a, const SDL_GPUBufferCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUBuffer*, SDL_CreateGPUBuffer, (SDL_GPUDevice* a, const SDL_GPUBufferCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUComputePipeline *, SDL_CreateGPUComputePipeline, (SDL_GPUDevice *a, const SDL_GPUComputePipelineCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUComputePipeline*, SDL_CreateGPUComputePipeline, (SDL_GPUDevice* a,
+                const SDL_GPUComputePipelineCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUDevice *, SDL_CreateGPUDevice, (SDL_GPUShaderFormat a, bool b, const char *c), (a
+SDL_DYNAPI_PROC(SDL_GPUDevice*, SDL_CreateGPUDevice, (SDL_GPUShaderFormat a, bool b, const char* c), (a
 ,
 b
 ,
@@ -806,38 +858,41 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUDevice *, SDL_CreateGPUDeviceWithProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUDevice*, SDL_CreateGPUDeviceWithProperties, (SDL_PropertiesID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUGraphicsPipeline *, SDL_CreateGPUGraphicsPipeline, (SDL_GPUDevice *a, const SDL_GPUGraphicsPipelineCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUGraphicsPipeline*, SDL_CreateGPUGraphicsPipeline, (SDL_GPUDevice* a,
+                const SDL_GPUGraphicsPipelineCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUSampler *, SDL_CreateGPUSampler, (SDL_GPUDevice *a, const SDL_GPUSamplerCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUSampler*, SDL_CreateGPUSampler, (SDL_GPUDevice* a, const SDL_GPUSamplerCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUShader *, SDL_CreateGPUShader, (SDL_GPUDevice *a, const SDL_GPUShaderCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUShader*, SDL_CreateGPUShader, (SDL_GPUDevice* a, const SDL_GPUShaderCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUTexture *, SDL_CreateGPUTexture, (SDL_GPUDevice *a, const SDL_GPUTextureCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUTexture*, SDL_CreateGPUTexture, (SDL_GPUDevice* a, const SDL_GPUTextureCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUTransferBuffer *, SDL_CreateGPUTransferBuffer, (SDL_GPUDevice *a, const SDL_GPUTransferBufferCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPUTransferBuffer*, SDL_CreateGPUTransferBuffer, (SDL_GPUDevice* a,
+                const SDL_GPUTransferBufferCreateInfo* b), (a
 ,
 b
 )
@@ -851,14 +906,15 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Mutex *, SDL_CreateMutex, (void), ()
+SDL_DYNAPI_PROC(SDL_Mutex*, SDL_CreateMutex, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Palette *, SDL_CreatePalette, (int a), (a), 
+SDL_DYNAPI_PROC(SDL_Palette*, SDL_CreatePalette, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_CreatePopupWindow, (SDL_Window *a, int b, int c, int d, int e, SDL_WindowFlags f), (a
+SDL_DYNAPI_PROC(SDL_Window*, SDL_CreatePopupWindow, (SDL_Window* a, int b, int c, int d, int e, SDL_WindowFlags f), (a
 ,
 b
 ,
@@ -873,75 +929,61 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Process *, SDL_CreateProcess, (const char *const *a, bool b), (a
+SDL_DYNAPI_PROC(SDL_Process*, SDL_CreateProcess, (const char* const * a, bool b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Process *, SDL_CreateProcessWithProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(SDL_Process*, SDL_CreateProcessWithProperties, (SDL_PropertiesID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_CreateProperties, (void), (), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_CreateProperties, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_RWLock *, SDL_CreateRWLock, (void), ()
+SDL_DYNAPI_PROC(SDL_RWLock*, SDL_CreateRWLock, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Renderer *, SDL_CreateRenderer, (SDL_Window *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_Renderer *, SDL_CreateRendererWithProperties, (SDL_PropertiesID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Semaphore *, SDL_CreateSemaphore, (Uint32 a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Renderer *, SDL_CreateSoftwareRenderer, (SDL_Surface *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_CreateStorageDirectory, (SDL_Storage *a, const char *b), (a
+SDL_DYNAPI_PROC(SDL_Renderer*, SDL_CreateRenderer, (SDL_Window* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_CreateSurface, (int a, int b, SDL_PixelFormat c), (a
+SDL_DYNAPI_PROC(SDL_Renderer*, SDL_CreateRendererWithProperties, (SDL_PropertiesID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Semaphore*, SDL_CreateSemaphore, (Uint32 a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Renderer*, SDL_CreateSoftwareRenderer, (SDL_Surface* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_CreateStorageDirectory, (SDL_Storage* a, const char* b), (a
 ,
 b
-,
-c
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_CreateSurfaceFrom, (int a, int b, SDL_PixelFormat c, void *d, int e), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_CreateSurface, (int a, int b, SDL_PixelFormat c), (a
 ,
 b
 ,
 c
-,
-d
-,
-e
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Palette *, SDL_CreateSurfacePalette, (SDL_Surface *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Cursor *, SDL_CreateSystemCursor, (SDL_SystemCursor a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Texture *, SDL_CreateTexture, (SDL_Renderer *a, SDL_PixelFormat b, SDL_TextureAccess c, int d, int e), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_CreateSurfaceFrom, (int a, int b, SDL_PixelFormat c, void* d, int e), (a
 ,
 b
 ,
@@ -954,21 +996,16 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Texture *, SDL_CreateTextureFromSurface, (SDL_Renderer *a, SDL_Surface *b), (a
-,
-b
-)
-,
+SDL_DYNAPI_PROC(SDL_Palette*, SDL_CreateSurfacePalette, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Texture *, SDL_CreateTextureWithProperties, (SDL_Renderer *a, SDL_PropertiesID b), (a
-,
-b
-)
-,
+SDL_DYNAPI_PROC(SDL_Cursor*, SDL_CreateSystemCursor, (SDL_SystemCursor a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Thread *, SDL_CreateThreadRuntime, (SDL_ThreadFunction a, const char *b, void *c, SDL_FunctionPointer d, SDL_FunctionPointer e), (a
+SDL_DYNAPI_PROC(SDL_Texture*, SDL_CreateTexture, (SDL_Renderer* a, SDL_PixelFormat b, SDL_TextureAccess c, int d,
+                int e), (a
 ,
 b
 ,
@@ -981,7 +1018,36 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Thread *, SDL_CreateThreadWithPropertiesRuntime, (SDL_PropertiesID a, SDL_FunctionPointer b, SDL_FunctionPointer c), (a
+SDL_DYNAPI_PROC(SDL_Texture*, SDL_CreateTextureFromSurface, (SDL_Renderer* a, SDL_Surface* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_Texture*, SDL_CreateTextureWithProperties, (SDL_Renderer* a, SDL_PropertiesID b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_Thread*, SDL_CreateThreadRuntime, (SDL_ThreadFunction a, const char* b, void* c,
+                SDL_FunctionPointer d, SDL_FunctionPointer e), (a
+,
+b
+,
+c
+,
+d
+,
+e
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_Thread*, SDL_CreateThreadWithPropertiesRuntime, (SDL_PropertiesID a, SDL_FunctionPointer b,
+                SDL_FunctionPointer c), (a
 ,
 b
 ,
@@ -990,7 +1056,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_CreateWindow, (const char *a, int b, int c, SDL_WindowFlags d), (a
+SDL_DYNAPI_PROC(SDL_Window*, SDL_CreateWindow, (const char* a, int b, int c, SDL_WindowFlags d), (a
 ,
 b
 ,
@@ -1001,7 +1067,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_CreateWindowAndRenderer, (const char *a, int b, int c, SDL_WindowFlags d, SDL_Window **e, SDL_Renderer **f), (a
+SDL_DYNAPI_PROC(bool, SDL_CreateWindowAndRenderer, (const char* a, int b, int c, SDL_WindowFlags d, SDL_Window** e,
+                SDL_Renderer** f), (a
 ,
 b
 ,
@@ -1016,73 +1083,94 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_CreateWindowWithProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(SDL_Window*, SDL_CreateWindowWithProperties, (SDL_PropertiesID a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_CursorVisible, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_DateTimeToTime, (const SDL_DateTime *a, SDL_Time *b), (a
+SDL_DYNAPI_PROC(bool, SDL_DateTimeToTime, (const SDL_DateTime* a, SDL_Time* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_Delay, (Uint32 a), (a), 
+SDL_DYNAPI_PROC(void, SDL_Delay, (Uint32 a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DelayNS, (Uint64 a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DelayNS, (Uint64 a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyAudioStream, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyAudioStream, (SDL_AudioStream* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyCondition, (SDL_Condition *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyCondition, (SDL_Condition* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyCursor, (SDL_Cursor *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyCursor, (SDL_Cursor* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyEnvironment, (SDL_Environment *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyEnvironment, (SDL_Environment* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyGPUDevice, (SDL_GPUDevice *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyGPUDevice, (SDL_GPUDevice* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyHapticEffect, (SDL_Haptic *a, SDL_HapticEffectID b), (a
+SDL_DYNAPI_PROC(void, SDL_DestroyHapticEffect, (SDL_Haptic* a, SDL_HapticEffectID b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyMutex, (SDL_Mutex *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyMutex, (SDL_Mutex* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyPalette, (SDL_Palette *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyPalette, (SDL_Palette* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyProcess, (SDL_Process *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyProcess, (SDL_Process* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyProperties, (SDL_PropertiesID a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyRWLock, (SDL_RWLock *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyRWLock, (SDL_RWLock* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyRenderer, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyRenderer, (SDL_Renderer* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroySemaphore, (SDL_Semaphore *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroySemaphore, (SDL_Semaphore* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroySurface, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroySurface, (SDL_Surface* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyTexture, (SDL_Texture *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyTexture, (SDL_Texture* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyWindow, (SDL_Window* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_DestroyWindowSurface, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_DestroyWindowSurface, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_DetachThread, (SDL_Thread *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DetachThread, (SDL_Thread* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_DetachVirtualJoystick, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_DetachVirtualJoystick, (SDL_JoystickID a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_DisableScreenSaver, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_DispatchGPUCompute, (SDL_GPUComputePass *a, Uint32 b, Uint32 c, Uint32 d), (a
+SDL_DYNAPI_PROC(void, SDL_DispatchGPUCompute, (SDL_GPUComputePass* a, Uint32 b, Uint32 c, Uint32 d), (a
 ,
 b
 ,
@@ -1092,7 +1180,7 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DispatchGPUComputeIndirect, (SDL_GPUComputePass *a, SDL_GPUBuffer *b, Uint32 c), (a
+SDL_DYNAPI_PROC(void, SDL_DispatchGPUComputeIndirect, (SDL_GPUComputePass* a, SDL_GPUBuffer* b, Uint32 c), (a
 ,
 b
 ,
@@ -1100,7 +1188,8 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DownloadFromGPUBuffer, (SDL_GPUCopyPass *a, const SDL_GPUBufferRegion *b, const SDL_GPUTransferBufferLocation *c), (a
+SDL_DYNAPI_PROC(void, SDL_DownloadFromGPUBuffer, (SDL_GPUCopyPass* a, const SDL_GPUBufferRegion* b,
+                const SDL_GPUTransferBufferLocation* c), (a
 ,
 b
 ,
@@ -1108,7 +1197,8 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DownloadFromGPUTexture, (SDL_GPUCopyPass *a, const SDL_GPUTextureRegion *b, const SDL_GPUTextureTransferInfo *c), (a
+SDL_DYNAPI_PROC(void, SDL_DownloadFromGPUTexture, (SDL_GPUCopyPass* a, const SDL_GPUTextureRegion* b,
+                const SDL_GPUTextureTransferInfo* c), (a
 ,
 b
 ,
@@ -1116,7 +1206,8 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DrawGPUIndexedPrimitives, (SDL_GPURenderPass *a, Uint32 b, Uint32 c, Uint32 d, Sint32 e, Uint32 f), (a
+SDL_DYNAPI_PROC(void, SDL_DrawGPUIndexedPrimitives, (SDL_GPURenderPass* a, Uint32 b, Uint32 c, Uint32 d, Sint32 e,
+                Uint32 f), (a
 ,
 b
 ,
@@ -1130,7 +1221,8 @@ f
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DrawGPUIndexedPrimitivesIndirect, (SDL_GPURenderPass *a, SDL_GPUBuffer *b, Uint32 c, Uint32 d), (a
+SDL_DYNAPI_PROC(void, SDL_DrawGPUIndexedPrimitivesIndirect, (SDL_GPURenderPass* a, SDL_GPUBuffer* b, Uint32 c,
+                Uint32 d), (a
 ,
 b
 ,
@@ -1140,7 +1232,7 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DrawGPUPrimitives, (SDL_GPURenderPass *a, Uint32 b, Uint32 c, Uint32 d, Uint32 e), (a
+SDL_DYNAPI_PROC(void, SDL_DrawGPUPrimitives, (SDL_GPURenderPass* a, Uint32 b, Uint32 c, Uint32 d, Uint32 e), (a
 ,
 b
 ,
@@ -1152,7 +1244,7 @@ e
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DrawGPUPrimitivesIndirect, (SDL_GPURenderPass *a, SDL_GPUBuffer *b, Uint32 c, Uint32 d), (a
+SDL_DYNAPI_PROC(void, SDL_DrawGPUPrimitivesIndirect, (SDL_GPURenderPass* a, SDL_GPUBuffer* b, Uint32 c, Uint32 d), (a
 ,
 b
 ,
@@ -1162,22 +1254,28 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_DuplicateSurface, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_DuplicateSurface, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_EGLConfig, SDL_EGL_GetCurrentConfig, (void), (), 
+SDL_DYNAPI_PROC(SDL_EGLConfig, SDL_EGL_GetCurrentConfig, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_EGLDisplay, SDL_EGL_GetCurrentDisplay, (void), (), 
+SDL_DYNAPI_PROC(SDL_EGLDisplay, SDL_EGL_GetCurrentDisplay, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_EGL_GetProcAddress, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_EGL_GetProcAddress, (const char*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_EGLSurface, SDL_EGL_GetWindowSurface, (SDL_Window * a), (a), 
+SDL_DYNAPI_PROC(SDL_EGLSurface, SDL_EGL_GetWindowSurface, (SDL_Window * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_EGL_SetAttributeCallbacks, (SDL_EGLAttribArrayCallback a, SDL_EGLIntArrayCallback b, SDL_EGLIntArrayCallback c, void *d), (a
+SDL_DYNAPI_PROC(void, SDL_EGL_SetAttributeCallbacks, (SDL_EGLAttribArrayCallback a, SDL_EGLIntArrayCallback b,
+                SDL_EGLIntArrayCallback c, void* d), (a
 ,
 b
 ,
@@ -1191,13 +1289,17 @@ SDL_DYNAPI_PROC(bool, SDL_EnableScreenSaver, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_EndGPUComputePass, (SDL_GPUComputePass *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_EndGPUComputePass, (SDL_GPUComputePass* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_EndGPUCopyPass, (SDL_GPUCopyPass *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_EndGPUCopyPass, (SDL_GPUCopyPass* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_EndGPURenderPass, (SDL_GPURenderPass *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_EndGPURenderPass, (SDL_GPURenderPass* a), (a),
+
 )
-SDL_DYNAPI_PROC(int, SDL_EnterAppMainCallbacks, (int a, char *b[], SDL_AppInit_func c, SDL_AppIterate_func d, SDL_AppEvent_func e, SDL_AppQuit_func f), (a
+SDL_DYNAPI_PROC(int, SDL_EnterAppMainCallbacks, (int a, char* b[], SDL_AppInit_func c, SDL_AppIterate_func d,
+                SDL_AppEvent_func e, SDL_AppQuit_func f), (a
 ,
 b
 ,
@@ -1212,7 +1314,7 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_EnumerateDirectory, (const char *a, SDL_EnumerateDirectoryCallback b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_EnumerateDirectory, (const char* a, SDL_EnumerateDirectoryCallback b, void* c), (a
 ,
 b
 ,
@@ -1221,7 +1323,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_EnumerateProperties, (SDL_PropertiesID a, SDL_EnumeratePropertiesCallback b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_EnumerateProperties, (SDL_PropertiesID a, SDL_EnumeratePropertiesCallback b, void* c), (a
 ,
 b
 ,
@@ -1230,30 +1332,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_EnumerateStorageDirectory, (SDL_Storage *a, const char *b, SDL_EnumerateDirectoryCallback c, void *d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_EventEnabled, (Uint32 a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_FillSurfaceRect, (SDL_Surface *a, const SDL_Rect *b, Uint32 c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_FillSurfaceRects, (SDL_Surface *a, const SDL_Rect *b, int c, Uint32 d), (a
+SDL_DYNAPI_PROC(bool, SDL_EnumerateStorageDirectory, (SDL_Storage* a, const char* b, SDL_EnumerateDirectoryCallback c,
+                void* d), (a
 ,
 b
 ,
@@ -1264,30 +1344,56 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_FilterEvents, (SDL_EventFilter a, void *b), (a
+SDL_DYNAPI_PROC(bool, SDL_EventEnabled, (Uint32 a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_FillSurfaceRect, (SDL_Surface* a, const SDL_Rect* b, Uint32 c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_FillSurfaceRects, (SDL_Surface* a, const SDL_Rect* b, int c, Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_FilterEvents, (SDL_EventFilter a, void* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_FlashWindow, (SDL_Window *a, SDL_FlashOperation b), (a
+SDL_DYNAPI_PROC(bool, SDL_FlashWindow, (SDL_Window* a, SDL_FlashOperation b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_FlipSurface, (SDL_Surface *a, SDL_FlipMode b), (a
+SDL_DYNAPI_PROC(bool, SDL_FlipSurface, (SDL_Surface* a, SDL_FlipMode b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_FlushAudioStream, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_FlushAudioStream, (SDL_AudioStream* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_FlushEvent, (Uint32 a), (a), 
+SDL_DYNAPI_PROC(void, SDL_FlushEvent, (Uint32 a), (a),
+
 )
 SDL_DYNAPI_PROC(void, SDL_FlushEvents, (Uint32 a, Uint32 b), (a
 ,
@@ -1295,52 +1401,63 @@ b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_FlushIO, (SDL_IOStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_FlushIO, (SDL_IOStream* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_FlushRenderer, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_FlushRenderer, (SDL_Renderer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GDKResumeGPU, (SDL_GPUDevice *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_GDKResumeGPU, (SDL_GPUDevice* a), (a),
+
 )
 SDL_DYNAPI_PROC(void, SDL_GDKSuspendComplete, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_GDKSuspendGPU, (SDL_GPUDevice *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_GDKSuspendGPU, (SDL_GPUDevice* a), (a),
+
 )
-SDL_DYNAPI_PROC(SDL_GLContext, SDL_GL_CreateContext, (SDL_Window * a), (a), 
+SDL_DYNAPI_PROC(SDL_GLContext, SDL_GL_CreateContext, (SDL_Window * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_DestroyContext, (SDL_GLContext a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GL_DestroyContext, (SDL_GLContext a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_ExtensionSupported, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GL_ExtensionSupported, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_GetAttribute, (SDL_GLAttr a, int *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GL_GetAttribute, (SDL_GLAttr a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GLContext, SDL_GL_GetCurrentContext, (void), (), 
+SDL_DYNAPI_PROC(SDL_GLContext, SDL_GL_GetCurrentContext, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GL_GetCurrentWindow, (void), ()
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GL_GetCurrentWindow, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_GL_GetProcAddress, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_GL_GetProcAddress, (const char*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_GetSwapInterval, (int *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GL_GetSwapInterval, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_LoadLibrary, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GL_LoadLibrary, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_MakeCurrent, (SDL_Window *a, SDL_GLContext b), (a
+SDL_DYNAPI_PROC(bool, SDL_GL_MakeCurrent, (SDL_Window* a, SDL_GLContext b), (a
 ,
 b
 )
@@ -1357,29 +1474,34 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_SetSwapInterval, (int a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GL_SetSwapInterval, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GL_SwapWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GL_SwapWindow, (SDL_Window* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(void, SDL_GL_UnloadLibrary, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_GPUSupportsProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GPUSupportsProperties, (SDL_PropertiesID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GPUSupportsShaderFormats, (SDL_GPUShaderFormat a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GPUSupportsShaderFormats, (SDL_GPUShaderFormat a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_GPUTextureFormatTexelBlockSize, (SDL_GPUTextureFormat a), (a), 
+SDL_DYNAPI_PROC(Uint32, SDL_GPUTextureFormatTexelBlockSize, (SDL_GPUTextureFormat a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GPUTextureSupportsFormat, (SDL_GPUDevice *a, SDL_GPUTextureFormat b, SDL_GPUTextureType c, SDL_GPUTextureUsageFlags d), (a
+SDL_DYNAPI_PROC(bool, SDL_GPUTextureSupportsFormat, (SDL_GPUDevice* a, SDL_GPUTextureFormat b, SDL_GPUTextureType c,
+                SDL_GPUTextureUsageFlags d), (a
 ,
 b
 ,
@@ -1390,7 +1512,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GPUTextureSupportsSampleCount, (SDL_GPUDevice *a, SDL_GPUTextureFormat b, SDL_GPUSampleCount c), (a
+SDL_DYNAPI_PROC(bool, SDL_GPUTextureSupportsSampleCount, (SDL_GPUDevice* a, SDL_GPUTextureFormat b,
+                SDL_GPUSampleCount c), (a
 ,
 b
 ,
@@ -1399,7 +1522,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GUIDToString, (SDL_GUID a, char *b, int c), (a
+SDL_DYNAPI_PROC(void, SDL_GUIDToString, (SDL_GUID a, char* b, int c), (a
 ,
 b
 ,
@@ -1407,67 +1530,69 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_GamepadConnected, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GamepadConnected, (SDL_Gamepad* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_GamepadEventsEnabled, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GamepadHasAxis, (SDL_Gamepad *a, SDL_GamepadAxis b), (a
+SDL_DYNAPI_PROC(bool, SDL_GamepadHasAxis, (SDL_Gamepad* a, SDL_GamepadAxis b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GamepadHasButton, (SDL_Gamepad *a, SDL_GamepadButton b), (a
+SDL_DYNAPI_PROC(bool, SDL_GamepadHasButton, (SDL_Gamepad* a, SDL_GamepadButton b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GamepadHasSensor, (SDL_Gamepad *a, SDL_SensorType b), (a
+SDL_DYNAPI_PROC(bool, SDL_GamepadHasSensor, (SDL_Gamepad* a, SDL_SensorType b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GamepadSensorEnabled, (SDL_Gamepad *a, SDL_SensorType b), (a
+SDL_DYNAPI_PROC(bool, SDL_GamepadSensorEnabled, (SDL_Gamepad* a, SDL_SensorType b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GenerateMipmapsForGPUTexture, (SDL_GPUCommandBuffer *a, SDL_GPUTexture *b), (a
+SDL_DYNAPI_PROC(void, SDL_GenerateMipmapsForGPUTexture, (SDL_GPUCommandBuffer* a, SDL_GPUTexture* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void *, SDL_GetAndroidActivity, (void), ()
+SDL_DYNAPI_PROC(void*, SDL_GetAndroidActivity, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetAndroidCachePath, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetAndroidCachePath, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetAndroidExternalStoragePath, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetAndroidExternalStoragePath, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_GetAndroidExternalStorageState, (void), (), 
+SDL_DYNAPI_PROC(Uint32, SDL_GetAndroidExternalStorageState, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetAndroidInternalStoragePath, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetAndroidInternalStoragePath, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetAndroidJNIEnv, (void), ()
+SDL_DYNAPI_PROC(void*, SDL_GetAndroidJNIEnv, (void), ()
 ,
 return
 )
@@ -1475,63 +1600,38 @@ SDL_DYNAPI_PROC(int, SDL_GetAndroidSDKVersion, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetAppMetadataProperty, (const char *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetAppMetadataProperty, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_AssertionHandler, SDL_GetAssertionHandler, (void **a), (a), 
+SDL_DYNAPI_PROC(SDL_AssertionHandler, SDL_GetAssertionHandler, (void**a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const SDL_AssertData *, SDL_GetAssertionReport, (void), ()
+SDL_DYNAPI_PROC(const SDL_AssertData*, SDL_GetAssertionReport, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetAtomicInt, (SDL_AtomicInt *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetAtomicInt, (SDL_AtomicInt* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetAtomicPointer, (void **a), (a), 
+SDL_DYNAPI_PROC(void*, SDL_GetAtomicPointer, (void** a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_GetAtomicU32, (SDL_AtomicU32 * a), (a), 
+SDL_DYNAPI_PROC(Uint32, SDL_GetAtomicU32, (SDL_AtomicU32 * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int *, SDL_GetAudioDeviceChannelMap, (SDL_AudioDeviceID a, int *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetAudioDeviceFormat, (SDL_AudioDeviceID a, SDL_AudioSpec *b, int *c), (a
+SDL_DYNAPI_PROC(int*, SDL_GetAudioDeviceChannelMap, (SDL_AudioDeviceID a, int* b), (a
 ,
 b
-,
-c
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_GetAudioDeviceGain, (SDL_AudioDeviceID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetAudioDeviceName, (SDL_AudioDeviceID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetAudioDriver, (int a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetAudioFormatName, (SDL_AudioFormat a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_AudioDeviceID *, SDL_GetAudioPlaybackDevices, (int *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_AudioDeviceID *, SDL_GetAudioRecordingDevices, (int *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_GetAudioStreamAvailable, (SDL_AudioStream *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_GetAudioStreamData, (SDL_AudioStream *a, void *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetAudioDeviceFormat, (SDL_AudioDeviceID a, SDL_AudioSpec* b, int* c), (a
 ,
 b
 ,
@@ -1540,10 +1640,35 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_AudioDeviceID, SDL_GetAudioStreamDevice, (SDL_AudioStream * a), (a), 
+SDL_DYNAPI_PROC(float, SDL_GetAudioDeviceGain, (SDL_AudioDeviceID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetAudioStreamFormat, (SDL_AudioStream *a, SDL_AudioSpec *b, SDL_AudioSpec *c), (a
+SDL_DYNAPI_PROC(const char*, SDL_GetAudioDeviceName, (SDL_AudioDeviceID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetAudioDriver, (int a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetAudioFormatName, (SDL_AudioFormat a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_AudioDeviceID*, SDL_GetAudioPlaybackDevices, (int* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_AudioDeviceID*, SDL_GetAudioRecordingDevices, (int* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int, SDL_GetAudioStreamAvailable, (SDL_AudioStream* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int, SDL_GetAudioStreamData, (SDL_AudioStream* a, void* b, int c), (a
 ,
 b
 ,
@@ -1552,37 +1677,54 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_GetAudioStreamFrequencyRatio, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(SDL_AudioDeviceID, SDL_GetAudioStreamDevice, (SDL_AudioStream * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_GetAudioStreamGain, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetAudioStreamFormat, (SDL_AudioStream* a, SDL_AudioSpec* b, SDL_AudioSpec* c), (a
+,
+b
+,
+c
+)
+,
 return
 )
-SDL_DYNAPI_PROC(int *, SDL_GetAudioStreamInputChannelMap, (SDL_AudioStream *a, int *b), (a
+SDL_DYNAPI_PROC(float, SDL_GetAudioStreamFrequencyRatio, (SDL_AudioStream* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(float, SDL_GetAudioStreamGain, (SDL_AudioStream* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int*, SDL_GetAudioStreamInputChannelMap, (SDL_AudioStream* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int *, SDL_GetAudioStreamOutputChannelMap, (SDL_AudioStream *a, int *b), (a
+SDL_DYNAPI_PROC(int*, SDL_GetAudioStreamOutputChannelMap, (SDL_AudioStream* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetAudioStreamProperties, (SDL_AudioStream * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetAudioStreamProperties, (SDL_AudioStream * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetAudioStreamQueued, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetAudioStreamQueued, (SDL_AudioStream* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetBasePath, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetBasePath, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetBooleanProperty, (SDL_PropertiesID a, const char *b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetBooleanProperty, (SDL_PropertiesID a, const char* b, bool c), (a
 ,
 b
 ,
@@ -1595,56 +1737,65 @@ SDL_DYNAPI_PROC(int, SDL_GetCPUCacheLineSize, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetCameraDriver, (int a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetCameraDriver, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetCameraFormat, (SDL_Camera *a, SDL_CameraSpec *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetCameraFormat, (SDL_Camera* a, SDL_CameraSpec* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_CameraID, SDL_GetCameraID, (SDL_Camera * a), (a), 
+SDL_DYNAPI_PROC(SDL_CameraID, SDL_GetCameraID, (SDL_Camera * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetCameraName, (SDL_CameraID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetCameraName, (SDL_CameraID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_CameraPermissionState, SDL_GetCameraPermissionState, (SDL_Camera * a), (a), 
+SDL_DYNAPI_PROC(SDL_CameraPermissionState, SDL_GetCameraPermissionState, (SDL_Camera * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_CameraPosition, SDL_GetCameraPosition, (SDL_CameraID a), (a), 
+SDL_DYNAPI_PROC(SDL_CameraPosition, SDL_GetCameraPosition, (SDL_CameraID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetCameraProperties, (SDL_Camera * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetCameraProperties, (SDL_Camera * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_CameraSpec **, SDL_GetCameraSupportedFormats, (SDL_CameraID a, int *b), (a
+SDL_DYNAPI_PROC(SDL_CameraSpec**, SDL_GetCameraSupportedFormats, (SDL_CameraID a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_CameraID *, SDL_GetCameras, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_CameraID*, SDL_GetCameras, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetClipboardData, (const char *a, size_t *b), (a
+SDL_DYNAPI_PROC(void*, SDL_GetClipboardData, (const char* a, size_t* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char **, SDL_GetClipboardMimeTypes, (size_t *a), (a), 
+SDL_DYNAPI_PROC(char**, SDL_GetClipboardMimeTypes, (size_t* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetClipboardText, (void), ()
+SDL_DYNAPI_PROC(char*, SDL_GetClipboardText, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetClosestFullscreenDisplayMode, (SDL_DisplayID a, int b, int c, float d, bool e, SDL_DisplayMode *f), (a
+SDL_DYNAPI_PROC(bool, SDL_GetClosestFullscreenDisplayMode, (SDL_DisplayID a, int b, int c, float d, bool e,
+                SDL_DisplayMode* f), (a
 ,
 b
 ,
@@ -1659,44 +1810,23 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetCurrentAudioDriver, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetCurrentAudioDriver, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetCurrentCameraDriver, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetCurrentCameraDriver, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const SDL_DisplayMode *, SDL_GetCurrentDisplayMode, (SDL_DisplayID a), (a), 
+SDL_DYNAPI_PROC(const SDL_DisplayMode*, SDL_GetCurrentDisplayMode, (SDL_DisplayID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_DisplayOrientation, SDL_GetCurrentDisplayOrientation, (SDL_DisplayID a), (a), 
+SDL_DYNAPI_PROC(SDL_DisplayOrientation, SDL_GetCurrentDisplayOrientation, (SDL_DisplayID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetCurrentRenderOutputSize, (SDL_Renderer *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_ThreadID, SDL_GetCurrentThreadID, (void), (), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetCurrentTime, (SDL_Time *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetCurrentVideoDriver, (void), ()
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_Cursor *, SDL_GetCursor, (void), ()
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetDXGIOutputInfo, (SDL_DisplayID a, int *b, int *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetCurrentRenderOutputSize, (SDL_Renderer* a, int* b, int* c), (a
 ,
 b
 ,
@@ -1705,7 +1835,32 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetDateTimeLocalePreferences, (SDL_DateFormat *a, SDL_TimeFormat *b), (a
+SDL_DYNAPI_PROC(SDL_ThreadID, SDL_GetCurrentThreadID, (void), (),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetCurrentTime, (SDL_Time* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetCurrentVideoDriver, (void), ()
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_Cursor*, SDL_GetCursor, (void), ()
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetDXGIOutputInfo, (SDL_DisplayID a, int* b, int* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetDateTimeLocalePreferences, (SDL_DateFormat* a, SDL_TimeFormat* b), (a
 ,
 b
 )
@@ -1737,80 +1892,91 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_AssertionHandler, SDL_GetDefaultAssertionHandler, (void), (), 
+SDL_DYNAPI_PROC(SDL_AssertionHandler, SDL_GetDefaultAssertionHandler, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Cursor *, SDL_GetDefaultCursor, (void), ()
+SDL_DYNAPI_PROC(SDL_Cursor*, SDL_GetDefaultCursor, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const SDL_DisplayMode *, SDL_GetDesktopDisplayMode, (SDL_DisplayID a), (a), 
+SDL_DYNAPI_PROC(const SDL_DisplayMode*, SDL_GetDesktopDisplayMode, (SDL_DisplayID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetDirect3D9AdapterIndex, (SDL_DisplayID a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetDirect3D9AdapterIndex, (SDL_DisplayID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetDisplayBounds, (SDL_DisplayID a, SDL_Rect *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(float, SDL_GetDisplayContentScale, (SDL_DisplayID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetDisplayForPoint, (const SDL_Point *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetDisplayForRect, (const SDL_Rect *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetDisplayForWindow, (SDL_Window * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetDisplayName, (SDL_DisplayID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetDisplayProperties, (SDL_DisplayID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetDisplayUsableBounds, (SDL_DisplayID a, SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetDisplayBounds, (SDL_DisplayID a, SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_DisplayID *, SDL_GetDisplays, (int *a), (a), 
+SDL_DYNAPI_PROC(float, SDL_GetDisplayContentScale, (SDL_DisplayID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Environment *, SDL_GetEnvironment, (void), ()
-,
+SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetDisplayForPoint, (const SDL_Point*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetEnvironmentVariable, (SDL_Environment *a, const char *b), (a
+SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetDisplayForRect, (const SDL_Rect*a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetDisplayForWindow, (SDL_Window * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetDisplayName, (SDL_DisplayID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetDisplayProperties, (SDL_DisplayID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetDisplayUsableBounds, (SDL_DisplayID a, SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char **, SDL_GetEnvironmentVariables, (SDL_Environment *a), (a), 
+SDL_DYNAPI_PROC(SDL_DisplayID*, SDL_GetDisplays, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetError, (void), ()
+SDL_DYNAPI_PROC(SDL_Environment*, SDL_GetEnvironment, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetEventFilter, (SDL_EventFilter *a, void **b), (a
+SDL_DYNAPI_PROC(const char*, SDL_GetEnvironmentVariable, (SDL_Environment* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_GetFloatProperty, (SDL_PropertiesID a, const char *b, float c), (a
+SDL_DYNAPI_PROC(char**, SDL_GetEnvironmentVariables, (SDL_Environment* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetError, (void), ()
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetEventFilter, (SDL_EventFilter* a, void** b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(float, SDL_GetFloatProperty, (SDL_PropertiesID a, const char* b, float c), (a
 ,
 b
 ,
@@ -1819,39 +1985,45 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_DisplayMode **, SDL_GetFullscreenDisplayModes, (SDL_DisplayID a, int *b), (a
+SDL_DYNAPI_PROC(SDL_DisplayMode**, SDL_GetFullscreenDisplayModes, (SDL_DisplayID a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetGDKDefaultUser, (XUserHandle *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetGDKDefaultUser, (XUserHandle* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetGDKTaskQueue, (XTaskQueueHandle *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetGDKTaskQueue, (XTaskQueueHandle* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGPUDeviceDriver, (SDL_GPUDevice *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGPUDeviceDriver, (SDL_GPUDevice* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGPUDriver, (int a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGPUDriver, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUShaderFormat, SDL_GetGPUShaderFormats, (SDL_GPUDevice * a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUShaderFormat, SDL_GetGPUShaderFormats, (SDL_GPUDevice * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUTextureFormat, SDL_GetGPUSwapchainTextureFormat, (SDL_GPUDevice * a, SDL_Window * b), (a, b), 
+SDL_DYNAPI_PROC(SDL_GPUTextureFormat, SDL_GetGPUSwapchainTextureFormat, (SDL_GPUDevice * a, SDL_Window * b), (a, b),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadAppleSFSymbolsNameForAxis, (SDL_Gamepad *a, SDL_GamepadAxis b), (a
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadAppleSFSymbolsNameForAxis, (SDL_Gamepad* a, SDL_GamepadAxis b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadAppleSFSymbolsNameForButton, (SDL_Gamepad *a, SDL_GamepadButton b), (a
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadAppleSFSymbolsNameForButton, (SDL_Gamepad* a, SDL_GamepadButton b), (a
 ,
 b
 )
@@ -1865,24 +2037,26 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadAxis, SDL_GetGamepadAxisFromString, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadAxis, SDL_GetGamepadAxisFromString, (const char*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadBinding **, SDL_GetGamepadBindings, (SDL_Gamepad *a, int *b), (a
+SDL_DYNAPI_PROC(SDL_GamepadBinding**, SDL_GetGamepadBindings, (SDL_Gamepad* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetGamepadButton, (SDL_Gamepad *a, SDL_GamepadButton b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetGamepadButton, (SDL_Gamepad* a, SDL_GamepadButton b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadButton, SDL_GetGamepadButtonFromString, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadButton, SDL_GetGamepadButtonFromString, (const char*a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_GamepadButtonLabel, SDL_GetGamepadButtonLabel, (SDL_Gamepad * a, SDL_GamepadButton b), (a
@@ -1899,76 +2073,99 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickConnectionState, SDL_GetGamepadConnectionState, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickConnectionState, SDL_GetGamepadConnectionState, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadFirmwareVersion, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadFirmwareVersion, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Gamepad *, SDL_GetGamepadFromID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_Gamepad*, SDL_GetGamepadFromID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Gamepad *, SDL_GetGamepadFromPlayerIndex, (int a), (a), 
+SDL_DYNAPI_PROC(SDL_Gamepad*, SDL_GetGamepadFromPlayerIndex, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GUID, SDL_GetGamepadGUIDForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_GUID, SDL_GetGamepadGUIDForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickID, SDL_GetGamepadID, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickID, SDL_GetGamepadID, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Joystick *, SDL_GetGamepadJoystick, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(SDL_Joystick*, SDL_GetGamepadJoystick, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetGamepadMapping, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(char*, SDL_GetGamepadMapping, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetGamepadMappingForGUID, (SDL_GUID a), (a), 
+SDL_DYNAPI_PROC(char*, SDL_GetGamepadMappingForGUID, (SDL_GUID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetGamepadMappingForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(char*, SDL_GetGamepadMappingForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char **, SDL_GetGamepadMappings, (int *a), (a), 
+SDL_DYNAPI_PROC(char**, SDL_GetGamepadMappings, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadName, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadName, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadNameForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadNameForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadPath, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadPath, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadPathForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadPathForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetGamepadPlayerIndex, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetGamepadPlayerIndex, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetGamepadPlayerIndexForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetGamepadPlayerIndexForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PowerState, SDL_GetGamepadPowerInfo, (SDL_Gamepad * a, int * b), (a, b), 
+SDL_DYNAPI_PROC(SDL_PowerState, SDL_GetGamepadPowerInfo, (SDL_Gamepad * a, int * b), (a, b),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProduct, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProduct, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProductForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProductForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProductVersion, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProductVersion, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProductVersionForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadProductVersionForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetGamepadProperties, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetGamepadProperties, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetGamepadSensorData, (SDL_Gamepad *a, SDL_SensorType b, float *c, int d), (a
+SDL_DYNAPI_PROC(bool, SDL_GetGamepadSensorData, (SDL_Gamepad* a, SDL_SensorType b, float* c, int d), (a
 ,
 b
 ,
@@ -1979,29 +2176,35 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_GetGamepadSensorDataRate, (SDL_Gamepad *a, SDL_SensorType b), (a
+SDL_DYNAPI_PROC(float, SDL_GetGamepadSensorDataRate, (SDL_Gamepad* a, SDL_SensorType b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadSerial, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadSerial, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint64, SDL_GetGamepadSteamHandle, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(Uint64, SDL_GetGamepadSteamHandle, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadStringForAxis, (SDL_GamepadAxis a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadStringForAxis, (SDL_GamepadAxis a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadStringForButton, (SDL_GamepadButton a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadStringForButton, (SDL_GamepadButton a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetGamepadStringForType, (SDL_GamepadType a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetGamepadStringForType, (SDL_GamepadType a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetGamepadTouchpadFinger, (SDL_Gamepad *a, int b, int c, bool *d, float *e, float *f, float *g), (a
+SDL_DYNAPI_PROC(bool, SDL_GetGamepadTouchpadFinger, (SDL_Gamepad* a, int b, int c, bool* d, float* e, float* f,
+                float* g), (a
 ,
 b
 ,
@@ -2018,80 +2221,97 @@ g
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetGamepadType, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetGamepadType, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetGamepadTypeForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetGamepadTypeForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetGamepadTypeFromString, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetGamepadTypeFromString, (const char*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadVendor, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadVendor, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadVendorForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetGamepadVendorForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickID *, SDL_GetGamepads, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickID*, SDL_GetGamepads, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_MouseButtonFlags, SDL_GetGlobalMouseState, (float *a, float *b), (a
+SDL_DYNAPI_PROC(SDL_MouseButtonFlags, SDL_GetGlobalMouseState, (float*a, float *b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetGlobalProperties, (void), (), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetGlobalProperties, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetGrabbedWindow, (void), ()
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetGrabbedWindow, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetHapticEffectStatus, (SDL_Haptic *a, SDL_HapticEffectID b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(Uint32, SDL_GetHapticFeatures, (SDL_Haptic * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Haptic *, SDL_GetHapticFromID, (SDL_HapticID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_HapticID, SDL_GetHapticID, (SDL_Haptic * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetHapticName, (SDL_Haptic *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetHapticNameForID, (SDL_HapticID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_HapticID *, SDL_GetHaptics, (int *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetHint, (const char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetHintBoolean, (const char *a, bool b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetHapticEffectStatus, (SDL_Haptic* a, SDL_HapticEffectID b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetIOProperties, (SDL_IOStream * a), (a), 
+SDL_DYNAPI_PROC(Uint32, SDL_GetHapticFeatures, (SDL_Haptic * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Sint64, SDL_GetIOSize, (SDL_IOStream * a), (a), 
+SDL_DYNAPI_PROC(SDL_Haptic*, SDL_GetHapticFromID, (SDL_HapticID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStatus, SDL_GetIOStatus, (SDL_IOStream * a), (a), 
+SDL_DYNAPI_PROC(SDL_HapticID, SDL_GetHapticID, (SDL_Haptic * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetHapticName, (SDL_Haptic* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetHapticNameForID, (SDL_HapticID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_HapticID*, SDL_GetHaptics, (int* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetHint, (const char* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetHintBoolean, (const char* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetIOProperties, (SDL_IOStream * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(Sint64, SDL_GetIOSize, (SDL_IOStream * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_IOStatus, SDL_GetIOStatus, (SDL_IOStream * a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(Sint16, SDL_GetJoystickAxis, (SDL_Joystick * a, int b), (a
@@ -2101,7 +2321,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetJoystickAxisInitialState, (SDL_Joystick *a, int b, Sint16 *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetJoystickAxisInitialState, (SDL_Joystick* a, int b, Sint16* c), (a
 ,
 b
 ,
@@ -2110,7 +2330,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetJoystickBall, (SDL_Joystick *a, int b, int *c, int *d), (a
+SDL_DYNAPI_PROC(bool, SDL_GetJoystickBall, (SDL_Joystick* a, int b, int* c, int* d), (a
 ,
 b
 ,
@@ -2121,32 +2341,38 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetJoystickButton, (SDL_Joystick *a, int b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetJoystickButton, (SDL_Joystick* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickConnectionState, SDL_GetJoystickConnectionState, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickConnectionState, SDL_GetJoystickConnectionState, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickFirmwareVersion, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickFirmwareVersion, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Joystick *, SDL_GetJoystickFromID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_Joystick*, SDL_GetJoystickFromID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Joystick *, SDL_GetJoystickFromPlayerIndex, (int a), (a), 
+SDL_DYNAPI_PROC(SDL_Joystick*, SDL_GetJoystickFromPlayerIndex, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GUID, SDL_GetJoystickGUID, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(SDL_GUID, SDL_GetJoystickGUID, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GUID, SDL_GetJoystickGUIDForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_GUID, SDL_GetJoystickGUIDForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GetJoystickGUIDInfo, (SDL_GUID a, Uint16 *b, Uint16 *c, Uint16 *d, Uint16 *e), (a
+SDL_DYNAPI_PROC(void, SDL_GetJoystickGUIDInfo, (SDL_GUID a, Uint16* b, Uint16* c, Uint16* d, Uint16* e), (a
 ,
 b
 ,
@@ -2165,64 +2391,84 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickID, SDL_GetJoystickID, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickID, SDL_GetJoystickID, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetJoystickName, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetJoystickName, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetJoystickNameForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetJoystickNameForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetJoystickPath, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetJoystickPath, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetJoystickPathForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetJoystickPathForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetJoystickPlayerIndex, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetJoystickPlayerIndex, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetJoystickPlayerIndexForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetJoystickPlayerIndexForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PowerState, SDL_GetJoystickPowerInfo, (SDL_Joystick * a, int * b), (a, b), 
+SDL_DYNAPI_PROC(SDL_PowerState, SDL_GetJoystickPowerInfo, (SDL_Joystick * a, int * b), (a, b),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProduct, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProduct, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProductForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProductForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProductVersion, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProductVersion, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProductVersionForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickProductVersionForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetJoystickProperties, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetJoystickProperties, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetJoystickSerial, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetJoystickSerial, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickType, SDL_GetJoystickType, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickType, SDL_GetJoystickType, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickType, SDL_GetJoystickTypeForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickType, SDL_GetJoystickTypeForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickVendor, (SDL_Joystick * a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickVendor, (SDL_Joystick * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickVendorForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(Uint16, SDL_GetJoystickVendorForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_JoystickID *, SDL_GetJoysticks, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_JoystickID*, SDL_GetJoysticks, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Keycode, SDL_GetKeyFromName, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Keycode, SDL_GetKeyFromName, (const char*a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_Keycode, SDL_GetKeyFromScancode, (SDL_Scancode a, SDL_Keymod b, bool c), (a
@@ -2234,32 +2480,38 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetKeyName, (SDL_Keycode a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetKeyName, (SDL_Keycode a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetKeyboardFocus, (void), ()
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetKeyboardFocus, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetKeyboardNameForID, (SDL_KeyboardID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetKeyboardNameForID, (SDL_KeyboardID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const bool *, SDL_GetKeyboardState, (int *a), (a), 
+SDL_DYNAPI_PROC(const bool*, SDL_GetKeyboardState, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_KeyboardID *, SDL_GetKeyboards, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_KeyboardID*, SDL_GetKeyboards, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GetLogOutputFunction, (SDL_LogOutputFunction *a, void **b), (a
+SDL_DYNAPI_PROC(void, SDL_GetLogOutputFunction, (SDL_LogOutputFunction* a, void** b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(SDL_LogPriority, SDL_GetLogPriority, (int a), (a), 
+SDL_DYNAPI_PROC(SDL_LogPriority, SDL_GetLogPriority, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetMasksForPixelFormat, (SDL_PixelFormat a, int *b, Uint32 *c, Uint32 *d, Uint32 *e, Uint32 *f), (a
+SDL_DYNAPI_PROC(bool, SDL_GetMasksForPixelFormat, (SDL_PixelFormat a, int* b, Uint32* c, Uint32* d, Uint32* e,
+                Uint32* f), (a
 ,
 b
 ,
@@ -2274,13 +2526,16 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetMaxHapticEffects, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetMaxHapticEffects, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetMaxHapticEffectsPlaying, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetMaxHapticEffectsPlaying, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GetMemoryFunctions, (SDL_malloc_func *a, SDL_calloc_func *b, SDL_realloc_func *c, SDL_free_func *d), (a
+SDL_DYNAPI_PROC(void, SDL_GetMemoryFunctions, (SDL_malloc_func* a, SDL_calloc_func* b, SDL_realloc_func* c,
+                SDL_free_func* d), (a
 ,
 b
 ,
@@ -2290,27 +2545,31 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(SDL_MouseID *, SDL_GetMice, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_MouseID*, SDL_GetMice, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Keymod, SDL_GetModState, (void), (), 
+SDL_DYNAPI_PROC(SDL_Keymod, SDL_GetModState, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetMouseFocus, (void), ()
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetMouseFocus, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetMouseNameForID, (SDL_MouseID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetMouseNameForID, (SDL_MouseID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_MouseButtonFlags, SDL_GetMouseState, (float *a, float *b), (a
+SDL_DYNAPI_PROC(SDL_MouseButtonFlags, SDL_GetMouseState, (float*a, float *b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_DisplayOrientation, SDL_GetNaturalDisplayOrientation, (SDL_DisplayID a), (a), 
+SDL_DYNAPI_PROC(SDL_DisplayOrientation, SDL_GetNaturalDisplayOrientation, (SDL_DisplayID a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(int, SDL_GetNumAllocations, (void), ()
@@ -2329,29 +2588,35 @@ SDL_DYNAPI_PROC(int, SDL_GetNumGPUDrivers, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumGamepadTouchpadFingers, (SDL_Gamepad *a, int b), (a
+SDL_DYNAPI_PROC(int, SDL_GetNumGamepadTouchpadFingers, (SDL_Gamepad* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumGamepadTouchpads, (SDL_Gamepad *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetNumGamepadTouchpads, (SDL_Gamepad* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumHapticAxes, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetNumHapticAxes, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumJoystickAxes, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetNumJoystickAxes, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumJoystickBalls, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetNumJoystickBalls, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumJoystickButtons, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetNumJoystickButtons, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetNumJoystickHats, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetNumJoystickHats, (SDL_Joystick* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(int, SDL_GetNumLogicalCPUCores, (void), ()
@@ -2375,7 +2640,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GetOriginalMemoryFunctions, (SDL_malloc_func *a, SDL_calloc_func *b, SDL_realloc_func *c, SDL_free_func *d), (a
+SDL_DYNAPI_PROC(void, SDL_GetOriginalMemoryFunctions, (SDL_malloc_func* a, SDL_calloc_func* b, SDL_realloc_func* c,
+                SDL_free_func* d), (a
 ,
 b
 ,
@@ -2385,20 +2651,23 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_GetPathInfo, (const char *a, SDL_PathInfo *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetPathInfo, (const char* a, SDL_PathInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint64, SDL_GetPerformanceCounter, (void), (), 
+SDL_DYNAPI_PROC(Uint64, SDL_GetPerformanceCounter, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(Uint64, SDL_GetPerformanceFrequency, (void), (), 
+SDL_DYNAPI_PROC(Uint64, SDL_GetPerformanceFrequency, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(const SDL_PixelFormatDetails *, SDL_GetPixelFormatDetails, (SDL_PixelFormat a), (a), 
+SDL_DYNAPI_PROC(const SDL_PixelFormatDetails*, SDL_GetPixelFormatDetails, (SDL_PixelFormat a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_PixelFormat, SDL_GetPixelFormatForMasks, (int a, Uint32 b, Uint32 c, Uint32 d, Uint32 e), (a
@@ -2414,14 +2683,15 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetPixelFormatName, (SDL_PixelFormat a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetPixelFormatName, (SDL_PixelFormat a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetPlatform, (void), ()
+SDL_DYNAPI_PROC(const char*, SDL_GetPlatform, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetPointerProperty, (SDL_PropertiesID a, const char *b, void *c), (a
+SDL_DYNAPI_PROC(void*, SDL_GetPointerProperty, (SDL_PropertiesID a, const char* b, void* c), (a
 ,
 b
 ,
@@ -2430,37 +2700,42 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PowerState, SDL_GetPowerInfo, (int *a, int *b), (a
+SDL_DYNAPI_PROC(SDL_PowerState, SDL_GetPowerInfo, (int*a, int *b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetPrefPath, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(char*, SDL_GetPrefPath, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Locale **, SDL_GetPreferredLocales, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_Locale**, SDL_GetPreferredLocales, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetPrimaryDisplay, (void), (), 
+SDL_DYNAPI_PROC(SDL_DisplayID, SDL_GetPrimaryDisplay, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetPrimarySelectionText, (void), ()
+SDL_DYNAPI_PROC(char*, SDL_GetPrimarySelectionText, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_GetProcessInput, (SDL_Process *a), (a), 
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_GetProcessInput, (SDL_Process* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_GetProcessOutput, (SDL_Process *a), (a), 
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_GetProcessOutput, (SDL_Process* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetProcessProperties, (SDL_Process * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetProcessProperties, (SDL_Process * a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_PropertyType, SDL_GetPropertyType, (SDL_PropertiesID a, const char *b), (a
@@ -2470,7 +2745,8 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_GetRGB, (Uint32 a, const SDL_PixelFormatDetails *b, const SDL_Palette *c, Uint8 *d, Uint8 *e, Uint8 *f), (a
+SDL_DYNAPI_PROC(void, SDL_GetRGB, (Uint32 a, const SDL_PixelFormatDetails* b, const SDL_Palette* c, Uint8* d, Uint8* e,
+                Uint8* f), (a
 ,
 b
 ,
@@ -2484,7 +2760,8 @@ f
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_GetRGBA, (Uint32 a, const SDL_PixelFormatDetails *b, const SDL_Palette *c, Uint8 *d, Uint8 *e, Uint8 *f, Uint8 *g), (a
+SDL_DYNAPI_PROC(void, SDL_GetRGBA, (Uint32 a, const SDL_PixelFormatDetails* b, const SDL_Palette* c, Uint8* d, Uint8* e,
+                Uint8* f, Uint8* g), (a
 ,
 b
 ,
@@ -2500,13 +2777,15 @@ g
 )
 ,
 )
-SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetRealGamepadType, (SDL_Gamepad * a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetRealGamepadType, (SDL_Gamepad * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetRealGamepadTypeForID, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_GamepadType, SDL_GetRealGamepadTypeForID, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectAndLineIntersection, (const SDL_Rect *a, int *b, int *c, int *d, int *e), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectAndLineIntersection, (const SDL_Rect* a, int* b, int* c, int* d, int* e), (a
 ,
 b
 ,
@@ -2519,7 +2798,8 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectAndLineIntersectionFloat, (const SDL_FRect *a, float *b, float *c, float *d, float *e), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectAndLineIntersectionFloat, (const SDL_FRect* a, float* b, float* c, float* d,
+                float* e), (a
 ,
 b
 ,
@@ -2532,7 +2812,7 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectEnclosingPoints, (const SDL_Point *a, int b, const SDL_Rect *c, SDL_Rect *d), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectEnclosingPoints, (const SDL_Point* a, int b, const SDL_Rect* c, SDL_Rect* d), (a
 ,
 b
 ,
@@ -2543,7 +2823,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectEnclosingPointsFloat, (const SDL_FPoint *a, int b, const SDL_FRect *c, SDL_FRect *d), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectEnclosingPointsFloat, (const SDL_FPoint* a, int b, const SDL_FRect* c,
+                SDL_FRect* d), (a
 ,
 b
 ,
@@ -2554,7 +2835,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectIntersection, (const SDL_Rect *a, const SDL_Rect *b, SDL_Rect *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectIntersection, (const SDL_Rect* a, const SDL_Rect* b, SDL_Rect* c), (a
 ,
 b
 ,
@@ -2563,7 +2844,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectIntersectionFloat, (const SDL_FRect *a, const SDL_FRect *b, SDL_FRect *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectIntersectionFloat, (const SDL_FRect* a, const SDL_FRect* b, SDL_FRect* c), (a
 ,
 b
 ,
@@ -2572,7 +2853,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectUnion, (const SDL_Rect *a, const SDL_Rect *b, SDL_Rect *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectUnion, (const SDL_Rect* a, const SDL_Rect* b, SDL_Rect* c), (a
 ,
 b
 ,
@@ -2581,7 +2862,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRectUnionFloat, (const SDL_FRect *a, const SDL_FRect *b, SDL_FRect *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRectUnionFloat, (const SDL_FRect* a, const SDL_FRect* b, SDL_FRect* c), (a
 ,
 b
 ,
@@ -2590,48 +2871,35 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_MouseButtonFlags, SDL_GetRelativeMouseState, (float *a, float *b), (a
+SDL_DYNAPI_PROC(SDL_MouseButtonFlags, SDL_GetRelativeMouseState, (float*a, float *b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderClipRect, (SDL_Renderer *a, SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderClipRect, (SDL_Renderer* a, SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderColorScale, (SDL_Renderer *a, float *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderColorScale, (SDL_Renderer* a, float* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderDrawBlendMode, (SDL_Renderer *a, SDL_BlendMode *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderDrawBlendMode, (SDL_Renderer* a, SDL_BlendMode* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderDrawColor, (SDL_Renderer *a, Uint8 *b, Uint8 *c, Uint8 *d, Uint8 *e), (a
-,
-b
-,
-c
-,
-d
-,
-e
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetRenderDrawColorFloat, (SDL_Renderer *a, float *b, float *c, float *d, float *e), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderDrawColor, (SDL_Renderer* a, Uint8* b, Uint8* c, Uint8* d, Uint8* e), (a
 ,
 b
 ,
@@ -2644,10 +2912,25 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetRenderDriver, (int a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetRenderDrawColorFloat, (SDL_Renderer* a, float* b, float* c, float* d, float* e), (a
+,
+b
+,
+c
+,
+d
+,
+e
+)
+,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderLogicalPresentation, (SDL_Renderer *a, int *b, int *c, SDL_RendererLogicalPresentation *d), (a
+SDL_DYNAPI_PROC(const char*, SDL_GetRenderDriver, (int a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetRenderLogicalPresentation, (SDL_Renderer* a, int* b, int* c,
+                SDL_RendererLogicalPresentation* d), (a
 ,
 b
 ,
@@ -2658,36 +2941,22 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderLogicalPresentationRect, (SDL_Renderer *a, SDL_FRect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderLogicalPresentationRect, (SDL_Renderer* a, SDL_FRect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetRenderMetalCommandEncoder, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(void*, SDL_GetRenderMetalCommandEncoder, (SDL_Renderer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetRenderMetalLayer, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(void*, SDL_GetRenderMetalLayer, (SDL_Renderer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderOutputSize, (SDL_Renderer *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetRenderSafeArea, (SDL_Renderer *a, SDL_Rect *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetRenderScale, (SDL_Renderer *a, float *b, float *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderOutputSize, (SDL_Renderer* a, int* b, int* c), (a
 ,
 b
 ,
@@ -2696,43 +2965,66 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Texture *, SDL_GetRenderTarget, (SDL_Renderer *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetRenderVSync, (SDL_Renderer *a, int *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderSafeArea, (SDL_Renderer* a, SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetRenderViewport, (SDL_Renderer *a, SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderScale, (SDL_Renderer* a, float* b, float* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_Texture*, SDL_GetRenderTarget, (SDL_Renderer* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetRenderVSync, (SDL_Renderer* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetRenderWindow, (SDL_Renderer *a), (a), 
-return
+SDL_DYNAPI_PROC(bool, SDL_GetRenderViewport, (SDL_Renderer* a, SDL_Rect* b), (a
+,
+b
 )
-SDL_DYNAPI_PROC(SDL_Renderer *, SDL_GetRenderer, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Renderer *, SDL_GetRendererFromTexture, (SDL_Texture *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetRendererName, (SDL_Renderer *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetRendererProperties, (SDL_Renderer * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetRevision, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_GetSIMDAlignment, (void), (), 
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetRenderWindow, (SDL_Renderer* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Renderer*, SDL_GetRenderer, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Renderer*, SDL_GetRendererFromTexture, (SDL_Texture* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetRendererName, (SDL_Renderer* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetRendererProperties, (SDL_Renderer * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetRevision, (void), ()
+,
+return
+)
+SDL_DYNAPI_PROC(size_t, SDL_GetSIMDAlignment, (void), (),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_Scancode, SDL_GetScancodeFromKey, (SDL_Keycode a, SDL_Keymod * b), (a
@@ -2742,16 +3034,19 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Scancode, SDL_GetScancodeFromName, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Scancode, SDL_GetScancodeFromName, (const char*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetScancodeName, (SDL_Scancode a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetScancodeName, (SDL_Scancode a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_GetSemaphoreValue, (SDL_Semaphore * a), (a), 
+SDL_DYNAPI_PROC(Uint32, SDL_GetSemaphoreValue, (SDL_Semaphore * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetSensorData, (SDL_Sensor *a, float *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetSensorData, (SDL_Sensor* a, float* b, int c), (a
 ,
 b
 ,
@@ -2760,40 +3055,51 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Sensor *, SDL_GetSensorFromID, (SDL_SensorID a), (a), 
+SDL_DYNAPI_PROC(SDL_Sensor*, SDL_GetSensorFromID, (SDL_SensorID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_SensorID, SDL_GetSensorID, (SDL_Sensor * a), (a), 
+SDL_DYNAPI_PROC(SDL_SensorID, SDL_GetSensorID, (SDL_Sensor * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetSensorName, (SDL_Sensor *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetSensorName, (SDL_Sensor* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetSensorNameForID, (SDL_SensorID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetSensorNameForID, (SDL_SensorID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetSensorNonPortableType, (SDL_Sensor *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetSensorNonPortableType, (SDL_Sensor* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetSensorNonPortableTypeForID, (SDL_SensorID a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetSensorNonPortableTypeForID, (SDL_SensorID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetSensorProperties, (SDL_Sensor * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetSensorProperties, (SDL_Sensor * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_SensorType, SDL_GetSensorType, (SDL_Sensor * a), (a), 
+SDL_DYNAPI_PROC(SDL_SensorType, SDL_GetSensorType, (SDL_Sensor * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_SensorType, SDL_GetSensorTypeForID, (SDL_SensorID a), (a), 
+SDL_DYNAPI_PROC(SDL_SensorType, SDL_GetSensorTypeForID, (SDL_SensorID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_SensorID *, SDL_GetSensors, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_SensorID*, SDL_GetSensors, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetSilenceValueForFormat, (SDL_AudioFormat a), (a), 
+SDL_DYNAPI_PROC(int, SDL_GetSilenceValueForFormat, (SDL_AudioFormat a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetStorageFileSize, (SDL_Storage *a, const char *b, Uint64 *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetStorageFileSize, (SDL_Storage* a, const char* b, Uint64* c), (a
 ,
 b
 ,
@@ -2802,7 +3108,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetStoragePathInfo, (SDL_Storage *a, const char *b, SDL_PathInfo *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetStoragePathInfo, (SDL_Storage* a, const char* b, SDL_PathInfo* c), (a
 ,
 b
 ,
@@ -2811,10 +3117,11 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint64, SDL_GetStorageSpaceRemaining, (SDL_Storage * a), (a), 
+SDL_DYNAPI_PROC(Uint64, SDL_GetStorageSpaceRemaining, (SDL_Storage * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetStringProperty, (SDL_PropertiesID a, const char *b, const char *c), (a
+SDL_DYNAPI_PROC(const char*, SDL_GetStringProperty, (SDL_PropertiesID a, const char* b, const char* c), (a
 ,
 b
 ,
@@ -2823,35 +3130,35 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetSurfaceAlphaMod, (SDL_Surface *a, Uint8 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetSurfaceAlphaMod, (SDL_Surface* a, Uint8* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetSurfaceBlendMode, (SDL_Surface *a, SDL_BlendMode *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetSurfaceBlendMode, (SDL_Surface* a, SDL_BlendMode* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetSurfaceClipRect, (SDL_Surface *a, SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetSurfaceClipRect, (SDL_Surface* a, SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetSurfaceColorKey, (SDL_Surface *a, Uint32 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetSurfaceColorKey, (SDL_Surface* a, Uint32* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetSurfaceColorMod, (SDL_Surface *a, Uint8 *b, Uint8 *c, Uint8 *d), (a
+SDL_DYNAPI_PROC(bool, SDL_GetSurfaceColorMod, (SDL_Surface* a, Uint8* b, Uint8* c, Uint8* d), (a
 ,
 b
 ,
@@ -2862,33 +3169,38 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Colorspace, SDL_GetSurfaceColorspace, (SDL_Surface * a), (a), 
+SDL_DYNAPI_PROC(SDL_Colorspace, SDL_GetSurfaceColorspace, (SDL_Surface * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface **, SDL_GetSurfaceImages, (SDL_Surface *a, int *b), (a
+SDL_DYNAPI_PROC(SDL_Surface**, SDL_GetSurfaceImages, (SDL_Surface* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Palette *, SDL_GetSurfacePalette, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(SDL_Palette*, SDL_GetSurfacePalette, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetSurfaceProperties, (SDL_Surface * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetSurfaceProperties, (SDL_Surface * a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(int, SDL_GetSystemRAM, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_SystemTheme, SDL_GetSystemTheme, (void), (), 
+SDL_DYNAPI_PROC(SDL_SystemTheme, SDL_GetSystemTheme, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_GetTLS, (SDL_TLSID *a), (a), 
+SDL_DYNAPI_PROC(void*, SDL_GetTLS, (SDL_TLSID* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextInputArea, (SDL_Window *a, SDL_Rect *b, int *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetTextInputArea, (SDL_Window* a, SDL_Rect* b, int* c), (a
 ,
 b
 ,
@@ -2897,39 +3209,28 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextureAlphaMod, (SDL_Texture *a, Uint8 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetTextureAlphaMod, (SDL_Texture* a, Uint8* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextureAlphaModFloat, (SDL_Texture *a, float *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetTextureAlphaModFloat, (SDL_Texture* a, float* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextureBlendMode, (SDL_Texture *a, SDL_BlendMode *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetTextureBlendMode, (SDL_Texture* a, SDL_BlendMode* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextureColorMod, (SDL_Texture *a, Uint8 *b, Uint8 *c, Uint8 *d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetTextureColorModFloat, (SDL_Texture *a, float *b, float *c, float *d), (a
+SDL_DYNAPI_PROC(bool, SDL_GetTextureColorMod, (SDL_Texture* a, Uint8* b, Uint8* c, Uint8* d), (a
 ,
 b
 ,
@@ -2940,17 +3241,29 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetTextureProperties, (SDL_Texture * a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetTextureColorModFloat, (SDL_Texture* a, float* b, float* c, float* d), (a
+,
+b
+,
+c
+,
+d
+)
+,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextureScaleMode, (SDL_Texture *a, SDL_ScaleMode *b), (a
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetTextureProperties, (SDL_Texture * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetTextureScaleMode, (SDL_Texture* a, SDL_ScaleMode* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTextureSize, (SDL_Texture *a, float *b, float *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetTextureSize, (SDL_Texture* a, float* b, float* c), (a
 ,
 b
 ,
@@ -2959,45 +3272,54 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_ThreadID, SDL_GetThreadID, (SDL_Thread * a), (a), 
+SDL_DYNAPI_PROC(SDL_ThreadID, SDL_GetThreadID, (SDL_Thread * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetThreadName, (SDL_Thread *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetThreadName, (SDL_Thread* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint64, SDL_GetTicks, (void), (), 
+SDL_DYNAPI_PROC(Uint64, SDL_GetTicks, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(Uint64, SDL_GetTicksNS, (void), (), 
+SDL_DYNAPI_PROC(Uint64, SDL_GetTicksNS, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetTouchDeviceName, (SDL_TouchID a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetTouchDeviceName, (SDL_TouchID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_TouchDeviceType, SDL_GetTouchDeviceType, (SDL_TouchID a), (a), 
+SDL_DYNAPI_PROC(SDL_TouchDeviceType, SDL_GetTouchDeviceType, (SDL_TouchID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_TouchID *, SDL_GetTouchDevices, (int *a), (a), 
+SDL_DYNAPI_PROC(SDL_TouchID*, SDL_GetTouchDevices, (int* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Finger **, SDL_GetTouchFingers, (SDL_TouchID a, int *b), (a
+SDL_DYNAPI_PROC(SDL_Finger**, SDL_GetTouchFingers, (SDL_TouchID a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetUserFolder, (SDL_Folder a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetUserFolder, (SDL_Folder a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(int, SDL_GetVersion, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetVideoDriver, (int a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetVideoDriver, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetWindowAspectRatio, (SDL_Window *a, float *b, float *c), (a
+SDL_DYNAPI_PROC(bool, SDL_GetWindowAspectRatio, (SDL_Window* a, float* b, float* c), (a
 ,
 b
 ,
@@ -3006,151 +3328,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetWindowBordersSize, (SDL_Window *a, int *b, int *c, int *d, int *e), (a
-,
-b
-,
-c
-,
-d
-,
-e
-)
-,
-return
-)
-SDL_DYNAPI_PROC(float, SDL_GetWindowDisplayScale, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_WindowFlags, SDL_GetWindowFlags, (SDL_Window * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetWindowFromEvent, (const SDL_Event *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetWindowFromID, (SDL_WindowID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const SDL_DisplayMode *, SDL_GetWindowFullscreenMode, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(void *, SDL_GetWindowICCProfile, (SDL_Window *a, size_t *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_WindowID, SDL_GetWindowID, (SDL_Window * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowKeyboardGrab, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowMaximumSize, (SDL_Window *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowMinimumSize, (SDL_Window *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowMouseGrab, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(const SDL_Rect *, SDL_GetWindowMouseRect, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(float, SDL_GetWindowOpacity, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Window *, SDL_GetWindowParent, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(float, SDL_GetWindowPixelDensity, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_PixelFormat, SDL_GetWindowPixelFormat, (SDL_Window * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowPosition, (SDL_Window *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetWindowProperties, (SDL_Window * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowRelativeMouseMode, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowSafeArea, (SDL_Window *a, SDL_Rect *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowSize, (SDL_Window *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowSizeInPixels, (SDL_Window *a, int *b, int *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_GetWindowSurface, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetWindowSurfaceVSync, (SDL_Window *a, int *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(const char *, SDL_GetWindowTitle, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Window **, SDL_GetWindows, (int *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(char **, SDL_GlobDirectory, (const char *a, const char *b, SDL_GlobFlags c, int *d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(char **, SDL_GlobStorageDirectory, (SDL_Storage *a, const char *b, const char *c, SDL_GlobFlags d, int *e), (a
+SDL_DYNAPI_PROC(bool, SDL_GetWindowBordersSize, (SDL_Window* a, int* b, int* c, int* d, int* e), (a
 ,
 b
 ,
@@ -3163,14 +3341,178 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HapticEffectSupported, (SDL_Haptic *a, const SDL_HapticEffect *b), (a
+SDL_DYNAPI_PROC(float, SDL_GetWindowDisplayScale, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_WindowFlags, SDL_GetWindowFlags, (SDL_Window * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetWindowFromEvent, (const SDL_Event* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetWindowFromID, (SDL_WindowID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const SDL_DisplayMode*, SDL_GetWindowFullscreenMode, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(void*, SDL_GetWindowICCProfile, (SDL_Window* a, size_t* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HapticRumbleSupported, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(SDL_WindowID, SDL_GetWindowID, (SDL_Window * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowKeyboardGrab, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowMaximumSize, (SDL_Window* a, int* b, int* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowMinimumSize, (SDL_Window* a, int* b, int* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowMouseGrab, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(const SDL_Rect*, SDL_GetWindowMouseRect, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(float, SDL_GetWindowOpacity, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Window*, SDL_GetWindowParent, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(float, SDL_GetWindowPixelDensity, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_PixelFormat, SDL_GetWindowPixelFormat, (SDL_Window * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowPosition, (SDL_Window* a, int* b, int* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetWindowProperties, (SDL_Window * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowRelativeMouseMode, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowSafeArea, (SDL_Window* a, SDL_Rect* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowSize, (SDL_Window* a, int* b, int* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowSizeInPixels, (SDL_Window* a, int* b, int* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_GetWindowSurface, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_GetWindowSurfaceVSync, (SDL_Window* a, int* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(const char*, SDL_GetWindowTitle, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Window**, SDL_GetWindows, (int* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(char**, SDL_GlobDirectory, (const char* a, const char* b, SDL_GlobFlags c, int* d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+return
+)
+SDL_DYNAPI_PROC(char**, SDL_GlobStorageDirectory, (SDL_Storage* a, const char* b, const char* c, SDL_GlobFlags d,
+                int* e), (a
+,
+b
+,
+c
+,
+d
+,
+e
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_HapticEffectSupported, (SDL_Haptic* a, const SDL_HapticEffect* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_HapticRumbleSupported, (SDL_Haptic* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_HasARMSIMD, (void), ()
@@ -3193,14 +3535,16 @@ SDL_DYNAPI_PROC(bool, SDL_HasAltiVec, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HasClipboardData, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_HasClipboardData, (const char* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_HasClipboardText, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HasEvent, (Uint32 a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_HasEvent, (Uint32 a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_HasEvents, (Uint32 a, Uint32 b), (a
@@ -3246,21 +3590,21 @@ SDL_DYNAPI_PROC(bool, SDL_HasPrimarySelectionText, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HasProperty, (SDL_PropertiesID a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_HasProperty, (SDL_PropertiesID a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HasRectIntersection, (const SDL_Rect *a, const SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_HasRectIntersection, (const SDL_Rect* a, const SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HasRectIntersectionFloat, (const SDL_FRect *a, const SDL_FRect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_HasRectIntersectionFloat, (const SDL_FRect* a, const SDL_FRect* b), (a
 ,
 b
 )
@@ -3295,28 +3639,29 @@ SDL_DYNAPI_PROC(bool, SDL_HideCursor, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_HideWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_HideWindow, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_IOFromConstMem, (const void *a, size_t b), (a
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_IOFromConstMem, (const void* a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_IOFromDynamicMem, (void), ()
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_IOFromDynamicMem, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_IOFromFile, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_IOFromFile, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_IOFromMem, (void *a, size_t b), (a
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_IOFromMem, (void* a, size_t b), (a
 ,
 b
 )
@@ -3332,16 +3677,19 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_Init, (SDL_InitFlags a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_Init, (SDL_InitFlags a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_InitHapticRumble, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_InitHapticRumble, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_InitSubSystem, (SDL_InitFlags a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_InitSubSystem, (SDL_InitFlags a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_InsertGPUDebugLabel, (SDL_GPUCommandBuffer *a, const char *b), (a
+SDL_DYNAPI_PROC(void, SDL_InsertGPUDebugLabel, (SDL_GPUCommandBuffer* a, const char* b), (a
 ,
 b
 )
@@ -3355,13 +3703,16 @@ SDL_DYNAPI_PROC(bool, SDL_IsDeXMode, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_IsGamepad, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_IsGamepad, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_IsJoystickHaptic, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_IsJoystickHaptic, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_IsJoystickVirtual, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_IsJoystickVirtual, (SDL_JoystickID a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_IsMouseHaptic, (void), ()
@@ -3376,38 +3727,40 @@ SDL_DYNAPI_PROC(bool, SDL_IsTablet, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_JoystickConnected, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_JoystickConnected, (SDL_Joystick* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_JoystickEventsEnabled, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_KillProcess, (SDL_Process *a, bool b), (a
+SDL_DYNAPI_PROC(bool, SDL_KillProcess, (SDL_Process* a, bool b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_LoadBMP, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_LoadBMP, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_LoadBMP_IO, (SDL_IOStream *a, bool b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_LoadBMP_IO, (SDL_IOStream* a, bool b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_LoadFile, (const char *a, size_t *b), (a
+SDL_DYNAPI_PROC(void*, SDL_LoadFile, (const char* a, size_t* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_LoadFile_IO, (SDL_IOStream *a, size_t *b, bool c), (a
+SDL_DYNAPI_PROC(void*, SDL_LoadFile_IO, (SDL_IOStream* a, size_t* b, bool c), (a
 ,
 b
 ,
@@ -3416,13 +3769,15 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_LoadFunction, (SDL_SharedObject * a, const char * b), (a, b), 
+SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_LoadFunction, (SDL_SharedObject * a, const char * b), (a, b),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_SharedObject *, SDL_LoadObject, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_SharedObject*, SDL_LoadObject, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_LoadWAV, (const char *a, SDL_AudioSpec *b, Uint8 **c, Uint32 *d), (a
+SDL_DYNAPI_PROC(bool, SDL_LoadWAV, (const char* a, SDL_AudioSpec* b, Uint8** c, Uint32* d), (a
 ,
 b
 ,
@@ -3433,7 +3788,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_LoadWAV_IO, (SDL_IOStream *a, bool b, SDL_AudioSpec *c, Uint8 **d, Uint32 *e), (a
+SDL_DYNAPI_PROC(bool, SDL_LoadWAV_IO, (SDL_IOStream* a, bool b, SDL_AudioSpec* c, Uint8** d, Uint32* e), (a
 ,
 b
 ,
@@ -3446,27 +3801,34 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_LockAudioStream, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_LockAudioStream, (SDL_AudioStream* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(void, SDL_LockJoysticks, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_LockMutex, (SDL_Mutex *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_LockMutex, (SDL_Mutex* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_LockProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_LockProperties, (SDL_PropertiesID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_LockRWLockForReading, (SDL_RWLock *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_LockRWLockForReading, (SDL_RWLock* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_LockRWLockForWriting, (SDL_RWLock *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_LockRWLockForWriting, (SDL_RWLock* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_LockSpinlock, (SDL_SpinLock *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_LockSpinlock, (SDL_SpinLock* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_LockSurface, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_LockSurface, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_LockTexture, (SDL_Texture *a, const SDL_Rect *b, void **c, int *d), (a
+SDL_DYNAPI_PROC(bool, SDL_LockTexture, (SDL_Texture* a, const SDL_Rect* b, void** c, int* d), (a
 ,
 b
 ,
@@ -3477,7 +3839,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_LockTextureToSurface, (SDL_Texture *a, const SDL_Rect *b, SDL_Surface **c), (a
+SDL_DYNAPI_PROC(bool, SDL_LockTextureToSurface, (SDL_Texture* a, const SDL_Rect* b, SDL_Surface** c), (a
 ,
 b
 ,
@@ -3486,7 +3848,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_LogMessageV, (int a, SDL_LogPriority b, SDL_PRINTF_FORMAT_STRING const char *c, va_list d), (a
+SDL_DYNAPI_PROC(void, SDL_LogMessageV, (int a, SDL_LogPriority b, SDL_PRINTF_FORMAT_STRING const char* c, va_list d), (a
 ,
 b
 ,
@@ -3496,7 +3858,7 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(void *, SDL_MapGPUTransferBuffer, (SDL_GPUDevice *a, SDL_GPUTransferBuffer *b, bool c), (a
+SDL_DYNAPI_PROC(void*, SDL_MapGPUTransferBuffer, (SDL_GPUDevice* a, SDL_GPUTransferBuffer* b, bool c), (a
 ,
 b
 ,
@@ -3505,7 +3867,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_MapRGB, (const SDL_PixelFormatDetails *a, const SDL_Palette * b, Uint8 c, Uint8 d, Uint8 e), (a
+SDL_DYNAPI_PROC(Uint32, SDL_MapRGB, (const SDL_PixelFormatDetails*a, const SDL_Palette * b, Uint8 c, Uint8 d,
+                Uint8 e), (a
 ,
 b
 ,
@@ -3518,7 +3881,8 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_MapRGBA, (const SDL_PixelFormatDetails *a, const SDL_Palette * b, Uint8 c, Uint8 d, Uint8 e, Uint8 f), (a
+SDL_DYNAPI_PROC(Uint32, SDL_MapRGBA, (const SDL_PixelFormatDetails*a, const SDL_Palette * b, Uint8 c, Uint8 d, Uint8 e,
+                Uint8 f), (a
 ,
 b
 ,
@@ -3557,7 +3921,8 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_MaximizeWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_MaximizeWindow, (SDL_Window* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(void, SDL_MemoryBarrierAcquireFunction, (void), ()
@@ -3566,18 +3931,22 @@ SDL_DYNAPI_PROC(void, SDL_MemoryBarrierAcquireFunction, (void), ()
 SDL_DYNAPI_PROC(void, SDL_MemoryBarrierReleaseFunction, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(SDL_MetalView, SDL_Metal_CreateView, (SDL_Window * a), (a), 
+SDL_DYNAPI_PROC(SDL_MetalView, SDL_Metal_CreateView, (SDL_Window * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_Metal_DestroyView, (SDL_MetalView a), (a), 
+SDL_DYNAPI_PROC(void, SDL_Metal_DestroyView, (SDL_MetalView a), (a),
+
 )
-SDL_DYNAPI_PROC(void *, SDL_Metal_GetLayer, (SDL_MetalView a), (a), 
+SDL_DYNAPI_PROC(void*, SDL_Metal_GetLayer, (SDL_MetalView a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_MinimizeWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_MinimizeWindow, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_MixAudio, (Uint8 *a, const Uint8 *b, SDL_AudioFormat c, Uint32 d, float e), (a
+SDL_DYNAPI_PROC(bool, SDL_MixAudio, (Uint8* a, const Uint8* b, SDL_AudioFormat c, Uint32 d, float e), (a
 ,
 b
 ,
@@ -3618,7 +3987,8 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_AudioStream *, SDL_OpenAudioDeviceStream, (SDL_AudioDeviceID a, const SDL_AudioSpec *b, SDL_AudioStreamCallback c, void *d), (a
+SDL_DYNAPI_PROC(SDL_AudioStream*, SDL_OpenAudioDeviceStream, (SDL_AudioDeviceID a, const SDL_AudioSpec* b,
+                SDL_AudioStreamCallback c, void* d), (a
 ,
 b
 ,
@@ -3629,60 +3999,67 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Camera *, SDL_OpenCamera, (SDL_CameraID a, const SDL_CameraSpec *b), (a
+SDL_DYNAPI_PROC(SDL_Camera*, SDL_OpenCamera, (SDL_CameraID a, const SDL_CameraSpec* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Storage *, SDL_OpenFileStorage, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Storage*, SDL_OpenFileStorage, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Gamepad *, SDL_OpenGamepad, (SDL_JoystickID a), (a), 
+SDL_DYNAPI_PROC(SDL_Gamepad*, SDL_OpenGamepad, (SDL_JoystickID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Haptic *, SDL_OpenHaptic, (SDL_HapticID a), (a), 
+SDL_DYNAPI_PROC(SDL_Haptic*, SDL_OpenHaptic, (SDL_HapticID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Haptic *, SDL_OpenHapticFromJoystick, (SDL_Joystick *a), (a), 
+SDL_DYNAPI_PROC(SDL_Haptic*, SDL_OpenHapticFromJoystick, (SDL_Joystick* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Haptic *, SDL_OpenHapticFromMouse, (void), ()
+SDL_DYNAPI_PROC(SDL_Haptic*, SDL_OpenHapticFromMouse, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_IOStream *, SDL_OpenIO, (const SDL_IOStreamInterface *a, void *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_Joystick *, SDL_OpenJoystick, (SDL_JoystickID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Sensor *, SDL_OpenSensor, (SDL_SensorID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Storage *, SDL_OpenStorage, (const SDL_StorageInterface *a, void *b), (a
+SDL_DYNAPI_PROC(SDL_IOStream*, SDL_OpenIO, (const SDL_IOStreamInterface* a, void* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Storage *, SDL_OpenTitleStorage, (const char *a, SDL_PropertiesID b), (a
+SDL_DYNAPI_PROC(SDL_Joystick*, SDL_OpenJoystick, (SDL_JoystickID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Sensor*, SDL_OpenSensor, (SDL_SensorID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Storage*, SDL_OpenStorage, (const SDL_StorageInterface* a, void* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_OpenURL, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Storage*, SDL_OpenTitleStorage, (const char* a, SDL_PropertiesID b), (a
+,
+b
+)
+,
 return
 )
-SDL_DYNAPI_PROC(SDL_Storage *, SDL_OpenUserStorage, (const char *a, const char *b, SDL_PropertiesID c), (a
+SDL_DYNAPI_PROC(bool, SDL_OpenURL, (const char* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Storage*, SDL_OpenUserStorage, (const char* a, const char* b, SDL_PropertiesID c), (a
 ,
 b
 ,
@@ -3695,16 +4072,19 @@ SDL_DYNAPI_PROC(bool, SDL_OutOfMemory, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PauseAudioDevice, (SDL_AudioDeviceID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_PauseAudioDevice, (SDL_AudioDeviceID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PauseAudioStreamDevice, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_PauseAudioStreamDevice, (SDL_AudioStream* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PauseHaptic, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_PauseHaptic, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_PeepEvents, (SDL_Event *a, int b, SDL_EventAction c, Uint32 d, Uint32 e), (a
+SDL_DYNAPI_PROC(int, SDL_PeepEvents, (SDL_Event* a, int b, SDL_EventAction c, Uint32 d, Uint32 e), (a
 ,
 b
 ,
@@ -3717,7 +4097,7 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PlayHapticRumble, (SDL_Haptic *a, float b, Uint32 c), (a
+SDL_DYNAPI_PROC(bool, SDL_PlayHapticRumble, (SDL_Haptic* a, float b, Uint32 c), (a
 ,
 b
 ,
@@ -3726,12 +4106,15 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PollEvent, (SDL_Event *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_PollEvent, (SDL_Event* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_PopGPUDebugGroup, (SDL_GPUCommandBuffer *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_PopGPUDebugGroup, (SDL_GPUCommandBuffer* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_PremultiplyAlpha, (int a, int b, SDL_PixelFormat c, const void *d, int e, SDL_PixelFormat f, void *g, int h, bool i), (a
+SDL_DYNAPI_PROC(bool, SDL_PremultiplyAlpha, (int a, int b, SDL_PixelFormat c, const void* d, int e, SDL_PixelFormat f,
+                void* g, int h, bool i), (a
 ,
 b
 ,
@@ -3752,7 +4135,7 @@ i
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PremultiplySurfaceAlpha, (SDL_Surface *a, bool b), (a
+SDL_DYNAPI_PROC(bool, SDL_PremultiplySurfaceAlpha, (SDL_Surface* a, bool b), (a
 ,
 b
 )
@@ -3762,10 +4145,11 @@ return
 SDL_DYNAPI_PROC(void, SDL_PumpEvents, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_PushEvent, (SDL_Event *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_PushEvent, (SDL_Event* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_PushGPUComputeUniformData, (SDL_GPUCommandBuffer *a, Uint32 b, const void *c, Uint32 d), (a
+SDL_DYNAPI_PROC(void, SDL_PushGPUComputeUniformData, (SDL_GPUCommandBuffer* a, Uint32 b, const void* c, Uint32 d), (a
 ,
 b
 ,
@@ -3775,23 +4159,13 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_PushGPUDebugGroup, (SDL_GPUCommandBuffer *a, const char *b), (a
+SDL_DYNAPI_PROC(void, SDL_PushGPUDebugGroup, (SDL_GPUCommandBuffer* a, const char* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_PushGPUFragmentUniformData, (SDL_GPUCommandBuffer *a, Uint32 b, const void *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_PushGPUVertexUniformData, (SDL_GPUCommandBuffer *a, Uint32 b, const void *c, Uint32 d), (a
+SDL_DYNAPI_PROC(void, SDL_PushGPUFragmentUniformData, (SDL_GPUCommandBuffer* a, Uint32 b, const void* c, Uint32 d), (a
 ,
 b
 ,
@@ -3801,7 +4175,17 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_PutAudioStreamData, (SDL_AudioStream *a, const void *b, int c), (a
+SDL_DYNAPI_PROC(void, SDL_PushGPUVertexUniformData, (SDL_GPUCommandBuffer* a, Uint32 b, const void* c, Uint32 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+)
+SDL_DYNAPI_PROC(bool, SDL_PutAudioStreamData, (SDL_AudioStream* a, const void* b, int c), (a
 ,
 b
 ,
@@ -3810,7 +4194,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_QueryGPUFence, (SDL_GPUDevice *a, SDL_GPUFence *b), (a
+SDL_DYNAPI_PROC(bool, SDL_QueryGPUFence, (SDL_GPUDevice* a, SDL_GPUFence* b), (a
 ,
 b
 )
@@ -3820,9 +4204,11 @@ return
 SDL_DYNAPI_PROC(void, SDL_Quit, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_QuitSubSystem, (SDL_InitFlags a), (a), 
+SDL_DYNAPI_PROC(void, SDL_QuitSubSystem, (SDL_InitFlags a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_RaiseWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_RaiseWindow, (SDL_Window* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(size_t, SDL_ReadIO, (SDL_IOStream * a, void * b, size_t c), (a
@@ -3834,7 +4220,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_ReadProcess, (SDL_Process *a, size_t *b, int *c), (a
+SDL_DYNAPI_PROC(void*, SDL_ReadProcess, (SDL_Process* a, size_t* b, int* c), (a
 ,
 b
 ,
@@ -3843,84 +4229,67 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS16BE, (SDL_IOStream *a, Sint16 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS16BE, (SDL_IOStream* a, Sint16* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS16LE, (SDL_IOStream *a, Sint16 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS16LE, (SDL_IOStream* a, Sint16* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS32BE, (SDL_IOStream *a, Sint32 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS32BE, (SDL_IOStream* a, Sint32* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS32LE, (SDL_IOStream *a, Sint32 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS32LE, (SDL_IOStream* a, Sint32* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS64BE, (SDL_IOStream *a, Sint64 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS64BE, (SDL_IOStream* a, Sint64* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS64LE, (SDL_IOStream *a, Sint64 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS64LE, (SDL_IOStream* a, Sint64* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadS8, (SDL_IOStream *a, Sint8 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadS8, (SDL_IOStream* a, Sint8* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadStorageFile, (SDL_Storage *a, const char *b, void *c, Uint64 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_ReadSurfacePixel, (SDL_Surface *a, int b, int c, Uint8 *d, Uint8 *e, Uint8 *f, Uint8 *g), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadStorageFile, (SDL_Storage* a, const char* b, void* c, Uint64 d), (a
 ,
 b
 ,
 c
 ,
 d
-,
-e
-,
-f
-,
-g
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadSurfacePixelFloat, (SDL_Surface *a, int b, int c, float *d, float *e, float *f, float *g), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadSurfacePixel, (SDL_Surface* a, int b, int c, Uint8* d, Uint8* e, Uint8* f, Uint8* g), (a
 ,
 b
 ,
@@ -3937,56 +4306,74 @@ g
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU16BE, (SDL_IOStream *a, Uint16 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadSurfacePixelFloat, (SDL_Surface* a, int b, int c, float* d, float* e, float* f,
+                float* g), (a
+,
+b
+,
+c
+,
+d
+,
+e
+,
+f
+,
+g
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_ReadU16BE, (SDL_IOStream* a, Uint16* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU16LE, (SDL_IOStream *a, Uint16 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadU16LE, (SDL_IOStream* a, Uint16* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU32BE, (SDL_IOStream *a, Uint32 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadU32BE, (SDL_IOStream* a, Uint32* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU32LE, (SDL_IOStream *a, Uint32 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadU32LE, (SDL_IOStream* a, Uint32* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU64BE, (SDL_IOStream *a, Uint64 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadU64BE, (SDL_IOStream* a, Uint64* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU64LE, (SDL_IOStream *a, Uint64 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadU64LE, (SDL_IOStream* a, Uint64* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ReadU8, (SDL_IOStream *a, Uint8 *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ReadU8, (SDL_IOStream* a, Uint8* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RegisterApp, (const char *a, Uint32 b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_RegisterApp, (const char* a, Uint32 b, void* c), (a
 ,
 b
 ,
@@ -3995,64 +4382,65 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_RegisterEvents, (int a), (a), 
+SDL_DYNAPI_PROC(Uint32, SDL_RegisterEvents, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseCameraFrame, (SDL_Camera *a, SDL_Surface *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseCameraFrame, (SDL_Camera* a, SDL_Surface* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUBuffer, (SDL_GPUDevice *a, SDL_GPUBuffer *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUBuffer, (SDL_GPUDevice* a, SDL_GPUBuffer* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUComputePipeline, (SDL_GPUDevice *a, SDL_GPUComputePipeline *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUComputePipeline, (SDL_GPUDevice* a, SDL_GPUComputePipeline* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUFence, (SDL_GPUDevice *a, SDL_GPUFence *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUFence, (SDL_GPUDevice* a, SDL_GPUFence* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUGraphicsPipeline, (SDL_GPUDevice *a, SDL_GPUGraphicsPipeline *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUGraphicsPipeline, (SDL_GPUDevice* a, SDL_GPUGraphicsPipeline* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUSampler, (SDL_GPUDevice *a, SDL_GPUSampler *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUSampler, (SDL_GPUDevice* a, SDL_GPUSampler* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUShader, (SDL_GPUDevice *a, SDL_GPUShader *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUShader, (SDL_GPUDevice* a, SDL_GPUShader* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUTexture, (SDL_GPUDevice *a, SDL_GPUTexture *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUTexture, (SDL_GPUDevice* a, SDL_GPUTexture* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseGPUTransferBuffer, (SDL_GPUDevice *a, SDL_GPUTransferBuffer *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseGPUTransferBuffer, (SDL_GPUDevice* a, SDL_GPUTransferBuffer* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ReleaseWindowFromGPUDevice, (SDL_GPUDevice *a, SDL_Window *b), (a
+SDL_DYNAPI_PROC(void, SDL_ReleaseWindowFromGPUDevice, (SDL_GPUDevice* a, SDL_Window* b), (a
 ,
 b
 )
@@ -4062,71 +4450,63 @@ SDL_DYNAPI_PROC(bool, SDL_ReloadGamepadMappings, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_RemoveEventWatch, (SDL_EventFilter a, void *b), (a
+SDL_DYNAPI_PROC(void, SDL_RemoveEventWatch, (SDL_EventFilter a, void* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_RemoveHintCallback, (const char *a, SDL_HintCallback b, void *c), (a
-,
-b
-,
-c
-)
-,
-)
-SDL_DYNAPI_PROC(bool, SDL_RemovePath, (const char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_RemoveStoragePath, (SDL_Storage *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_RemoveSurfaceAlternateImages, (SDL_Surface *a), (a), 
-)
-SDL_DYNAPI_PROC(bool, SDL_RemoveTimer, (SDL_TimerID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_RenamePath, (const char *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_RenameStoragePath, (SDL_Storage *a, const char *b, const char *c), (a
+SDL_DYNAPI_PROC(void, SDL_RemoveHintCallback, (const char* a, SDL_HintCallback b, void* c), (a
 ,
 b
 ,
 c
 )
 ,
+)
+SDL_DYNAPI_PROC(bool, SDL_RemovePath, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderClear, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_RemoveStoragePath, (SDL_Storage* a, const char* b), (a
+,
+b
+)
+,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderClipEnabled, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_RemoveSurfaceAlternateImages, (SDL_Surface* a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_RemoveTimer, (SDL_TimerID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderCoordinatesFromWindow, (SDL_Renderer *a, float b, float c, float *d, float *e), (a
+SDL_DYNAPI_PROC(bool, SDL_RenamePath, (const char* a, const char* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_RenameStoragePath, (SDL_Storage* a, const char* b, const char* c), (a
 ,
 b
 ,
 c
-,
-d
-,
-e
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderCoordinatesToWindow, (SDL_Renderer *a, float b, float c, float *d, float *e), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderClear, (SDL_Renderer* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_RenderClipEnabled, (SDL_Renderer* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_RenderCoordinatesFromWindow, (SDL_Renderer* a, float b, float c, float* d, float* e), (a
 ,
 b
 ,
@@ -4139,14 +4519,27 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderFillRect, (SDL_Renderer *a, const SDL_FRect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderCoordinatesToWindow, (SDL_Renderer* a, float b, float c, float* d, float* e), (a
+,
+b
+,
+c
+,
+d
+,
+e
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_RenderFillRect, (SDL_Renderer* a, const SDL_FRect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderFillRects, (SDL_Renderer *a, const SDL_FRect *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderFillRects, (SDL_Renderer* a, const SDL_FRect* b, int c), (a
 ,
 b
 ,
@@ -4155,7 +4548,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderGeometry, (SDL_Renderer *a, SDL_Texture *b, const SDL_Vertex *c, int d, const int *e, int f), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderGeometry, (SDL_Renderer* a, SDL_Texture* b, const SDL_Vertex* c, int d, const int* e,
+                int f), (a
 ,
 b
 ,
@@ -4170,7 +4564,8 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderGeometryRaw, (SDL_Renderer *a, SDL_Texture *b, const float *c, int d, const SDL_FColor *e, int f, const float *g, int h, int i, const void *j, int k, int l), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderGeometryRaw, (SDL_Renderer* a, SDL_Texture* b, const float* c, int d,
+                const SDL_FColor* e, int f, const float* g, int h, int i, const void* j, int k, int l), (a
 ,
 b
 ,
@@ -4197,7 +4592,7 @@ l
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderLine, (SDL_Renderer *a, float b, float c, float d, float e), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderLine, (SDL_Renderer* a, float b, float c, float d, float e), (a
 ,
 b
 ,
@@ -4210,7 +4605,7 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderLines, (SDL_Renderer *a, const SDL_FPoint *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderLines, (SDL_Renderer* a, const SDL_FPoint* b, int c), (a
 ,
 b
 ,
@@ -4219,7 +4614,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderPoint, (SDL_Renderer *a, float b, float c), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderPoint, (SDL_Renderer* a, float b, float c), (a
 ,
 b
 ,
@@ -4228,7 +4623,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderPoints, (SDL_Renderer *a, const SDL_FPoint *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderPoints, (SDL_Renderer* a, const SDL_FPoint* b, int c), (a
 ,
 b
 ,
@@ -4237,24 +4632,25 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderPresent, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_RenderPresent, (SDL_Renderer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_RenderReadPixels, (SDL_Renderer *a, const SDL_Rect *b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_RenderReadPixels, (SDL_Renderer* a, const SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderRect, (SDL_Renderer *a, const SDL_FRect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderRect, (SDL_Renderer* a, const SDL_FRect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderRects, (SDL_Renderer *a, const SDL_FRect *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderRects, (SDL_Renderer* a, const SDL_FRect* b, int c), (a
 ,
 b
 ,
@@ -4263,7 +4659,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderTexture, (SDL_Renderer *a, SDL_Texture *b, const SDL_FRect *c, const SDL_FRect *d), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderTexture, (SDL_Renderer* a, SDL_Texture* b, const SDL_FRect* c, const SDL_FRect* d), (a
 ,
 b
 ,
@@ -4274,7 +4670,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderTexture9Grid, (SDL_Renderer *a, SDL_Texture *b, const SDL_FRect *c, float d, float e, float f, float g, float h, const SDL_FRect *i), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderTexture9Grid, (SDL_Renderer* a, SDL_Texture* b, const SDL_FRect* c, float d, float e,
+                float f, float g, float h, const SDL_FRect* i), (a
 ,
 b
 ,
@@ -4295,7 +4692,8 @@ i
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderTextureRotated, (SDL_Renderer *a, SDL_Texture *b, const SDL_FRect *c, const SDL_FRect *d, double e, const SDL_FPoint *f, SDL_FlipMode g), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderTextureRotated, (SDL_Renderer* a, SDL_Texture* b, const SDL_FRect* c,
+                const SDL_FRect* d, double e, const SDL_FPoint* f, SDL_FlipMode g), (a
 ,
 b
 ,
@@ -4312,7 +4710,8 @@ g
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderTextureTiled, (SDL_Renderer *a, SDL_Texture *b, const SDL_FRect *c, float d, const SDL_FRect *e), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderTextureTiled, (SDL_Renderer* a, SDL_Texture* b, const SDL_FRect* c, float d,
+                const SDL_FRect* e), (a
 ,
 b
 ,
@@ -4325,7 +4724,8 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderViewportSet, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_RenderViewportSet, (SDL_Renderer* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_AssertState, SDL_ReportAssertion, (SDL_AssertData * a, const char * b, const char * c, int d), (a
@@ -4339,7 +4739,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RequestAndroidPermission, (const char *a, SDL_RequestAndroidPermissionCallback b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_RequestAndroidPermission, (const char* a, SDL_RequestAndroidPermissionCallback b, void* c), (a
 ,
 b
 ,
@@ -4351,7 +4751,8 @@ return
 SDL_DYNAPI_PROC(void, SDL_ResetAssertionReport, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_ResetHint, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ResetHint, (const char* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(void, SDL_ResetHints, (void), ()
@@ -4363,19 +4764,23 @@ SDL_DYNAPI_PROC(void, SDL_ResetKeyboard, (void), ()
 SDL_DYNAPI_PROC(void, SDL_ResetLogPriorities, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_RestoreWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_RestoreWindow, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ResumeAudioDevice, (SDL_AudioDeviceID a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ResumeAudioDevice, (SDL_AudioDeviceID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ResumeAudioStreamDevice, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ResumeAudioStreamDevice, (SDL_AudioStream* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ResumeHaptic, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ResumeHaptic, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RumbleGamepad, (SDL_Gamepad *a, Uint16 b, Uint16 c, Uint32 d), (a
+SDL_DYNAPI_PROC(bool, SDL_RumbleGamepad, (SDL_Gamepad* a, Uint16 b, Uint16 c, Uint32 d), (a
 ,
 b
 ,
@@ -4386,7 +4791,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RumbleGamepadTriggers, (SDL_Gamepad *a, Uint16 b, Uint16 c, Uint32 d), (a
+SDL_DYNAPI_PROC(bool, SDL_RumbleGamepadTriggers, (SDL_Gamepad* a, Uint16 b, Uint16 c, Uint32 d), (a
 ,
 b
 ,
@@ -4397,7 +4802,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RumbleJoystick, (SDL_Joystick *a, Uint16 b, Uint16 c, Uint32 d), (a
+SDL_DYNAPI_PROC(bool, SDL_RumbleJoystick, (SDL_Joystick* a, Uint16 b, Uint16 c, Uint32 d), (a
 ,
 b
 ,
@@ -4408,7 +4813,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RumbleJoystickTriggers, (SDL_Joystick *a, Uint16 b, Uint16 c, Uint32 d), (a
+SDL_DYNAPI_PROC(bool, SDL_RumbleJoystickTriggers, (SDL_Joystick* a, Uint16 b, Uint16 c, Uint32 d), (a
 ,
 b
 ,
@@ -4419,7 +4824,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_RunApp, (int a, char *b[], SDL_main_func c, void *d), (a
+SDL_DYNAPI_PROC(int, SDL_RunApp, (int a, char* b[], SDL_main_func c, void* d), (a
 ,
 b
 ,
@@ -4430,7 +4835,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RunHapticEffect, (SDL_Haptic *a, SDL_HapticEffectID b, Uint32 c), (a
+SDL_DYNAPI_PROC(bool, SDL_RunHapticEffect, (SDL_Haptic* a, SDL_HapticEffectID b, Uint32 c), (a
 ,
 b
 ,
@@ -4439,14 +4844,14 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SaveBMP, (SDL_Surface *a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SaveBMP, (SDL_Surface* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SaveBMP_IO, (SDL_Surface *a, SDL_IOStream *b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_SaveBMP_IO, (SDL_Surface* a, SDL_IOStream* b, bool c), (a
 ,
 b
 ,
@@ -4455,7 +4860,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_ScaleSurface, (SDL_Surface *a, int b, int c, SDL_ScaleMode d), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_ScaleSurface, (SDL_Surface* a, int b, int c, SDL_ScaleMode d), (a
 ,
 b
 ,
@@ -4466,7 +4871,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ScreenKeyboardShown, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ScreenKeyboardShown, (SDL_Window* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_ScreenSaverEnabled, (void), ()
@@ -4492,7 +4898,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SendGamepadEffect, (SDL_Gamepad *a, const void *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_SendGamepadEffect, (SDL_Gamepad* a, const void* b, int c), (a
 ,
 b
 ,
@@ -4501,7 +4907,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SendJoystickEffect, (SDL_Joystick *a, const void *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_SendJoystickEffect, (SDL_Joystick* a, const void* b, int c), (a
 ,
 b
 ,
@@ -4510,7 +4916,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SendJoystickVirtualSensorData, (SDL_Joystick *a, SDL_SensorType b, Uint64 c, const float *d, int e), (a
+SDL_DYNAPI_PROC(bool, SDL_SendJoystickVirtualSensorData, (SDL_Joystick* a, SDL_SensorType b, Uint64 c, const float* d,
+                int e), (a
 ,
 b
 ,
@@ -4523,7 +4930,7 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAppMetadata, (const char *a, const char *b, const char *c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAppMetadata, (const char* a, const char* b, const char* c), (a
 ,
 b
 ,
@@ -4532,27 +4939,27 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAppMetadataProperty, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAppMetadataProperty, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetAssertionHandler, (SDL_AssertionHandler a, void *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetAssertionHandler, (SDL_AssertionHandler a, void* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(int, SDL_SetAtomicInt, (SDL_AtomicInt *a, int b), (a
+SDL_DYNAPI_PROC(int, SDL_SetAtomicInt, (SDL_AtomicInt* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_SetAtomicPointer, (void **a, void *b), (a
+SDL_DYNAPI_PROC(void*, SDL_SetAtomicPointer, (void** a, void* b), (a
 ,
 b
 )
@@ -4573,7 +4980,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioPostmixCallback, (SDL_AudioDeviceID a, SDL_AudioPostmixCallback b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioPostmixCallback, (SDL_AudioDeviceID a, SDL_AudioPostmixCallback b, void* c), (a
 ,
 b
 ,
@@ -4582,7 +4989,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamFormat, (SDL_AudioStream *a, const SDL_AudioSpec *b, const SDL_AudioSpec *c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamFormat, (SDL_AudioStream* a, const SDL_AudioSpec* b, const SDL_AudioSpec* c), (a
 ,
 b
 ,
@@ -4591,30 +4998,21 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamFrequencyRatio, (SDL_AudioStream *a, float b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamFrequencyRatio, (SDL_AudioStream* a, float b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamGain, (SDL_AudioStream *a, float b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamGain, (SDL_AudioStream* a, float b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamGetCallback, (SDL_AudioStream *a, SDL_AudioStreamCallback b, void *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamInputChannelMap, (SDL_AudioStream *a, const int *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamGetCallback, (SDL_AudioStream* a, SDL_AudioStreamCallback b, void* c), (a
 ,
 b
 ,
@@ -4623,7 +5021,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamOutputChannelMap, (SDL_AudioStream *a, const int *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamInputChannelMap, (SDL_AudioStream* a, const int* b, int c), (a
 ,
 b
 ,
@@ -4632,7 +5030,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamPutCallback, (SDL_AudioStream *a, SDL_AudioStreamCallback b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamOutputChannelMap, (SDL_AudioStream* a, const int* b, int c), (a
 ,
 b
 ,
@@ -4641,7 +5039,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetBooleanProperty, (SDL_PropertiesID a, const char *b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetAudioStreamPutCallback, (SDL_AudioStream* a, SDL_AudioStreamCallback b, void* c), (a
 ,
 b
 ,
@@ -4650,7 +5048,17 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetClipboardData, (SDL_ClipboardDataCallback a, SDL_ClipboardCleanupCallback b, void *c, const char *const *d, size_t e), (a
+SDL_DYNAPI_PROC(bool, SDL_SetBooleanProperty, (SDL_PropertiesID a, const char* b, bool c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetClipboardData, (SDL_ClipboardDataCallback a, SDL_ClipboardCleanupCallback b, void* c,
+                const char* const * d, size_t e), (a
 ,
 b
 ,
@@ -4663,16 +5071,19 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetClipboardText, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SetClipboardText, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetCurrentThreadPriority, (SDL_ThreadPriority a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SetCurrentThreadPriority, (SDL_ThreadPriority a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetCursor, (SDL_Cursor *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SetCursor, (SDL_Cursor* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetEnvironmentVariable, (SDL_Environment *a, const char *b, const char *c, bool d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetEnvironmentVariable, (SDL_Environment* a, const char* b, const char* c, bool d), (a
 ,
 b
 ,
@@ -4689,13 +5100,13 @@ b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetEventFilter, (SDL_EventFilter a, void *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetEventFilter, (SDL_EventFilter a, void* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_SetFloatProperty, (SDL_PropertiesID a, const char *b, float c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetFloatProperty, (SDL_PropertiesID a, const char* b, float c), (a
 ,
 b
 ,
@@ -4704,44 +5115,13 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetGPUBlendConstants, (SDL_GPURenderPass *a, SDL_FColor b), (a
+SDL_DYNAPI_PROC(void, SDL_SetGPUBlendConstants, (SDL_GPURenderPass* a, SDL_FColor b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetGPUBufferName, (SDL_GPUDevice *a, SDL_GPUBuffer *b, const char *c), (a
-,
-b
-,
-c
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_SetGPUScissor, (SDL_GPURenderPass *a, const SDL_Rect *b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_SetGPUStencilReference, (SDL_GPURenderPass *a, Uint8 b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(bool, SDL_SetGPUSwapchainParameters, (SDL_GPUDevice *a, SDL_Window *b, SDL_GPUSwapchainComposition c, SDL_GPUPresentMode d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_SetGPUTextureName, (SDL_GPUDevice *a, SDL_GPUTexture *b, const char *c), (a
+SDL_DYNAPI_PROC(void, SDL_SetGPUBufferName, (SDL_GPUDevice* a, SDL_GPUBuffer* b, const char* c), (a
 ,
 b
 ,
@@ -4749,15 +5129,20 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetGPUViewport, (SDL_GPURenderPass *a, const SDL_GPUViewport *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetGPUScissor, (SDL_GPURenderPass* a, const SDL_Rect* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetGamepadEventsEnabled, (bool a), (a), 
+SDL_DYNAPI_PROC(void, SDL_SetGPUStencilReference, (SDL_GPURenderPass* a, Uint8 b), (a
+,
+b
 )
-SDL_DYNAPI_PROC(bool, SDL_SetGamepadLED, (SDL_Gamepad *a, Uint8 b, Uint8 c, Uint8 d), (a
+,
+)
+SDL_DYNAPI_PROC(bool, SDL_SetGPUSwapchainParameters, (SDL_GPUDevice* a, SDL_Window* b, SDL_GPUSwapchainComposition c,
+                SDL_GPUPresentMode d), (a
 ,
 b
 ,
@@ -4768,68 +5153,24 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetGamepadMapping, (SDL_JoystickID a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetGamepadPlayerIndex, (SDL_Gamepad *a, int b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetGamepadSensorEnabled, (SDL_Gamepad *a, SDL_SensorType b, bool c), (a
+SDL_DYNAPI_PROC(void, SDL_SetGPUTextureName, (SDL_GPUDevice* a, SDL_GPUTexture* b, const char* c), (a
 ,
 b
 ,
 c
 )
 ,
-return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetHapticAutocenter, (SDL_Haptic *a, int b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetHapticGain, (SDL_Haptic *a, int b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetHint, (const char *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetHintWithPriority, (const char *a, const char *b, SDL_HintPriority c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_SetInitialized, (SDL_InitState *a, bool b), (a
+SDL_DYNAPI_PROC(void, SDL_SetGPUViewport, (SDL_GPURenderPass* a, const SDL_GPUViewport* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetJoystickEventsEnabled, (bool a), (a), 
+SDL_DYNAPI_PROC(void, SDL_SetGamepadEventsEnabled, (bool a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickLED, (SDL_Joystick *a, Uint8 b, Uint8 c, Uint8 d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetGamepadLED, (SDL_Gamepad* a, Uint8 b, Uint8 c, Uint8 d), (a
 ,
 b
 ,
@@ -4840,14 +5181,21 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickPlayerIndex, (SDL_Joystick *a, int b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetGamepadMapping, (SDL_JoystickID a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualAxis, (SDL_Joystick *a, int b, Sint16 c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetGamepadPlayerIndex, (SDL_Gamepad* a, int b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetGamepadSensorEnabled, (SDL_Gamepad* a, SDL_SensorType b, bool c), (a
 ,
 b
 ,
@@ -4856,7 +5204,46 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualBall, (SDL_Joystick *a, int b, Sint16 c, Sint16 d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetHapticAutocenter, (SDL_Haptic* a, int b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetHapticGain, (SDL_Haptic* a, int b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetHint, (const char* a, const char* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetHintWithPriority, (const char* a, const char* b, SDL_HintPriority c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_SetInitialized, (SDL_InitState* a, bool b), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_SetJoystickEventsEnabled, (bool a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickLED, (SDL_Joystick* a, Uint8 b, Uint8 c, Uint8 d), (a
 ,
 b
 ,
@@ -4867,7 +5254,14 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualButton, (SDL_Joystick *a, int b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickPlayerIndex, (SDL_Joystick* a, int b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualAxis, (SDL_Joystick* a, int b, Sint16 c), (a
 ,
 b
 ,
@@ -4876,7 +5270,18 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualHat, (SDL_Joystick *a, int b, Uint8 c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualBall, (SDL_Joystick* a, int b, Sint16 c, Sint16 d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualButton, (SDL_Joystick* a, int b, bool c), (a
 ,
 b
 ,
@@ -4885,7 +5290,17 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualTouchpad, (SDL_Joystick *a, int b, int c, bool d, float e, float f, float g), (a
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualHat, (SDL_Joystick* a, int b, Uint8 c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetJoystickVirtualTouchpad, (SDL_Joystick* a, int b, int c, bool d, float e, float f,
+                float g), (a
 ,
 b
 ,
@@ -4918,13 +5333,14 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetLogOutputFunction, (SDL_LogOutputFunction a, void *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetLogOutputFunction, (SDL_LogOutputFunction a, void* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetLogPriorities, (SDL_LogPriority a), (a), 
+SDL_DYNAPI_PROC(void, SDL_SetLogPriorities, (SDL_LogPriority a), (a),
+
 )
 SDL_DYNAPI_PROC(void, SDL_SetLogPriority, (int a, SDL_LogPriority b), (a
 ,
@@ -4932,7 +5348,7 @@ b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_SetLogPriorityPrefix, (SDL_LogPriority a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetLogPriorityPrefix, (SDL_LogPriority a, const char* b), (a
 ,
 b
 )
@@ -4942,7 +5358,8 @@ return
 SDL_DYNAPI_PROC(void, SDL_SetMainReady, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_SetMemoryFunctions, (SDL_malloc_func a, SDL_calloc_func b, SDL_realloc_func c, SDL_free_func d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetMemoryFunctions, (SDL_malloc_func a, SDL_calloc_func b, SDL_realloc_func c,
+                SDL_free_func d), (a
 ,
 b
 ,
@@ -4953,9 +5370,10 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetModState, (SDL_Keymod a), (a), 
+SDL_DYNAPI_PROC(void, SDL_SetModState, (SDL_Keymod a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_SetNumberProperty, (SDL_PropertiesID a, const char *b, Sint64 c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetNumberProperty, (SDL_PropertiesID a, const char* b, Sint64 c), (a
 ,
 b
 ,
@@ -4964,64 +5382,28 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetPaletteColors, (SDL_Palette *a, const SDL_Color *b, int c, int d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetPointerProperty, (SDL_PropertiesID a, const char *b, void *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetPointerPropertyWithCleanup, (SDL_PropertiesID a, const char *b, void *c, SDL_CleanupPropertyCallback d, void *e), (a
+SDL_DYNAPI_PROC(bool, SDL_SetPaletteColors, (SDL_Palette* a, const SDL_Color* b, int c, int d), (a
 ,
 b
 ,
 c
 ,
 d
-,
-e
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetPrimarySelectionText, (const char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetRenderClipRect, (SDL_Renderer *a, const SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetPointerProperty, (SDL_PropertiesID a, const char* b, void* c), (a
 ,
 b
+,
+c
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderColorScale, (SDL_Renderer *a, float b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetRenderDrawBlendMode, (SDL_Renderer *a, SDL_BlendMode b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetRenderDrawColor, (SDL_Renderer *a, Uint8 b, Uint8 c, Uint8 d, Uint8 e), (a
+SDL_DYNAPI_PROC(bool, SDL_SetPointerPropertyWithCleanup, (SDL_PropertiesID a, const char* b, void* c,
+                SDL_CleanupPropertyCallback d, void* e), (a
 ,
 b
 ,
@@ -5034,7 +5416,32 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderDrawColorFloat, (SDL_Renderer *a, float b, float c, float d, float e), (a
+SDL_DYNAPI_PROC(bool, SDL_SetPrimarySelectionText, (const char* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetRenderClipRect, (SDL_Renderer* a, const SDL_Rect* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetRenderColorScale, (SDL_Renderer* a, float b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetRenderDrawBlendMode, (SDL_Renderer* a, SDL_BlendMode b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetRenderDrawColor, (SDL_Renderer* a, Uint8 b, Uint8 c, Uint8 d, Uint8 e), (a
 ,
 b
 ,
@@ -5047,7 +5454,21 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderLogicalPresentation, (SDL_Renderer *a, int b, int c, SDL_RendererLogicalPresentation d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetRenderDrawColorFloat, (SDL_Renderer* a, float b, float c, float d, float e), (a
+,
+b
+,
+c
+,
+d
+,
+e
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetRenderLogicalPresentation, (SDL_Renderer* a, int b, int c,
+                SDL_RendererLogicalPresentation d), (a
 ,
 b
 ,
@@ -5058,7 +5479,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderScale, (SDL_Renderer *a, float b, float c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetRenderScale, (SDL_Renderer* a, float b, float c), (a
 ,
 b
 ,
@@ -5067,65 +5488,35 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderTarget, (SDL_Renderer *a, SDL_Texture *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetRenderTarget, (SDL_Renderer* a, SDL_Texture* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderVSync, (SDL_Renderer *a, int b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetRenderVSync, (SDL_Renderer* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRenderViewport, (SDL_Renderer *a, const SDL_Rect *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetRenderViewport, (SDL_Renderer* a, const SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetScancodeName, (SDL_Scancode a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetScancodeName, (SDL_Scancode a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetStringProperty, (SDL_PropertiesID a, const char *b, const char *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceAlphaMod, (SDL_Surface *a, Uint8 b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceBlendMode, (SDL_Surface *a, SDL_BlendMode b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceClipRect, (SDL_Surface *a, const SDL_Rect *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceColorKey, (SDL_Surface *a, bool b, Uint32 c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetStringProperty, (SDL_PropertiesID a, const char* b, const char* c), (a
 ,
 b
 ,
@@ -5134,39 +5525,28 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceColorMod, (SDL_Surface *a, Uint8 b, Uint8 c, Uint8 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceColorspace, (SDL_Surface *a, SDL_Colorspace b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceAlphaMod, (SDL_Surface* a, Uint8 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetSurfacePalette, (SDL_Surface *a, SDL_Palette *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceBlendMode, (SDL_Surface* a, SDL_BlendMode b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetSurfaceRLE, (SDL_Surface *a, bool b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceClipRect, (SDL_Surface* a, const SDL_Rect* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetTLS, (SDL_TLSID *a, const void *b, SDL_TLSDestructorCallback c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceColorKey, (SDL_Surface* a, bool b, Uint32 c), (a
 ,
 b
 ,
@@ -5175,37 +5555,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetTextInputArea, (SDL_Window *a, const SDL_Rect *b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetTextureAlphaMod, (SDL_Texture *a, Uint8 b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetTextureAlphaModFloat, (SDL_Texture *a, float b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetTextureBlendMode, (SDL_Texture *a, SDL_BlendMode b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetTextureColorMod, (SDL_Texture *a, Uint8 b, Uint8 c, Uint8 d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceColorMod, (SDL_Surface* a, Uint8 b, Uint8 c, Uint8 d), (a
 ,
 b
 ,
@@ -5216,7 +5566,67 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetTextureColorModFloat, (SDL_Texture *a, float b, float c, float d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceColorspace, (SDL_Surface* a, SDL_Colorspace b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetSurfacePalette, (SDL_Surface* a, SDL_Palette* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetSurfaceRLE, (SDL_Surface* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetTLS, (SDL_TLSID* a, const void* b, SDL_TLSDestructorCallback c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetTextInputArea, (SDL_Window* a, const SDL_Rect* b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetTextureAlphaMod, (SDL_Texture* a, Uint8 b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetTextureAlphaModFloat, (SDL_Texture* a, float b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetTextureBlendMode, (SDL_Texture* a, SDL_BlendMode b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetTextureColorMod, (SDL_Texture* a, Uint8 b, Uint8 c, Uint8 d), (a
 ,
 b
 ,
@@ -5227,199 +5637,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetTextureScaleMode, (SDL_Texture *a, SDL_ScaleMode b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowAlwaysOnTop, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowAspectRatio, (SDL_Window *a, float b, float c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowBordered, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowFocusable, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowFullscreen, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowFullscreenMode, (SDL_Window *a, const SDL_DisplayMode *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowHitTest, (SDL_Window *a, SDL_HitTest b, void *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowIcon, (SDL_Window *a, SDL_Surface *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowKeyboardGrab, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowMaximumSize, (SDL_Window *a, int b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowMinimumSize, (SDL_Window *a, int b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowModal, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowMouseGrab, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowMouseRect, (SDL_Window *a, const SDL_Rect *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowOpacity, (SDL_Window *a, float b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowParent, (SDL_Window *a, SDL_Window *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowPosition, (SDL_Window *a, int b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowRelativeMouseMode, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowResizable, (SDL_Window *a, bool b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowShape, (SDL_Window *a, SDL_Surface *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowSize, (SDL_Window *a, int b, int c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowSurfaceVSync, (SDL_Window *a, int b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowTitle, (SDL_Window *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_SetWindowsMessageHook, (SDL_WindowsMessageHook a, void *b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(void, SDL_SetX11EventHook, (SDL_X11EventHook a, void *b), (a
-,
-b
-)
-,
-)
-SDL_DYNAPI_PROC(bool, SDL_SetiOSAnimationCallback, (SDL_Window *a, int b, SDL_iOSAnimationCallback c, void *d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetTextureColorModFloat, (SDL_Texture* a, float b, float c, float d), (a
 ,
 b
 ,
@@ -5430,15 +5648,221 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetiOSEventPump, (bool a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SetTextureScaleMode, (SDL_Texture* a, SDL_ScaleMode b), (a
+,
+b
 )
-SDL_DYNAPI_PROC(bool, SDL_ShouldInit, (SDL_InitState *a), (a), 
+,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ShouldQuit, (SDL_InitState *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SetWindowAlwaysOnTop, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ShowAndroidToast, (const char *a, int b, int c, int d, int e), (a
+SDL_DYNAPI_PROC(bool, SDL_SetWindowAspectRatio, (SDL_Window* a, float b, float c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowBordered, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowFocusable, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowFullscreen, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowFullscreenMode, (SDL_Window* a, const SDL_DisplayMode* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowHitTest, (SDL_Window* a, SDL_HitTest b, void* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowIcon, (SDL_Window* a, SDL_Surface* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowKeyboardGrab, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowMaximumSize, (SDL_Window* a, int b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowMinimumSize, (SDL_Window* a, int b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowModal, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowMouseGrab, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowMouseRect, (SDL_Window* a, const SDL_Rect* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowOpacity, (SDL_Window* a, float b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowParent, (SDL_Window* a, SDL_Window* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowPosition, (SDL_Window* a, int b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowRelativeMouseMode, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowResizable, (SDL_Window* a, bool b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowShape, (SDL_Window* a, SDL_Surface* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowSize, (SDL_Window* a, int b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowSurfaceVSync, (SDL_Window* a, int b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowTitle, (SDL_Window* a, const char* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_SetWindowsMessageHook, (SDL_WindowsMessageHook a, void* b), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(void, SDL_SetX11EventHook, (SDL_X11EventHook a, void* b), (a
+,
+b
+)
+,
+)
+SDL_DYNAPI_PROC(bool, SDL_SetiOSAnimationCallback, (SDL_Window* a, int b, SDL_iOSAnimationCallback c, void* d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_SetiOSEventPump, (bool a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_ShouldInit, (SDL_InitState* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_ShouldQuit, (SDL_InitState* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_ShowAndroidToast, (const char* a, int b, int c, int d, int e), (a
 ,
 b
 ,
@@ -5455,14 +5879,15 @@ SDL_DYNAPI_PROC(bool, SDL_ShowCursor, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ShowMessageBox, (const SDL_MessageBoxData *a, int *b), (a
+SDL_DYNAPI_PROC(bool, SDL_ShowMessageBox, (const SDL_MessageBoxData* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_ShowOpenFileDialog, (SDL_DialogFileCallback a, void *b, SDL_Window *c, const SDL_DialogFileFilter *d, int e, const char *f, bool g), (a
+SDL_DYNAPI_PROC(void, SDL_ShowOpenFileDialog, (SDL_DialogFileCallback a, void* b, SDL_Window* c,
+                const SDL_DialogFileFilter* d, int e, const char* f, bool g), (a
 ,
 b
 ,
@@ -5478,7 +5903,8 @@ g
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ShowOpenFolderDialog, (SDL_DialogFileCallback a, void *b, SDL_Window *c, const char *d, bool e), (a
+SDL_DYNAPI_PROC(void, SDL_ShowOpenFolderDialog, (SDL_DialogFileCallback a, void* b, SDL_Window* c, const char* d,
+                bool e), (a
 ,
 b
 ,
@@ -5490,7 +5916,8 @@ e
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_ShowSaveFileDialog, (SDL_DialogFileCallback a, void *b, SDL_Window *c, const SDL_DialogFileFilter *d, int e, const char *f), (a
+SDL_DYNAPI_PROC(void, SDL_ShowSaveFileDialog, (SDL_DialogFileCallback a, void* b, SDL_Window* c,
+                const SDL_DialogFileFilter* d, int e, const char* f), (a
 ,
 b
 ,
@@ -5504,7 +5931,7 @@ f
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_ShowSimpleMessageBox, (SDL_MessageBoxFlags a, const char *b, const char *c, SDL_Window *d), (a
+SDL_DYNAPI_PROC(bool, SDL_ShowSimpleMessageBox, (SDL_MessageBoxFlags a, const char* b, const char* c, SDL_Window* d), (a
 ,
 b
 ,
@@ -5515,10 +5942,11 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ShowWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_ShowWindow, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_ShowWindowSystemMenu, (SDL_Window *a, int b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_ShowWindowSystemMenu, (SDL_Window* a, int b, int c), (a
 ,
 b
 ,
@@ -5527,71 +5955,87 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SignalCondition, (SDL_Condition *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_SignalCondition, (SDL_Condition* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_SignalSemaphore, (SDL_Semaphore *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_SignalSemaphore, (SDL_Semaphore* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_StartTextInput, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_StartTextInput, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_StartTextInputWithProperties, (SDL_Window *a, SDL_PropertiesID b), (a
+SDL_DYNAPI_PROC(bool, SDL_StartTextInputWithProperties, (SDL_Window* a, SDL_PropertiesID b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_StepUTF8, (const char **a, size_t * b), (a
+SDL_DYNAPI_PROC(Uint32, SDL_StepUTF8, (const char**a, size_t * b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_StopHapticEffect, (SDL_Haptic *a, SDL_HapticEffectID b), (a
+SDL_DYNAPI_PROC(bool, SDL_StopHapticEffect, (SDL_Haptic* a, SDL_HapticEffectID b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_StopHapticEffects, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_StopHapticEffects, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_StopHapticRumble, (SDL_Haptic *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_StopHapticRumble, (SDL_Haptic* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_StopTextInput, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_StopTextInput, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_StorageReady, (SDL_Storage *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_StorageReady, (SDL_Storage* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GUID, SDL_StringToGUID, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_GUID, SDL_StringToGUID, (const char*a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SubmitGPUCommandBuffer, (SDL_GPUCommandBuffer *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SubmitGPUCommandBuffer, (SDL_GPUCommandBuffer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUFence *, SDL_SubmitGPUCommandBufferAndAcquireFence, (SDL_GPUCommandBuffer *a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUFence*, SDL_SubmitGPUCommandBufferAndAcquireFence, (SDL_GPUCommandBuffer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SurfaceHasAlternateImages, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SurfaceHasAlternateImages, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SurfaceHasColorKey, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SurfaceHasColorKey, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SurfaceHasRLE, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SurfaceHasRLE, (SDL_Surface* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SyncWindow, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_SyncWindow, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Sint64, SDL_TellIO, (SDL_IOStream * a), (a), 
+SDL_DYNAPI_PROC(Sint64, SDL_TellIO, (SDL_IOStream * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_TextInputActive, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_TextInputActive, (SDL_Window* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(SDL_Time, SDL_TimeFromWindows, (Uint32 a, Uint32 b), (a
@@ -5601,7 +6045,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_TimeToDateTime, (SDL_Time a, SDL_DateTime *b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_TimeToDateTime, (SDL_Time a, SDL_DateTime* b, bool c), (a
 ,
 b
 ,
@@ -5610,7 +6054,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_TimeToWindows, (SDL_Time a, Uint32 *b, Uint32 *c), (a
+SDL_DYNAPI_PROC(void, SDL_TimeToWindows, (SDL_Time a, Uint32* b, Uint32* c), (a
 ,
 b
 ,
@@ -5618,57 +6062,71 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_TryLockMutex, (SDL_Mutex *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_TryLockMutex, (SDL_Mutex* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_TryLockRWLockForReading, (SDL_RWLock *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_TryLockRWLockForReading, (SDL_RWLock* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_TryLockRWLockForWriting, (SDL_RWLock *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_TryLockRWLockForWriting, (SDL_RWLock* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_TryLockSpinlock, (SDL_SpinLock *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_TryLockSpinlock, (SDL_SpinLock* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_TryWaitSemaphore, (SDL_Semaphore *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_TryWaitSemaphore, (SDL_Semaphore* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_UCS4ToUTF8, (Uint32 a, char *b), (a
+SDL_DYNAPI_PROC(char*, SDL_UCS4ToUTF8, (Uint32 a, char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_UnbindAudioStream, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnbindAudioStream, (SDL_AudioStream* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnbindAudioStreams, (SDL_AudioStream *const *a, int b), (a
+SDL_DYNAPI_PROC(void, SDL_UnbindAudioStreams, (SDL_AudioStream* const * a, int b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_UnloadObject, (SDL_SharedObject *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnloadObject, (SDL_SharedObject* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_UnlockAudioStream, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_UnlockAudioStream, (SDL_AudioStream* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(void, SDL_UnlockJoysticks, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_UnlockMutex, (SDL_Mutex *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnlockMutex, (SDL_Mutex* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnlockProperties, (SDL_PropertiesID a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnlockProperties, (SDL_PropertiesID a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnlockRWLock, (SDL_RWLock *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnlockRWLock, (SDL_RWLock* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnlockSpinlock, (SDL_SpinLock *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnlockSpinlock, (SDL_SpinLock* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnlockSurface, (SDL_Surface *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnlockSurface, (SDL_Surface* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnlockTexture, (SDL_Texture *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_UnlockTexture, (SDL_Texture* a), (a),
+
 )
-SDL_DYNAPI_PROC(void, SDL_UnmapGPUTransferBuffer, (SDL_GPUDevice *a, SDL_GPUTransferBuffer *b), (a
+SDL_DYNAPI_PROC(void, SDL_UnmapGPUTransferBuffer, (SDL_GPUDevice* a, SDL_GPUTransferBuffer* b), (a
 ,
 b
 )
@@ -5677,7 +6135,7 @@ b
 SDL_DYNAPI_PROC(void, SDL_UnregisterApp, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_UnsetEnvironmentVariable, (SDL_Environment *a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_UnsetEnvironmentVariable, (SDL_Environment* a, const char* b), (a
 ,
 b
 )
@@ -5687,7 +6145,7 @@ return
 SDL_DYNAPI_PROC(void, SDL_UpdateGamepads, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_UpdateHapticEffect, (SDL_Haptic *a, SDL_HapticEffectID b, const SDL_HapticEffect *c), (a
+SDL_DYNAPI_PROC(bool, SDL_UpdateHapticEffect, (SDL_Haptic* a, SDL_HapticEffectID b, const SDL_HapticEffect* c), (a
 ,
 b
 ,
@@ -5699,7 +6157,8 @@ return
 SDL_DYNAPI_PROC(void, SDL_UpdateJoysticks, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_UpdateNVTexture, (SDL_Texture *a, const SDL_Rect *b, const Uint8 *c, int d, const Uint8 *e, int f), (a
+SDL_DYNAPI_PROC(bool, SDL_UpdateNVTexture, (SDL_Texture* a, const SDL_Rect* b, const Uint8* c, int d, const Uint8* e,
+                int f), (a
 ,
 b
 ,
@@ -5717,7 +6176,7 @@ return
 SDL_DYNAPI_PROC(void, SDL_UpdateSensors, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_UpdateTexture, (SDL_Texture *a, const SDL_Rect *b, const void *c, int d), (a
+SDL_DYNAPI_PROC(bool, SDL_UpdateTexture, (SDL_Texture* a, const SDL_Rect* b, const void* c, int d), (a
 ,
 b
 ,
@@ -5728,10 +6187,11 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_UpdateWindowSurface, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_UpdateWindowSurface, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_UpdateWindowSurfaceRects, (SDL_Window *a, const SDL_Rect *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_UpdateWindowSurfaceRects, (SDL_Window* a, const SDL_Rect* b, int c), (a
 ,
 b
 ,
@@ -5740,7 +6200,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_UpdateYUVTexture, (SDL_Texture *a, const SDL_Rect *b, const Uint8 *c, int d, const Uint8 *e, int f, const Uint8 *g, int h), (a
+SDL_DYNAPI_PROC(bool, SDL_UpdateYUVTexture, (SDL_Texture* a, const SDL_Rect* b, const Uint8* c, int d, const Uint8* e,
+                int f, const Uint8* g, int h), (a
 ,
 b
 ,
@@ -5759,7 +6220,8 @@ h
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_UploadToGPUBuffer, (SDL_GPUCopyPass *a, const SDL_GPUTransferBufferLocation *b, const SDL_GPUBufferRegion *c, bool d), (a
+SDL_DYNAPI_PROC(void, SDL_UploadToGPUBuffer, (SDL_GPUCopyPass* a, const SDL_GPUTransferBufferLocation* b,
+                const SDL_GPUBufferRegion* c, bool d), (a
 ,
 b
 ,
@@ -5769,7 +6231,8 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_UploadToGPUTexture, (SDL_GPUCopyPass *a, const SDL_GPUTextureTransferInfo *b, const SDL_GPUTextureRegion *c, bool d), (a
+SDL_DYNAPI_PROC(void, SDL_UploadToGPUTexture, (SDL_GPUCopyPass* a, const SDL_GPUTextureTransferInfo* b,
+                const SDL_GPUTextureRegion* c, bool d), (a
 ,
 b
 ,
@@ -5779,7 +6242,8 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_Vulkan_CreateSurface, (SDL_Window *a, VkInstance b, const struct VkAllocationCallbacks *c, VkSurfaceKHR *d), (a
+SDL_DYNAPI_PROC(bool, SDL_Vulkan_CreateSurface, (SDL_Window* a, VkInstance b, const struct VkAllocationCallbacks* c,
+                VkSurfaceKHR* d), (a
 ,
 b
 ,
@@ -5790,7 +6254,8 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_Vulkan_DestroySurface, (VkInstance a, VkSurfaceKHR b, const struct VkAllocationCallbacks *c), (a
+SDL_DYNAPI_PROC(void, SDL_Vulkan_DestroySurface, (VkInstance a, VkSurfaceKHR b,
+                const struct VkAllocationCallbacks* c), (a
 ,
 b
 ,
@@ -5798,7 +6263,8 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(char const *const*, SDL_Vulkan_GetInstanceExtensions, (Uint32 *a), (a), 
+SDL_DYNAPI_PROC(char const* const*, SDL_Vulkan_GetInstanceExtensions, (Uint32* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(bool, SDL_Vulkan_GetPresentationSupport, (VkInstance a, VkPhysicalDevice b, Uint32 c), (a
@@ -5810,22 +6276,24 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_Vulkan_GetVkGetInstanceProcAddr, (void), (), 
+SDL_DYNAPI_PROC(SDL_FunctionPointer, SDL_Vulkan_GetVkGetInstanceProcAddr, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_Vulkan_LoadLibrary, (const char *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_Vulkan_LoadLibrary, (const char* a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(void, SDL_Vulkan_UnloadLibrary, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_WaitCondition, (SDL_Condition *a, SDL_Mutex *b), (a
+SDL_DYNAPI_PROC(void, SDL_WaitCondition, (SDL_Condition* a, SDL_Mutex* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitConditionTimeout, (SDL_Condition *a, SDL_Mutex *b, Sint32 c), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitConditionTimeout, (SDL_Condition* a, SDL_Mutex* b, Sint32 c), (a
 ,
 b
 ,
@@ -5834,17 +6302,18 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitEvent, (SDL_Event *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_WaitEvent, (SDL_Event* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitEventTimeout, (SDL_Event *a, Sint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitEventTimeout, (SDL_Event* a, Sint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitForGPUFences, (SDL_GPUDevice *a, bool b, SDL_GPUFence *const *c, Uint32 d), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitForGPUFences, (SDL_GPUDevice* a, bool b, SDL_GPUFence* const * c, Uint32 d), (a
 ,
 b
 ,
@@ -5855,10 +6324,11 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitForGPUIdle, (SDL_GPUDevice *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_WaitForGPUIdle, (SDL_GPUDevice* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitProcess, (SDL_Process *a, bool b, int *c), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitProcess, (SDL_Process* a, bool b, int* c), (a
 ,
 b
 ,
@@ -5867,16 +6337,17 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_WaitSemaphore, (SDL_Semaphore *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_WaitSemaphore, (SDL_Semaphore* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitSemaphoreTimeout, (SDL_Semaphore *a, Sint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitSemaphoreTimeout, (SDL_Semaphore* a, Sint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_WaitThread, (SDL_Thread *a, int *b), (a
+SDL_DYNAPI_PROC(void, SDL_WaitThread, (SDL_Thread* a, int* b), (a
 ,
 b
 )
@@ -5889,7 +6360,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_WarpMouseInWindow, (SDL_Window *a, float b, float c), (a
+SDL_DYNAPI_PROC(void, SDL_WarpMouseInWindow, (SDL_Window* a, float b, float c), (a
 ,
 b
 ,
@@ -5897,13 +6368,15 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(SDL_InitFlags, SDL_WasInit, (SDL_InitFlags a), (a), 
+SDL_DYNAPI_PROC(SDL_InitFlags, SDL_WasInit, (SDL_InitFlags a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WindowHasSurface, (SDL_Window *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_WindowHasSurface, (SDL_Window* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WindowSupportsGPUPresentMode, (SDL_GPUDevice *a, SDL_Window *b, SDL_GPUPresentMode c), (a
+SDL_DYNAPI_PROC(bool, SDL_WindowSupportsGPUPresentMode, (SDL_GPUDevice* a, SDL_Window* b, SDL_GPUPresentMode c), (a
 ,
 b
 ,
@@ -5912,7 +6385,8 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WindowSupportsGPUSwapchainComposition, (SDL_GPUDevice *a, SDL_Window *b, SDL_GPUSwapchainComposition c), (a
+SDL_DYNAPI_PROC(bool, SDL_WindowSupportsGPUSwapchainComposition, (SDL_GPUDevice* a, SDL_Window* b,
+                SDL_GPUSwapchainComposition c), (a
 ,
 b
 ,
@@ -5930,84 +6404,67 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS16BE, (SDL_IOStream *a, Sint16 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS16BE, (SDL_IOStream* a, Sint16 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS16LE, (SDL_IOStream *a, Sint16 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS16LE, (SDL_IOStream* a, Sint16 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS32BE, (SDL_IOStream *a, Sint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS32BE, (SDL_IOStream* a, Sint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS32LE, (SDL_IOStream *a, Sint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS32LE, (SDL_IOStream* a, Sint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS64BE, (SDL_IOStream *a, Sint64 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS64BE, (SDL_IOStream* a, Sint64 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS64LE, (SDL_IOStream *a, Sint64 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS64LE, (SDL_IOStream* a, Sint64 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteS8, (SDL_IOStream *a, Sint8 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteS8, (SDL_IOStream* a, Sint8 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteStorageFile, (SDL_Storage *a, const char *b, const void *c, Uint64 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_WriteSurfacePixel, (SDL_Surface *a, int b, int c, Uint8 d, Uint8 e, Uint8 f, Uint8 g), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteStorageFile, (SDL_Storage* a, const char* b, const void* c, Uint64 d), (a
 ,
 b
 ,
 c
 ,
 d
-,
-e
-,
-f
-,
-g
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteSurfacePixelFloat, (SDL_Surface *a, int b, int c, float d, float e, float f, float g), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteSurfacePixel, (SDL_Surface* a, int b, int c, Uint8 d, Uint8 e, Uint8 f, Uint8 g), (a
 ,
 b
 ,
@@ -6024,80 +6481,104 @@ g
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU16BE, (SDL_IOStream *a, Uint16 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteSurfacePixelFloat, (SDL_Surface* a, int b, int c, float d, float e, float f, float g), (a
+,
+b
+,
+c
+,
+d
+,
+e
+,
+f
+,
+g
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_WriteU16BE, (SDL_IOStream* a, Uint16 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU16LE, (SDL_IOStream *a, Uint16 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteU16LE, (SDL_IOStream* a, Uint16 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU32BE, (SDL_IOStream *a, Uint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteU32BE, (SDL_IOStream* a, Uint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU32LE, (SDL_IOStream *a, Uint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteU32LE, (SDL_IOStream* a, Uint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU64BE, (SDL_IOStream *a, Uint64 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteU64BE, (SDL_IOStream* a, Uint64 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU64LE, (SDL_IOStream *a, Uint64 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteU64LE, (SDL_IOStream* a, Uint64 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteU8, (SDL_IOStream *a, Uint8 b), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteU8, (SDL_IOStream* a, Uint8 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_abs, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_abs, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_acos, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_acos, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_acosf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_acosf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_aligned_alloc, (size_t a, size_t b), (a
+SDL_DYNAPI_PROC(void*, SDL_aligned_alloc, (size_t a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_aligned_free, (void *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_aligned_free, (void* a), (a),
+
 )
-SDL_DYNAPI_PROC(double, SDL_asin, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_asin, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_asinf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_asinf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_atan, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_atan, (double a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(double, SDL_atan2, (double a, double b), (a
@@ -6114,16 +6595,19 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_atanf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_atanf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_atof, (const char *a), (a), 
+SDL_DYNAPI_PROC(double, SDL_atof, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_atoi, (const char *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_atoi, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_bsearch, (const void *a, const void *b, size_t c, size_t d, SDL_CompareCallback e), (a
+SDL_DYNAPI_PROC(void*, SDL_bsearch, (const void* a, const void* b, size_t c, size_t d, SDL_CompareCallback e), (a
 ,
 b
 ,
@@ -6136,7 +6620,8 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_bsearch_r, (const void *a, const void *b, size_t c, size_t d, SDL_CompareCallback_r e, void *f), (a
+SDL_DYNAPI_PROC(void*, SDL_bsearch_r, (const void* a, const void* b, size_t c, size_t d, SDL_CompareCallback_r e,
+                void* f), (a
 ,
 b
 ,
@@ -6151,17 +6636,19 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_calloc, (size_t a, size_t b), (a
+SDL_DYNAPI_PROC(void*, SDL_calloc, (size_t a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_ceil, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_ceil, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_ceilf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_ceilf, (float a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(double, SDL_copysign, (double a, double b), (a
@@ -6178,10 +6665,12 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_cos, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_cos, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_cosf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_cosf, (float a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(Uint16, SDL_crc16, (Uint16 a, const void *b, size_t c), (a
@@ -6202,22 +6691,28 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_exp, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_exp, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_expf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_expf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_fabs, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_fabs, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_fabsf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_fabsf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_floor, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_floor, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_floorf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_floorf, (float a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(double, SDL_fmod, (double a, double b), (a
@@ -6234,23 +6729,29 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_free, (void *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_free, (void* a), (a),
+
 )
-SDL_DYNAPI_PROC(const char *, SDL_getenv, (const char *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_getenv, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const char *, SDL_getenv_unsafe, (const char *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_getenv_unsafe, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_hid_ble_scan, (bool a), (a), 
+SDL_DYNAPI_PROC(void, SDL_hid_ble_scan, (bool a), (a),
+
 )
-SDL_DYNAPI_PROC(int, SDL_hid_close, (SDL_hid_device *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_hid_close, (SDL_hid_device* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_hid_device_change_count, (void), (), 
+SDL_DYNAPI_PROC(Uint32, SDL_hid_device_change_count, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_hid_device_info *, SDL_hid_enumerate, (unsigned short a, unsigned short b), (a
+SDL_DYNAPI_PROC(SDL_hid_device_info*, SDL_hid_enumerate, (unsigned short a, unsigned short b), (a
 ,
 b
 )
@@ -6261,12 +6762,14 @@ SDL_DYNAPI_PROC(int, SDL_hid_exit, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_hid_free_enumeration, (SDL_hid_device_info *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_hid_free_enumeration, (SDL_hid_device_info* a), (a),
+
 )
-SDL_DYNAPI_PROC(SDL_hid_device_info *, SDL_hid_get_device_info, (SDL_hid_device *a), (a), 
+SDL_DYNAPI_PROC(SDL_hid_device_info*, SDL_hid_get_device_info, (SDL_hid_device* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_feature_report, (SDL_hid_device *a, unsigned char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_feature_report, (SDL_hid_device* a, unsigned char* b, size_t c), (a
 ,
 b
 ,
@@ -6275,7 +6778,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_indexed_string, (SDL_hid_device *a, int b, wchar_t *c, size_t d), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_indexed_string, (SDL_hid_device* a, int b, wchar_t* c, size_t d), (a
 ,
 b
 ,
@@ -6286,7 +6789,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_input_report, (SDL_hid_device *a, unsigned char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_input_report, (SDL_hid_device* a, unsigned char* b, size_t c), (a
 ,
 b
 ,
@@ -6295,7 +6798,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_manufacturer_string, (SDL_hid_device *a, wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_manufacturer_string, (SDL_hid_device* a, wchar_t* b, size_t c), (a
 ,
 b
 ,
@@ -6304,7 +6807,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_product_string, (SDL_hid_device *a, wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_product_string, (SDL_hid_device* a, wchar_t* b, size_t c), (a
 ,
 b
 ,
@@ -6313,7 +6816,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_report_descriptor, (SDL_hid_device *a, unsigned char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_report_descriptor, (SDL_hid_device* a, unsigned char* b, size_t c), (a
 ,
 b
 ,
@@ -6322,7 +6825,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_get_serial_number_string, (SDL_hid_device *a, wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_get_serial_number_string, (SDL_hid_device* a, wchar_t* b, size_t c), (a
 ,
 b
 ,
@@ -6335,7 +6838,7 @@ SDL_DYNAPI_PROC(int, SDL_hid_init, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_hid_device *, SDL_hid_open, (unsigned short a, unsigned short b, const wchar_t *c), (a
+SDL_DYNAPI_PROC(SDL_hid_device*, SDL_hid_open, (unsigned short a, unsigned short b, const wchar_t* c), (a
 ,
 b
 ,
@@ -6344,10 +6847,11 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_hid_device *, SDL_hid_open_path, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_hid_device*, SDL_hid_open_path, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_read, (SDL_hid_device *a, unsigned char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_read, (SDL_hid_device* a, unsigned char* b, size_t c), (a
 ,
 b
 ,
@@ -6356,7 +6860,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_read_timeout, (SDL_hid_device *a, unsigned char *b, size_t c, int d), (a
+SDL_DYNAPI_PROC(int, SDL_hid_read_timeout, (SDL_hid_device* a, unsigned char* b, size_t c, int d), (a
 ,
 b
 ,
@@ -6367,7 +6871,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_send_feature_report, (SDL_hid_device *a, const unsigned char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_send_feature_report, (SDL_hid_device* a, const unsigned char* b, size_t c), (a
 ,
 b
 ,
@@ -6376,14 +6880,14 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_set_nonblocking, (SDL_hid_device *a, int b), (a
+SDL_DYNAPI_PROC(int, SDL_hid_set_nonblocking, (SDL_hid_device* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_hid_write, (SDL_hid_device *a, const unsigned char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_hid_write, (SDL_hid_device* a, const unsigned char* b, size_t c), (a
 ,
 b
 ,
@@ -6405,17 +6909,18 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_iconv_close, (SDL_iconv_t a), (a), 
+SDL_DYNAPI_PROC(int, SDL_iconv_close, (SDL_iconv_t a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_iconv_t, SDL_iconv_open, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(SDL_iconv_t, SDL_iconv_open, (const char*a, const char *b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_iconv_string, (const char *a, const char *b, const char *c, size_t d), (a
+SDL_DYNAPI_PROC(char*, SDL_iconv_string, (const char* a, const char* b, const char* c, size_t d), (a
 ,
 b
 ,
@@ -6426,55 +6931,71 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isalnum, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isalnum, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isalpha, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isalpha, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isblank, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isblank, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_iscntrl, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_iscntrl, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isdigit, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isdigit, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isgraph, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isgraph, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isinf, (double a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isinf, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isinff, (float a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isinff, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_islower, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_islower, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isnan, (double a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isnan, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isnanf, (float a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isnanf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isprint, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isprint, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_ispunct, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_ispunct, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isspace, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isspace, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isupper, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isupper, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_isxdigit, (int a), (a), 
+SDL_DYNAPI_PROC(int, SDL_isxdigit, (int a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_itoa, (int a, char *b, int c), (a
+SDL_DYNAPI_PROC(char*, SDL_itoa, (int a, char* b, int c), (a
 ,
 b
 ,
@@ -6483,7 +7004,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_lltoa, (long long a, char *b, int c), (a
+SDL_DYNAPI_PROC(char*, SDL_lltoa, (long long a, char* b, int c), (a
 ,
 b
 ,
@@ -6492,25 +7013,31 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_log, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_log, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_log10, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_log10, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_log10f, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_log10f, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_logf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_logf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(long, SDL_lround, (double a), (a), 
+SDL_DYNAPI_PROC(long, SDL_lround, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(long, SDL_lroundf, (float a), (a), 
+SDL_DYNAPI_PROC(long, SDL_lroundf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_ltoa, (long a, char *b, int c), (a
+SDL_DYNAPI_PROC(char*, SDL_ltoa, (long a, char* b, int c), (a
 ,
 b
 ,
@@ -6519,10 +7046,11 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_malloc, (size_t a), (a), 
+SDL_DYNAPI_PROC(void*, SDL_malloc, (size_t a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(int, SDL_memcmp, (const void *a, const void *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_memcmp, (const void* a, const void* b, size_t c), (a
 ,
 b
 ,
@@ -6531,7 +7059,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void *,SDL_memcpy, (SDL_OUT_BYTECAP(c) void *a, SDL_IN_BYTECAP(c) const void *b, size_t c), (a
+SDL_DYNAPI_PROC(void*,SDL_memcpy, (SDL_OUT_BYTECAP(c) void* a, SDL_IN_BYTECAP(c) const void* b, size_t c), (a
 ,
 b
 ,
@@ -6540,7 +7068,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void *,SDL_memmove, (SDL_OUT_BYTECAP(c) void *a, SDL_IN_BYTECAP(c) const void *b, size_t c), (a
+SDL_DYNAPI_PROC(void*,SDL_memmove, (SDL_OUT_BYTECAP(c) void* a, SDL_IN_BYTECAP(c) const void* b, size_t c), (a
 ,
 b
 ,
@@ -6549,7 +7077,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void *,SDL_memset, (SDL_OUT_BYTECAP(c) void *a, int b, size_t c), (a
+SDL_DYNAPI_PROC(void*,SDL_memset, (SDL_OUT_BYTECAP(c) void* a, int b, size_t c), (a
 ,
 b
 ,
@@ -6558,7 +7086,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_memset4, (void *a, Uint32 b, size_t c), (a
+SDL_DYNAPI_PROC(void*, SDL_memset4, (void* a, Uint32 b, size_t c), (a
 ,
 b
 ,
@@ -6567,21 +7095,21 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_modf, (double a, double *b), (a
+SDL_DYNAPI_PROC(double, SDL_modf, (double a, double* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_modff, (float a, float *b), (a
+SDL_DYNAPI_PROC(float, SDL_modff, (float a, float* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_murmur3_32, (const void *a, size_t b, Uint32 c), (a
+SDL_DYNAPI_PROC(Uint32, SDL_murmur3_32, (const void*a, size_t b, Uint32 c), (a
 ,
 b
 ,
@@ -6604,7 +7132,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_qsort, (void *a, size_t b, size_t c, SDL_CompareCallback d), (a
+SDL_DYNAPI_PROC(void, SDL_qsort, (void* a, size_t b, size_t c, SDL_CompareCallback d), (a
 ,
 b
 ,
@@ -6614,7 +7142,7 @@ d
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_qsort_r, (void *a, size_t b, size_t c, SDL_CompareCallback_r d, void *e), (a
+SDL_DYNAPI_PROC(void, SDL_qsort_r, (void* a, size_t b, size_t c, SDL_CompareCallback_r d, void* e), (a
 ,
 b
 ,
@@ -6626,13 +7154,16 @@ e
 )
 ,
 )
-SDL_DYNAPI_PROC(Sint32, SDL_rand, (Sint32 a), (a), 
+SDL_DYNAPI_PROC(Sint32, SDL_rand, (Sint32 a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_rand_bits, (void), (), 
+SDL_DYNAPI_PROC(Uint32, SDL_rand_bits, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_rand_bits_r, (Uint64 * a), (a), 
+SDL_DYNAPI_PROC(Uint32, SDL_rand_bits_r, (Uint64 * a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(Sint32, SDL_rand_r, (Uint64 * a, Sint32 b), (a
@@ -6646,20 +7177,23 @@ SDL_DYNAPI_PROC(float, SDL_randf, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(float, SDL_randf_r, (Uint64 *a), (a), 
+SDL_DYNAPI_PROC(float, SDL_randf_r, (Uint64* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void *, SDL_realloc, (void *a, size_t b), (a
+SDL_DYNAPI_PROC(void*, SDL_realloc, (void* a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_round, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_round, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_roundf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_roundf, (float a), (a),
+
 return
 )
 SDL_DYNAPI_PROC(double, SDL_scalbn, (double a, int b), (a
@@ -6676,7 +7210,7 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_setenv_unsafe, (const char *a, const char *b, int c), (a
+SDL_DYNAPI_PROC(int, SDL_setenv_unsafe, (const char* a, const char* b, int c), (a
 ,
 b
 ,
@@ -6685,61 +7219,58 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(double, SDL_sin, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_sin, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_sinf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_sinf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(double, SDL_sqrt, (double a), (a), 
+SDL_DYNAPI_PROC(double, SDL_sqrt, (double a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(float, SDL_sqrtf, (float a), (a), 
+SDL_DYNAPI_PROC(float, SDL_sqrtf, (float a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_srand, (Uint64 a), (a), 
+SDL_DYNAPI_PROC(void, SDL_srand, (Uint64 a), (a),
+
 )
-SDL_DYNAPI_PROC(int, SDL_strcasecmp, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(int, SDL_strcasecmp, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strcasestr, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(char*, SDL_strcasestr, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strchr, (const char *a, int b), (a
+SDL_DYNAPI_PROC(char*, SDL_strchr, (const char* a, int b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_strcmp, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(int, SDL_strcmp, (const char* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strdup, (const char *a), (a), 
+SDL_DYNAPI_PROC(char*, SDL_strdup, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_strlcat, (SDL_INOUT_Z_CAP(c) char *a, const char *b, size_t c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(size_t, SDL_strlcpy, (SDL_OUT_Z_CAP(c) char *a, const char *b, size_t c), (a
+SDL_DYNAPI_PROC(size_t, SDL_strlcat, (SDL_INOUT_Z_CAP(c) char*a, const char *b, size_t c), (a
 ,
 b
 ,
@@ -6748,13 +7279,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_strlen, (const char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(char *, SDL_strlwr, (char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_strncasecmp, (const char *a, const char *b, size_t c), (a
+SDL_DYNAPI_PROC(size_t, SDL_strlcpy, (SDL_OUT_Z_CAP(c) char*a, const char *b, size_t c), (a
 ,
 b
 ,
@@ -6763,7 +7288,15 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_strncmp, (const char *a, const char *b, size_t c), (a
+SDL_DYNAPI_PROC(size_t, SDL_strlen, (const char*a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_strlwr, (char* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int, SDL_strncasecmp, (const char* a, const char* b, size_t c), (a
 ,
 b
 ,
@@ -6772,21 +7305,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strndup, (const char *a, size_t b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(size_t, SDL_strnlen, (const char *a, size_t b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(char *, SDL_strnstr, (const char *a, const char *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_strncmp, (const char* a, const char* b, size_t c), (a
 ,
 b
 ,
@@ -6795,38 +7314,21 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strpbrk, (const char *a, const char *b), (a
+SDL_DYNAPI_PROC(char*, SDL_strndup, (const char* a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strrchr, (const char *a, int b), (a
+SDL_DYNAPI_PROC(size_t, SDL_strnlen, (const char*a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strrev, (char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(char *, SDL_strstr, (const char *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(double, SDL_strtod, (const char *a, char **b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(char *, SDL_strtok_r, (char *a, const char *b, char **c), (a
+SDL_DYNAPI_PROC(char*, SDL_strnstr, (const char* a, const char* b, size_t c), (a
 ,
 b
 ,
@@ -6835,7 +7337,39 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(long, SDL_strtol, (const char *a, char **b, int c), (a
+SDL_DYNAPI_PROC(char*, SDL_strpbrk, (const char* a, const char* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_strrchr, (const char* a, int b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_strrev, (char* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_strstr, (const char* a, const char* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(double, SDL_strtod, (const char* a, char** b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_strtok_r, (char* a, const char* b, char** c), (a
 ,
 b
 ,
@@ -6844,7 +7378,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(long long, SDL_strtoll, (const char *a, char **b, int c), (a
+SDL_DYNAPI_PROC(long, SDL_strtol, (const char* a, char** b, int c), (a
 ,
 b
 ,
@@ -6853,7 +7387,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(unsigned long, SDL_strtoul, (const char *a, char **b, int c), (a
+SDL_DYNAPI_PROC(long long, SDL_strtoll, (const char* a, char** b, int c), (a
 ,
 b
 ,
@@ -6862,7 +7396,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(unsigned long long, SDL_strtoull, (const char *a, char **b, int c), (a
+SDL_DYNAPI_PROC(unsigned long, SDL_strtoul, (const char* a, char** b, int c), (a
 ,
 b
 ,
@@ -6871,28 +7405,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_strupr, (char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(double, SDL_tan, (double a), (a), 
-return
-)
-SDL_DYNAPI_PROC(float, SDL_tanf, (float a), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_tolower, (int a), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_toupper, (int a), (a), 
-return
-)
-SDL_DYNAPI_PROC(double, SDL_trunc, (double a), (a), 
-return
-)
-SDL_DYNAPI_PROC(float, SDL_truncf, (float a), (a), 
-return
-)
-SDL_DYNAPI_PROC(char *, SDL_uitoa, (unsigned int a, char *b, int c), (a
+SDL_DYNAPI_PROC(unsigned long long, SDL_strtoull, (const char* a, char** b, int c), (a
 ,
 b
 ,
@@ -6901,7 +7414,35 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_ulltoa, (unsigned long long a, char *b, int c), (a
+SDL_DYNAPI_PROC(char*, SDL_strupr, (char* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(double, SDL_tan, (double a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(float, SDL_tanf, (float a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int, SDL_tolower, (int a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int, SDL_toupper, (int a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(double, SDL_trunc, (double a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(float, SDL_truncf, (float a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_uitoa, (unsigned int a, char* b, int c), (a
 ,
 b
 ,
@@ -6910,7 +7451,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_ultoa, (unsigned long a, char *b, int c), (a
+SDL_DYNAPI_PROC(char*, SDL_ulltoa, (unsigned long long a, char* b, int c), (a
 ,
 b
 ,
@@ -6919,10 +7460,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_unsetenv_unsafe, (const char *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(size_t, SDL_utf8strlcpy, (SDL_OUT_Z_CAP(c) char *a, const char *b, size_t c), (a
+SDL_DYNAPI_PROC(char*, SDL_ultoa, (unsigned long a, char* b, int c), (a
 ,
 b
 ,
@@ -6931,17 +7469,11 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_utf8strlen, (const char *a), (a), 
+SDL_DYNAPI_PROC(int, SDL_unsetenv_unsafe, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_utf8strnlen, (const char *a, size_t b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(int, SDL_vasprintf, (char **a, SDL_PRINTF_FORMAT_STRING const char *b, va_list c), (a
+SDL_DYNAPI_PROC(size_t, SDL_utf8strlcpy, (SDL_OUT_Z_CAP(c) char*a, const char *b, size_t c), (a
 ,
 b
 ,
@@ -6950,7 +7482,28 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_vsnprintf, (SDL_OUT_Z_CAP(b) char *a, size_t b, SDL_PRINTF_FORMAT_STRING const char *c, va_list d), (a
+SDL_DYNAPI_PROC(size_t, SDL_utf8strlen, (const char*a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(size_t, SDL_utf8strnlen, (const char*a, size_t b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(int, SDL_vasprintf, (char** a, SDL_PRINTF_FORMAT_STRING const char* b, va_list c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(int, SDL_vsnprintf, (SDL_OUT_Z_CAP(b) char* a, size_t b, SDL_PRINTF_FORMAT_STRING const char* c,
+                va_list d), (a
 ,
 b
 ,
@@ -6961,7 +7514,7 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_vsscanf, (const char *a, SDL_SCANF_FORMAT_STRING const char *b, va_list c), (a
+SDL_DYNAPI_PROC(int, SDL_vsscanf, (const char* a, SDL_SCANF_FORMAT_STRING const char* b, va_list c), (a
 ,
 b
 ,
@@ -6970,7 +7523,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_vswprintf, (SDL_OUT_Z_CAP(b) wchar_t *a, size_t b, const wchar_t *c, va_list d), (a
+SDL_DYNAPI_PROC(int, SDL_vswprintf, (SDL_OUT_Z_CAP(b) wchar_t* a, size_t b, const wchar_t* c, va_list d), (a
 ,
 b
 ,
@@ -6981,33 +7534,25 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_wcscasecmp, (const wchar_t *a, const wchar_t *b), (a
+SDL_DYNAPI_PROC(int, SDL_wcscasecmp, (const wchar_t* a, const wchar_t* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_wcscmp, (const wchar_t *a, const wchar_t *b), (a
+SDL_DYNAPI_PROC(int, SDL_wcscmp, (const wchar_t* a, const wchar_t* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(wchar_t *, SDL_wcsdup, (const wchar_t *a), (a), 
+SDL_DYNAPI_PROC(wchar_t*, SDL_wcsdup, (const wchar_t* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_wcslcat, (SDL_INOUT_Z_CAP(c) wchar_t *a, const wchar_t *b, size_t c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(size_t, SDL_wcslcpy, (SDL_OUT_Z_CAP(c) wchar_t *a, const wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(size_t, SDL_wcslcat, (SDL_INOUT_Z_CAP(c) wchar_t*a, const wchar_t *b, size_t c), (a
 ,
 b
 ,
@@ -7016,10 +7561,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_wcslen, (const wchar_t *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(int, SDL_wcsncasecmp, (const wchar_t *a, const wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(size_t, SDL_wcslcpy, (SDL_OUT_Z_CAP(c) wchar_t*a, const wchar_t *b, size_t c), (a
 ,
 b
 ,
@@ -7028,7 +7570,11 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_wcsncmp, (const wchar_t *a, const wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(size_t, SDL_wcslen, (const wchar_t*a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(int, SDL_wcsncasecmp, (const wchar_t* a, const wchar_t* b, size_t c), (a
 ,
 b
 ,
@@ -7037,14 +7583,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(size_t, SDL_wcsnlen, (const wchar_t *a, size_t b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(wchar_t *, SDL_wcsnstr, (const wchar_t *a, const wchar_t *b, size_t c), (a
+SDL_DYNAPI_PROC(int, SDL_wcsncmp, (const wchar_t* a, const wchar_t* b, size_t c), (a
 ,
 b
 ,
@@ -7053,14 +7592,14 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(wchar_t *, SDL_wcsstr, (const wchar_t *a, const wchar_t *b), (a
+SDL_DYNAPI_PROC(size_t, SDL_wcsnlen, (const wchar_t*a, size_t b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(long, SDL_wcstol, (const wchar_t *a, wchar_t **b, int c), (a
+SDL_DYNAPI_PROC(wchar_t*, SDL_wcsnstr, (const wchar_t* a, const wchar_t* b, size_t c), (a
 ,
 b
 ,
@@ -7069,14 +7608,31 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(Uint32, SDL_StepBackUTF8, (const char *a, const char **b), (a
+SDL_DYNAPI_PROC(wchar_t*, SDL_wcsstr, (const wchar_t* a, const wchar_t* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_DelayPrecise, (Uint64 a), (a), 
+SDL_DYNAPI_PROC(long, SDL_wcstol, (const wchar_t* a, wchar_t** b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(Uint32, SDL_StepBackUTF8, (const char*a, const char **b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_DelayPrecise, (Uint64 a), (a),
+
 )
 SDL_DYNAPI_PROC(Uint32, SDL_CalculateGPUTextureFormatSize, (SDL_GPUTextureFormat a, Uint32 b, Uint32 c, Uint32 d), (a
 ,
@@ -7089,34 +7645,18 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetErrorV, (SDL_PRINTF_FORMAT_STRING const char *a, va_list b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetErrorV, (SDL_PRINTF_FORMAT_STRING const char* a, va_list b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_LogOutputFunction, SDL_GetDefaultLogOutputFunction, (void), (), 
+SDL_DYNAPI_PROC(SDL_LogOutputFunction, SDL_GetDefaultLogOutputFunction, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderDebugText, (SDL_Renderer *a, float b, float c, const char *d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_Sandbox, SDL_GetSandbox, (void), (), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_CancelGPUCommandBuffer, (SDL_GPUCommandBuffer *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SaveFile_IO, (SDL_IOStream *a, const void *b, size_t c, bool d), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderDebugText, (SDL_Renderer* a, float b, float c, const char* d), (a
 ,
 b
 ,
@@ -7127,51 +7667,58 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SaveFile, (const char *a, const void *b, size_t c), (a
-,
-b
-,
-c
-)
-,
+SDL_DYNAPI_PROC(SDL_Sandbox, SDL_GetSandbox, (void), (),
+
 return
 )
-SDL_DYNAPI_PROC(char *, SDL_GetCurrentDirectory, (void), ()
-,
+SDL_DYNAPI_PROC(bool, SDL_CancelGPUCommandBuffer, (SDL_GPUCommandBuffer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_IsAudioDevicePhysical, (SDL_AudioDeviceID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_IsAudioDevicePlayback, (SDL_AudioDeviceID a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_AsyncIO *, SDL_AsyncIOFromFile, (const char *a, const char *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(Sint64, SDL_GetAsyncIOSize, (SDL_AsyncIO * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_ReadAsyncIO, (SDL_AsyncIO *a, void *b, Uint64 c, Uint64 d, SDL_AsyncIOQueue *e, void *f), (a
+SDL_DYNAPI_PROC(bool, SDL_SaveFile_IO, (SDL_IOStream* a, const void* b, size_t c, bool d), (a
 ,
 b
 ,
 c
 ,
 d
-,
-e
-,
-f
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WriteAsyncIO, (SDL_AsyncIO *a, void *b, Uint64 c, Uint64 d, SDL_AsyncIOQueue *e, void *f), (a
+SDL_DYNAPI_PROC(bool, SDL_SaveFile, (const char* a, const void* b, size_t c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(char*, SDL_GetCurrentDirectory, (void), ()
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_IsAudioDevicePhysical, (SDL_AudioDeviceID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_IsAudioDevicePlayback, (SDL_AudioDeviceID a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_AsyncIO*, SDL_AsyncIOFromFile, (const char* a, const char* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(Sint64, SDL_GetAsyncIOSize, (SDL_AsyncIO * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_ReadAsyncIO, (SDL_AsyncIO* a, void* b, Uint64 c, Uint64 d, SDL_AsyncIOQueue* e, void* f), (a
 ,
 b
 ,
@@ -7186,7 +7733,22 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_CloseAsyncIO, (SDL_AsyncIO *a, bool b, SDL_AsyncIOQueue *c, void *d), (a
+SDL_DYNAPI_PROC(bool, SDL_WriteAsyncIO, (SDL_AsyncIO* a, void* b, Uint64 c, Uint64 d, SDL_AsyncIOQueue* e, void* f), (a
+,
+b
+,
+c
+,
+d
+,
+e
+,
+f
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_CloseAsyncIO, (SDL_AsyncIO* a, bool b, SDL_AsyncIOQueue* c, void* d), (a
 ,
 b
 ,
@@ -7197,31 +7759,21 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_AsyncIOQueue *, SDL_CreateAsyncIOQueue, (void), ()
+SDL_DYNAPI_PROC(SDL_AsyncIOQueue*, SDL_CreateAsyncIOQueue, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyAsyncIOQueue, (SDL_AsyncIOQueue *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyAsyncIOQueue, (SDL_AsyncIOQueue* a), (a),
+
 )
-SDL_DYNAPI_PROC(bool, SDL_GetAsyncIOResult, (SDL_AsyncIOQueue *a, SDL_AsyncIOOutcome *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetAsyncIOResult, (SDL_AsyncIOQueue* a, SDL_AsyncIOOutcome* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitAsyncIOResult, (SDL_AsyncIOQueue *a, SDL_AsyncIOOutcome *b, Sint32 c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_SignalAsyncIOQueue, (SDL_AsyncIOQueue *a), (a), 
-)
-SDL_DYNAPI_PROC(bool, SDL_LoadFileAsync, (const char *a, SDL_AsyncIOQueue *b, void *c), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitAsyncIOResult, (SDL_AsyncIOQueue* a, SDL_AsyncIOOutcome* b, Sint32 c), (a
 ,
 b
 ,
@@ -7230,7 +7782,20 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_ShowFileDialogWithProperties, (SDL_FileDialogType a, SDL_DialogFileCallback b, void *c, SDL_PropertiesID d), (a
+SDL_DYNAPI_PROC(void, SDL_SignalAsyncIOQueue, (SDL_AsyncIOQueue* a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_LoadFileAsync, (const char* a, SDL_AsyncIOQueue* b, void* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_ShowFileDialogWithProperties, (SDL_FileDialogType a, SDL_DialogFileCallback b, void* c,
+                SDL_PropertiesID d), (a
 ,
 b
 ,
@@ -7244,7 +7809,7 @@ SDL_DYNAPI_PROC(bool, SDL_IsMainThread, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RunOnMainThread, (SDL_MainThreadCallback a, void *b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_RunOnMainThread, (SDL_MainThreadCallback a, void* b, bool c), (a
 ,
 b
 ,
@@ -7253,14 +7818,15 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetGPUAllowedFramesInFlight, (SDL_GPUDevice *a, Uint32 b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetGPUAllowedFramesInFlight, (SDL_GPUDevice* a, Uint32 b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderTextureAffine, (SDL_Renderer *a, SDL_Texture *b, const SDL_FRect *c, const SDL_FPoint *d, const SDL_FPoint *e, const SDL_FPoint *f), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderTextureAffine, (SDL_Renderer* a, SDL_Texture* b, const SDL_FRect* c,
+                const SDL_FPoint* d, const SDL_FPoint* e, const SDL_FPoint* f), (a
 ,
 b
 ,
@@ -7275,14 +7841,15 @@ f
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitForGPUSwapchain, (SDL_GPUDevice *a, SDL_Window *b), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitForGPUSwapchain, (SDL_GPUDevice* a, SDL_Window* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_WaitAndAcquireGPUSwapchainTexture, (SDL_GPUCommandBuffer *a, SDL_Window *b, SDL_GPUTexture **c, Uint32 *d, Uint32 *e), (a
+SDL_DYNAPI_PROC(bool, SDL_WaitAndAcquireGPUSwapchainTexture, (SDL_GPUCommandBuffer* a, SDL_Window* b,
+                SDL_GPUTexture** c, Uint32* d, Uint32* e), (a
 ,
 b
 ,
@@ -7296,7 +7863,8 @@ e
 return
 )
 #ifndef SDL_DYNAPI_PROC_NO_VARARGS
-SDL_DYNAPI_PROC(bool, SDL_RenderDebugTextFormat, (SDL_Renderer *a, float b, float c,SDL_PRINTF_FORMAT_STRING const char *d, ...), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderDebugTextFormat, (SDL_Renderer* a, float b, float c,
+                SDL_PRINTF_FORMAT_STRING const char* d, ...), (a
 ,
 b
 ,
@@ -7308,47 +7876,52 @@ d
 return
 )
 #endif
-SDL_DYNAPI_PROC(SDL_Tray *, SDL_CreateTray, (SDL_Surface *a, const char *b), (a
+SDL_DYNAPI_PROC(SDL_Tray*, SDL_CreateTray, (SDL_Surface* a, const char* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetTrayIcon, (SDL_Tray *a, SDL_Surface *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetTrayIcon, (SDL_Tray* a, SDL_Surface* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_SetTrayTooltip, (SDL_Tray *a, const char *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetTrayTooltip, (SDL_Tray* a, const char* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(SDL_TrayMenu *, SDL_CreateTrayMenu, (SDL_Tray *a), (a), 
+SDL_DYNAPI_PROC(SDL_TrayMenu*, SDL_CreateTrayMenu, (SDL_Tray* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_TrayMenu *, SDL_CreateTraySubmenu, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(SDL_TrayMenu*, SDL_CreateTraySubmenu, (SDL_TrayEntry* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_TrayMenu *, SDL_GetTrayMenu, (SDL_Tray *a), (a), 
+SDL_DYNAPI_PROC(SDL_TrayMenu*, SDL_GetTrayMenu, (SDL_Tray* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_TrayMenu *, SDL_GetTraySubmenu, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(SDL_TrayMenu*, SDL_GetTraySubmenu, (SDL_TrayEntry* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(const SDL_TrayEntry **, SDL_GetTrayEntries, (SDL_TrayMenu *a, int *b), (a
+SDL_DYNAPI_PROC(const SDL_TrayEntry**, SDL_GetTrayEntries, (SDL_TrayMenu* a, int* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_RemoveTrayEntry, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_RemoveTrayEntry, (SDL_TrayEntry* a), (a),
+
 )
-SDL_DYNAPI_PROC(SDL_TrayEntry *, SDL_InsertTrayEntryAt, (SDL_TrayMenu *a, int b, const char *c, SDL_TrayEntryFlags d), (a
+SDL_DYNAPI_PROC(SDL_TrayEntry*, SDL_InsertTrayEntryAt, (SDL_TrayMenu* a, int b, const char* c, SDL_TrayEntryFlags d), (a
 ,
 b
 ,
@@ -7359,34 +7932,37 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetTrayEntryLabel, (SDL_TrayEntry *a, const char *b), (a
+SDL_DYNAPI_PROC(void, SDL_SetTrayEntryLabel, (SDL_TrayEntry* a, const char* b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(const char *, SDL_GetTrayEntryLabel, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(const char*, SDL_GetTrayEntryLabel, (SDL_TrayEntry* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetTrayEntryChecked, (SDL_TrayEntry *a, bool b), (a
+SDL_DYNAPI_PROC(void, SDL_SetTrayEntryChecked, (SDL_TrayEntry* a, bool b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTrayEntryChecked, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetTrayEntryChecked, (SDL_TrayEntry* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetTrayEntryEnabled, (SDL_TrayEntry *a, bool b), (a
+SDL_DYNAPI_PROC(void, SDL_SetTrayEntryEnabled, (SDL_TrayEntry* a, bool b), (a
 ,
 b
 )
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_GetTrayEntryEnabled, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_GetTrayEntryEnabled, (SDL_TrayEntry* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_SetTrayEntryCallback, (SDL_TrayEntry *a, SDL_TrayCallback b, void *c), (a
+SDL_DYNAPI_PROC(void, SDL_SetTrayEntryCallback, (SDL_TrayEntry* a, SDL_TrayCallback b, void* c), (a
 ,
 b
 ,
@@ -7394,29 +7970,37 @@ c
 )
 ,
 )
-SDL_DYNAPI_PROC(void, SDL_DestroyTray, (SDL_Tray *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_DestroyTray, (SDL_Tray* a), (a),
+
 )
-SDL_DYNAPI_PROC(SDL_TrayMenu *, SDL_GetTrayEntryParent, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(SDL_TrayMenu*, SDL_GetTrayEntryParent, (SDL_TrayEntry* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_TrayEntry *, SDL_GetTrayMenuParentEntry, (SDL_TrayMenu *a), (a), 
+SDL_DYNAPI_PROC(SDL_TrayEntry*, SDL_GetTrayMenuParentEntry, (SDL_TrayMenu* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Tray *, SDL_GetTrayMenuParentTray, (SDL_TrayMenu *a), (a), 
+SDL_DYNAPI_PROC(SDL_Tray*, SDL_GetTrayMenuParentTray, (SDL_TrayMenu* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_ThreadState, SDL_GetThreadState, (SDL_Thread * a), (a), 
+SDL_DYNAPI_PROC(SDL_ThreadState, SDL_GetThreadState, (SDL_Thread * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_AudioStreamDevicePaused, (SDL_AudioStream *a), (a), 
+SDL_DYNAPI_PROC(bool, SDL_AudioStreamDevicePaused, (SDL_AudioStream* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(void, SDL_ClickTrayEntry, (SDL_TrayEntry *a), (a), 
+SDL_DYNAPI_PROC(void, SDL_ClickTrayEntry, (SDL_TrayEntry* a), (a),
+
 )
 SDL_DYNAPI_PROC(void, SDL_UpdateTrays, (void), ()
 ,
 )
-SDL_DYNAPI_PROC(bool, SDL_StretchSurface, (SDL_Surface *a, const SDL_Rect *b, SDL_Surface *c, const SDL_Rect *d, SDL_ScaleMode e), (a
+SDL_DYNAPI_PROC(bool, SDL_StretchSurface, (SDL_Surface* a, const SDL_Rect* b, SDL_Surface* c, const SDL_Rect* d,
+                SDL_ScaleMode e), (a
 ,
 b
 ,
@@ -7429,14 +8013,15 @@ e
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetRelativeMouseTransform, (SDL_MouseMotionTransformCallback a, void *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetRelativeMouseTransform, (SDL_MouseMotionTransformCallback a, void* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_RenderTexture9GridTiled, (SDL_Renderer *a, SDL_Texture *b, const SDL_FRect *c, float d, float e, float f, float g, float h, const SDL_FRect *i, float j), (a
+SDL_DYNAPI_PROC(bool, SDL_RenderTexture9GridTiled, (SDL_Renderer* a, SDL_Texture* b, const SDL_FRect* c, float d,
+                float e, float f, float g, float h, const SDL_FRect* i, float j), (a
 ,
 b
 ,
@@ -7459,96 +8044,30 @@ j
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetDefaultTextureScaleMode, (SDL_Renderer *a, SDL_ScaleMode b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetDefaultTextureScaleMode, (SDL_Renderer* a, SDL_ScaleMode b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_GetDefaultTextureScaleMode, (SDL_Renderer *a, SDL_ScaleMode *b), (a
+SDL_DYNAPI_PROC(bool, SDL_GetDefaultTextureScaleMode, (SDL_Renderer* a, SDL_ScaleMode* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_GPURenderState *, SDL_CreateGPURenderState, (SDL_Renderer *a, const SDL_GPURenderStateCreateInfo *b), (a
+SDL_DYNAPI_PROC(SDL_GPURenderState*, SDL_CreateGPURenderState, (SDL_Renderer* a,
+                const SDL_GPURenderStateCreateInfo* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetGPURenderStateFragmentUniforms, (SDL_GPURenderState *a, Uint32 b, const void *c, Uint32 d), (a
-,
-b
-,
-c
-,
-d
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetGPURenderState, (SDL_Renderer *a, SDL_GPURenderState *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(void, SDL_DestroyGPURenderState, (SDL_GPURenderState *a), (a), 
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowProgressState, (SDL_Window *a, SDL_ProgressState b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetWindowProgressValue, (SDL_Window *a, float b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_ProgressState, SDL_GetWindowProgressState, (SDL_Window * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(float, SDL_GetWindowProgressValue, (SDL_Window *a), (a), 
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_SetRenderTextureAddressMode, (SDL_Renderer *a, SDL_TextureAddressMode b, SDL_TextureAddressMode c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_GetRenderTextureAddressMode, (SDL_Renderer *a, SDL_TextureAddressMode *b, SDL_TextureAddressMode *c), (a
-,
-b
-,
-c
-)
-,
-return
-)
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetGPUDeviceProperties, (SDL_GPUDevice * a), (a), 
-return
-)
-SDL_DYNAPI_PROC(SDL_Renderer *, SDL_CreateGPURenderer, (SDL_GPUDevice *a, SDL_Window *b), (a
-,
-b
-)
-,
-return
-)
-SDL_DYNAPI_PROC(bool, SDL_PutAudioStreamPlanarData, (SDL_AudioStream *a, const void *const*b, int c, int d), (a
+SDL_DYNAPI_PROC(bool, SDL_SetGPURenderStateFragmentUniforms, (SDL_GPURenderState* a, Uint32 b, const void* c,
+                Uint32 d), (a
 ,
 b
 ,
@@ -7559,7 +8078,40 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(int, SDL_GetEventDescription, (const SDL_Event *a, char *b, int c), (a
+SDL_DYNAPI_PROC(bool, SDL_SetGPURenderState, (SDL_Renderer* a, SDL_GPURenderState* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(void, SDL_DestroyGPURenderState, (SDL_GPURenderState* a), (a),
+
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowProgressState, (SDL_Window* a, SDL_ProgressState b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetWindowProgressValue, (SDL_Window* a, float b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_ProgressState, SDL_GetWindowProgressState, (SDL_Window * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(float, SDL_GetWindowProgressValue, (SDL_Window* a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_SetRenderTextureAddressMode, (SDL_Renderer* a, SDL_TextureAddressMode b,
+                SDL_TextureAddressMode c), (a
 ,
 b
 ,
@@ -7568,7 +8120,49 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_PutAudioStreamDataNoCopy, (SDL_AudioStream *a, const void *b, int c, SDL_AudioStreamDataCompleteCallback d, void *e), (a
+SDL_DYNAPI_PROC(bool, SDL_GetRenderTextureAddressMode, (SDL_Renderer* a, SDL_TextureAddressMode* b,
+                SDL_TextureAddressMode* c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_GetGPUDeviceProperties, (SDL_GPUDevice * a), (a),
+
+return
+)
+SDL_DYNAPI_PROC(SDL_Renderer*, SDL_CreateGPURenderer, (SDL_GPUDevice* a, SDL_Window* b), (a
+,
+b
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_PutAudioStreamPlanarData, (SDL_AudioStream* a, const void* const* b, int c, int d), (a
+,
+b
+,
+c
+,
+d
+)
+,
+return
+)
+SDL_DYNAPI_PROC(int, SDL_GetEventDescription, (const SDL_Event* a, char* b, int c), (a
+,
+b
+,
+c
+)
+,
+return
+)
+SDL_DYNAPI_PROC(bool, SDL_PutAudioStreamDataNoCopy, (SDL_AudioStream* a, const void* b, int c,
+                SDL_AudioStreamDataCompleteCallback d, void* e), (a
 ,
 b
 ,
@@ -7588,42 +8182,49 @@ b
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_hid_get_properties, (SDL_hid_device * a), (a), 
+SDL_DYNAPI_PROC(SDL_PropertiesID, SDL_hid_get_properties, (SDL_hid_device * a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_PixelFormat, SDL_GetPixelFormatFromGPUTextureFormat, (SDL_GPUTextureFormat a), (a), 
+SDL_DYNAPI_PROC(SDL_PixelFormat, SDL_GetPixelFormatFromGPUTextureFormat, (SDL_GPUTextureFormat a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUTextureFormat, SDL_GetGPUTextureFormatFromPixelFormat, (SDL_PixelFormat a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUTextureFormat, SDL_GetGPUTextureFormatFromPixelFormat, (SDL_PixelFormat a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(Sint32, JNI_OnLoad, (JavaVM * a, void * b), (a, b), 
+SDL_DYNAPI_PROC(Sint32, JNI_OnLoad, (JavaVM * a, void * b), (a, b),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetTexturePalette, (SDL_Texture *a, SDL_Palette *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetTexturePalette, (SDL_Texture* a, SDL_Palette* b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Palette *, SDL_GetTexturePalette, (SDL_Texture *a), (a), 
+SDL_DYNAPI_PROC(SDL_Palette*, SDL_GetTexturePalette, (SDL_Texture* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_GPUDevice *, SDL_GetGPURendererDevice, (SDL_Renderer *a), (a), 
+SDL_DYNAPI_PROC(SDL_GPUDevice*, SDL_GetGPURendererDevice, (SDL_Renderer* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_LoadPNG_IO, (SDL_IOStream *a, bool b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_LoadPNG_IO, (SDL_IOStream* a, bool b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_LoadPNG, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_LoadPNG, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SavePNG_IO, (SDL_Surface *a, SDL_IOStream *b, bool c), (a
+SDL_DYNAPI_PROC(bool, SDL_SavePNG_IO, (SDL_Surface* a, SDL_IOStream* b, bool c), (a
 ,
 b
 ,
@@ -7632,7 +8233,7 @@ c
 ,
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SavePNG, (SDL_Surface *a, const char *b), (a
+SDL_DYNAPI_PROC(bool, SDL_SavePNG, (SDL_Surface* a, const char* b), (a
 ,
 b
 )
@@ -7643,10 +8244,11 @@ SDL_DYNAPI_PROC(int, SDL_GetSystemPageSize, (void), ()
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_PenDeviceType, SDL_GetPenDeviceType, (SDL_PenID a), (a), 
+SDL_DYNAPI_PROC(SDL_PenDeviceType, SDL_GetPenDeviceType, (SDL_PenID a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(SDL_Cursor *, SDL_CreateAnimatedCursor, (SDL_CursorFrameInfo *a, int b, int c, int d), (a
+SDL_DYNAPI_PROC(SDL_Cursor*, SDL_CreateAnimatedCursor, (SDL_CursorFrameInfo* a, int b, int c, int d), (a
 ,
 b
 ,
@@ -7657,24 +8259,25 @@ d
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_RotateSurface, (SDL_Surface *a, float b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_RotateSurface, (SDL_Surface* a, float b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_LoadSurface_IO, (SDL_IOStream *a, bool b), (a
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_LoadSurface_IO, (SDL_IOStream* a, bool b), (a
 ,
 b
 )
 ,
 return
 )
-SDL_DYNAPI_PROC(SDL_Surface *, SDL_LoadSurface, (const char *a), (a), 
+SDL_DYNAPI_PROC(SDL_Surface*, SDL_LoadSurface, (const char* a), (a),
+
 return
 )
-SDL_DYNAPI_PROC(bool, SDL_SetWindowFillDocument, (SDL_Window *a, bool b), (a
+SDL_DYNAPI_PROC(bool, SDL_SetWindowFillDocument, (SDL_Window* a, bool b), (a
 ,
 b
 )

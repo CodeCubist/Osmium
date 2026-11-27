@@ -59,6 +59,7 @@ static _inline void cpuid(unsigned int CPUInfo[4], unsigned int InfoType)
 static void cpuid(unsigned int CPUInfo[4], unsigned int InfoType)
 {
 
+
 #if defined(CPU_INFO_BY_ASM)
 #if defined(__i386__) && defined(__PIC__)
 /* %ebx is PIC register in 32-bit, so mustn't clobber it. */

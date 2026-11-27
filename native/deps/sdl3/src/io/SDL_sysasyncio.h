@@ -70,36 +70,38 @@ typedef struct SDL_AsyncIOTask SDL_AsyncIOTask;
 
 struct SDL_AsyncIOTask
 {
-    SDL_AsyncIO *asyncio;
+    SDL_AsyncIO* asyncio;
     SDL_AsyncIOTaskType type;
-    SDL_AsyncIOQueue *queue;
+    SDL_AsyncIOQueue* queue;
     Uint64 offset;
     bool flush;
-    void *buffer;
-    char *error;
+    void* buffer;
+    char* error;
     SDL_AsyncIOResult result;
     Uint64 requested_size;
     Uint64 result_size;
-    void *app_userdata;
+    void* app_userdata;
     LINKED_LIST_DECLARE_FIELDS(struct SDL_AsyncIOTask, asyncio);
-    LINKED_LIST_DECLARE_FIELDS(struct SDL_AsyncIOTask, queue);      // the generic backend uses this, so I've added it here to avoid the extra allocation.
-    LINKED_LIST_DECLARE_FIELDS(struct SDL_AsyncIOTask, threadpool); // the generic backend uses this, so I've added it here to avoid the extra allocation.
+    LINKED_LIST_DECLARE_FIELDS(struct SDL_AsyncIOTask, queue);
+    // the generic backend uses this, so I've added it here to avoid the extra allocation.
+    LINKED_LIST_DECLARE_FIELDS(struct SDL_AsyncIOTask, threadpool);
+    // the generic backend uses this, so I've added it here to avoid the extra allocation.
 };
 
 typedef struct SDL_AsyncIOQueueInterface
 {
-    bool (*queue_task)(void *userdata, SDL_AsyncIOTask *task);
-    void (*cancel_task)(void *userdata, SDL_AsyncIOTask *task);
-    SDL_AsyncIOTask * (*get_results)(void *userdata);
-    SDL_AsyncIOTask * (*wait_results)(void *userdata, Sint32 timeoutMS);
-    void (*signal)(void *userdata);
-    void (*destroy)(void *userdata);
+    bool (*queue_task)(void* userdata, SDL_AsyncIOTask* task);
+    void (*cancel_task)(void* userdata, SDL_AsyncIOTask* task);
+    SDL_AsyncIOTask* (*get_results)(void* userdata);
+    SDL_AsyncIOTask* (*wait_results)(void* userdata, Sint32 timeoutMS);
+    void (*signal)(void* userdata);
+    void (*destroy)(void* userdata);
 } SDL_AsyncIOQueueInterface;
 
 struct SDL_AsyncIOQueue
 {
     SDL_AsyncIOQueueInterface iface;
-    void *userdata;
+    void* userdata;
     SDL_AtomicInt tasks_inflight;
 };
 
@@ -109,36 +111,36 @@ struct SDL_AsyncIOQueue
 // sockets, in the future.
 typedef struct SDL_AsyncIOInterface
 {
-    Sint64 (*size)(void *userdata);
-    bool (*read)(void *userdata, SDL_AsyncIOTask *task);
-    bool (*write)(void *userdata, SDL_AsyncIOTask *task);
-    bool (*close)(void *userdata, SDL_AsyncIOTask *task);
-    void (*destroy)(void *userdata);
+    Sint64 (*size)(void* userdata);
+    bool (*read)(void* userdata, SDL_AsyncIOTask* task);
+    bool (*write)(void* userdata, SDL_AsyncIOTask* task);
+    bool (*close)(void* userdata, SDL_AsyncIOTask* task);
+    void (*destroy)(void* userdata);
 } SDL_AsyncIOInterface;
 
 struct SDL_AsyncIO
 {
     SDL_AsyncIOInterface iface;
-    void *userdata;
-    SDL_Mutex *lock;
+    void* userdata;
+    SDL_Mutex* lock;
     SDL_AsyncIOTask tasks;
-    SDL_AsyncIOTask *closing; // The close task, which isn't queued until all pending work for this file is done.
-    bool oneshot;             // true if this is a SDL_LoadFileAsync open.
-    bool readonly;            // true if this file is opened read-only.
+    SDL_AsyncIOTask* closing; // The close task, which isn't queued until all pending work for this file is done.
+    bool oneshot; // true if this is a SDL_LoadFileAsync open.
+    bool readonly; // true if this file is opened read-only.
 };
 
 // This is implemented for various platforms; param validation is done before calling this. Open file, fill in iface and userdata.
-extern bool SDL_SYS_AsyncIOFromFile(const char *file, const char *mode, SDL_AsyncIO *asyncio);
+extern bool SDL_SYS_AsyncIOFromFile(const char* file, const char* mode, SDL_AsyncIO* asyncio);
 
 // This is implemented for various platforms. Call SDL_OpenAsyncIOQueue from in here.
-extern bool SDL_SYS_CreateAsyncIOQueue(SDL_AsyncIOQueue *queue);
+extern bool SDL_SYS_CreateAsyncIOQueue(SDL_AsyncIOQueue* queue);
 
 // This is called during SDL_QuitAsyncIO, after all tasks have completed and all files are closed, to let the platform clean up global backend details.
 extern void SDL_SYS_QuitAsyncIO(void);
 
 // the "generic" version is always available, since it is almost always needed as a fallback even on platforms that might offer something better.
-extern bool SDL_SYS_AsyncIOFromFile_Generic(const char *file, const char *mode, SDL_AsyncIO *asyncio);
-extern bool SDL_SYS_CreateAsyncIOQueue_Generic(SDL_AsyncIOQueue *queue);
+extern bool SDL_SYS_AsyncIOFromFile_Generic(const char* file, const char* mode, SDL_AsyncIO* asyncio);
+extern bool SDL_SYS_CreateAsyncIOQueue_Generic(SDL_AsyncIOQueue* queue);
 extern void SDL_SYS_QuitAsyncIO_Generic(void);
 
 #endif

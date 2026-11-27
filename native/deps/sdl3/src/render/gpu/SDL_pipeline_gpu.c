@@ -27,37 +27,39 @@
 
 #include "../SDL_sysrender.h"
 
-static Uint32 SDLCALL HashPipelineCacheKey(void *userdata, const void *key)
+static Uint32 SDLCALL HashPipelineCacheKey(void* userdata, const void* key)
 {
-    const GPU_PipelineParameters *params = (const GPU_PipelineParameters *)key;
+    const GPU_PipelineParameters* params = (const GPU_PipelineParameters*)key;
     return SDL_murmur3_32(params, sizeof(*params), 0);
 }
 
-static bool SDLCALL MatchPipelineCacheKey(void *userdata, const void *a, const void *b)
+static bool SDLCALL MatchPipelineCacheKey(void* userdata, const void* a, const void* b)
 {
     return (SDL_memcmp(a, b, sizeof(GPU_PipelineParameters)) == 0);
 }
 
-static void SDLCALL DestroyPipelineCacheHashItem(void *userdata, const void *key, const void *value)
+static void SDLCALL DestroyPipelineCacheHashItem(void* userdata, const void* key, const void* value)
 {
-    SDL_GPUGraphicsPipeline *pipeline = (SDL_GPUGraphicsPipeline *)value;
-    SDL_GPUDevice *device = (SDL_GPUDevice *)userdata;
+    SDL_GPUGraphicsPipeline* pipeline = (SDL_GPUGraphicsPipeline*)value;
+    SDL_GPUDevice* device = (SDL_GPUDevice*)userdata;
     SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-    SDL_free((GPU_PipelineParameters *)key);
+    SDL_free((GPU_PipelineParameters*)key);
 }
 
-bool GPU_InitPipelineCache(GPU_PipelineCache *cache, SDL_GPUDevice *device)
+bool GPU_InitPipelineCache(GPU_PipelineCache* cache, SDL_GPUDevice* device)
 {
-    cache->table = SDL_CreateHashTable(0, false, HashPipelineCacheKey, MatchPipelineCacheKey, DestroyPipelineCacheHashItem, device);
+    cache->table = SDL_CreateHashTable(0, false, HashPipelineCacheKey, MatchPipelineCacheKey,
+                                       DestroyPipelineCacheHashItem, device);
     return (cache->table != NULL);
 }
 
-void GPU_DestroyPipelineCache(GPU_PipelineCache *cache)
+void GPU_DestroyPipelineCache(GPU_PipelineCache* cache)
 {
     SDL_DestroyHashTable(cache->table);
 }
 
-static SDL_GPUGraphicsPipeline *MakePipeline(SDL_GPUDevice *device, GPU_Shaders *shaders, const GPU_PipelineParameters *params)
+static SDL_GPUGraphicsPipeline* MakePipeline(SDL_GPUDevice* device, GPU_Shaders* shaders,
+                                             const GPU_PipelineParameters* params)
 {
     SDL_GPUColorTargetDescription ad;
     SDL_zero(ad);
@@ -98,7 +100,8 @@ static SDL_GPUGraphicsPipeline *MakePipeline(SDL_GPUDevice *device, GPU_Shaders 
 
     bool have_attr_uv = false;
 
-    switch (params->vert_shader) {
+    switch (params->vert_shader)
+    {
     case VERT_SHADER_TRI_TEXTURE:
         have_attr_uv = true;
         break;
@@ -120,7 +123,8 @@ static SDL_GPUGraphicsPipeline *MakePipeline(SDL_GPUDevice *device, GPU_Shaders 
     vertex_buffer_desc.pitch += 4 * sizeof(float);
     num_attribs++;
 
-    if (have_attr_uv) {
+    if (have_attr_uv)
+    {
         // UVs
         attribs[num_attribs].location = num_attribs;
         attribs[num_attribs].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
@@ -137,24 +141,30 @@ static SDL_GPUGraphicsPipeline *MakePipeline(SDL_GPUDevice *device, GPU_Shaders 
     return SDL_CreateGPUGraphicsPipeline(device, &pci);
 }
 
-SDL_GPUGraphicsPipeline *GPU_GetPipeline(GPU_PipelineCache *cache, GPU_Shaders *shaders, SDL_GPUDevice *device, const GPU_PipelineParameters *params)
+SDL_GPUGraphicsPipeline* GPU_GetPipeline(GPU_PipelineCache* cache, GPU_Shaders* shaders, SDL_GPUDevice* device,
+                                         const GPU_PipelineParameters* params)
 {
-    SDL_GPUGraphicsPipeline *pipeline = NULL;
-    if (!SDL_FindInHashTable(cache->table, params, (const void **)&pipeline)) {
+    SDL_GPUGraphicsPipeline* pipeline = NULL;
+    if (!SDL_FindInHashTable(cache->table, params, (const void**)&pipeline))
+    {
         bool inserted = false;
         // !!! FIXME: why don't we have an SDL_alloc_copy function/macro?
-        GPU_PipelineParameters *paramscpy = (GPU_PipelineParameters *)SDL_malloc(sizeof (*paramscpy));
-        if (paramscpy) {
+        GPU_PipelineParameters* paramscpy = (GPU_PipelineParameters*)SDL_malloc(sizeof (*paramscpy));
+        if (paramscpy)
+        {
             SDL_copyp(paramscpy, params);
             pipeline = MakePipeline(device, shaders, params);
-            if (pipeline) {
+            if (pipeline)
+            {
                 inserted = SDL_InsertIntoHashTable(cache->table, paramscpy, pipeline, false);
             }
         }
 
-        if (!inserted) {
+        if (!inserted)
+        {
             SDL_free(paramscpy);
-            if (pipeline) {
+            if (pipeline)
+            {
                 SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
                 pipeline = NULL;
             }

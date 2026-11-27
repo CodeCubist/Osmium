@@ -23,7 +23,7 @@
 typedef struct SDL_SteamVirtualGamepadInfo
 {
     Uint64 handle;
-    char *name;
+    char* name;
     Uint16 vendor_id;
     Uint16 product_id;
     SDL_GamepadType type;
@@ -32,5 +32,5 @@ typedef struct SDL_SteamVirtualGamepadInfo
 void SDL_InitSteamVirtualGamepadInfo(void);
 bool SDL_SteamVirtualGamepadEnabled(void);
 bool SDL_UpdateSteamVirtualGamepadInfo(void);
-const SDL_SteamVirtualGamepadInfo *SDL_GetSteamVirtualGamepadInfo(int slot);
+const SDL_SteamVirtualGamepadInfo* SDL_GetSteamVirtualGamepadInfo(int slot);
 void SDL_QuitSteamVirtualGamepadInfo(void);

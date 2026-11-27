@@ -44,6 +44,7 @@ freely, subject to the following restrictions:
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -54,15 +55,15 @@ extern "C" {
  */
 typedef struct SDL_DateTime
 {
-    int year;        /**< Year */
-    int month;       /**< Month [01-12] */
-    int day;         /**< Day of the month [01-31] */
-    int hour;        /**< Hour [0-23] */
-    int minute;      /**< Minute [0-59] */
-    int second;      /**< Seconds [0-60] */
-    int nanosecond;  /**< Nanoseconds [0-999999999] */
+    int year; /**< Year */
+    int month; /**< Month [01-12] */
+    int day; /**< Day of the month [01-31] */
+    int hour; /**< Hour [0-23] */
+    int minute; /**< Minute [0-59] */
+    int second; /**< Seconds [0-60] */
+    int nanosecond; /**< Nanoseconds [0-999999999] */
     int day_of_week; /**< Day of the week [0-6] (0 being Sunday) */
-    int utc_offset;  /**< Seconds east of UTC */
+    int utc_offset; /**< Seconds east of UTC */
 } SDL_DateTime;
 
 /**
@@ -76,7 +77,7 @@ typedef enum SDL_DateFormat
 {
     SDL_DATE_FORMAT_YYYYMMDD = 0, /**< Year/Month/Day */
     SDL_DATE_FORMAT_DDMMYYYY = 1, /**< Day/Month/Year */
-    SDL_DATE_FORMAT_MMDDYYYY = 2  /**< Month/Day/Year */
+    SDL_DATE_FORMAT_MMDDYYYY = 2 /**< Month/Day/Year */
 } SDL_DateFormat;
 
 /**
@@ -89,7 +90,7 @@ typedef enum SDL_DateFormat
 typedef enum SDL_TimeFormat
 {
     SDL_TIME_FORMAT_24HR = 0, /**< 24 hour time */
-    SDL_TIME_FORMAT_12HR = 1  /**< 12 hour time */
+    SDL_TIME_FORMAT_12HR = 1 /**< 12 hour time */
 } SDL_TimeFormat;
 
 /**
@@ -111,7 +112,8 @@ typedef enum SDL_TimeFormat
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetDateTimeLocalePreferences(SDL_DateFormat *dateFormat, SDL_TimeFormat *timeFormat);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetDateTimeLocalePreferences(SDL_DateFormat* dateFormat,
+                                                                  SDL_TimeFormat* timeFormat);
 
 /**
  * Gets the current value of the system realtime clock in nanoseconds since
@@ -125,7 +127,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_GetDateTimeLocalePreferences(SDL_DateFormat
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetCurrentTime(SDL_Time *ticks);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetCurrentTime(SDL_Time* ticks);
 
 /**
  * Converts an SDL_Time in nanoseconds since the epoch to a calendar time in
@@ -143,7 +145,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_GetCurrentTime(SDL_Time *ticks);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime);
+extern SDL_DECLSPEC bool SDLCALL SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime* dt, bool localTime);
 
 /**
  * Converts a calendar time to an SDL_Time in nanoseconds since the epoch.
@@ -160,7 +162,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_DateTimeToTime(const SDL_DateTime *dt, SDL_Time *ticks);
+extern SDL_DECLSPEC bool SDLCALL SDL_DateTimeToTime(const SDL_DateTime* dt, SDL_Time* ticks);
 
 /**
  * Converts an SDL time into a Windows FILETIME (100-nanosecond intervals
@@ -178,7 +180,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_DateTimeToTime(const SDL_DateTime *dt, SDL_
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC void SDLCALL SDL_TimeToWindows(SDL_Time ticks, Uint32 *dwLowDateTime, Uint32 *dwHighDateTime);
+extern SDL_DECLSPEC void SDLCALL SDL_TimeToWindows(SDL_Time ticks, Uint32* dwLowDateTime, Uint32* dwHighDateTime);
 
 /**
  * Converts a Windows FILETIME (100-nanosecond intervals since January 1,

@@ -10,7 +10,7 @@
         <StackPanel Spacing="16" HorizontalAlignment="Stretch">
             <TextBlock x:Name="AssistPageTitle"
                        Style="{StaticResource OsmiumPageTitleStyle}" />
-            
+
             <Border Style="{StaticResource OsmiumCardContainerStyle}" Padding="22,18">
                 <StackPanel Spacing="18">
                     <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">

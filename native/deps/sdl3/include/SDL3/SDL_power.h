@@ -45,6 +45,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -57,11 +58,11 @@ extern "C" {
 typedef enum SDL_PowerState
 {
     SDL_POWERSTATE_ERROR = -1, /**< error determining power status */
-    SDL_POWERSTATE_UNKNOWN,    /**< cannot determine power status */
+    SDL_POWERSTATE_UNKNOWN, /**< cannot determine power status */
     SDL_POWERSTATE_ON_BATTERY, /**< Not plugged in, running on the battery */
     SDL_POWERSTATE_NO_BATTERY, /**< Plugged in, no battery available */
-    SDL_POWERSTATE_CHARGING,   /**< Plugged in, charging battery */
-    SDL_POWERSTATE_CHARGED     /**< Plugged in, battery charged */
+    SDL_POWERSTATE_CHARGING, /**< Plugged in, charging battery */
+    SDL_POWERSTATE_CHARGED /**< Plugged in, battery charged */
 } SDL_PowerState;
 
 /**
@@ -98,7 +99,7 @@ typedef enum SDL_PowerState
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_PowerState SDLCALL SDL_GetPowerInfo(int *seconds, int *percent);
+extern SDL_DECLSPEC SDL_PowerState SDLCALL SDL_GetPowerInfo(int* seconds, int* percent);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

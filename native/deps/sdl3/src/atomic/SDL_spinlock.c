@@ -45,18 +45,18 @@
 #endif
 
 // This function is where all the magic happens...
-bool SDL_TryLockSpinlock(SDL_SpinLock *lock)
+bool SDL_TryLockSpinlock(SDL_SpinLock* lock)
 {
 #if defined(HAVE_GCC_ATOMICS) || defined(HAVE_GCC_SYNC_LOCK_TEST_AND_SET)
     return __sync_lock_test_and_set(lock, 1) == 0;
 
 #elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC))
     SDL_COMPILE_TIME_ASSERT(locksize, sizeof(*lock) == sizeof(long));
-    return _InterlockedExchange_acq((long *)lock, 1) == 0;
+    return _InterlockedExchange_acq((long*)lock, 1) == 0;
 
 #elif defined(_MSC_VER)
     SDL_COMPILE_TIME_ASSERT(locksize, sizeof(*lock) == sizeof(long));
-    return InterlockedExchange((long *)lock, 1) == 0;
+    return InterlockedExchange((long*)lock, 1) == 0;
 
 #elif defined(__GNUC__) && defined(__arm__) &&               \
     (defined(__ARM_ARCH_3__) || defined(__ARM_ARCH_3M__) ||  \
@@ -66,11 +66,13 @@ bool SDL_TryLockSpinlock(SDL_SpinLock *lock)
     int result;
 
 #ifdef SDL_PLATFORM_RISCOS
-    if (__cpucap_have_rex()) {
+    if (__cpucap_have_rex())
+    {
         __asm__ __volatile__(
             "ldrex %0, [%2]\nteq   %0, #0\nstrexeq %0, %1, [%2]"
             : "=&r"(result)
-            : "r"(1), 
+            : "r"(1),
+        
         "r"(lock)
         : "cc", "memory");
         return result == 0;
@@ -108,69 +110,79 @@ bool SDL_TryLockSpinlock(SDL_SpinLock *lock)
 
 #elif defined(SDL_PLATFORM_SOLARIS) && defined(_LP64)
     // Used for Solaris with non-gcc compilers.
-    return ((int)atomic_cas_64((volatile uint64_t *)lock, 0, 1) == 0);
+    return ((int)atomic_cas_64((volatile uint64_t*)lock, 0, 1) == 0);
 
 #elif defined(SDL_PLATFORM_SOLARIS) && !defined(_LP64)
     // Used for Solaris with non-gcc compilers.
-    return ((int)atomic_cas_32((volatile uint32_t *)lock, 0, 1) == 0);
+    return ((int)atomic_cas_32((volatile uint32_t*)lock, 0, 1) == 0);
 #elif defined(PS2)
     uint32_t oldintr;
     bool res = false;
     // disable interruption
     oldintr = DIntr();
 
-    if (*lock == 0) {
+    if (*lock == 0)
+    {
         *lock = 1;
         res = true;
     }
     // enable interruption
-    if (oldintr) {
+    if (oldintr)
+    {
         EIntr();
     }
     return res;
 #else
     // Terrible terrible damage
-    static SDL_Mutex *_spinlock_mutex;
+    static SDL_Mutex* _spinlock_mutex;
 
-    if (!_spinlock_mutex) {
+    if (!_spinlock_mutex)
+    {
         // Race condition on first lock...
         _spinlock_mutex = SDL_CreateMutex();
     }
     SDL_LockMutex(_spinlock_mutex);
-    if (*lock == 0) {
+    if (*lock == 0)
+    {
         *lock = 1;
         SDL_UnlockMutex(_spinlock_mutex);
         return true;
-    } else {
+    }
+    else
+    {
         SDL_UnlockMutex(_spinlock_mutex);
         return false;
     }
 #endif
 }
 
-void SDL_LockSpinlock(SDL_SpinLock *lock)
+void SDL_LockSpinlock(SDL_SpinLock* lock)
 {
     int iterations = 0;
     // FIXME: Should we have an eventual timeout?
-    while (!SDL_TryLockSpinlock(lock)) {
-        if (iterations < 32) {
+    while (!SDL_TryLockSpinlock(lock))
+    {
+        if (iterations < 32)
+        {
             iterations++;
             SDL_CPUPauseInstruction();
-        } else {
+        }
+        else
+        {
             // !!! FIXME: this doesn't definitely give up the current timeslice, it does different things on various platforms.
             SDL_Delay(0);
         }
     }
 }
 
-void SDL_UnlockSpinlock(SDL_SpinLock *lock)
+void SDL_UnlockSpinlock(SDL_SpinLock* lock)
 {
 #if defined(HAVE_GCC_ATOMICS) || defined(HAVE_GCC_SYNC_LOCK_TEST_AND_SET)
     __sync_lock_release(lock);
 
 #elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC))
     SDL_COMPILE_TIME_ASSERT(locksize, sizeof(*lock) == sizeof(long));
-    _InterlockedExchange_rel((long *)lock, 0);
+    _InterlockedExchange_rel((long*)lock, 0);
 
 #elif defined(SDL_PLATFORM_SOLARIS)
     // Used for Solaris when not using gcc.

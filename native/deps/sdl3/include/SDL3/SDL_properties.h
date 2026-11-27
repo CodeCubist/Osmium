@@ -57,6 +57,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -214,7 +215,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_UnlockProperties(SDL_PropertiesID props);
  *
  * \sa SDL_SetPointerPropertyWithCleanup
  */
-typedef void (SDLCALL *SDL_CleanupPropertyCallback)(void *userdata, void *value);
+typedef void (SDLCALL *SDL_CleanupPropertyCallback)(void* userdata, void* value);
 
 /**
  * Set a pointer property in a group of properties with a cleanup function
@@ -245,7 +246,9 @@ typedef void (SDLCALL *SDL_CleanupPropertyCallback)(void *userdata, void *value)
  * \sa SDL_SetPointerProperty
  * \sa SDL_CleanupPropertyCallback
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetPointerPropertyWithCleanup(SDL_PropertiesID props, const char *name, void *value, SDL_CleanupPropertyCallback cleanup, void *userdata);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetPointerPropertyWithCleanup(SDL_PropertiesID props, const char* name,
+                                                                   void* value, SDL_CleanupPropertyCallback cleanup,
+                                                                   void* userdata);
 
 /**
  * Set a pointer property in a group of properties.
@@ -268,7 +271,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetPointerPropertyWithCleanup(SDL_Propertie
  * \sa SDL_SetPointerPropertyWithCleanup
  * \sa SDL_SetStringProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetPointerProperty(SDL_PropertiesID props, const char *name, void *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetPointerProperty(SDL_PropertiesID props, const char* name, void* value);
 
 /**
  * Set a string property in a group of properties.
@@ -288,7 +291,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetPointerProperty(SDL_PropertiesID props, 
  *
  * \sa SDL_GetStringProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetStringProperty(SDL_PropertiesID props, const char *name, const char *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetStringProperty(SDL_PropertiesID props, const char* name, const char* value);
 
 /**
  * Set an integer property in a group of properties.
@@ -305,7 +308,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetStringProperty(SDL_PropertiesID props, c
  *
  * \sa SDL_GetNumberProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetNumberProperty(SDL_PropertiesID props, const char *name, Sint64 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetNumberProperty(SDL_PropertiesID props, const char* name, Sint64 value);
 
 /**
  * Set a floating point property in a group of properties.
@@ -322,7 +325,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetNumberProperty(SDL_PropertiesID props, c
  *
  * \sa SDL_GetFloatProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetFloatProperty(SDL_PropertiesID props, const char *name, float value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetFloatProperty(SDL_PropertiesID props, const char* name, float value);
 
 /**
  * Set a boolean property in a group of properties.
@@ -339,7 +342,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetFloatProperty(SDL_PropertiesID props, co
  *
  * \sa SDL_GetBooleanProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetBooleanProperty(SDL_PropertiesID props, const char *name, bool value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetBooleanProperty(SDL_PropertiesID props, const char* name, bool value);
 
 /**
  * Return whether a property exists in a group of properties.
@@ -354,7 +357,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetBooleanProperty(SDL_PropertiesID props, 
  *
  * \sa SDL_GetPropertyType
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_HasProperty(SDL_PropertiesID props, const char *name);
+extern SDL_DECLSPEC bool SDLCALL SDL_HasProperty(SDL_PropertiesID props, const char* name);
 
 /**
  * Get the type of a property in a group of properties.
@@ -370,7 +373,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_HasProperty(SDL_PropertiesID props, const c
  *
  * \sa SDL_HasProperty
  */
-extern SDL_DECLSPEC SDL_PropertyType SDLCALL SDL_GetPropertyType(SDL_PropertiesID props, const char *name);
+extern SDL_DECLSPEC SDL_PropertyType SDLCALL SDL_GetPropertyType(SDL_PropertiesID props, const char* name);
 
 /**
  * Get a pointer property from a group of properties.
@@ -403,7 +406,7 @@ extern SDL_DECLSPEC SDL_PropertyType SDLCALL SDL_GetPropertyType(SDL_PropertiesI
  * \sa SDL_HasProperty
  * \sa SDL_SetPointerProperty
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_GetPointerProperty(SDL_PropertiesID props, const char *name, void *default_value);
+extern SDL_DECLSPEC void* SDLCALL SDL_GetPointerProperty(SDL_PropertiesID props, const char* name, void* default_value);
 
 /**
  * Get a string property from a group of properties.
@@ -427,7 +430,8 @@ extern SDL_DECLSPEC void * SDLCALL SDL_GetPointerProperty(SDL_PropertiesID props
  * \sa SDL_HasProperty
  * \sa SDL_SetStringProperty
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetStringProperty(SDL_PropertiesID props, const char *name, const char *default_value);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetStringProperty(SDL_PropertiesID props, const char* name,
+                                                              const char* default_value);
 
 /**
  * Get a number property from a group of properties.
@@ -449,7 +453,8 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetStringProperty(SDL_PropertiesID 
  * \sa SDL_HasProperty
  * \sa SDL_SetNumberProperty
  */
-extern SDL_DECLSPEC Sint64 SDLCALL SDL_GetNumberProperty(SDL_PropertiesID props, const char *name, Sint64 default_value);
+extern SDL_DECLSPEC Sint64 SDLCALL
+SDL_GetNumberProperty(SDL_PropertiesID props, const char* name, Sint64 default_value);
 
 /**
  * Get a floating point property from a group of properties.
@@ -471,7 +476,7 @@ extern SDL_DECLSPEC Sint64 SDLCALL SDL_GetNumberProperty(SDL_PropertiesID props,
  * \sa SDL_HasProperty
  * \sa SDL_SetFloatProperty
  */
-extern SDL_DECLSPEC float SDLCALL SDL_GetFloatProperty(SDL_PropertiesID props, const char *name, float default_value);
+extern SDL_DECLSPEC float SDLCALL SDL_GetFloatProperty(SDL_PropertiesID props, const char* name, float default_value);
 
 /**
  * Get a boolean property from a group of properties.
@@ -493,7 +498,7 @@ extern SDL_DECLSPEC float SDLCALL SDL_GetFloatProperty(SDL_PropertiesID props, c
  * \sa SDL_HasProperty
  * \sa SDL_SetBooleanProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetBooleanProperty(SDL_PropertiesID props, const char *name, bool default_value);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetBooleanProperty(SDL_PropertiesID props, const char* name, bool default_value);
 
 /**
  * Clear a property from a group of properties.
@@ -507,7 +512,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_GetBooleanProperty(SDL_PropertiesID props, 
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ClearProperty(SDL_PropertiesID props, const char *name);
+extern SDL_DECLSPEC bool SDLCALL SDL_ClearProperty(SDL_PropertiesID props, const char* name);
 
 /**
  * A callback used to enumerate all the properties in a group of properties.
@@ -526,7 +531,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ClearProperty(SDL_PropertiesID props, const
  *
  * \sa SDL_EnumerateProperties
  */
-typedef void (SDLCALL *SDL_EnumeratePropertiesCallback)(void *userdata, SDL_PropertiesID props, const char *name);
+typedef void (SDLCALL *SDL_EnumeratePropertiesCallback)(void* userdata, SDL_PropertiesID props, const char* name);
 
 /**
  * Enumerate the properties contained in a group of properties.
@@ -544,7 +549,8 @@ typedef void (SDLCALL *SDL_EnumeratePropertiesCallback)(void *userdata, SDL_Prop
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_EnumerateProperties(SDL_PropertiesID props, SDL_EnumeratePropertiesCallback callback, void *userdata);
+extern SDL_DECLSPEC bool SDLCALL SDL_EnumerateProperties(SDL_PropertiesID props,
+                                                         SDL_EnumeratePropertiesCallback callback, void* userdata);
 
 /**
  * Destroy a group of properties.

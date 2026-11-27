@@ -36,15 +36,16 @@
 
 typedef void (__cdecl *SDL_EndThreadExCallback)(unsigned retval);
 typedef uintptr_t (__cdecl *SDL_BeginThreadExCallback)
-(void *security, unsigned stacksize, unsigned (__stdcall *startaddr)(void *),
- void *arglist, unsigned initflag, unsigned *threadaddr);
+(void* security, unsigned stacksize, unsigned (__stdcall *startaddr)(void*),
+ void* arglist, unsigned initflag, unsigned* threadaddr);
 
-static DWORD RunThread(void *data)
+static DWORD RunThread(void* data)
 {
-    SDL_Thread *thread = (SDL_Thread *)data;
+    SDL_Thread* thread = (SDL_Thread*)data;
     SDL_EndThreadExCallback pfnEndThread = (SDL_EndThreadExCallback)thread->endfunc;
     SDL_RunThread(thread);
-    if (pfnEndThread) {
+    if (pfnEndThread)
+    {
         pfnEndThread(0);
     }
     return 0;
@@ -55,12 +56,12 @@ static DWORD WINAPI MINGW32_FORCEALIGN RunThreadViaCreateThread(LPVOID data)
     return RunThread(data);
 }
 
-static unsigned __stdcall MINGW32_FORCEALIGN RunThreadViaBeginThreadEx(void *data)
+static unsigned __stdcall MINGW32_FORCEALIGN RunThreadViaBeginThreadEx(void* data)
 {
     return (unsigned)RunThread(data);
 }
 
-bool SDL_SYS_CreateThread(SDL_Thread *thread,
+bool SDL_SYS_CreateThread(SDL_Thread* thread,
                           SDL_FunctionPointer vpfnBeginThread,
                           SDL_FunctionPointer vpfnEndThread)
 {
@@ -72,20 +73,24 @@ bool SDL_SYS_CreateThread(SDL_Thread *thread,
     thread->endfunc = vpfnEndThread;
 
     // thread->stacksize == 0 means "system default", same as win32 expects
-    if (pfnBeginThread) {
+    if (pfnBeginThread)
+    {
         unsigned threadid = 0;
         thread->handle = (SYS_ThreadHandle)((size_t)pfnBeginThread(NULL, (unsigned int)thread->stacksize,
                                                                    RunThreadViaBeginThreadEx,
                                                                    thread, flags, &threadid));
         thread->threadid = (SDL_ThreadID)threadid;
-    } else {
+    }
+    else
+    {
         DWORD threadid = 0;
         thread->handle = CreateThread(NULL, thread->stacksize,
                                       RunThreadViaCreateThread,
                                       thread, flags, &threadid);
         thread->threadid = (SDL_ThreadID)threadid;
     }
-    if (!thread->handle) {
+    if (!thread->handle)
+    {
         return SDL_SetError("Not enough resources to create thread");
     }
 
@@ -95,47 +100,58 @@ bool SDL_SYS_CreateThread(SDL_Thread *thread,
 #pragma pack(push, 8)
 typedef struct tagTHREADNAME_INFO
 {
-    DWORD dwType;     // must be 0x1000
-    LPCSTR szName;    // pointer to name (in user addr space)
+    DWORD dwType; // must be 0x1000
+    LPCSTR szName; // pointer to name (in user addr space)
     DWORD dwThreadID; // thread ID (-1=caller thread)
-    DWORD dwFlags;    // reserved for future use, must be zero
+    DWORD dwFlags; // reserved for future use, must be zero
 } THREADNAME_INFO;
 #pragma pack(pop)
 
-static LONG NTAPI EmptyVectoredExceptionHandler(EXCEPTION_POINTERS *info)
+static LONG NTAPI EmptyVectoredExceptionHandler(EXCEPTION_POINTERS* info)
 {
-    if (info != NULL && info->ExceptionRecord != NULL && info->ExceptionRecord->ExceptionCode == SDL_DEBUGGER_NAME_EXCEPTION_CODE) {
+    if (info != NULL && info->ExceptionRecord != NULL && info->ExceptionRecord->ExceptionCode ==
+        SDL_DEBUGGER_NAME_EXCEPTION_CODE)
+    {
         return EXCEPTION_CONTINUE_EXECUTION;
-    } else {
+    }
+    else
+    {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 }
 
 typedef HRESULT (WINAPI *pfnSetThreadDescription)(HANDLE, PCWSTR);
 
-void SDL_SYS_SetupThread(const char *name)
+void SDL_SYS_SetupThread(const char* name)
 {
-    if (name) {
+    if (name)
+    {
         PVOID exceptionHandlerHandle;
         static pfnSetThreadDescription pSetThreadDescription = NULL;
         static HMODULE kernel32 = NULL;
 
-        if (!kernel32) {
+        if (!kernel32)
+        {
             kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
-            if (kernel32) {
+            if (kernel32)
+            {
                 pSetThreadDescription = (pfnSetThreadDescription)GetProcAddress(kernel32, "SetThreadDescription");
             }
-            if (!kernel32 || !pSetThreadDescription) {
+            if (!kernel32 || !pSetThreadDescription)
+            {
                 HMODULE kernelBase = GetModuleHandle(TEXT("KernelBase.dll"));
-                if (kernelBase) {
+                if (kernelBase)
+                {
                     pSetThreadDescription = (pfnSetThreadDescription)GetProcAddress(kernelBase, "SetThreadDescription");
                 }
             }
         }
 
-        if (pSetThreadDescription) {
-            WCHAR *strw = WIN_UTF8ToStringW(name);
-            if (strw) {
+        if (pSetThreadDescription)
+        {
+            WCHAR* strw = WIN_UTF8ToStringW(name);
+            if (strw)
+            {
                 pSetThreadDescription(GetCurrentThread(), strw);
                 SDL_free(strw);
             }
@@ -146,7 +162,8 @@ void SDL_SYS_SetupThread(const char *name)
            exception magic, too. */
 
         exceptionHandlerHandle = AddVectoredExceptionHandler(1, EmptyVectoredExceptionHandler);
-        if (exceptionHandlerHandle) {
+        if (exceptionHandlerHandle)
+        {
             THREADNAME_INFO inf;
             // This magic tells the debugger to name a thread if it's listening.
             SDL_zero(inf);
@@ -156,7 +173,8 @@ void SDL_SYS_SetupThread(const char *name)
             inf.dwFlags = 0;
 
             // The debugger catches this, renames the thread, continues on.
-            RaiseException(SDL_DEBUGGER_NAME_EXCEPTION_CODE, 0, sizeof(inf) / sizeof(ULONG_PTR), (const ULONG_PTR *)&inf);
+            RaiseException(SDL_DEBUGGER_NAME_EXCEPTION_CODE, 0, sizeof(inf) / sizeof(ULONG_PTR),
+                           (const ULONG_PTR*)&inf);
             RemoveVectoredExceptionHandler(exceptionHandlerHandle);
         }
     }
@@ -171,28 +189,36 @@ bool SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
 {
     int value;
 
-    if (priority == SDL_THREAD_PRIORITY_LOW) {
+    if (priority == SDL_THREAD_PRIORITY_LOW)
+    {
         value = THREAD_PRIORITY_LOWEST;
-    } else if (priority == SDL_THREAD_PRIORITY_HIGH) {
+    }
+    else if (priority == SDL_THREAD_PRIORITY_HIGH)
+    {
         value = THREAD_PRIORITY_HIGHEST;
-    } else if (priority == SDL_THREAD_PRIORITY_TIME_CRITICAL) {
+    }
+    else if (priority == SDL_THREAD_PRIORITY_TIME_CRITICAL)
+    {
         value = THREAD_PRIORITY_TIME_CRITICAL;
-    } else {
+    }
+    else
+    {
         value = THREAD_PRIORITY_NORMAL;
     }
-    if (!SetThreadPriority(GetCurrentThread(), value)) {
+    if (!SetThreadPriority(GetCurrentThread(), value))
+    {
         return WIN_SetError("SetThreadPriority()");
     }
     return true;
 }
 
-void SDL_SYS_WaitThread(SDL_Thread *thread)
+void SDL_SYS_WaitThread(SDL_Thread* thread)
 {
     WaitForSingleObjectEx(thread->handle, INFINITE, FALSE);
     CloseHandle(thread->handle);
 }
 
-void SDL_SYS_DetachThread(SDL_Thread *thread)
+void SDL_SYS_DetachThread(SDL_Thread* thread)
 {
     CloseHandle(thread->handle);
 }

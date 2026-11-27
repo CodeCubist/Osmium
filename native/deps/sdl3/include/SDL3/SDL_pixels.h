@@ -89,6 +89,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -658,21 +659,21 @@ typedef enum SDL_PixelFormat
     SDL_PIXELFORMAT_ABGR128_FLOAT = 0x1b608010u,
     /* SDL_DEFINE_PIXELFORMAT(SDL_PIXELTYPE_ARRAYF32, SDL_ARRAYORDER_ABGR, 0, 128, 16), */
 
-    SDL_PIXELFORMAT_YV12 = 0x32315659u,         /**< Planar mode: Y + V + U  (3 planes) */
+    SDL_PIXELFORMAT_YV12 = 0x32315659u, /**< Planar mode: Y + V + U  (3 planes) */
     /* SDL_DEFINE_PIXELFOURCC('Y', 'V', '1', '2'), */
-    SDL_PIXELFORMAT_IYUV = 0x56555949u,         /**< Planar mode: Y + U + V  (3 planes) */
+    SDL_PIXELFORMAT_IYUV = 0x56555949u, /**< Planar mode: Y + U + V  (3 planes) */
     /* SDL_DEFINE_PIXELFOURCC('I', 'Y', 'U', 'V'), */
-    SDL_PIXELFORMAT_YUY2 = 0x32595559u,         /**< Packed mode: Y0+U0+Y1+V0 (1 plane) */
+    SDL_PIXELFORMAT_YUY2 = 0x32595559u, /**< Packed mode: Y0+U0+Y1+V0 (1 plane) */
     /* SDL_DEFINE_PIXELFOURCC('Y', 'U', 'Y', '2'), */
-    SDL_PIXELFORMAT_UYVY = 0x59565955u,         /**< Packed mode: U0+Y0+V0+Y1 (1 plane) */
+    SDL_PIXELFORMAT_UYVY = 0x59565955u, /**< Packed mode: U0+Y0+V0+Y1 (1 plane) */
     /* SDL_DEFINE_PIXELFOURCC('U', 'Y', 'V', 'Y'), */
-    SDL_PIXELFORMAT_YVYU = 0x55595659u,         /**< Packed mode: Y0+V0+Y1+U0 (1 plane) */
+    SDL_PIXELFORMAT_YVYU = 0x55595659u, /**< Packed mode: Y0+V0+Y1+U0 (1 plane) */
     /* SDL_DEFINE_PIXELFOURCC('Y', 'V', 'Y', 'U'), */
-    SDL_PIXELFORMAT_NV12 = 0x3231564eu,         /**< Planar mode: Y + U/V interleaved  (2 planes) */
+    SDL_PIXELFORMAT_NV12 = 0x3231564eu, /**< Planar mode: Y + U/V interleaved  (2 planes) */
     /* SDL_DEFINE_PIXELFOURCC('N', 'V', '1', '2'), */
-    SDL_PIXELFORMAT_NV21 = 0x3132564eu,         /**< Planar mode: Y + V/U interleaved  (2 planes) */
+    SDL_PIXELFORMAT_NV21 = 0x3132564eu, /**< Planar mode: Y + V/U interleaved  (2 planes) */
     /* SDL_DEFINE_PIXELFOURCC('N', 'V', '2', '1'), */
-    SDL_PIXELFORMAT_P010 = 0x30313050u,         /**< Planar mode: Y + U/V interleaved  (2 planes) */
+    SDL_PIXELFORMAT_P010 = 0x30313050u, /**< Planar mode: Y + U/V interleaved  (2 planes) */
     /* SDL_DEFINE_PIXELFOURCC('P', '0', '1', '0'), */
     SDL_PIXELFORMAT_EXTERNAL_OES = 0x2053454fu, /**< Android video texture format */
     /* SDL_DEFINE_PIXELFOURCC('O', 'E', 'S', ' ') */
@@ -724,7 +725,7 @@ typedef enum SDL_ColorRange
 {
     SDL_COLOR_RANGE_UNKNOWN = 0,
     SDL_COLOR_RANGE_LIMITED = 1, /**< Narrow range, e.g. 16-235 for 8-bit RGB and luma, and 16-240 for 8-bit chroma */
-    SDL_COLOR_RANGE_FULL = 2     /**< Full range, e.g. 0-255 for 8-bit RGB and luma, and 1-255 for 8-bit chroma */
+    SDL_COLOR_RANGE_FULL = 2 /**< Full range, e.g. 0-255 for 8-bit RGB and luma, and 1-255 for 8-bit chroma */
 } SDL_ColorRange;
 
 /**
@@ -738,16 +739,16 @@ typedef enum SDL_ColorPrimaries
     SDL_COLOR_PRIMARIES_UNKNOWN = 0,
     SDL_COLOR_PRIMARIES_BT709 = 1, /**< ITU-R BT.709-6 */
     SDL_COLOR_PRIMARIES_UNSPECIFIED = 2,
-    SDL_COLOR_PRIMARIES_BT470M = 4,       /**< ITU-R BT.470-6 System M */
-    SDL_COLOR_PRIMARIES_BT470BG = 5,      /**< ITU-R BT.470-6 System B, G / ITU-R BT.601-7 625 */
-    SDL_COLOR_PRIMARIES_BT601 = 6,        /**< ITU-R BT.601-7 525, SMPTE 170M */
-    SDL_COLOR_PRIMARIES_SMPTE240 = 7,     /**< SMPTE 240M, functionally the same as SDL_COLOR_PRIMARIES_BT601 */
+    SDL_COLOR_PRIMARIES_BT470M = 4, /**< ITU-R BT.470-6 System M */
+    SDL_COLOR_PRIMARIES_BT470BG = 5, /**< ITU-R BT.470-6 System B, G / ITU-R BT.601-7 625 */
+    SDL_COLOR_PRIMARIES_BT601 = 6, /**< ITU-R BT.601-7 525, SMPTE 170M */
+    SDL_COLOR_PRIMARIES_SMPTE240 = 7, /**< SMPTE 240M, functionally the same as SDL_COLOR_PRIMARIES_BT601 */
     SDL_COLOR_PRIMARIES_GENERIC_FILM = 8, /**< Generic film (color filters using Illuminant C) */
-    SDL_COLOR_PRIMARIES_BT2020 = 9,       /**< ITU-R BT.2020-2 / ITU-R BT.2100-0 */
-    SDL_COLOR_PRIMARIES_XYZ = 10,         /**< SMPTE ST 428-1 */
-    SDL_COLOR_PRIMARIES_SMPTE431 = 11,    /**< SMPTE RP 431-2 */
-    SDL_COLOR_PRIMARIES_SMPTE432 = 12,    /**< SMPTE EG 432-1 / DCI P3 */
-    SDL_COLOR_PRIMARIES_EBU3213 = 22,     /**< EBU Tech. 3213-E */
+    SDL_COLOR_PRIMARIES_BT2020 = 9, /**< ITU-R BT.2020-2 / ITU-R BT.2100-0 */
+    SDL_COLOR_PRIMARIES_XYZ = 10, /**< SMPTE ST 428-1 */
+    SDL_COLOR_PRIMARIES_SMPTE431 = 11, /**< SMPTE RP 431-2 */
+    SDL_COLOR_PRIMARIES_SMPTE432 = 12, /**< SMPTE EG 432-1 / DCI P3 */
+    SDL_COLOR_PRIMARIES_EBU3213 = 22, /**< EBU Tech. 3213-E */
     SDL_COLOR_PRIMARIES_CUSTOM = 31
 } SDL_ColorPrimaries;
 
@@ -763,21 +764,21 @@ typedef enum SDL_TransferCharacteristics
     SDL_TRANSFER_CHARACTERISTICS_UNKNOWN = 0,
     SDL_TRANSFER_CHARACTERISTICS_BT709 = 1, /**< Rec. ITU-R BT.709-6 / ITU-R BT1361 */
     SDL_TRANSFER_CHARACTERISTICS_UNSPECIFIED = 2,
-    SDL_TRANSFER_CHARACTERISTICS_GAMMA22 = 4,  /**< ITU-R BT.470-6 System M / ITU-R BT1700 625 PAL & SECAM */
-    SDL_TRANSFER_CHARACTERISTICS_GAMMA28 = 5,  /**< ITU-R BT.470-6 System B, G */
-    SDL_TRANSFER_CHARACTERISTICS_BT601 = 6,    /**< SMPTE ST 170M / ITU-R BT.601-7 525 or 625 */
+    SDL_TRANSFER_CHARACTERISTICS_GAMMA22 = 4, /**< ITU-R BT.470-6 System M / ITU-R BT1700 625 PAL & SECAM */
+    SDL_TRANSFER_CHARACTERISTICS_GAMMA28 = 5, /**< ITU-R BT.470-6 System B, G */
+    SDL_TRANSFER_CHARACTERISTICS_BT601 = 6, /**< SMPTE ST 170M / ITU-R BT.601-7 525 or 625 */
     SDL_TRANSFER_CHARACTERISTICS_SMPTE240 = 7, /**< SMPTE ST 240M */
     SDL_TRANSFER_CHARACTERISTICS_LINEAR = 8,
     SDL_TRANSFER_CHARACTERISTICS_LOG100 = 9,
     SDL_TRANSFER_CHARACTERISTICS_LOG100_SQRT10 = 10,
-    SDL_TRANSFER_CHARACTERISTICS_IEC61966 = 11,     /**< IEC 61966-2-4 */
-    SDL_TRANSFER_CHARACTERISTICS_BT1361 = 12,       /**< ITU-R BT1361 Extended Colour Gamut */
-    SDL_TRANSFER_CHARACTERISTICS_SRGB = 13,         /**< IEC 61966-2-1 (sRGB or sYCC) */
+    SDL_TRANSFER_CHARACTERISTICS_IEC61966 = 11, /**< IEC 61966-2-4 */
+    SDL_TRANSFER_CHARACTERISTICS_BT1361 = 12, /**< ITU-R BT1361 Extended Colour Gamut */
+    SDL_TRANSFER_CHARACTERISTICS_SRGB = 13, /**< IEC 61966-2-1 (sRGB or sYCC) */
     SDL_TRANSFER_CHARACTERISTICS_BT2020_10BIT = 14, /**< ITU-R BT2020 for 10-bit system */
     SDL_TRANSFER_CHARACTERISTICS_BT2020_12BIT = 15, /**< ITU-R BT2020 for 12-bit system */
-    SDL_TRANSFER_CHARACTERISTICS_PQ = 16,           /**< SMPTE ST 2084 for 10-, 12-, 14- and 16-bit systems */
-    SDL_TRANSFER_CHARACTERISTICS_SMPTE428 = 17,     /**< SMPTE ST 428-1 */
-    SDL_TRANSFER_CHARACTERISTICS_HLG = 18,          /**< ARIB STD-B67, known as "hybrid log-gamma" (HLG) */
+    SDL_TRANSFER_CHARACTERISTICS_PQ = 16, /**< SMPTE ST 2084 for 10-, 12-, 14- and 16-bit systems */
+    SDL_TRANSFER_CHARACTERISTICS_SMPTE428 = 17, /**< SMPTE ST 428-1 */
+    SDL_TRANSFER_CHARACTERISTICS_HLG = 18, /**< ARIB STD-B67, known as "hybrid log-gamma" (HLG) */
     SDL_TRANSFER_CHARACTERISTICS_CUSTOM = 31
 } SDL_TransferCharacteristics;
 
@@ -793,9 +794,10 @@ typedef enum SDL_MatrixCoefficients
     SDL_MATRIX_COEFFICIENTS_IDENTITY = 0,
     SDL_MATRIX_COEFFICIENTS_BT709 = 1, /**< ITU-R BT.709-6 */
     SDL_MATRIX_COEFFICIENTS_UNSPECIFIED = 2,
-    SDL_MATRIX_COEFFICIENTS_FCC = 4,      /**< US FCC Title 47 */
-    SDL_MATRIX_COEFFICIENTS_BT470BG = 5,  /**< ITU-R BT.470-6 System B, G / ITU-R BT.601-7 625, functionally the same as SDL_MATRIX_COEFFICIENTS_BT601 */
-    SDL_MATRIX_COEFFICIENTS_BT601 = 6,    /**< ITU-R BT.601-7 525 */
+    SDL_MATRIX_COEFFICIENTS_FCC = 4, /**< US FCC Title 47 */
+    SDL_MATRIX_COEFFICIENTS_BT470BG = 5,
+    /**< ITU-R BT.470-6 System B, G / ITU-R BT.601-7 625, functionally the same as SDL_MATRIX_COEFFICIENTS_BT601 */
+    SDL_MATRIX_COEFFICIENTS_BT601 = 6, /**< ITU-R BT.601-7 525 */
     SDL_MATRIX_COEFFICIENTS_SMPTE240 = 7, /**< SMPTE 240M */
     SDL_MATRIX_COEFFICIENTS_YCGCO = 8,
     SDL_MATRIX_COEFFICIENTS_BT2020_NCL = 9, /**< ITU-R BT.2020-2 non-constant luminance */
@@ -814,10 +816,13 @@ typedef enum SDL_MatrixCoefficients
  */
 typedef enum SDL_ChromaLocation
 {
-    SDL_CHROMA_LOCATION_NONE = 0,   /**< RGB, no chroma sampling */
-    SDL_CHROMA_LOCATION_LEFT = 1,   /**< In MPEG-2, MPEG-4, and AVC, Cb and Cr are taken on midpoint of the left-edge of the 2x2 square. In other words, they have the same horizontal location as the top-left pixel, but is shifted one-half pixel down vertically. */
-    SDL_CHROMA_LOCATION_CENTER = 2, /**< In JPEG/JFIF, H.261, and MPEG-1, Cb and Cr are taken at the center of the 2x2 square. In other words, they are offset one-half pixel to the right and one-half pixel down compared to the top-left pixel. */
-    SDL_CHROMA_LOCATION_TOPLEFT = 3 /**< In HEVC for BT.2020 and BT.2100 content (in particular on Blu-rays), Cb and Cr are sampled at the same location as the group's top-left Y pixel ("co-sited", "co-located"). */
+    SDL_CHROMA_LOCATION_NONE = 0, /**< RGB, no chroma sampling */
+    SDL_CHROMA_LOCATION_LEFT = 1,
+    /**< In MPEG-2, MPEG-4, and AVC, Cb and Cr are taken on midpoint of the left-edge of the 2x2 square. In other words, they have the same horizontal location as the top-left pixel, but is shifted one-half pixel down vertically. */
+    SDL_CHROMA_LOCATION_CENTER = 2,
+    /**< In JPEG/JFIF, H.261, and MPEG-1, Cb and Cr are taken at the center of the 2x2 square. In other words, they are offset one-half pixel to the right and one-half pixel down compared to the top-left pixel. */
+    SDL_CHROMA_LOCATION_TOPLEFT = 3
+    /**< In HEVC for BT.2020 and BT.2100 content (in particular on Blu-rays), Cb and Cr are sampled at the same location as the group's top-left Y pixel ("co-sited", "co-located"). */
 } SDL_ChromaLocation;
 
 
@@ -1096,8 +1101,10 @@ typedef enum SDL_Colorspace
                              SDL_MATRIX_COEFFICIENTS_BT2020_NCL,
                              SDL_CHROMA_LOCATION_LEFT), */
 
-    SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB,         /**< The default colorspace for RGB surfaces if no colorspace is specified */
-    SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_BT601_LIMITED /**< The default colorspace for YUV surfaces if no colorspace is specified */
+    SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB,
+    /**< The default colorspace for RGB surfaces if no colorspace is specified */
+    SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_BT601_LIMITED
+    /**< The default colorspace for YUV surfaces if no colorspace is specified */
 } SDL_Colorspace;
 
 /**
@@ -1141,10 +1148,10 @@ typedef struct SDL_FColor
  */
 typedef struct SDL_Palette
 {
-    int ncolors;       /**< number of elements in `colors`. */
-    SDL_Color *colors; /**< an array of colors, `ncolors` long. */
-    Uint32 version;    /**< internal use only, do not touch. */
-    int refcount;      /**< internal use only, do not touch. */
+    int ncolors; /**< number of elements in `colors`. */
+    SDL_Color* colors; /**< an array of colors, `ncolors` long. */
+    Uint32 version; /**< internal use only, do not touch. */
+    int refcount; /**< internal use only, do not touch. */
 } SDL_Palette;
 
 /**
@@ -1183,7 +1190,7 @@ typedef struct SDL_PixelFormatDetails
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetPixelFormatName(SDL_PixelFormat format);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetPixelFormatName(SDL_PixelFormat format);
 
 /**
  * Convert one of the enumerated pixel formats to a bpp value and RGBA masks.
@@ -1203,7 +1210,8 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetPixelFormatName(SDL_PixelFormat 
  *
  * \sa SDL_GetPixelFormatForMasks
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_GetMasksForPixelFormat(SDL_PixelFormat format, int *bpp, Uint32 *Rmask, Uint32 *Gmask, Uint32 *Bmask, Uint32 *Amask);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetMasksForPixelFormat(SDL_PixelFormat format, int* bpp, Uint32* Rmask,
+                                                            Uint32* Gmask, Uint32* Bmask, Uint32* Amask);
 
 /**
  * Convert a bpp value and RGBA masks to an enumerated pixel format.
@@ -1225,7 +1233,8 @@ extern SDL_DECLSPEC bool SDLCALL SDL_GetMasksForPixelFormat(SDL_PixelFormat form
  *
  * \sa SDL_GetMasksForPixelFormat
  */
-extern SDL_DECLSPEC SDL_PixelFormat SDLCALL SDL_GetPixelFormatForMasks(int bpp, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask);
+extern SDL_DECLSPEC SDL_PixelFormat SDLCALL SDL_GetPixelFormatForMasks(int bpp, Uint32 Rmask, Uint32 Gmask,
+                                                                       Uint32 Bmask, Uint32 Amask);
 
 /**
  * Create an SDL_PixelFormatDetails structure corresponding to a pixel format.
@@ -1242,7 +1251,7 @@ extern SDL_DECLSPEC SDL_PixelFormat SDLCALL SDL_GetPixelFormatForMasks(int bpp, 
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC const SDL_PixelFormatDetails * SDLCALL SDL_GetPixelFormatDetails(SDL_PixelFormat format);
+extern SDL_DECLSPEC const SDL_PixelFormatDetails* SDLCALL SDL_GetPixelFormatDetails(SDL_PixelFormat format);
 
 /**
  * Create a palette structure with the specified number of color entries.
@@ -1262,7 +1271,7 @@ extern SDL_DECLSPEC const SDL_PixelFormatDetails * SDLCALL SDL_GetPixelFormatDet
  * \sa SDL_SetPaletteColors
  * \sa SDL_SetSurfacePalette
  */
-extern SDL_DECLSPEC SDL_Palette * SDLCALL SDL_CreatePalette(int ncolors);
+extern SDL_DECLSPEC SDL_Palette* SDLCALL SDL_CreatePalette(int ncolors);
 
 /**
  * Set a range of colors in a palette.
@@ -1279,7 +1288,8 @@ extern SDL_DECLSPEC SDL_Palette * SDLCALL SDL_CreatePalette(int ncolors);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetPaletteColors(SDL_Palette *palette, const SDL_Color *colors, int firstcolor, int ncolors);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetPaletteColors(SDL_Palette* palette, const SDL_Color* colors, int firstcolor,
+                                                      int ncolors);
 
 /**
  * Free a palette created with SDL_CreatePalette().
@@ -1293,7 +1303,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetPaletteColors(SDL_Palette *palette, cons
  *
  * \sa SDL_CreatePalette
  */
-extern SDL_DECLSPEC void SDLCALL SDL_DestroyPalette(SDL_Palette *palette);
+extern SDL_DECLSPEC void SDLCALL SDL_DestroyPalette(SDL_Palette* palette);
 
 /**
  * Map an RGB triple to an opaque pixel value for a given pixel format.
@@ -1331,7 +1341,8 @@ extern SDL_DECLSPEC void SDLCALL SDL_DestroyPalette(SDL_Palette *palette);
  * \sa SDL_MapRGBA
  * \sa SDL_MapSurfaceRGB
  */
-extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGB(const SDL_PixelFormatDetails *format, const SDL_Palette *palette, Uint8 r, Uint8 g, Uint8 b);
+extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGB(const SDL_PixelFormatDetails* format, const SDL_Palette* palette, Uint8 r,
+                                              Uint8 g, Uint8 b);
 
 /**
  * Map an RGBA quadruple to a pixel value for a given pixel format.
@@ -1370,7 +1381,8 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGB(const SDL_PixelFormatDetails *form
  * \sa SDL_MapRGB
  * \sa SDL_MapSurfaceRGBA
  */
-extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGBA(const SDL_PixelFormatDetails *format, const SDL_Palette *palette, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGBA(const SDL_PixelFormatDetails* format, const SDL_Palette* palette,
+                                               Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
 /**
  * Get RGB values from a pixel in the specified format.
@@ -1398,7 +1410,8 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGBA(const SDL_PixelFormatDetails *for
  * \sa SDL_MapRGB
  * \sa SDL_MapRGBA
  */
-extern SDL_DECLSPEC void SDLCALL SDL_GetRGB(Uint32 pixelvalue, const SDL_PixelFormatDetails *format, const SDL_Palette *palette, Uint8 *r, Uint8 *g, Uint8 *b);
+extern SDL_DECLSPEC void SDLCALL SDL_GetRGB(Uint32 pixelvalue, const SDL_PixelFormatDetails* format,
+                                            const SDL_Palette* palette, Uint8* r, Uint8* g, Uint8* b);
 
 /**
  * Get RGBA values from a pixel in the specified format.
@@ -1430,7 +1443,8 @@ extern SDL_DECLSPEC void SDLCALL SDL_GetRGB(Uint32 pixelvalue, const SDL_PixelFo
  * \sa SDL_MapRGB
  * \sa SDL_MapRGBA
  */
-extern SDL_DECLSPEC void SDLCALL SDL_GetRGBA(Uint32 pixelvalue, const SDL_PixelFormatDetails *format, const SDL_Palette *palette, Uint8 *r, Uint8 *g, Uint8 *b, Uint8 *a);
+extern SDL_DECLSPEC void SDLCALL SDL_GetRGBA(Uint32 pixelvalue, const SDL_PixelFormatDetails* format,
+                                             const SDL_Palette* palette, Uint8* r, Uint8* g, Uint8* b, Uint8* a);
 
 
 /* Ends C function definitions when using C++ */

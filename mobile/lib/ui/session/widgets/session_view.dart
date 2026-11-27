@@ -79,7 +79,7 @@ class _SessionViewState extends State<SessionView>
     super.initState();
     _videoReveal = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 420),
+      duration: const Duration(milliseconds: 180),
       value: widget.signals.firstFrame.value ? 1 : 0,
     );
     widget.signals.phase.addListener(_onPhaseChanged);

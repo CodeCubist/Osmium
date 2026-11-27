@@ -122,7 +122,7 @@ typedef struct OsmiumHostConfig
     int32_t displayIndex;
     int32_t maxWidth;
     int32_t maxHeight;
-    int32_t maxFps;         // 0 uses the engine's supported range.
+    int32_t maxFps; // 0 uses the engine's supported range.
     int32_t maxBitrateKbps; // 0 uses the engine's supported range.
     int32_t codecPreference;
     int32_t encoderPreference;

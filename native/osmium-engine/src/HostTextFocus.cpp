@@ -208,7 +208,7 @@ namespace osmium
         {
             uia = nullptr;
             if (FAILED(CoCreateInstance(__uuidof(CUIAutomation), nullptr, CLSCTX_INPROC_SERVER,
-                                        IID_PPV_ARGS(&uia))))
+                IID_PPV_ARGS(&uia))))
             {
                 uia = nullptr;
             }
@@ -306,8 +306,8 @@ namespace osmium
 
             const uint64_t now = NowMillis();
             const bool changed = !haveSent || next.active != sent.active || next.serial != sent.serial ||
-                                 next.hasRect != sent.hasRect || std::fabs(next.y - sent.y) > 0.01f ||
-                                 std::fabs(next.h - sent.h) > 0.01f || std::fabs(next.x - sent.x) > 0.05f;
+                next.hasRect != sent.hasRect || std::fabs(next.y - sent.y) > 0.01f ||
+                std::fabs(next.h - sent.h) > 0.01f || std::fabs(next.x - sent.x) > 0.05f;
             if (changed || now - lastSendMs >= kHeartbeatMs)
             {
                 if (m_Sink) m_Sink(next);

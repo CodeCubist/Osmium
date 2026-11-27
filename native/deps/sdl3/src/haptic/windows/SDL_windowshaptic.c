@@ -34,13 +34,14 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /*
  * Internal stuff.
  */
-SDL_hapticlist_item *SDL_hapticlist = NULL;
-static SDL_hapticlist_item *SDL_hapticlist_tail = NULL;
+SDL_hapticlist_item* SDL_hapticlist = NULL;
+static SDL_hapticlist_item* SDL_hapticlist_tail = NULL;
 static int numhaptics = 0;
 
 /*
@@ -48,9 +49,10 @@ static int numhaptics = 0;
  */
 bool SDL_SYS_HapticInit(void)
 {
-    JoyStick_DeviceData *device;
+    JoyStick_DeviceData* device;
 
-    if (!SDL_DINPUT_HapticInit()) {
+    if (!SDL_DINPUT_HapticInit())
+    {
         return false;
     }
 
@@ -59,18 +61,22 @@ bool SDL_SYS_HapticInit(void)
      * subsystem will arrive too early to create haptic devices. We will
      * invoke those callbacks again here to pick up any joysticks that
      * were added prior to haptics initialization. */
-    for (device = SYS_Joystick; device; device = device->pNext) {
+    for (device = SYS_Joystick; device; device = device->pNext)
+    {
         SDL_DINPUT_HapticMaybeAddDevice(&device->dxdevice);
     }
 
     return true;
 }
 
-bool SDL_SYS_AddHapticDevice(SDL_hapticlist_item *item)
+bool SDL_SYS_AddHapticDevice(SDL_hapticlist_item* item)
 {
-    if (!SDL_hapticlist_tail) {
+    if (!SDL_hapticlist_tail)
+    {
         SDL_hapticlist = SDL_hapticlist_tail = item;
-    } else {
+    }
+    else
+    {
         SDL_hapticlist_tail->next = item;
         SDL_hapticlist_tail = item;
     }
@@ -81,16 +87,20 @@ bool SDL_SYS_AddHapticDevice(SDL_hapticlist_item *item)
     return true;
 }
 
-bool SDL_SYS_RemoveHapticDevice(SDL_hapticlist_item *prev, SDL_hapticlist_item *item)
+bool SDL_SYS_RemoveHapticDevice(SDL_hapticlist_item* prev, SDL_hapticlist_item* item)
 {
     const bool result = item->haptic ? true : false;
-    if (prev) {
+    if (prev)
+    {
         prev->next = item->next;
-    } else {
+    }
+    else
+    {
         SDL_assert(SDL_hapticlist == item);
         SDL_hapticlist = item->next;
     }
-    if (item == SDL_hapticlist_tail) {
+    if (item == SDL_hapticlist_tail)
+    {
         SDL_hapticlist_tail = prev;
     }
     --numhaptics;
@@ -104,15 +114,17 @@ int SDL_SYS_NumHaptics(void)
     return numhaptics;
 }
 
-static SDL_hapticlist_item *HapticByDevIndex(int device_index)
+static SDL_hapticlist_item* HapticByDevIndex(int device_index)
 {
-    SDL_hapticlist_item *item = SDL_hapticlist;
+    SDL_hapticlist_item* item = SDL_hapticlist;
 
-    if ((device_index < 0) || (device_index >= numhaptics)) {
+    if ((device_index < 0) || (device_index >= numhaptics))
+    {
         return NULL;
     }
 
-    while (device_index > 0) {
+    while (device_index > 0)
+    {
         SDL_assert(item != NULL);
         --device_index;
         item = item->next;
@@ -120,11 +132,13 @@ static SDL_hapticlist_item *HapticByDevIndex(int device_index)
     return item;
 }
 
-static SDL_hapticlist_item *HapticByInstanceID(SDL_HapticID instance_id)
+static SDL_hapticlist_item* HapticByInstanceID(SDL_HapticID instance_id)
 {
-    SDL_hapticlist_item *item;
-    for (item = SDL_hapticlist; item; item = item->next) {
-        if (instance_id == item->instance_id) {
+    SDL_hapticlist_item* item;
+    for (item = SDL_hapticlist; item; item = item->next)
+    {
+        if (instance_id == item->instance_id)
+        {
             return item;
         }
     }
@@ -133,8 +147,9 @@ static SDL_hapticlist_item *HapticByInstanceID(SDL_HapticID instance_id)
 
 SDL_HapticID SDL_SYS_HapticInstanceID(int index)
 {
-    SDL_hapticlist_item *item = HapticByDevIndex(index);
-    if (item) {
+    SDL_hapticlist_item* item = HapticByDevIndex(index);
+    if (item)
+    {
         return item->instance_id;
     }
     return 0;
@@ -143,18 +158,18 @@ SDL_HapticID SDL_SYS_HapticInstanceID(int index)
 /*
  * Return the name of a haptic device, does not need to be opened.
  */
-const char *SDL_SYS_HapticName(int index)
+const char* SDL_SYS_HapticName(int index)
 {
-    SDL_hapticlist_item *item = HapticByDevIndex(index);
+    SDL_hapticlist_item* item = HapticByDevIndex(index);
     return item->name;
 }
 
 /*
  * Opens a haptic device for usage.
  */
-bool SDL_SYS_HapticOpen(SDL_Haptic *haptic)
+bool SDL_SYS_HapticOpen(SDL_Haptic* haptic)
 {
-    SDL_hapticlist_item *item = HapticByInstanceID(haptic->instance_id);
+    SDL_hapticlist_item* item = HapticByInstanceID(haptic->instance_id);
     return SDL_DINPUT_HapticOpen(haptic, item);
 }
 
@@ -164,12 +179,14 @@ bool SDL_SYS_HapticOpen(SDL_Haptic *haptic)
 int SDL_SYS_HapticMouse(void)
 {
 #ifdef SDL_HAPTIC_DINPUT
-    SDL_hapticlist_item *item;
+    SDL_hapticlist_item* item;
     int index = 0;
 
     // Grab the first mouse haptic device we find.
-    for (item = SDL_hapticlist; item; item = item->next) {
-        if (item->capabilities.dwDevType == DI8DEVCLASS_POINTER) {
+    for (item = SDL_hapticlist; item; item = item->next)
+    {
+        if (item->capabilities.dwDevType == DI8DEVCLASS_POINTER)
+        {
             return index;
         }
         ++index;
@@ -181,12 +198,14 @@ int SDL_SYS_HapticMouse(void)
 /*
  * Checks to see if a joystick has haptic features.
  */
-bool SDL_SYS_JoystickIsHaptic(SDL_Joystick *joystick)
+bool SDL_SYS_JoystickIsHaptic(SDL_Joystick* joystick)
 {
-    if (joystick->driver != &SDL_WINDOWS_JoystickDriver) {
+    if (joystick->driver != &SDL_WINDOWS_JoystickDriver)
+    {
         return false;
     }
-    if (joystick->hwdata->Capabilities.dwFlags & DIDC_FORCEFEEDBACK) {
+    if (joystick->hwdata->Capabilities.dwFlags & DIDC_FORCEFEEDBACK)
+    {
         return true;
     }
     return false;
@@ -195,9 +214,10 @@ bool SDL_SYS_JoystickIsHaptic(SDL_Joystick *joystick)
 /*
  * Checks to see if the haptic device and joystick are in reality the same.
  */
-bool SDL_SYS_JoystickSameHaptic(SDL_Haptic *haptic, SDL_Joystick *joystick)
+bool SDL_SYS_JoystickSameHaptic(SDL_Haptic* haptic, SDL_Joystick* joystick)
 {
-    if (joystick->driver != &SDL_WINDOWS_JoystickDriver) {
+    if (joystick->driver != &SDL_WINDOWS_JoystickDriver)
+    {
         return false;
     }
     return SDL_DINPUT_JoystickSameHaptic(haptic, joystick);
@@ -206,7 +226,7 @@ bool SDL_SYS_JoystickSameHaptic(SDL_Haptic *haptic, SDL_Joystick *joystick)
 /*
  * Opens a SDL_Haptic from a SDL_Joystick.
  */
-bool SDL_SYS_HapticOpenFromJoystick(SDL_Haptic *haptic, SDL_Joystick *joystick)
+bool SDL_SYS_HapticOpenFromJoystick(SDL_Haptic* haptic, SDL_Joystick* joystick)
 {
     SDL_assert(joystick->driver == &SDL_WINDOWS_JoystickDriver);
 
@@ -216,10 +236,10 @@ bool SDL_SYS_HapticOpenFromJoystick(SDL_Haptic *haptic, SDL_Joystick *joystick)
 /*
  * Closes the haptic device.
  */
-void SDL_SYS_HapticClose(SDL_Haptic *haptic)
+void SDL_SYS_HapticClose(SDL_Haptic* haptic)
 {
-    if (haptic->hwdata) {
-
+    if (haptic->hwdata)
+    {
         // Free effects.
         SDL_free(haptic->effects);
         haptic->effects = NULL;
@@ -239,10 +259,11 @@ void SDL_SYS_HapticClose(SDL_Haptic *haptic)
  */
 void SDL_SYS_HapticQuit(void)
 {
-    SDL_hapticlist_item *item;
-    SDL_hapticlist_item *next = NULL;
+    SDL_hapticlist_item* item;
+    SDL_hapticlist_item* next = NULL;
 
-    for (item = SDL_hapticlist; item; item = next) {
+    for (item = SDL_hapticlist; item; item = next)
+    {
         /* Opened and not closed haptics are leaked, this is on purpose.
          * Close your haptic devices after usage. */
         // !!! FIXME: (...is leaking on purpose a good idea?) - No, of course not.
@@ -261,19 +282,21 @@ void SDL_SYS_HapticQuit(void)
 /*
  * Creates a new haptic effect.
  */
-bool SDL_SYS_HapticNewEffect(SDL_Haptic *haptic, struct haptic_effect *effect,
-                             const SDL_HapticEffect *base)
+bool SDL_SYS_HapticNewEffect(SDL_Haptic* haptic, struct haptic_effect* effect,
+                             const SDL_HapticEffect* base)
 {
     bool result;
 
     // Alloc the effect.
-    effect->hweffect = (struct haptic_hweffect *)SDL_calloc(1, sizeof(struct haptic_hweffect));
-    if (!effect->hweffect) {
+    effect->hweffect = (struct haptic_hweffect*)SDL_calloc(1, sizeof(struct haptic_hweffect));
+    if (!effect->hweffect)
+    {
         return false;
     }
 
     result = SDL_DINPUT_HapticNewEffect(haptic, effect, base);
-    if (!result) {
+    if (!result)
+    {
         SDL_free(effect->hweffect);
         effect->hweffect = NULL;
     }
@@ -283,7 +306,7 @@ bool SDL_SYS_HapticNewEffect(SDL_Haptic *haptic, struct haptic_effect *effect,
 /*
  * Updates an effect.
  */
-bool SDL_SYS_HapticUpdateEffect(SDL_Haptic *haptic, struct haptic_effect *effect, const SDL_HapticEffect *data)
+bool SDL_SYS_HapticUpdateEffect(SDL_Haptic* haptic, struct haptic_effect* effect, const SDL_HapticEffect* data)
 {
     return SDL_DINPUT_HapticUpdateEffect(haptic, effect, data);
 }
@@ -291,7 +314,7 @@ bool SDL_SYS_HapticUpdateEffect(SDL_Haptic *haptic, struct haptic_effect *effect
 /*
  * Runs an effect.
  */
-bool SDL_SYS_HapticRunEffect(SDL_Haptic *haptic, struct haptic_effect *effect, Uint32 iterations)
+bool SDL_SYS_HapticRunEffect(SDL_Haptic* haptic, struct haptic_effect* effect, Uint32 iterations)
 {
     return SDL_DINPUT_HapticRunEffect(haptic, effect, iterations);
 }
@@ -299,7 +322,7 @@ bool SDL_SYS_HapticRunEffect(SDL_Haptic *haptic, struct haptic_effect *effect, U
 /*
  * Stops an effect.
  */
-bool SDL_SYS_HapticStopEffect(SDL_Haptic *haptic, struct haptic_effect *effect)
+bool SDL_SYS_HapticStopEffect(SDL_Haptic* haptic, struct haptic_effect* effect)
 {
     return SDL_DINPUT_HapticStopEffect(haptic, effect);
 }
@@ -307,7 +330,7 @@ bool SDL_SYS_HapticStopEffect(SDL_Haptic *haptic, struct haptic_effect *effect)
 /*
  * Frees the effect.
  */
-void SDL_SYS_HapticDestroyEffect(SDL_Haptic *haptic, struct haptic_effect *effect)
+void SDL_SYS_HapticDestroyEffect(SDL_Haptic* haptic, struct haptic_effect* effect)
 {
     SDL_DINPUT_HapticDestroyEffect(haptic, effect);
     SDL_free(effect->hweffect);
@@ -317,7 +340,7 @@ void SDL_SYS_HapticDestroyEffect(SDL_Haptic *haptic, struct haptic_effect *effec
 /*
  * Gets the status of a haptic effect.
  */
-int SDL_SYS_HapticGetEffectStatus(SDL_Haptic *haptic, struct haptic_effect *effect)
+int SDL_SYS_HapticGetEffectStatus(SDL_Haptic* haptic, struct haptic_effect* effect)
 {
     return SDL_DINPUT_HapticGetEffectStatus(haptic, effect);
 }
@@ -325,7 +348,7 @@ int SDL_SYS_HapticGetEffectStatus(SDL_Haptic *haptic, struct haptic_effect *effe
 /*
  * Sets the gain.
  */
-bool SDL_SYS_HapticSetGain(SDL_Haptic *haptic, int gain)
+bool SDL_SYS_HapticSetGain(SDL_Haptic* haptic, int gain)
 {
     return SDL_DINPUT_HapticSetGain(haptic, gain);
 }
@@ -333,7 +356,7 @@ bool SDL_SYS_HapticSetGain(SDL_Haptic *haptic, int gain)
 /*
  * Sets the autocentering.
  */
-bool SDL_SYS_HapticSetAutocenter(SDL_Haptic *haptic, int autocenter)
+bool SDL_SYS_HapticSetAutocenter(SDL_Haptic* haptic, int autocenter)
 {
     return SDL_DINPUT_HapticSetAutocenter(haptic, autocenter);
 }
@@ -341,7 +364,7 @@ bool SDL_SYS_HapticSetAutocenter(SDL_Haptic *haptic, int autocenter)
 /*
  * Pauses the device.
  */
-bool SDL_SYS_HapticPause(SDL_Haptic *haptic)
+bool SDL_SYS_HapticPause(SDL_Haptic* haptic)
 {
     return SDL_DINPUT_HapticPause(haptic);
 }
@@ -349,7 +372,7 @@ bool SDL_SYS_HapticPause(SDL_Haptic *haptic)
 /*
  * Pauses the device.
  */
-bool SDL_SYS_HapticResume(SDL_Haptic *haptic)
+bool SDL_SYS_HapticResume(SDL_Haptic* haptic)
 {
     return SDL_DINPUT_HapticResume(haptic);
 }
@@ -357,7 +380,7 @@ bool SDL_SYS_HapticResume(SDL_Haptic *haptic)
 /*
  * Stops all the playing effects on the device.
  */
-bool SDL_SYS_HapticStopAll(SDL_Haptic *haptic)
+bool SDL_SYS_HapticStopAll(SDL_Haptic* haptic)
 {
     return SDL_DINPUT_HapticStopAll(haptic);
 }

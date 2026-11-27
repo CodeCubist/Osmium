@@ -687,7 +687,8 @@ public static class WakeOnLanService
                         if (!matchesPhysical) continue;
 
                         adapterSubKeysToUpdate.Add(subName);
-                        if (!snapshot.Adapters.Any(a => a.SubKeyName.Equals(subName, StringComparison.OrdinalIgnoreCase)))
+                        if (!snapshot.Adapters.Any(a =>
+                                a.SubKeyName.Equals(subName, StringComparison.OrdinalIgnoreCase)))
                         {
                             snapshot.Adapters.Add(new WolAdapterRegistrySnapshot
                             {

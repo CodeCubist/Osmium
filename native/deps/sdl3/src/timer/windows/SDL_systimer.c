@@ -40,7 +40,7 @@ Uint64 SDL_GetPerformanceFrequency(void)
     return (Uint64)frequency.QuadPart;
 }
 
-static void SDL_CleanupWaitableHandle(void *handle)
+static void SDL_CleanupWaitableHandle(void* handle)
 {
     CloseHandle(handle);
 }
@@ -51,9 +51,11 @@ static HANDLE SDL_GetWaitableEvent(void)
     HANDLE event;
 
     event = SDL_GetTLS(&TLS_event_handle);
-    if (!event) {
+    if (!event)
+    {
         event = CreateEvent(NULL, FALSE, FALSE, NULL);
-        if (event) {
+        if (event)
+        {
             SDL_SetTLS(&TLS_event_handle, event, SDL_CleanupWaitableHandle);
         }
     }
@@ -65,20 +67,26 @@ static HANDLE SDL_GetWaitableEvent(void)
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x2
 #endif
 
-typedef HANDLE (WINAPI *pfnCreateWaitableTimerExW)(LPSECURITY_ATTRIBUTES lpTimerAttributes, LPCWSTR lpTimerName, DWORD dwFlags, DWORD dwDesiredAccess);
+typedef HANDLE (WINAPI *pfnCreateWaitableTimerExW)(LPSECURITY_ATTRIBUTES lpTimerAttributes, LPCWSTR lpTimerName,
+                                                   DWORD dwFlags, DWORD dwDesiredAccess);
 static pfnCreateWaitableTimerExW pCreateWaitableTimerExW;
 
 #if WINVER < _WIN32_WINNT_WIN7
 typedef struct _REASON_CONTEXT REASON_CONTEXT;
-typedef REASON_CONTEXT *PREASON_CONTEXT;
+typedef REASON_CONTEXT* PREASON_CONTEXT;
 #endif
-typedef BOOL (WINAPI *pfnSetWaitableTimerEx)(HANDLE hTimer, const LARGE_INTEGER *lpDueTime, LONG lPeriod, PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine, PREASON_CONTEXT WakeContext, ULONG TolerableDelay);
+typedef BOOL (WINAPI *pfnSetWaitableTimerEx)(HANDLE hTimer, const LARGE_INTEGER* lpDueTime, LONG lPeriod,
+                                             PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine,
+                                             PREASON_CONTEXT WakeContext, ULONG TolerableDelay);
 static pfnSetWaitableTimerEx pSetWaitableTimerEx;
 
-typedef HANDLE (WINAPI *pfnCreateWaitableTimerW)(LPSECURITY_ATTRIBUTES lpTimerAttributes, BOOL bManualReset, LPCWSTR lpTimerName);
+typedef HANDLE (WINAPI *pfnCreateWaitableTimerW)(LPSECURITY_ATTRIBUTES lpTimerAttributes, BOOL bManualReset,
+                                                 LPCWSTR lpTimerName);
 static pfnCreateWaitableTimerW pCreateWaitableTimerW;
 
-typedef BOOL (WINAPI *pfnSetWaitableTimer)(HANDLE hTimer, const LARGE_INTEGER *lpDueTime, LONG lPeriod, PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine, BOOL fResume);
+typedef BOOL (WINAPI *pfnSetWaitableTimer)(HANDLE hTimer, const LARGE_INTEGER* lpDueTime, LONG lPeriod,
+                                           PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine,
+                                           BOOL fResume);
 static pfnSetWaitableTimer pSetWaitableTimer;
 
 static HANDLE SDL_GetWaitableTimer(void)
@@ -87,34 +95,46 @@ static HANDLE SDL_GetWaitableTimer(void)
     HANDLE timer;
     static bool initialized;
 
-    if (!initialized) {
+    if (!initialized)
+    {
         HMODULE module = GetModuleHandle(TEXT("kernel32.dll"));
-        if (module) {
-            pCreateWaitableTimerExW = (pfnCreateWaitableTimerExW)GetProcAddress(module, "CreateWaitableTimerExW"); // Windows 7 and up
-            if (!pCreateWaitableTimerExW) {
+        if (module)
+        {
+            pCreateWaitableTimerExW = (pfnCreateWaitableTimerExW)GetProcAddress(module, "CreateWaitableTimerExW");
+            // Windows 7 and up
+            if (!pCreateWaitableTimerExW)
+            {
                 pCreateWaitableTimerW = (pfnCreateWaitableTimerW)GetProcAddress(module, "CreateWaitableTimerW");
             }
-            pSetWaitableTimerEx = (pfnSetWaitableTimerEx)GetProcAddress(module, "SetWaitableTimerEx"); // Windows Vista and up
-            if (!pSetWaitableTimerEx) {
+            pSetWaitableTimerEx = (pfnSetWaitableTimerEx)GetProcAddress(module, "SetWaitableTimerEx");
+            // Windows Vista and up
+            if (!pSetWaitableTimerEx)
+            {
                 pSetWaitableTimer = (pfnSetWaitableTimer)GetProcAddress(module, "SetWaitableTimer");
             }
             initialized =
                 (pCreateWaitableTimerExW || pCreateWaitableTimerW) &&
                 (pSetWaitableTimerEx || pSetWaitableTimer);
         }
-        if (!initialized) {
+        if (!initialized)
+        {
             return NULL;
         }
     }
 
     timer = SDL_GetTLS(&TLS_timer_handle);
-    if (!timer) {
-        if (pCreateWaitableTimerExW) {
+    if (!timer)
+    {
+        if (pCreateWaitableTimerExW)
+        {
             timer = pCreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
-        } else {
+        }
+        else
+        {
             timer = pCreateWaitableTimerW(NULL, TRUE, NULL);
         }
-        if (timer) {
+        if (timer)
+        {
             SDL_SetTLS(&TLS_timer_handle, timer, SDL_CleanupWaitableHandle);
         }
     }
@@ -124,23 +144,28 @@ static HANDLE SDL_GetWaitableTimer(void)
 void SDL_SYS_DelayNS(Uint64 ns)
 {
     HANDLE timer = SDL_GetWaitableTimer();
-    if (timer) {
+    if (timer)
+    {
         LARGE_INTEGER due_time;
         due_time.QuadPart = -((LONGLONG)ns / 100);
-        if ((pSetWaitableTimerEx && pSetWaitableTimerEx(timer, &due_time, 0, NULL, NULL, NULL, 0)) || pSetWaitableTimer(timer, &due_time, 0, NULL, NULL, 0)) {
+        if ((pSetWaitableTimerEx && pSetWaitableTimerEx(timer, &due_time, 0, NULL, NULL, NULL, 0)) || pSetWaitableTimer(
+            timer, &due_time, 0, NULL, NULL, 0))
+        {
             WaitForSingleObject(timer, INFINITE);
         }
         return;
     }
 
     const Uint64 max_delay = 0xffffffffLL * SDL_NS_PER_MS;
-    if (ns > max_delay) {
+    if (ns > max_delay)
+    {
         ns = max_delay;
     }
     const DWORD delay = (DWORD)SDL_NS_TO_MS(ns);
 
     HANDLE event = SDL_GetWaitableEvent();
-    if (event) {
+    if (event)
+    {
         WaitForSingleObjectEx(event, delay, FALSE);
         return;
     }

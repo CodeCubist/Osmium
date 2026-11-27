@@ -30,62 +30,67 @@
 
 typedef struct SDL_HIDAPI_RumbleRequest
 {
-    SDL_HIDAPI_Device *device;
+    SDL_HIDAPI_Device* device;
     Uint8 data[2 * USB_PACKET_LENGTH]; // need enough space for the biggest report: dualshock4 is 78 bytes
     int size;
     SDL_HIDAPI_RumbleSentCallback callback;
-    void *userdata;
-    struct SDL_HIDAPI_RumbleRequest *prev;
-
+    void* userdata;
+    struct SDL_HIDAPI_RumbleRequest* prev;
 } SDL_HIDAPI_RumbleRequest;
 
 typedef struct SDL_HIDAPI_RumbleContext
 {
     SDL_AtomicInt initialized;
     SDL_AtomicInt running;
-    SDL_Thread *thread;
-    SDL_Semaphore *request_sem;
-    SDL_HIDAPI_RumbleRequest *requests_head;
-    SDL_HIDAPI_RumbleRequest *requests_tail;
+    SDL_Thread* thread;
+    SDL_Semaphore* request_sem;
+    SDL_HIDAPI_RumbleRequest* requests_head;
+    SDL_HIDAPI_RumbleRequest* requests_tail;
 } SDL_HIDAPI_RumbleContext;
 
 #ifndef SDL_THREAD_SAFETY_ANALYSIS
 static
 #endif
-SDL_Mutex *SDL_HIDAPI_rumble_lock;
+SDL_Mutex* SDL_HIDAPI_rumble_lock;
 static SDL_HIDAPI_RumbleContext rumble_context SDL_GUARDED_BY(SDL_HIDAPI_rumble_lock);
 
-static int SDLCALL SDL_HIDAPI_RumbleThread(void *data)
+static int SDLCALL SDL_HIDAPI_RumbleThread(void* data)
 {
-    SDL_HIDAPI_RumbleContext *ctx = (SDL_HIDAPI_RumbleContext *)data;
+    SDL_HIDAPI_RumbleContext* ctx = (SDL_HIDAPI_RumbleContext*)data;
 
     SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_HIGH);
 
-    while (SDL_GetAtomicInt(&ctx->running)) {
-        SDL_HIDAPI_RumbleRequest *request = NULL;
+    while (SDL_GetAtomicInt(&ctx->running))
+    {
+        SDL_HIDAPI_RumbleRequest* request = NULL;
 
         SDL_WaitSemaphore(ctx->request_sem);
 
         SDL_LockMutex(SDL_HIDAPI_rumble_lock);
         request = ctx->requests_tail;
-        if (request) {
-            if (request == ctx->requests_head) {
+        if (request)
+        {
+            if (request == ctx->requests_head)
+            {
                 ctx->requests_head = NULL;
             }
             ctx->requests_tail = request->prev;
         }
         SDL_UnlockMutex(SDL_HIDAPI_rumble_lock);
 
-        if (request) {
+        if (request)
+        {
             SDL_LockMutex(request->device->dev_lock);
-            if (request->device->dev) {
+            if (request->device->dev)
+            {
 #ifdef DEBUG_RUMBLE
                 HIDAPI_DumpPacket("Rumble packet: size = %d", request->data, request->size);
 #endif
                 SDL_hid_write(request->device->dev, request->data, request->size);
             }
             SDL_UnlockMutex(request->device->dev_lock);
-            if (request->callback) {
+            if (request->callback)
+            {
                 request->callback(request->userdata);
             }
             (void)SDL_AtomicDecRef(&request->device->rumble_pending);
@@ -98,13 +103,14 @@ static int SDLCALL SDL_HIDAPI_RumbleThread(void *data)
     return 0;
 }
 
-static void SDL_HIDAPI_StopRumbleThread(SDL_HIDAPI_RumbleContext *ctx)
+static void SDL_HIDAPI_StopRumbleThread(SDL_HIDAPI_RumbleContext* ctx)
 {
-    SDL_HIDAPI_RumbleRequest *request;
+    SDL_HIDAPI_RumbleRequest* request;
 
     SDL_SetAtomicInt(&ctx->running, false);
 
-    if (ctx->thread) {
+    if (ctx->thread)
+    {
         int result;
 
         SDL_SignalSemaphore(ctx->request_sem);
@@ -113,14 +119,17 @@ static void SDL_HIDAPI_StopRumbleThread(SDL_HIDAPI_RumbleContext *ctx)
     }
 
     SDL_LockMutex(SDL_HIDAPI_rumble_lock);
-    while (ctx->requests_tail) {
+    while (ctx->requests_tail)
+    {
         request = ctx->requests_tail;
-        if (request == ctx->requests_head) {
+        if (request == ctx->requests_head)
+        {
             ctx->requests_head = NULL;
         }
         ctx->requests_tail = request->prev;
 
-        if (request->callback) {
+        if (request->callback)
+        {
             request->callback(request->userdata);
         }
         (void)SDL_AtomicDecRef(&request->device->rumble_pending);
@@ -128,12 +137,14 @@ static void SDL_HIDAPI_StopRumbleThread(SDL_HIDAPI_RumbleContext *ctx)
     }
     SDL_UnlockMutex(SDL_HIDAPI_rumble_lock);
 
-    if (ctx->request_sem) {
+    if (ctx->request_sem)
+    {
         SDL_DestroySemaphore(ctx->request_sem);
         ctx->request_sem = NULL;
     }
 
-    if (SDL_HIDAPI_rumble_lock) {
+    if (SDL_HIDAPI_rumble_lock)
+    {
         SDL_DestroyMutex(SDL_HIDAPI_rumble_lock);
         SDL_HIDAPI_rumble_lock = NULL;
     }
@@ -141,23 +152,26 @@ static void SDL_HIDAPI_StopRumbleThread(SDL_HIDAPI_RumbleContext *ctx)
     SDL_SetAtomicInt(&ctx->initialized, false);
 }
 
-static bool SDL_HIDAPI_StartRumbleThread(SDL_HIDAPI_RumbleContext *ctx)
+static bool SDL_HIDAPI_StartRumbleThread(SDL_HIDAPI_RumbleContext* ctx)
 {
     SDL_HIDAPI_rumble_lock = SDL_CreateMutex();
-    if (!SDL_HIDAPI_rumble_lock) {
+    if (!SDL_HIDAPI_rumble_lock)
+    {
         SDL_HIDAPI_StopRumbleThread(ctx);
         return false;
     }
 
     ctx->request_sem = SDL_CreateSemaphore(0);
-    if (!ctx->request_sem) {
+    if (!ctx->request_sem)
+    {
         SDL_HIDAPI_StopRumbleThread(ctx);
         return false;
     }
 
     SDL_SetAtomicInt(&ctx->running, true);
     ctx->thread = SDL_CreateThread(SDL_HIDAPI_RumbleThread, "HIDAPI Rumble", ctx);
-    if (!ctx->thread) {
+    if (!ctx->thread)
+    {
         SDL_HIDAPI_StopRumbleThread(ctx);
         return false;
     }
@@ -166,10 +180,12 @@ static bool SDL_HIDAPI_StartRumbleThread(SDL_HIDAPI_RumbleContext *ctx)
 
 bool SDL_HIDAPI_LockRumble(void)
 {
-    SDL_HIDAPI_RumbleContext *ctx = &rumble_context;
+    SDL_HIDAPI_RumbleContext* ctx = &rumble_context;
 
-    if (SDL_CompareAndSwapAtomicInt(&ctx->initialized, false, true)) {
-        if (!SDL_HIDAPI_StartRumbleThread(ctx)) {
+    if (SDL_CompareAndSwapAtomicInt(&ctx->initialized, false, true))
+    {
+        if (!SDL_HIDAPI_StartRumbleThread(ctx))
+        {
             return false;
         }
     }
@@ -178,18 +194,21 @@ bool SDL_HIDAPI_LockRumble(void)
     return true;
 }
 
-bool SDL_HIDAPI_GetPendingRumbleLocked(SDL_HIDAPI_Device *device, Uint8 **data, int **size, int *maximum_size)
+bool SDL_HIDAPI_GetPendingRumbleLocked(SDL_HIDAPI_Device* device, Uint8** data, int** size, int* maximum_size)
 {
-    SDL_HIDAPI_RumbleContext *ctx = &rumble_context;
+    SDL_HIDAPI_RumbleContext* ctx = &rumble_context;
     SDL_HIDAPI_RumbleRequest *request, *found;
 
     found = NULL;
-    for (request = ctx->requests_tail; request; request = request->prev) {
-        if (request->device == device) {
+    for (request = ctx->requests_tail; request; request = request->prev)
+    {
+        if (request->device == device)
+        {
             found = request;
         }
     }
-    if (found) {
+    if (found)
+    {
         *data = found->data;
         *size = &found->size;
         *maximum_size = sizeof(found->data);
@@ -198,24 +217,27 @@ bool SDL_HIDAPI_GetPendingRumbleLocked(SDL_HIDAPI_Device *device, Uint8 **data, 
     return false;
 }
 
-int SDL_HIDAPI_SendRumbleAndUnlock(SDL_HIDAPI_Device *device, const Uint8 *data, int size)
+int SDL_HIDAPI_SendRumbleAndUnlock(SDL_HIDAPI_Device* device, const Uint8* data, int size)
 {
     return SDL_HIDAPI_SendRumbleWithCallbackAndUnlock(device, data, size, NULL, NULL);
 }
 
-int SDL_HIDAPI_SendRumbleWithCallbackAndUnlock(SDL_HIDAPI_Device *device, const Uint8 *data, int size, SDL_HIDAPI_RumbleSentCallback callback, void *userdata)
+int SDL_HIDAPI_SendRumbleWithCallbackAndUnlock(SDL_HIDAPI_Device* device, const Uint8* data, int size,
+                                               SDL_HIDAPI_RumbleSentCallback callback, void* userdata)
 {
-    SDL_HIDAPI_RumbleContext *ctx = &rumble_context;
-    SDL_HIDAPI_RumbleRequest *request;
+    SDL_HIDAPI_RumbleContext* ctx = &rumble_context;
+    SDL_HIDAPI_RumbleRequest* request;
 
-    if (size > sizeof(request->data)) {
+    if (size > sizeof(request->data))
+    {
         SDL_HIDAPI_UnlockRumble();
         SDL_SetError("Couldn't send rumble, size %d is greater than %d", size, (int)sizeof(request->data));
         return -1;
     }
 
-    request = (SDL_HIDAPI_RumbleRequest *)SDL_calloc(1, sizeof(*request));
-    if (!request) {
+    request = (SDL_HIDAPI_RumbleRequest*)SDL_calloc(1, sizeof(*request));
+    if (!request)
+    {
         SDL_HIDAPI_UnlockRumble();
         return -1;
     }
@@ -227,9 +249,12 @@ int SDL_HIDAPI_SendRumbleWithCallbackAndUnlock(SDL_HIDAPI_Device *device, const 
 
     SDL_AtomicIncRef(&device->rumble_pending);
 
-    if (ctx->requests_head) {
+    if (ctx->requests_head)
+    {
         ctx->requests_head->prev = request;
-    } else {
+    }
+    else
+    {
         ctx->requests_tail = request;
     }
     ctx->requests_head = request;
@@ -247,24 +272,27 @@ void SDL_HIDAPI_UnlockRumble(void)
     SDL_UnlockMutex(SDL_HIDAPI_rumble_lock);
 }
 
-int SDL_HIDAPI_SendRumble(SDL_HIDAPI_Device *device, const Uint8 *data, int size)
+int SDL_HIDAPI_SendRumble(SDL_HIDAPI_Device* device, const Uint8* data, int size)
 {
-    Uint8 *pending_data;
-    int *pending_size;
+    Uint8* pending_data;
+    int* pending_size;
     int maximum_size;
 
-    if (size <= 0) {
+    if (size <= 0)
+    {
         SDL_SetError("Tried to send rumble with invalid size");
         return -1;
     }
 
-    if (!SDL_HIDAPI_LockRumble()) {
+    if (!SDL_HIDAPI_LockRumble())
+    {
         return -1;
     }
 
     // check if there is a pending request for the device and update it
     if (SDL_HIDAPI_GetPendingRumbleLocked(device, &pending_data, &pending_size, &maximum_size) &&
-        size == *pending_size && data[0] == pending_data[0]) {
+        size == *pending_size && data[0] == pending_data[0])
+    {
         SDL_memcpy(pending_data, data, size);
         SDL_HIDAPI_UnlockRumble();
         return size;
@@ -275,9 +303,10 @@ int SDL_HIDAPI_SendRumble(SDL_HIDAPI_Device *device, const Uint8 *data, int size
 
 void SDL_HIDAPI_QuitRumble(void)
 {
-    SDL_HIDAPI_RumbleContext *ctx = &rumble_context;
+    SDL_HIDAPI_RumbleContext* ctx = &rumble_context;
 
-    if (SDL_GetAtomicInt(&ctx->running)) {
+    if (SDL_GetAtomicInt(&ctx->running))
+    {
         SDL_HIDAPI_StopRumbleThread(ctx);
     }
 }

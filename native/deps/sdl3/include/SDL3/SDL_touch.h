@@ -48,6 +48,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -84,9 +85,9 @@ typedef Uint64 SDL_FingerID;
 typedef enum SDL_TouchDeviceType
 {
     SDL_TOUCH_DEVICE_INVALID = -1,
-    SDL_TOUCH_DEVICE_DIRECT,            /**< touch screen with window-relative coordinates */
+    SDL_TOUCH_DEVICE_DIRECT, /**< touch screen with window-relative coordinates */
     SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE, /**< trackpad with absolute device coordinates */
-    SDL_TOUCH_DEVICE_INDIRECT_RELATIVE  /**< trackpad with screen cursor-relative coordinates */
+    SDL_TOUCH_DEVICE_INDIRECT_RELATIVE /**< trackpad with screen cursor-relative coordinates */
 } SDL_TouchDeviceType;
 
 /**
@@ -103,9 +104,9 @@ typedef enum SDL_TouchDeviceType
 typedef struct SDL_Finger
 {
     SDL_FingerID id; /**< the finger ID */
-    float x;         /**< the x-axis location of the touch event, normalized (0...1) */
-    float y;         /**< the y-axis location of the touch event, normalized (0...1) */
-    float pressure;  /**< the quantity of pressure applied, normalized (0...1) */
+    float x; /**< the x-axis location of the touch event, normalized (0...1) */
+    float y; /**< the y-axis location of the touch event, normalized (0...1) */
+    float pressure; /**< the quantity of pressure applied, normalized (0...1) */
 } SDL_Finger;
 
 /**
@@ -138,7 +139,7 @@ typedef struct SDL_Finger
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_TouchID * SDLCALL SDL_GetTouchDevices(int *count);
+extern SDL_DECLSPEC SDL_TouchID* SDLCALL SDL_GetTouchDevices(int* count);
 
 /**
  * Get the touch device name as reported from the driver.
@@ -149,7 +150,7 @@ extern SDL_DECLSPEC SDL_TouchID * SDLCALL SDL_GetTouchDevices(int *count);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetTouchDeviceName(SDL_TouchID touchID);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetTouchDeviceName(SDL_TouchID touchID);
 
 /**
  * Get the type of the given touch device.
@@ -174,7 +175,7 @@ extern SDL_DECLSPEC SDL_TouchDeviceType SDLCALL SDL_GetTouchDeviceType(SDL_Touch
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_Finger ** SDLCALL SDL_GetTouchFingers(SDL_TouchID touchID, int *count);
+extern SDL_DECLSPEC SDL_Finger** SDLCALL SDL_GetTouchFingers(SDL_TouchID touchID, int* count);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

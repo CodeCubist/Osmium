@@ -23,11 +23,12 @@
 #include "./SDL_list.h"
 
 // Push
-bool SDL_ListAdd(SDL_ListNode **head, void *ent)
+bool SDL_ListAdd(SDL_ListNode** head, void* ent)
 {
-    SDL_ListNode *node = (SDL_ListNode *)SDL_malloc(sizeof(*node));
+    SDL_ListNode* node = (SDL_ListNode*)SDL_malloc(sizeof(*node));
 
-    if (!node) {
+    if (!node)
+    {
         return false;
     }
 
@@ -38,20 +39,23 @@ bool SDL_ListAdd(SDL_ListNode **head, void *ent)
 }
 
 // Pop from end as a FIFO (if add with SDL_ListAdd)
-void SDL_ListPop(SDL_ListNode **head, void **ent)
+void SDL_ListPop(SDL_ListNode** head, void** ent)
 {
-    SDL_ListNode **ptr = head;
+    SDL_ListNode** ptr = head;
 
     // Invalid or empty
-    if (!head || !*head) {
+    if (!head || !*head)
+    {
         return;
     }
 
-    while ((*ptr)->next) {
+    while ((*ptr)->next)
+    {
         ptr = &(*ptr)->next;
     }
 
-    if (ent) {
+    if (ent)
+    {
         *ent = (*ptr)->entry;
     }
 
@@ -59,13 +63,15 @@ void SDL_ListPop(SDL_ListNode **head, void **ent)
     *ptr = NULL;
 }
 
-void SDL_ListRemove(SDL_ListNode **head, void *ent)
+void SDL_ListRemove(SDL_ListNode** head, void* ent)
 {
-    SDL_ListNode **ptr = head;
+    SDL_ListNode** ptr = head;
 
-    while (*ptr) {
-        if ((*ptr)->entry == ent) {
-            SDL_ListNode *tmp = *ptr;
+    while (*ptr)
+    {
+        if ((*ptr)->entry == ent)
+        {
+            SDL_ListNode* tmp = *ptr;
             *ptr = (*ptr)->next;
             SDL_free(tmp);
             return;
@@ -74,12 +80,13 @@ void SDL_ListRemove(SDL_ListNode **head, void *ent)
     }
 }
 
-void SDL_ListClear(SDL_ListNode **head)
+void SDL_ListClear(SDL_ListNode** head)
 {
-    SDL_ListNode *l = *head;
+    SDL_ListNode* l = *head;
     *head = NULL;
-    while (l) {
-        SDL_ListNode *tmp = l;
+    while (l)
+    {
+        SDL_ListNode* tmp = l;
         l = l->next;
         SDL_free(tmp);
     }

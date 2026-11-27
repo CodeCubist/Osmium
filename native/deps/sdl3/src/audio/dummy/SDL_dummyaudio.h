@@ -27,7 +27,7 @@
 
 struct SDL_PrivateAudioData
 {
-    Uint8 *mixbuf;   // The file descriptor for the audio device
+    Uint8* mixbuf; // The file descriptor for the audio device
     Uint32 io_delay; // milliseconds to sleep in WaitDevice.
 };
 

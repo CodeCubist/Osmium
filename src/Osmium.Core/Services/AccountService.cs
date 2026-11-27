@@ -632,7 +632,8 @@ public sealed partial class AccountService : IDisposable
             payload["password"] = currentPassword;
         }
 
-        return SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/email/send-code", payload);
+        return SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/email/send-code",
+            payload);
     }
 
     public async Task<AccountApiResult<AccountEmailUpdateData>> ConfirmChangeEmailAsync(string? currentPassword,
@@ -663,7 +664,8 @@ public sealed partial class AccountService : IDisposable
     }
 
     public Task<AccountApiResult<AccountChallengeInfo>> StartSetPasswordSendCodeAsync()
-        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/password/send-code", new { });
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/password/send-code",
+            new { });
 
     public async Task<AccountApiResult<AccountPasswordSetData>> ConfirmSetPasswordAsync(string code, string newPassword)
     {
@@ -922,7 +924,8 @@ public sealed partial class AccountService : IDisposable
         => SendAuthenticatedJsonAsync<LoginKeysListData>(HttpMethod.Get, "/api/account/login-keys");
 
     public Task<AccountApiResult<AccountChallengeInfo>> StartCreateLoginKeySendCodeAsync()
-        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/login-keys/send-code", new { });
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/login-keys/send-code",
+            new { });
 
     public Task<AccountApiResult<LoginKeyCreateData>> CreateLoginKeyAsync(string code, string name)
         => SendAuthenticatedJsonAsync<LoginKeyCreateData>(HttpMethod.Post, "/api/account/login-keys/create", new

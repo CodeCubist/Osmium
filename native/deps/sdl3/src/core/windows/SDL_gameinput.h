@@ -39,7 +39,7 @@ using namespace GameInput::v2;
 using namespace GameInput::v1;
 #endif
 
-extern bool SDL_InitGameInput(IGameInput **ppGameInput);
+extern bool SDL_InitGameInput(IGameInput** ppGameInput);
 extern void SDL_QuitGameInput(void);
 
 #endif // HAVE_GAMEINPUT_H

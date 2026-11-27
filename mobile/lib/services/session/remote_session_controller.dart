@@ -347,7 +347,13 @@ class RemoteSessionController extends ChangeNotifier {
     required String ltoken,
     required bool captchaRetried,
   }) async {
-    await disconnect(notifySignaling: false, resetState: false);
+    if (_phase != SessionPhase.idle ||
+        _transportHandle != null ||
+        _sessionHandle != null ||
+        _relayWs != null ||
+        _textureId != null) {
+      await disconnect(notifySignaling: false, resetState: false);
+    }
 
     final epoch = ++_connectEpoch;
     _cancelling = false;
@@ -372,8 +378,7 @@ class RemoteSessionController extends ChangeNotifier {
     }
 
     if (signaling.state != SignalingConnectionState.connected) {
-      // The socket may still be registering (app cold start or reconnect).
-      // Windows queues the request instead of failing immediately.
+      signaling.retryNow();
       try {
         await signaling.stateStream
             .firstWhere((s) => s == SignalingConnectionState.connected)
@@ -391,13 +396,8 @@ class RemoteSessionController extends ChangeNotifier {
       return;
     }
 
-    try {
-      await WakelockPlus.enable();
-    } catch (_) {}
-    if (aborted()) return;
-
-    await platformBridge.setImmersiveMode(true);
-    if (aborted()) return;
+    unawaited(WakelockPlus.enable().catchError((_) {}));
+    unawaited(platformBridge.setImmersiveMode(true));
 
     // Generate 16-byte session token & uppercase hex sessionId (matches Osmium C# Convert.ToHexString)
     final rng = Random.secure();
@@ -498,8 +498,17 @@ class RemoteSessionController extends ChangeNotifier {
     }
 
     Timer? bridgeRetry;
+    Future<(int, String)?>? preTransportFuture;
+    Future<NativeSurfaceInfo?>? preSurfaceFuture;
     try {
-      // Step 2: Send connect_request
+      final engineFactory = _isolateEngineFactory;
+      final preStunHost = signaling.advertisedStunHost;
+      final preStunPort = signaling.advertisedStunPort;
+
+      preTransportFuture = _engineOpRunner(
+        _createTransportOp(engineFactory, preStunHost, preStunPort),
+      );
+
       signaling.sendConnectRequest(
         sessionId: sid,
         targetDeviceId: req.targetDeviceId,
@@ -588,7 +597,7 @@ class RemoteSessionController extends ChangeNotifier {
         return;
       }
 
-      // Step 7: Create UDP transport & gather STUN candidates off UI thread
+      // Step 7: Claim speculatively pre-gathered UDP transport & STUN candidates
       _setPhase(SessionPhase.negotiatingTransport, '正在探测网络直连');
       final stunHost = challenge.stunHost.isNotEmpty
           ? challenge.stunHost
@@ -597,11 +606,20 @@ class RemoteSessionController extends ChangeNotifier {
           ? challenge.stunPort
           : signaling.advertisedStunPort;
 
-      // Bind the socket + gather STUN candidates off the UI thread.
-      final engineFactory = _isolateEngineFactory;
-      final transportRes = await _engineOpRunner(
-        _createTransportOp(engineFactory, stunHost, stunPort),
-      );
+      var transportRes = await preTransportFuture;
+      preTransportFuture = null;
+
+      // Rare fallback: challenge advertised a different STUN endpoint and pre-gather had no srflx.
+      if (!aborted() &&
+          transportRes != null &&
+          !transportRes.$2.contains('"srflx"') &&
+          (stunHost.toLowerCase() != preStunHost.toLowerCase() ||
+              stunPort != preStunPort)) {
+        engine.destroyTransport(Pointer<Void>.fromAddress(transportRes.$1));
+        transportRes = await _engineOpRunner(
+          _createTransportOp(engineFactory, stunHost, stunPort),
+        );
+      }
 
       if (transportRes == null) {
         if (!aborted()) _fail('网络传输初始化失败');
@@ -642,7 +660,7 @@ class RemoteSessionController extends ChangeNotifier {
       _bridgeReached = true;
 
       final peerCandidates = bridge.candidatesJson;
-      const maxDirectAttempts = 3;
+      const maxDirectAttempts = 2;
       var p2p = (false, 0, '');
       for (var attempt = 1; attempt <= maxDirectAttempts; attempt++) {
         if (aborted()) return;
@@ -666,7 +684,7 @@ class RemoteSessionController extends ChangeNotifier {
             transportAddr,
             sessionToken,
             peerCandidates,
-            2500,
+            1400,
           ),
         );
         if (aborted()) return;
@@ -716,6 +734,13 @@ class RemoteSessionController extends ChangeNotifier {
       }
 
       _setPhase(SessionPhase.startingStream, '正在启动硬件低延迟解码');
+      // Pre-create Android SurfaceProducer in parallel with tunnel authentication
+      // so zero MethodChannel latency sits between auth completion and first video frame.
+      preSurfaceFuture = platformBridge.createSurface(
+        width: _settings.desiredWidth,
+        height: _settings.desiredHeight,
+      );
+
       engine.configureTransportCrypto(
         transport: _transportHandle!,
         aesKey32: material.aesKey32,
@@ -759,12 +784,13 @@ class RemoteSessionController extends ChangeNotifier {
         return;
       }
 
-      // Step 12: Create Android SurfaceProducer & start native streaming session
-      final surface = await platformBridge.createSurface(
-        width: _settings.desiredWidth,
-        height: _settings.desiredHeight,
-      );
+      // Step 12: Claim pre-created Android SurfaceProducer & start native streaming session
+      final surface = await preSurfaceFuture;
+      preSurfaceFuture = null;
       if (surface == null || surface.textureId < 0 || aborted()) {
+        if (surface != null) {
+          unawaited(platformBridge.destroySurface());
+        }
         if (!aborted()) _fail('视频渲染画布初始化失败');
         return;
       }
@@ -796,6 +822,26 @@ class RemoteSessionController extends ChangeNotifier {
       }
     } finally {
       bridgeRetry?.cancel();
+      if (preTransportFuture != null) {
+        final orphanTransport = preTransportFuture;
+        unawaited(
+          orphanTransport.then((res) {
+            if (res != null) {
+              engine.destroyTransport(Pointer<Void>.fromAddress(res.$1));
+            }
+          }).catchError((_) {}),
+        );
+      }
+      if (preSurfaceFuture != null) {
+        final orphanSurface = preSurfaceFuture;
+        unawaited(
+          orphanSurface.then((surf) {
+            if (surf != null && _textureId == null) {
+              unawaited(platformBridge.destroySurface());
+            }
+          }).catchError((_) {}),
+        );
+      }
       for (final s in subs) {
         await s.cancel();
       }

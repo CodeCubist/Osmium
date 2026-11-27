@@ -26,6 +26,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 XInputGetState_t SDL_XInputGetState = NULL;
@@ -65,7 +66,8 @@ void WIN_UnloadXInputDLL(void)
 
 bool WIN_LoadXInputDLL(void)
 {
-    if (s_pXInputDLL) {
+    if (s_pXInputDLL)
+    {
         SDL_assert(s_XInputDLLRefCount > 0);
         s_XInputDLLRefCount++;
         return true; // already loaded
@@ -76,14 +78,17 @@ bool WIN_LoadXInputDLL(void)
      * limitations of that API (no devices at startup, no background input, etc.)
      */
     s_pXInputDLL = LoadLibrary(TEXT("XInput1_4.dll")); // 1.4 Ships with Windows 8.
-    if (!s_pXInputDLL) {
+    if (!s_pXInputDLL)
+    {
         s_pXInputDLL = LoadLibrary(TEXT("XInput1_3.dll")); // 1.3 can be installed as a redistributable component.
     }
-    if (!s_pXInputDLL) {
+    if (!s_pXInputDLL)
+    {
         // "9.1.0" Ships with Vista and Win7, and is more limited than 1.3+ (e.g. XInputGetStateEx is not available.)
         s_pXInputDLL = LoadLibrary(TEXT("XInput9_1_0.dll"));
     }
-    if (!s_pXInputDLL) {
+    if (!s_pXInputDLL)
+    {
         return false;
     }
 
@@ -92,15 +97,18 @@ bool WIN_LoadXInputDLL(void)
 
     // 100 is the ordinal for _XInputGetStateEx, which returns the same struct as XinputGetState, but with extra data in wButtons for the guide button, we think...
     SDL_XInputGetState = (XInputGetState_t)GetProcAddress(s_pXInputDLL, (LPCSTR)100);
-    if (!SDL_XInputGetState) {
+    if (!SDL_XInputGetState)
+    {
         SDL_XInputGetState = (XInputGetState_t)GetProcAddress(s_pXInputDLL, "XInputGetState");
     }
     SDL_XInputSetState = (XInputSetState_t)GetProcAddress(s_pXInputDLL, "XInputSetState");
     SDL_XInputGetCapabilities = (XInputGetCapabilities_t)GetProcAddress(s_pXInputDLL, "XInputGetCapabilities");
     // 108 is the ordinal for _XInputGetCapabilitiesEx, which additionally returns VID/PID of the controller.
     SDL_XInputGetCapabilitiesEx = (XInputGetCapabilitiesEx_t)GetProcAddress(s_pXInputDLL, (LPCSTR)108);
-    SDL_XInputGetBatteryInformation = (XInputGetBatteryInformation_t)GetProcAddress(s_pXInputDLL, "XInputGetBatteryInformation");
-    if (!SDL_XInputGetState || !SDL_XInputSetState || !SDL_XInputGetCapabilities) {
+    SDL_XInputGetBatteryInformation = (XInputGetBatteryInformation_t)GetProcAddress(
+        s_pXInputDLL, "XInputGetBatteryInformation");
+    if (!SDL_XInputGetState || !SDL_XInputSetState || !SDL_XInputGetCapabilities)
+    {
         WIN_UnloadXInputDLL();
         return false;
     }
@@ -110,13 +118,17 @@ bool WIN_LoadXInputDLL(void)
 
 void WIN_UnloadXInputDLL(void)
 {
-    if (s_pXInputDLL) {
+    if (s_pXInputDLL)
+    {
         SDL_assert(s_XInputDLLRefCount > 0);
-        if (--s_XInputDLLRefCount == 0) {
+        if (--s_XInputDLLRefCount == 0)
+        {
             FreeLibrary(s_pXInputDLL);
             s_pXInputDLL = NULL;
         }
-    } else {
+    }
+    else
+    {
         SDL_assert(s_XInputDLLRefCount == 0);
     }
 }

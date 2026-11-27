@@ -27,14 +27,20 @@
 
 SDL_EventCategory SDL_GetEventCategory(Uint32 type)
 {
-    if (type >= SDL_EVENT_USER && type <= SDL_EVENT_LAST) {
+    if (type >= SDL_EVENT_USER && type <= SDL_EVENT_LAST)
+    {
         return SDL_EVENTCATEGORY_USER;
-    } else if (type >= SDL_EVENT_DISPLAY_FIRST && type <= SDL_EVENT_DISPLAY_LAST) {
+    }
+    else if (type >= SDL_EVENT_DISPLAY_FIRST && type <= SDL_EVENT_DISPLAY_LAST)
+    {
         return SDL_EVENTCATEGORY_DISPLAY;
-    } else if (type >= SDL_EVENT_WINDOW_FIRST && type <= SDL_EVENT_WINDOW_LAST) {
+    }
+    else if (type >= SDL_EVENT_WINDOW_FIRST && type <= SDL_EVENT_WINDOW_LAST)
+    {
         return SDL_EVENTCATEGORY_WINDOW;
     }
-    switch (type) {
+    switch (type)
+    {
     default:
         SDL_SetError("Unknown event type");
         return SDL_EVENTCATEGORY_UNKNOWN;
@@ -187,11 +193,12 @@ SDL_EventCategory SDL_GetEventCategory(Uint32 type)
     }
 }
 
-SDL_Window *SDL_GetWindowFromEvent(const SDL_Event *event)
+SDL_Window* SDL_GetWindowFromEvent(const SDL_Event* event)
 {
     SDL_WindowID windowID;
 
-    switch (SDL_GetEventCategory(event->type)) {
+    switch (SDL_GetEventCategory(event->type))
+    {
     case SDL_EVENTCATEGORY_USER:
         windowID = event->user.windowID;
         break;

@@ -94,11 +94,11 @@ typedef struct
     float right_touch_y;
 } SDL_DriverSteamDeck_Context;
 
-static bool DisableDeckLizardMode(SDL_hid_device *dev)
+static bool DisableDeckLizardMode(SDL_hid_device* dev)
 {
     int rc;
-    Uint8 buffer[HID_FEATURE_REPORT_BYTES + 1] = { 0 };
-    FeatureReportMsg *msg = (FeatureReportMsg *)(buffer + 1);
+    Uint8 buffer[HID_FEATURE_REPORT_BYTES + 1] = {0};
+    FeatureReportMsg* msg = (FeatureReportMsg*)(buffer + 1);
 
     msg->header.type = ID_CLEAR_DIGITAL_MAPPINGS;
 
@@ -130,11 +130,11 @@ static bool DisableDeckLizardMode(SDL_hid_device *dev)
     return true;
 }
 
-static bool FeedDeckLizardWatchdog(SDL_hid_device *dev)
+static bool FeedDeckLizardWatchdog(SDL_hid_device* dev)
 {
     int rc;
-    Uint8 buffer[HID_FEATURE_REPORT_BYTES + 1] = { 0 };
-    FeatureReportMsg *msg = (FeatureReportMsg *)(buffer + 1);
+    Uint8 buffer[HID_FEATURE_REPORT_BYTES + 1] = {0};
+    FeatureReportMsg* msg = (FeatureReportMsg*)(buffer + 1);
 
     msg->header.type = ID_CLEAR_DIGITAL_MAPPINGS;
 
@@ -158,15 +158,16 @@ static bool FeedDeckLizardWatchdog(SDL_hid_device *dev)
     return true;
 }
 
-static void HIDAPI_DriverSteamDeck_HandleState(SDL_HIDAPI_Device *device,
-                                               SDL_Joystick *joystick,
-                                               ValveInReport_t *pInReport)
+static void HIDAPI_DriverSteamDeck_HandleState(SDL_HIDAPI_Device* device,
+                                               SDL_Joystick* joystick,
+                                               ValveInReport_t* pInReport)
 {
     float values[3];
-    SDL_DriverSteamDeck_Context *ctx = (SDL_DriverSteamDeck_Context *)device->context;
+    SDL_DriverSteamDeck_Context* ctx = (SDL_DriverSteamDeck_Context*)device->context;
     Uint64 timestamp = SDL_GetTicksNS();
 
-    if (pInReport->payload.deckState.ulButtons != ctx->last_button_state) {
+    if (pInReport->payload.deckState.ulButtons != ctx->last_button_state)
+    {
         Uint8 hat = 0;
 
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_SOUTH,
@@ -216,16 +217,20 @@ static void HIDAPI_DriverSteamDeck_HandleState(SDL_HIDAPI_Device *device,
         SDL_SendJoystickButton(timestamp, joystick, SDL_GAMEPAD_BUTTON_STEAM_DECK_LEFT_JOYSTICK_TOUCH,
                                ((pInReport->payload.deckState.ulButtonsH & STEAMDECK_HBUTTON_LSTICK_TOUCH) != 0));
 
-        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_UP) {
+        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_UP)
+        {
             hat |= SDL_HAT_UP;
         }
-        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_DOWN) {
+        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_DOWN)
+        {
             hat |= SDL_HAT_DOWN;
         }
-        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_LEFT) {
+        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_LEFT)
+        {
             hat |= SDL_HAT_LEFT;
         }
-        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_RIGHT) {
+        if (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_DPAD_RIGHT)
+        {
             hat |= SDL_HAT_RIGHT;
         }
         SDL_SendJoystickHat(timestamp, joystick, 0, hat);
@@ -259,13 +264,18 @@ static void HIDAPI_DriverSteamDeck_HandleState(SDL_HIDAPI_Device *device,
     values[2] = (-pInReport->payload.deckState.sAccelY / 32768.0f) * 2.0f * SDL_STANDARD_GRAVITY;
     SDL_SendJoystickSensor(timestamp, joystick, SDL_SENSOR_ACCEL, ctx->sensor_timestamp_ns, values, 3);
 
-    bool left_touch_down = (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_LEFT_TOUCHPAD_TOUCH) ? true : false;
-    bool right_touch_down = (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_RIGHT_TOUCHPAD_TOUCH) ? true : false;
-    if (left_touch_down || ctx->left_touch_down) {
-        if (left_touch_down) {
+    bool left_touch_down = (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_LEFT_TOUCHPAD_TOUCH)
+                               ? true
+                               : false;
+    bool right_touch_down = (pInReport->payload.deckState.ulButtonsL & STEAMDECK_LBUTTON_RIGHT_TOUCHPAD_TOUCH)
+                                ? true
+                                : false;
+    if (left_touch_down || ctx->left_touch_down)
+    {
+        if (left_touch_down)
+        {
             ctx->left_touch_x = pInReport->payload.deckState.sLeftPadX / 65536.0f + 0.5f;
             ctx->left_touch_y = -(float)pInReport->payload.deckState.sLeftPadY / 65536.0f + 0.5f;
-
         }
         SDL_SendJoystickTouchpad(timestamp, joystick, 0, 0,
                                  left_touch_down,
@@ -274,8 +284,10 @@ static void HIDAPI_DriverSteamDeck_HandleState(SDL_HIDAPI_Device *device,
                                  pInReport->payload.deckState.sPressurePadLeft / 32768.0f);
         ctx->left_touch_down = left_touch_down;
     }
-    if (right_touch_down || ctx->right_touch_down) {
-        if (right_touch_down) {
+    if (right_touch_down || ctx->right_touch_down)
+    {
+        if (right_touch_down)
+        {
             ctx->right_touch_x = pInReport->payload.deckState.sRightPadX / 65536.0f + 0.5f;
             ctx->right_touch_y = -(float)pInReport->payload.deckState.sRightPadY / 65536.0f + 0.5f;
         }
@@ -290,12 +302,12 @@ static void HIDAPI_DriverSteamDeck_HandleState(SDL_HIDAPI_Device *device,
 
 /*****************************************************************************************************/
 
-static void HIDAPI_DriverSteamDeck_RegisterHints(SDL_HintCallback callback, void *userdata)
+static void HIDAPI_DriverSteamDeck_RegisterHints(SDL_HintCallback callback, void* userdata)
 {
     SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK, callback, userdata);
 }
 
-static void HIDAPI_DriverSteamDeck_UnregisterHints(SDL_HintCallback callback, void *userdata)
+static void HIDAPI_DriverSteamDeck_UnregisterHints(SDL_HintCallback callback, void* userdata)
 {
     SDL_RemoveHintCallback(SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK, callback, userdata);
 }
@@ -307,8 +319,8 @@ static bool HIDAPI_DriverSteamDeck_IsEnabled(void)
 }
 
 static bool HIDAPI_DriverSteamDeck_IsSupportedDevice(
-    SDL_HIDAPI_Device *device,
-    const char *name,
+    SDL_HIDAPI_Device* device,
+    const char* name,
     SDL_GamepadType type,
     Uint16 vendor_id,
     Uint16 product_id,
@@ -321,14 +333,15 @@ static bool HIDAPI_DriverSteamDeck_IsSupportedDevice(
     return SDL_IsJoystickSteamDeck(vendor_id, product_id);
 }
 
-static bool HIDAPI_DriverSteamDeck_InitDevice(SDL_HIDAPI_Device *device)
+static bool HIDAPI_DriverSteamDeck_InitDevice(SDL_HIDAPI_Device* device)
 {
     int size;
     Uint8 data[64];
-    SDL_DriverSteamDeck_Context *ctx;
+    SDL_DriverSteamDeck_Context* ctx;
 
-    ctx = (SDL_DriverSteamDeck_Context *)SDL_calloc(1, sizeof(*ctx));
-    if (ctx == NULL) {
+    ctx = (SDL_DriverSteamDeck_Context*)SDL_calloc(1, sizeof(*ctx));
+    if (ctx == NULL)
+    {
         return false;
     }
 
@@ -352,33 +365,39 @@ static bool HIDAPI_DriverSteamDeck_InitDevice(SDL_HIDAPI_Device *device)
     return HIDAPI_JoystickConnected(device, NULL);
 }
 
-static int HIDAPI_DriverSteamDeck_GetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id)
+static int HIDAPI_DriverSteamDeck_GetDevicePlayerIndex(SDL_HIDAPI_Device* device, SDL_JoystickID instance_id)
 {
     return -1;
 }
 
-static void HIDAPI_DriverSteamDeck_SetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id, int player_index)
+static void HIDAPI_DriverSteamDeck_SetDevicePlayerIndex(SDL_HIDAPI_Device* device, SDL_JoystickID instance_id,
+                                                        int player_index)
 {
 }
 
-static bool HIDAPI_DriverSteamDeck_UpdateDevice(SDL_HIDAPI_Device *device)
+static bool HIDAPI_DriverSteamDeck_UpdateDevice(SDL_HIDAPI_Device* device)
 {
-    SDL_DriverSteamDeck_Context *ctx = (SDL_DriverSteamDeck_Context *)device->context;
-    SDL_Joystick *joystick = NULL;
+    SDL_DriverSteamDeck_Context* ctx = (SDL_DriverSteamDeck_Context*)device->context;
+    SDL_Joystick* joystick = NULL;
     int r;
     uint8_t data[64];
-    ValveInReport_t *pInReport = (ValveInReport_t *)data;
+    ValveInReport_t* pInReport = (ValveInReport_t*)data;
 
-    if (device->num_joysticks > 0) {
+    if (device->num_joysticks > 0)
+    {
         joystick = SDL_GetJoystickFromID(device->joysticks[0]);
-        if (joystick == NULL) {
+        if (joystick == NULL)
+        {
             return false;
         }
-    } else {
+    }
+    else
+    {
         return false;
     }
 
-    if (ctx->watchdog_counter++ > 200) {
+    if (ctx->watchdog_counter++ > 200)
+    {
         ctx->watchdog_counter = 0;
         if (!FeedDeckLizardWatchdog(device->dev))
             return false;
@@ -386,27 +405,32 @@ static bool HIDAPI_DriverSteamDeck_UpdateDevice(SDL_HIDAPI_Device *device)
 
     SDL_zeroa(data);
 
-    do {
+    do
+    {
         r = SDL_hid_read(device->dev, data, sizeof(data));
 
-        if (r < 0) {
+        if (r < 0)
+        {
             // Failed to read from controller
             HIDAPI_JoystickDisconnected(device, device->joysticks[0]);
             return false;
-        } else if (r == 64 &&
-                   pInReport->header.unReportVersion == k_ValveInReportMsgVersion &&
-                   pInReport->header.ucType == ID_CONTROLLER_DECK_STATE &&
-                   pInReport->header.ucLength == 64) {
+        }
+        else if (r == 64 &&
+            pInReport->header.unReportVersion == k_ValveInReportMsgVersion &&
+            pInReport->header.ucType == ID_CONTROLLER_DECK_STATE &&
+            pInReport->header.ucLength == 64)
+        {
             HIDAPI_DriverSteamDeck_HandleState(device, joystick, pInReport);
         }
-    } while (r > 0);
+    }
+    while (r > 0);
 
     return true;
 }
 
-static bool HIDAPI_DriverSteamDeck_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static bool HIDAPI_DriverSteamDeck_OpenJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
-    SDL_DriverSteamDeck_Context *ctx = (SDL_DriverSteamDeck_Context *)device->context;
+    SDL_DriverSteamDeck_Context* ctx = (SDL_DriverSteamDeck_Context*)device->context;
     float update_rate_in_hz = 1.0f / (float)(ctx->update_rate_us) * 1.0e6f;
 
     SDL_AssertJoysticksLocked();
@@ -425,11 +449,12 @@ static bool HIDAPI_DriverSteamDeck_OpenJoystick(SDL_HIDAPI_Device *device, SDL_J
     return true;
 }
 
-static bool HIDAPI_DriverSteamDeck_RumbleJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
+static bool HIDAPI_DriverSteamDeck_RumbleJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                  Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
     int rc;
-    Uint8 buffer[HID_FEATURE_REPORT_BYTES + 1] = { 0 };
-    FeatureReportMsg *msg = (FeatureReportMsg *)(buffer + 1);
+    Uint8 buffer[HID_FEATURE_REPORT_BYTES + 1] = {0};
+    FeatureReportMsg* msg = (FeatureReportMsg*)(buffer + 1);
 
     msg->header.type = ID_TRIGGER_RUMBLE_CMD;
     msg->payload.simpleRumble.unRumbleType = 0;
@@ -445,38 +470,41 @@ static bool HIDAPI_DriverSteamDeck_RumbleJoystick(SDL_HIDAPI_Device *device, SDL
     return true;
 }
 
-static bool HIDAPI_DriverSteamDeck_RumbleJoystickTriggers(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
+static bool HIDAPI_DriverSteamDeck_RumbleJoystickTriggers(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                          Uint16 left_rumble, Uint16 right_rumble)
 {
     return SDL_Unsupported();
 }
 
-static Uint32 HIDAPI_DriverSteamDeck_GetJoystickCapabilities(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static Uint32 HIDAPI_DriverSteamDeck_GetJoystickCapabilities(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
     return SDL_JOYSTICK_CAP_RUMBLE;
 }
 
-static bool HIDAPI_DriverSteamDeck_SetJoystickLED(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
+static bool HIDAPI_DriverSteamDeck_SetJoystickLED(SDL_HIDAPI_Device* device, SDL_Joystick* joystick, Uint8 red,
+                                                  Uint8 green, Uint8 blue)
 {
     return SDL_Unsupported();
 }
 
-static bool HIDAPI_DriverSteamDeck_SendJoystickEffect(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, const void *data, int size)
+static bool HIDAPI_DriverSteamDeck_SendJoystickEffect(SDL_HIDAPI_Device* device, SDL_Joystick* joystick,
+                                                      const void* data, int size)
 {
     return SDL_Unsupported();
 }
 
-static bool HIDAPI_DriverSteamDeck_SetSensorsEnabled(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, bool enabled)
+static bool HIDAPI_DriverSteamDeck_SetSensorsEnabled(SDL_HIDAPI_Device* device, SDL_Joystick* joystick, bool enabled)
 {
     // On steam deck, sensors are enabled by default. Nothing to do here.
     return true;
 }
 
-static void HIDAPI_DriverSteamDeck_CloseJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick)
+static void HIDAPI_DriverSteamDeck_CloseJoystick(SDL_HIDAPI_Device* device, SDL_Joystick* joystick)
 {
     // Lizard mode id automatically re-enabled by watchdog. Nothing to do here.
 }
 
-static void HIDAPI_DriverSteamDeck_FreeDevice(SDL_HIDAPI_Device *device)
+static void HIDAPI_DriverSteamDeck_FreeDevice(SDL_HIDAPI_Device* device)
 {
 }
 

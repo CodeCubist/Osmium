@@ -28,9 +28,10 @@
 
 // EGL implementation of SDL OpenGL support
 
-bool OFFSCREEN_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path)
+bool OFFSCREEN_GLES_LoadLibrary(SDL_VideoDevice* _this, const char* path)
 {
-    if (!SDL_EGL_LoadLibraryOnly(_this, path)) {
+    if (!SDL_EGL_LoadLibraryOnly(_this, path))
+    {
         return false;
     }
 
@@ -41,20 +42,22 @@ bool OFFSCREEN_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path)
     _this->gl_config.driver_loaded++;
     result = SDL_EGL_InitializeOffscreen(_this, 0);
     _this->gl_config.driver_loaded--;
-    if (!result) {
+    if (!result)
+    {
         return false;
     }
 
-    if (!SDL_EGL_ChooseConfig(_this)) {
+    if (!SDL_EGL_ChooseConfig(_this))
+    {
         return false;
     }
 
     return true;
 }
 
-SDL_GLContext OFFSCREEN_GLES_CreateContext(SDL_VideoDevice *_this, SDL_Window *window)
+SDL_GLContext OFFSCREEN_GLES_CreateContext(SDL_VideoDevice* _this, SDL_Window* window)
 {
-    SDL_WindowData *offscreen_window = window->internal;
+    SDL_WindowData* offscreen_window = window->internal;
 
     SDL_GLContext context;
     context = SDL_EGL_CreateContext(_this, offscreen_window->egl_surface);
@@ -62,19 +65,22 @@ SDL_GLContext OFFSCREEN_GLES_CreateContext(SDL_VideoDevice *_this, SDL_Window *w
     return context;
 }
 
-bool OFFSCREEN_GLES_MakeCurrent(SDL_VideoDevice *_this, SDL_Window *window, SDL_GLContext context)
+bool OFFSCREEN_GLES_MakeCurrent(SDL_VideoDevice* _this, SDL_Window* window, SDL_GLContext context)
 {
-    if (window) {
+    if (window)
+    {
         EGLSurface egl_surface = window->internal->egl_surface;
         return SDL_EGL_MakeCurrent(_this, egl_surface, context);
-    } else {
+    }
+    else
+    {
         return SDL_EGL_MakeCurrent(_this, NULL, NULL);
     }
 }
 
-bool OFFSCREEN_GLES_SwapWindow(SDL_VideoDevice *_this, SDL_Window *window)
+bool OFFSCREEN_GLES_SwapWindow(SDL_VideoDevice* _this, SDL_Window* window)
 {
-    SDL_WindowData *offscreen_wind = window->internal;
+    SDL_WindowData* offscreen_wind = window->internal;
 
     return SDL_EGL_SwapBuffers(_this, offscreen_wind->egl_surface);
 }

@@ -12,7 +12,9 @@ public sealed class SettingsService
     public const string IdentityFileName = "osmium_identity.dat";
     private const string LegacyIdentityFileName = "identity.json";
     private static readonly byte[] IdentityEntropyBytes = Encoding.UTF8.GetBytes("Osmium.Device.Identity.v1");
-    private static readonly byte[] ServiceIdentityEntropyBytes = Encoding.UTF8.GetBytes("Osmium.Device.ServiceIdentity.v1");
+
+    private static readonly byte[] ServiceIdentityEntropyBytes =
+        Encoding.UTF8.GetBytes("Osmium.Device.ServiceIdentity.v1");
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

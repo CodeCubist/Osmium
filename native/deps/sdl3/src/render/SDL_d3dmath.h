@@ -30,6 +30,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 // Direct3D matrix math functions

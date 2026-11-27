@@ -287,7 +287,7 @@ public sealed partial class RemoteSessionWindow : Window
 
         SendAuxFeatureConfig(force: false);
 
-        
+
         List<string>? pendingPaths = null;
         string? pendingSig = null;
         lock (_pendingFileDropLock)
@@ -345,7 +345,7 @@ public sealed partial class RemoteSessionWindow : Window
             if (!forceClipboardSync && !isActivationTrigger && prevProcessed >= 0 && seq == (uint)prevProcessed)
                 return;
 
-            
+
             if (WindowsClipboardHelper.HasDropFiles())
             {
                 Volatile.Write(ref _lastProcessedClipboardSeq, seq);
@@ -377,7 +377,7 @@ public sealed partial class RemoteSessionWindow : Window
                 return;
             }
 
-            
+
             if (!_sharedClipboardEnabled) return;
             Volatile.Write(ref _lastProcessedClipboardSeq, seq);
 
@@ -401,7 +401,6 @@ public sealed partial class RemoteSessionWindow : Window
 
             if (settings.SharedClipboardSyncImages && WindowsClipboardHelper.HasDibImage())
             {
-                
                 if (WindowsClipboardHelper.TryReadDib(64 * 1024 * 1024, out byte[] dibBytes))
                 {
                     byte[] hash = SHA256.HashData(dibBytes);
@@ -502,6 +501,7 @@ public sealed partial class RemoteSessionWindow : Window
                     {
                         ShowTopToast(LocalizationService.GetString("Session_ToastFileDirectionBlocked"));
                     }
+
                     break;
 
                 case AuxTransferState.Failed:

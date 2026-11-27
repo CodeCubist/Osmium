@@ -26,6 +26,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 typedef enum
@@ -38,8 +39,8 @@ typedef enum
     NUM_SHADERS
 } VULKAN_Shader;
 
-extern void VULKAN_GetVertexShader(VULKAN_Shader shader, const uint32_t **outBytecode, size_t *outSize);
-extern void VULKAN_GetPixelShader(VULKAN_Shader shader, const uint32_t **outBytecode, size_t *outSize);
+extern void VULKAN_GetVertexShader(VULKAN_Shader shader, const uint32_t** outBytecode, size_t* outSize);
+extern void VULKAN_GetPixelShader(VULKAN_Shader shader, const uint32_t** outBytecode, size_t* outSize);
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

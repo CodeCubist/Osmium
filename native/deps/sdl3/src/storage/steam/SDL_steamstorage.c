@@ -38,7 +38,7 @@ SDL_ELF_NOTE_DLOPEN(
     "Support for Steam user storage",
     SDL_ELF_NOTE_DLOPEN_PRIORITY_SUGGESTED,
     SDL_DRIVER_STEAMAPI_DYNAMIC
-    )
+)
 
 // !!! FIXME: Async API can use SteamRemoteStorage_ReadFileAsync
 // !!! FIXME: Async API can use SteamRemoteStorage_WriteFileAsync
@@ -49,7 +49,7 @@ SDL_ELF_NOTE_DLOPEN(
 
 typedef struct STEAM_RemoteStorage
 {
-    SDL_SharedObject *libsteam_api;
+    SDL_SharedObject* libsteam_api;
 #define STEAM_PROC(ret, func, parms) \
         steamfntype_##func func;
 #include "SDL_steamstorage_proc.h"
@@ -57,16 +57,20 @@ typedef struct STEAM_RemoteStorage
 
 static SDL_AtomicInt SDL_steam_storage_refcount;
 
-static bool STEAM_CloseStorage(void *userdata)
+static bool STEAM_CloseStorage(void* userdata)
 {
     bool result = true;
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
     bool end_batch = SDL_AtomicDecRef(&SDL_steam_storage_refcount);
-    if (steamremotestorage == NULL) {
+    if (steamremotestorage == NULL)
+    {
         result = SDL_SetError("SteamRemoteStorage unavailable");
-    } else if (end_batch) {
-        if (!steam->SteamAPI_ISteamRemoteStorage_EndFileWriteBatch(steamremotestorage)) {
+    }
+    else if (end_batch)
+    {
+        if (!steam->SteamAPI_ISteamRemoteStorage_EndFileWriteBatch(steamremotestorage))
+        {
             result = SDL_SetError("SteamRemoteStorage()->EndFileWriteBatch() failed");
         }
     }
@@ -75,30 +79,37 @@ static bool STEAM_CloseStorage(void *userdata)
     return result;
 }
 
-static bool STEAM_StorageReady(void *userdata)
+static bool STEAM_StorageReady(void* userdata)
 {
     return true;
 }
 
-static char *GetNormalizedStoragePath(const char *path, bool add_separator)
+static char* GetNormalizedStoragePath(const char* path, bool add_separator)
 {
-    if (SDL_strcmp(path, ".") == 0) {
+    if (SDL_strcmp(path, ".") == 0)
+    {
         path = "";
-    } else {
-        while (*path == '/') {
+    }
+    else
+    {
+        while (*path == '/')
+        {
             ++path;
         }
     }
 
     size_t pathlen = SDL_strlen(path);
-    while (pathlen > 0 && path[pathlen - 1] == '/') {
+    while (pathlen > 0 && path[pathlen - 1] == '/')
+    {
         --pathlen;
     }
 
-    char *normalized = (char *)SDL_malloc(pathlen + add_separator + 1);
-    if (normalized) {
+    char* normalized = (char*)SDL_malloc(pathlen + add_separator + 1);
+    if (normalized)
+    {
         SDL_memcpy(normalized, path, pathlen);
-        if (add_separator) {
+        if (add_separator)
+        {
             normalized[pathlen++] = '/';
         }
         normalized[pathlen] = '\0';
@@ -106,46 +117,57 @@ static char *GetNormalizedStoragePath(const char *path, bool add_separator)
     return normalized;
 }
 
-static bool STEAM_EnumerateStorageDirectory(void *userdata, const char *path, SDL_EnumerateDirectoryCallback callback, void *callback_userdata)
+static bool STEAM_EnumerateStorageDirectory(void* userdata, const char* path, SDL_EnumerateDirectoryCallback callback,
+                                            void* callback_userdata)
 {
     bool result = true;
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    if (steamremotestorage == NULL)
+    {
         return SDL_SetError("SteamRemoteStorage unavailable");
     }
 
-    char *dirname = GetNormalizedStoragePath(path, true);
-    if (!dirname) {
+    char* dirname = GetNormalizedStoragePath(path, true);
+    if (!dirname)
+    {
         return false;
     }
     size_t dirlen = SDL_strlen(dirname);
 
     bool done = false;
     Sint32 count = steam->SteamAPI_ISteamRemoteStorage_GetFileCount(steamremotestorage);
-    for (Sint32 i = count; i-- && !done;) {
-        const char *file = steam->SteamAPI_ISteamRemoteStorage_GetFileNameAndSize(steamremotestorage, i, NULL);
-        if (!file) {
+    for (Sint32 i = count; i-- && !done;)
+    {
+        const char* file = steam->SteamAPI_ISteamRemoteStorage_GetFileNameAndSize(steamremotestorage, i, NULL);
+        if (!file)
+        {
             continue;
         }
 
-        const char *fname;
-        if (dirlen > 1) {
+        const char* fname;
+        if (dirlen > 1)
+        {
             // Make sure the directory matches
-            if (SDL_strncmp(dirname, file, dirlen) != 0) {
+            if (SDL_strncmp(dirname, file, dirlen) != 0)
+            {
                 continue;
             }
             fname = file + dirlen;
-        } else {
+        }
+        else
+        {
             fname = file;
         }
 
         // Make sure this is a file in the current directory
-        if (SDL_strchr(fname, '/') != NULL) {
+        if (SDL_strchr(fname, '/') != NULL)
+        {
             continue;
         }
 
-        switch (callback(callback_userdata, dirname, fname)) {
+        switch (callback(callback_userdata, dirname, fname))
+        {
         case SDL_ENUM_SUCCESS:
             done = true;
             break;
@@ -162,19 +184,22 @@ static bool STEAM_EnumerateStorageDirectory(void *userdata, const char *path, SD
     return result;
 }
 
-static bool STEAM_GetStoragePathInfo(void *userdata, const char *path, SDL_PathInfo *info)
+static bool STEAM_GetStoragePathInfo(void* userdata, const char* path, SDL_PathInfo* info)
 {
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    if (steamremotestorage == NULL)
+    {
         return SDL_SetError("SteamRemoteStorage unavailable");
     }
 
-    if (!steam->SteamAPI_ISteamRemoteStorage_FileExists(steamremotestorage, path)) {
+    if (!steam->SteamAPI_ISteamRemoteStorage_FileExists(steamremotestorage, path))
+    {
         return SDL_SetError("Can't stat");
     }
 
-    if (info) {
+    if (info)
+    {
         SDL_zerop(info);
         info->type = SDL_PATHTYPE_FILE;
         info->size = steam->SteamAPI_ISteamRemoteStorage_GetFileSize(steamremotestorage, path);
@@ -184,67 +209,81 @@ static bool STEAM_GetStoragePathInfo(void *userdata, const char *path, SDL_PathI
     return true;
 }
 
-static bool STEAM_ReadStorageFile(void *userdata, const char *path, void *destination, Uint64 length)
+static bool STEAM_ReadStorageFile(void* userdata, const char* path, void* destination, Uint64 length)
 {
     bool result = false;
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    if (steamremotestorage == NULL)
+    {
         return SDL_SetError("SteamRemoteStorage unavailable");
     }
-    if (length > SDL_MAX_SINT32) {
+    if (length > SDL_MAX_SINT32)
+    {
         return SDL_SetError("SteamRemoteStorage only supports INT32_MAX read size");
     }
-    if (steam->SteamAPI_ISteamRemoteStorage_FileRead(steamremotestorage, path, destination, (Sint32)length) == length) {
+    if (steam->SteamAPI_ISteamRemoteStorage_FileRead(steamremotestorage, path, destination, (Sint32)length) == length)
+    {
         result = true;
-    } else {
+    }
+    else
+    {
         SDL_SetError("SteamRemoteStorage()->FileRead() failed");
     }
     return result;
 }
 
-static bool STEAM_WriteStorageFile(void *userdata, const char *path, const void *source, Uint64 length)
+static bool STEAM_WriteStorageFile(void* userdata, const char* path, const void* source, Uint64 length)
 {
     bool result = false;
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    if (steamremotestorage == NULL)
+    {
         return SDL_SetError("SteamRemoteStorage unavailable");
     }
-    if (length > SDL_MAX_SINT32) {
+    if (length > SDL_MAX_SINT32)
+    {
         return SDL_SetError("SteamRemoteStorage only supports INT32_MAX write size");
     }
-    if (steam->SteamAPI_ISteamRemoteStorage_FileWrite(steamremotestorage, path, source, (Sint32)length)) {
+    if (steam->SteamAPI_ISteamRemoteStorage_FileWrite(steamremotestorage, path, source, (Sint32)length))
+    {
         result = true;
-    } else {
+    }
+    else
+    {
         SDL_SetError("SteamRemoteStorage()->FileWrite() failed");
     }
     return result;
 }
 
-static bool STEAM_RemoveStoragePath(void *userdata, const char *path)
+static bool STEAM_RemoveStoragePath(void* userdata, const char* path)
 {
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    if (steamremotestorage == NULL)
+    {
         return SDL_SetError("SteamRemoteStorage unavailable");
     }
-    if (!steam->SteamAPI_ISteamRemoteStorage_FileDelete(steamremotestorage, path)) {
+    if (!steam->SteamAPI_ISteamRemoteStorage_FileDelete(steamremotestorage, path))
+    {
         return SDL_SetError("SteamRemoteStorage()->FileDelete() failed");
     }
     return true;
 }
 
-static Uint64 STEAM_GetStorageSpaceRemaining(void *userdata)
+static Uint64 STEAM_GetStorageSpaceRemaining(void* userdata)
 {
     Uint64 total, remaining;
-    STEAM_RemoteStorage *steam = (STEAM_RemoteStorage *)userdata;
-    void *steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    STEAM_RemoteStorage* steam = (STEAM_RemoteStorage*)userdata;
+    void* steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
+    if (steamremotestorage == NULL)
+    {
         SDL_SetError("SteamRemoteStorage unavailable");
         return 0;
     }
-    if (!steam->SteamAPI_ISteamRemoteStorage_GetQuota(steamremotestorage, &total, &remaining)) {
+    if (!steam->SteamAPI_ISteamRemoteStorage_GetQuota(steamremotestorage, &total, &remaining))
+    {
         SDL_SetError("SteamRemoteStorage()->GetQuota() failed");
         return 0;
     }
@@ -266,19 +305,21 @@ static const SDL_StorageInterface STEAM_user_iface = {
     STEAM_GetStorageSpaceRemaining
 };
 
-static SDL_Storage *STEAM_User_Create(const char *org, const char *app, SDL_PropertiesID props)
+static SDL_Storage* STEAM_User_Create(const char* org, const char* app, SDL_PropertiesID props)
 {
-    SDL_Storage *result;
-    STEAM_RemoteStorage *steam;
-    void *steamremotestorage;
+    SDL_Storage* result;
+    STEAM_RemoteStorage* steam;
+    void* steamremotestorage;
 
-    steam = (STEAM_RemoteStorage *)SDL_malloc(sizeof(STEAM_RemoteStorage));
-    if (steam == NULL) {
+    steam = (STEAM_RemoteStorage*)SDL_malloc(sizeof(STEAM_RemoteStorage));
+    if (steam == NULL)
+    {
         return NULL;
     }
 
     steam->libsteam_api = SDL_LoadObject(SDL_DRIVER_STEAMAPI_DYNAMIC);
-    if (steam->libsteam_api == NULL) {
+    if (steam->libsteam_api == NULL)
+    {
         SDL_free(steam);
         return NULL;
     }
@@ -292,26 +333,32 @@ static SDL_Storage *STEAM_User_Create(const char *org, const char *app, SDL_Prop
 #include "SDL_steamstorage_proc.h"
 
     steamremotestorage = steam->SteamAPI_SteamRemoteStorage_v016();
-    if (steamremotestorage == NULL) {
+    if (steamremotestorage == NULL)
+    {
         SDL_SetError("SteamRemoteStorage unavailable");
         goto steamfail;
     }
-    if (!steam->SteamAPI_ISteamRemoteStorage_IsCloudEnabledForAccount(steamremotestorage)) {
+    if (!steam->SteamAPI_ISteamRemoteStorage_IsCloudEnabledForAccount(steamremotestorage))
+    {
         SDL_SetError("Steam cloud is disabled for this user");
         goto steamfail;
     }
-    if (!steam->SteamAPI_ISteamRemoteStorage_IsCloudEnabledForApp(steamremotestorage)) {
+    if (!steam->SteamAPI_ISteamRemoteStorage_IsCloudEnabledForApp(steamremotestorage))
+    {
         SDL_SetError("Steam cloud is disabled for this application");
         goto steamfail;
     }
 
     result = SDL_OpenStorage(&STEAM_user_iface, steam);
-    if (!result) {
+    if (!result)
+    {
         goto steamfail;
     }
 
-    if (SDL_AtomicIncRef(&SDL_steam_storage_refcount) == 0) {
-        if (!steam->SteamAPI_ISteamRemoteStorage_BeginFileWriteBatch(steamremotestorage)) {
+    if (SDL_AtomicIncRef(&SDL_steam_storage_refcount) == 0)
+    {
+        if (!steam->SteamAPI_ISteamRemoteStorage_BeginFileWriteBatch(steamremotestorage))
+        {
             // We probably already have a batch in progress (maybe we crashed earlier?)
         }
     }

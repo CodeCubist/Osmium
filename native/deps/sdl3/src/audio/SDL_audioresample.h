@@ -32,12 +32,12 @@ int SDL_GetResamplerHistoryFrames(void);
 int SDL_GetResamplerPaddingFrames(Sint64 resample_rate);
 
 Sint64 SDL_GetResamplerInputFrames(Sint64 output_frames, Sint64 resample_rate, Sint64 resample_offset);
-Sint64 SDL_GetResamplerOutputFrames(Sint64 input_frames, Sint64 resample_rate, Sint64 *inout_resample_offset);
+Sint64 SDL_GetResamplerOutputFrames(Sint64 input_frames, Sint64 resample_rate, Sint64* inout_resample_offset);
 
 // Resample some audio.
 // REQUIRES: `inframes >= SDL_GetResamplerInputFrames(outframes)`
 // REQUIRES: At least `SDL_GetResamplerPaddingFrames(...)` extra frames to the left of src, and right of src+inframes
-void SDL_ResampleAudio(int chans, const float *src, int inframes, float *dst, int outframes,
-                       Sint64 resample_rate, Sint64 *inout_resample_offset);
+void SDL_ResampleAudio(int chans, const float* src, int inframes, float* dst, int outframes,
+                       Sint64 resample_rate, Sint64* inout_resample_offset);
 
 #endif // SDL_audioresample_h_

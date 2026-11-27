@@ -37,12 +37,14 @@ namespace osmium
         void Shutdown();
 
         void SetCaptureCursor(bool captureCursor) { m_CaptureCursor.store(captureCursor, std::memory_order_relaxed); }
+
         void SetNv12OutputSize(int width, int height, ID3D11Device* encoderDevice = nullptr)
         {
             m_Nv12Width = width;
             m_Nv12Height = height;
             m_EncoderDevice = encoderDevice;
         }
+
         ID3D11Device* GetDevice() const { return m_Device.Get(); }
         bool CaptureNextFrame(CapturedFrame& outFrame, int initialWaitMs, bool preferPqHdr = false,
                               const std::atomic<bool>* privacyScreenActive = nullptr);
@@ -123,6 +125,7 @@ namespace osmium
         int m_Nv12Width = 0;
         int m_Nv12Height = 0;
         ID3D11Device* m_EncoderDevice = nullptr;
+
         struct Nv12Conversion
         {
             int sourceWidth = 0;

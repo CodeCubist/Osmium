@@ -776,7 +776,8 @@ namespace osmium
         HANDLE g_SvcStopEvent = nullptr;
         HANDLE g_SvcSessionKickEvent = nullptr;
 
-        void ReportSvcStatus(DWORD state, DWORD exitCode = NO_ERROR, DWORD waitHint = 0, bool acceptSessionChange = false)
+        void ReportSvcStatus(DWORD state, DWORD exitCode = NO_ERROR, DWORD waitHint = 0,
+                             bool acceptSessionChange = false)
         {
             if (!g_SvcStatusHandle) return;
             SERVICE_STATUS st{};
@@ -786,7 +787,7 @@ namespace osmium
             st.dwWaitHint = waitHint;
             st.dwControlsAccepted = (state == SERVICE_RUNNING)
                                         ? (SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN |
-                                           (acceptSessionChange ? SERVICE_ACCEPT_SESSIONCHANGE : 0))
+                                            (acceptSessionChange ? SERVICE_ACCEPT_SESSIONCHANGE : 0))
                                         : 0;
             SetServiceStatus(g_SvcStatusHandle, &st);
         }
@@ -855,7 +856,8 @@ namespace osmium
                 HANDLE selfToken = nullptr;
                 if (!OpenProcessToken(
                     GetCurrentProcess(),
-                    TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID,
+                    TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT |
+                    TOKEN_ADJUST_SESSIONID,
                     &selfToken))
                 {
                     OSM_LOG_ERROR("OsmiumSvc OpenProcessToken failed (err=%lu)", GetLastError());

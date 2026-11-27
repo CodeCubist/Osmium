@@ -41,17 +41,17 @@ static void DUMMY_JoystickDetect(void)
 {
 }
 
-static bool DUMMY_JoystickIsDevicePresent(Uint16 vendor_id, Uint16 product_id, Uint16 version, const char *name)
+static bool DUMMY_JoystickIsDevicePresent(Uint16 vendor_id, Uint16 product_id, Uint16 version, const char* name)
 {
     return false;
 }
 
-static const char *DUMMY_JoystickGetDeviceName(int device_index)
+static const char* DUMMY_JoystickGetDeviceName(int device_index)
 {
     return NULL;
 }
 
-static const char *DUMMY_JoystickGetDevicePath(int device_index)
+static const char* DUMMY_JoystickGetDevicePath(int device_index)
 {
     return NULL;
 }
@@ -82,41 +82,41 @@ static SDL_JoystickID DUMMY_JoystickGetDeviceInstanceID(int device_index)
     return 0;
 }
 
-static bool DUMMY_JoystickOpen(SDL_Joystick *joystick, int device_index)
+static bool DUMMY_JoystickOpen(SDL_Joystick* joystick, int device_index)
 {
     return SDL_SetError("Logic error: No joysticks available");
 }
 
-static bool DUMMY_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
+static bool DUMMY_JoystickRumble(SDL_Joystick* joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
     return SDL_Unsupported();
 }
 
-static bool DUMMY_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
+static bool DUMMY_JoystickRumbleTriggers(SDL_Joystick* joystick, Uint16 left_rumble, Uint16 right_rumble)
 {
     return SDL_Unsupported();
 }
 
-static bool DUMMY_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
+static bool DUMMY_JoystickSetLED(SDL_Joystick* joystick, Uint8 red, Uint8 green, Uint8 blue)
 {
     return SDL_Unsupported();
 }
 
-static bool DUMMY_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size)
+static bool DUMMY_JoystickSendEffect(SDL_Joystick* joystick, const void* data, int size)
 {
     return SDL_Unsupported();
 }
 
-static bool DUMMY_JoystickSetSensorsEnabled(SDL_Joystick *joystick, bool enabled)
+static bool DUMMY_JoystickSetSensorsEnabled(SDL_Joystick* joystick, bool enabled)
 {
     return SDL_Unsupported();
 }
 
-static void DUMMY_JoystickUpdate(SDL_Joystick *joystick)
+static void DUMMY_JoystickUpdate(SDL_Joystick* joystick)
 {
 }
 
-static void DUMMY_JoystickClose(SDL_Joystick *joystick)
+static void DUMMY_JoystickClose(SDL_Joystick* joystick)
 {
 }
 
@@ -124,7 +124,7 @@ static void DUMMY_JoystickQuit(void)
 {
 }
 
-static bool DUMMY_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
+static bool DUMMY_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping* out)
 {
     return false;
 }

@@ -56,8 +56,8 @@ static RawInputThreadData thread_data = {
 
 static DWORD WINAPI WIN_RawInputThread(LPVOID param)
 {
-    SDL_VideoDevice *_this = SDL_GetVideoDevice();
-    RawInputThreadData *data = (RawInputThreadData *)param;
+    SDL_VideoDevice* _this = SDL_GetVideoDevice();
+    RawInputThreadData* data = (RawInputThreadData*)param;
     RAWINPUTDEVICE devices[2];
     HWND window;
     UINT count = 0;
@@ -65,13 +65,15 @@ static DWORD WINAPI WIN_RawInputThread(LPVOID param)
     SDL_SYS_SetupThread("SDLRawInput");
 
     window = CreateWindowEx(0, TEXT("Message"), NULL, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
-    if (!window) {
+    if (!window)
+    {
         return 0;
     }
 
     SDL_zeroa(devices);
 
-    if (data->flags & ENABLE_RAW_MOUSE_INPUT) {
+    if (data->flags & ENABLE_RAW_MOUSE_INPUT)
+    {
         devices[count].usUsagePage = USB_USAGEPAGE_GENERIC_DESKTOP;
         devices[count].usUsage = USB_USAGE_GENERIC_MOUSE;
         devices[count].dwFlags = 0;
@@ -79,21 +81,25 @@ static DWORD WINAPI WIN_RawInputThread(LPVOID param)
         ++count;
     }
 
-    if (data->flags & ENABLE_RAW_KEYBOARD_INPUT) {
+    if (data->flags & ENABLE_RAW_KEYBOARD_INPUT)
+    {
         devices[count].usUsagePage = USB_USAGEPAGE_GENERIC_DESKTOP;
         devices[count].usUsage = USB_USAGE_GENERIC_KEYBOARD;
         devices[count].dwFlags = 0;
-        if (data->flags & RAW_KEYBOARD_FLAG_NOHOTKEYS) {
+        if (data->flags & RAW_KEYBOARD_FLAG_NOHOTKEYS)
+        {
             devices[count].dwFlags |= RIDEV_NOHOTKEYS;
         }
-        if (data->flags & RAW_KEYBOARD_FLAG_INPUTSINK) {
+        if (data->flags & RAW_KEYBOARD_FLAG_INPUTSINK)
+        {
             devices[count].dwFlags |= RIDEV_INPUTSINK;
         }
         devices[count].hwndTarget = window;
         ++count;
     }
 
-    if (!RegisterRawInputDevices(devices, count, sizeof(devices[0]))) {
+    if (!RegisterRawInputDevices(devices, count, sizeof(devices[0])))
+    {
         DestroyWindow(window);
         return 0;
     }
@@ -106,11 +112,11 @@ static DWORD WINAPI WIN_RawInputThread(LPVOID param)
 
     Uint64 idle_begin = SDL_GetTicksNS();
     while (!data->done &&
-           // The high-order word of GetQueueStatus() will let us know if there's currently raw input to be processed.
-           // If there isn't, then we'll wait for new data to arrive with MsgWaitForMultipleObjects().
-           ((HIWORD(GetQueueStatus(QS_RAWINPUT)) & QS_RAWINPUT) ||
-            (MsgWaitForMultipleObjects(1, &data->done_event, FALSE, INFINITE, QS_RAWINPUT) == WAIT_OBJECT_0 + 1))) {
-
+        // The high-order word of GetQueueStatus() will let us know if there's currently raw input to be processed.
+        // If there isn't, then we'll wait for new data to arrive with MsgWaitForMultipleObjects().
+        ((HIWORD(GetQueueStatus(QS_RAWINPUT)) & QS_RAWINPUT) ||
+            (MsgWaitForMultipleObjects(1, &data->done_event, FALSE, INFINITE, QS_RAWINPUT) == WAIT_OBJECT_0 + 1)))
+    {
         Uint64 idle_end = SDL_GetTicksNS();
         Uint64 idle_time = idle_end - idle_begin;
         Uint64 usb_8khz_interval = SDL_US_TO_NS(125);
@@ -122,7 +128,8 @@ static DWORD WINAPI WIN_RawInputThread(LPVOID param)
         idle_begin = SDL_GetTicksNS();
     }
 
-    if (_this->internal->raw_input_fake_pen_id) {
+    if (_this->internal->raw_input_fake_pen_id)
+    {
         SDL_RemovePenDevice(0, SDL_GetKeyboardFocus(), _this->internal->raw_input_fake_pen_id);
         _this->internal->raw_input_fake_pen_id = 0;
     }
@@ -138,9 +145,10 @@ static DWORD WINAPI WIN_RawInputThread(LPVOID param)
     return 0;
 }
 
-static void CleanupRawInputThreadData(RawInputThreadData *data)
+static void CleanupRawInputThreadData(RawInputThreadData* data)
 {
-    if (data->thread != INVALID_HANDLE_VALUE) {
+    if (data->thread != INVALID_HANDLE_VALUE)
+    {
         data->done = true;
         SetEvent(data->done_event);
         WaitForSingleObject(data->thread, 3000);
@@ -148,42 +156,48 @@ static void CleanupRawInputThreadData(RawInputThreadData *data)
         data->thread = INVALID_HANDLE_VALUE;
     }
 
-    if (data->ready_event != INVALID_HANDLE_VALUE) {
+    if (data->ready_event != INVALID_HANDLE_VALUE)
+    {
         CloseHandle(data->ready_event);
         data->ready_event = INVALID_HANDLE_VALUE;
     }
 
-    if (data->done_event != INVALID_HANDLE_VALUE) {
+    if (data->done_event != INVALID_HANDLE_VALUE)
+    {
         CloseHandle(data->done_event);
         data->done_event = INVALID_HANDLE_VALUE;
     }
 }
 
-static bool WIN_SetRawInputEnabled(SDL_VideoDevice *_this, Uint32 flags)
+static bool WIN_SetRawInputEnabled(SDL_VideoDevice* _this, Uint32 flags)
 {
     bool result = false;
 
     CleanupRawInputThreadData(&thread_data);
 
-    if (flags) {
+    if (flags)
+    {
         HANDLE handles[2];
 
         thread_data.flags = flags;
         thread_data.ready_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-        if (thread_data.ready_event == INVALID_HANDLE_VALUE) {
+        if (thread_data.ready_event == INVALID_HANDLE_VALUE)
+        {
             WIN_SetError("CreateEvent");
             goto done;
         }
 
         thread_data.done = false;
         thread_data.done_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-        if (thread_data.done_event == INVALID_HANDLE_VALUE) {
+        if (thread_data.done_event == INVALID_HANDLE_VALUE)
+        {
             WIN_SetError("CreateEvent");
             goto done;
         }
 
         thread_data.thread = CreateThread(NULL, 0, WIN_RawInputThread, &thread_data, 0, NULL);
-        if (thread_data.thread == INVALID_HANDLE_VALUE) {
+        if (thread_data.thread == INVALID_HANDLE_VALUE)
+        {
             WIN_SetError("CreateThread");
             goto done;
         }
@@ -191,59 +205,76 @@ static bool WIN_SetRawInputEnabled(SDL_VideoDevice *_this, Uint32 flags)
         // Wait for the thread to signal ready or exit
         handles[0] = thread_data.ready_event;
         handles[1] = thread_data.thread;
-        if (WaitForMultipleObjects(2, handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
+        if (WaitForMultipleObjects(2, handles, FALSE, INFINITE) != WAIT_OBJECT_0)
+        {
             SDL_SetError("Couldn't set up raw input handling");
             goto done;
         }
         result = true;
-    } else {
+    }
+    else
+    {
         result = true;
     }
 
 done:
-    if (!result) {
+    if (!result)
+    {
         CleanupRawInputThreadData(&thread_data);
     }
     return result;
 }
 
-static bool WIN_UpdateRawInputEnabled(SDL_VideoDevice *_this)
+static bool WIN_UpdateRawInputEnabled(SDL_VideoDevice* _this)
 {
-    SDL_VideoData *data = _this->internal;
+    SDL_VideoData* data = _this->internal;
     Uint32 flags = 0;
-    if (data->raw_mouse_enabled) {
+    if (data->raw_mouse_enabled)
+    {
         flags |= ENABLE_RAW_MOUSE_INPUT;
     }
-    if (data->raw_keyboard_enabled) {
+    if (data->raw_keyboard_enabled)
+    {
         flags |= ENABLE_RAW_KEYBOARD_INPUT;
-        if (data->raw_keyboard_flag_nohotkeys) {
+        if (data->raw_keyboard_flag_nohotkeys)
+        {
             flags |= RAW_KEYBOARD_FLAG_NOHOTKEYS;
         }
-        if (data->raw_keyboard_flag_inputsink) {
+        if (data->raw_keyboard_flag_inputsink)
+        {
             flags |= RAW_KEYBOARD_FLAG_INPUTSINK;
         }
     }
-    if (flags != data->raw_input_enabled) {
-        if (WIN_SetRawInputEnabled(_this, flags)) {
+    if (flags != data->raw_input_enabled)
+    {
+        if (WIN_SetRawInputEnabled(_this, flags))
+        {
             data->raw_input_enabled = flags;
-        } else {
+        }
+        else
+        {
             return false;
         }
     }
     return true;
 }
 
-bool WIN_SetRawMouseEnabled(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawMouseEnabled(SDL_VideoDevice* _this, bool enabled)
 {
-    SDL_VideoData *data = _this->internal;
+    SDL_VideoData* data = _this->internal;
     data->raw_mouse_enabled = enabled;
-    if (data->gameinput_context) {
-        if (!WIN_UpdateGameInputEnabled(_this)) {
+    if (data->gameinput_context)
+    {
+        if (!WIN_UpdateGameInputEnabled(_this))
+        {
             data->raw_mouse_enabled = !enabled;
             return false;
         }
-    } else {
-        if (!WIN_UpdateRawInputEnabled(_this)) {
+    }
+    else
+    {
+        if (!WIN_UpdateRawInputEnabled(_this))
+        {
             data->raw_mouse_enabled = !enabled;
             return false;
         }
@@ -251,17 +282,22 @@ bool WIN_SetRawMouseEnabled(SDL_VideoDevice *_this, bool enabled)
     return true;
 }
 
-bool WIN_SetRawKeyboardEnabled(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawKeyboardEnabled(SDL_VideoDevice* _this, bool enabled)
 {
-    SDL_VideoData *data = _this->internal;
+    SDL_VideoData* data = _this->internal;
     data->raw_keyboard_enabled = enabled;
-    if (data->gameinput_context) {
-        if (!WIN_UpdateGameInputEnabled(_this)) {
+    if (data->gameinput_context)
+    {
+        if (!WIN_UpdateGameInputEnabled(_this))
+        {
             data->raw_keyboard_enabled = !enabled;
             return false;
         }
-    } else {
-        if (!WIN_UpdateRawInputEnabled(_this)) {
+    }
+    else
+    {
+        if (!WIN_UpdateRawInputEnabled(_this))
+        {
             data->raw_keyboard_enabled = !enabled;
             return false;
         }
@@ -275,11 +311,12 @@ typedef enum WIN_RawKeyboardFlag
     INPUTSINK,
 } WIN_RawKeyboardFlag;
 
-static bool WIN_SetRawKeyboardFlag(SDL_VideoDevice *_this, WIN_RawKeyboardFlag flag, bool enabled)
+static bool WIN_SetRawKeyboardFlag(SDL_VideoDevice* _this, WIN_RawKeyboardFlag flag, bool enabled)
 {
-    SDL_VideoData *data = _this->internal;
+    SDL_VideoData* data = _this->internal;
 
-    switch (flag) {
+    switch (flag)
+    {
     case NOHOTKEYS:
         data->raw_keyboard_flag_nohotkeys = enabled;
         break;
@@ -290,41 +327,42 @@ static bool WIN_SetRawKeyboardFlag(SDL_VideoDevice *_this, WIN_RawKeyboardFlag f
         return false;
     }
 
-    if (data->gameinput_context) {
+    if (data->gameinput_context)
+    {
         return true;
     }
 
     return WIN_UpdateRawInputEnabled(_this);
 }
 
-bool WIN_SetRawKeyboardFlag_NoHotkeys(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawKeyboardFlag_NoHotkeys(SDL_VideoDevice* _this, bool enabled)
 {
     return WIN_SetRawKeyboardFlag(_this, NOHOTKEYS, enabled);
 }
 
-bool WIN_SetRawKeyboardFlag_Inputsink(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawKeyboardFlag_Inputsink(SDL_VideoDevice* _this, bool enabled)
 {
     return WIN_SetRawKeyboardFlag(_this, INPUTSINK, enabled);
 }
 
 #else
 
-bool WIN_SetRawMouseEnabled(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawMouseEnabled(SDL_VideoDevice* _this, bool enabled)
 {
     return SDL_Unsupported();
 }
 
-bool WIN_SetRawKeyboardEnabled(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawKeyboardEnabled(SDL_VideoDevice* _this, bool enabled)
 {
     return SDL_Unsupported();
 }
 
-bool WIN_SetRawKeyboardFlag_NoHotkeys(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawKeyboardFlag_NoHotkeys(SDL_VideoDevice* _this, bool enabled)
 {
     return SDL_Unsupported();
 }
 
-bool WIN_SetRawKeyboardFlag_Inputsink(SDL_VideoDevice *_this, bool enabled)
+bool WIN_SetRawKeyboardFlag_Inputsink(SDL_VideoDevice* _this, bool enabled)
 {
     return SDL_Unsupported();
 }

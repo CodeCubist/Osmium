@@ -114,9 +114,11 @@ public sealed partial class AccountPage : Page
         if (_authApiReachable && _oauthQqEnabled) visibleButtons.Add(BtnOAuthQq);
         if (_authApiReachable && _oauthWechatEnabled) visibleButtons.Add(BtnOAuthWechat);
 
-        BtnOAuthGoogle.Visibility = (_authApiReachable && _oauthGoogleEnabled) ? Visibility.Visible : Visibility.Collapsed;
+        BtnOAuthGoogle.Visibility =
+            (_authApiReachable && _oauthGoogleEnabled) ? Visibility.Visible : Visibility.Collapsed;
         BtnOAuthQq.Visibility = (_authApiReachable && _oauthQqEnabled) ? Visibility.Visible : Visibility.Collapsed;
-        BtnOAuthWechat.Visibility = (_authApiReachable && _oauthWechatEnabled) ? Visibility.Visible : Visibility.Collapsed;
+        BtnOAuthWechat.Visibility =
+            (_authApiReachable && _oauthWechatEnabled) ? Visibility.Visible : Visibility.Collapsed;
 
         BtnOAuthGoogle.IsEnabled = canAuth && _oauthGoogleEnabled;
         BtnOAuthQq.IsEnabled = canAuth && _oauthQqEnabled;
@@ -132,7 +134,8 @@ public sealed partial class AccountPage : Page
             OAuthButtonsGrid.ColumnDefinitions.Clear();
             for (int i = 0; i < visibleButtons.Count; i++)
             {
-                OAuthButtonsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                OAuthButtonsGrid.ColumnDefinitions.Add(new ColumnDefinition
+                    { Width = new GridLength(1, GridUnitType.Star) });
                 Grid.SetColumn(visibleButtons[i], i);
             }
 
@@ -375,7 +378,9 @@ public sealed partial class AccountPage : Page
             {
                 ShowStatus(
                     InfoBarSeverity.Warning,
-                    LocalizationService.GetString(acc.HasEmail ? "Acc_OAuthNeedPwdToast" : "Acc_OAuthNeedEmailPwdToast"));
+                    LocalizationService.GetString(acc.HasEmail
+                        ? "Acc_OAuthNeedPwdToast"
+                        : "Acc_OAuthNeedEmailPwdToast"));
             }
             else
             {
@@ -518,7 +523,8 @@ public sealed partial class AccountPage : Page
         BtnBindQq.IsEnabled = canModify && (bound.Qq || avail.Qq);
 
         RowBindWechat.Visibility = showWechat ? Visibility.Visible : Visibility.Collapsed;
-        DividerBindWechat.Visibility = ((showGoogle || showQq) && showWechat) ? Visibility.Visible : Visibility.Collapsed;
+        DividerBindWechat.Visibility =
+            ((showGoogle || showQq) && showWechat) ? Visibility.Visible : Visibility.Collapsed;
         BindWechatTitleText.Text = LocalizationService.GetString("Acc_OAuthWechatBtn");
         BindWechatStatusText.Text = bound.Wechat ? boundText : unboundText;
         BtnBindWechat.Content = bound.Wechat ? unbindBtnText : bindBtnText;

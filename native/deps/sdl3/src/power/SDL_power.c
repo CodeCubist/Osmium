@@ -25,13 +25,13 @@
  * Returns true if we have a definitive answer.
  * false to try next implementation.
  */
-typedef bool (*SDL_GetPowerInfo_Impl)(SDL_PowerState *state, int *seconds,
-                                      int *percent);
+typedef bool (*SDL_GetPowerInfo_Impl)(SDL_PowerState* state, int* seconds,
+                                      int* percent);
 
 #ifndef SDL_POWER_DISABLED
 #ifdef SDL_POWER_HARDWIRED
 // This is for things that _never_ have a battery
-static bool SDL_GetPowerInfo_Hardwired(SDL_PowerState *state, int *seconds, int *percent)
+static bool SDL_GetPowerInfo_Hardwired(SDL_PowerState* state, int* seconds, int* percent)
 {
     *seconds = -1;
     *percent = -1;
@@ -81,7 +81,7 @@ static SDL_GetPowerInfo_Impl implementations[] = {
 };
 #endif
 
-SDL_PowerState SDL_GetPowerInfo(int *seconds, int *percent)
+SDL_PowerState SDL_GetPowerInfo(int* seconds, int* percent)
 {
 #ifndef SDL_POWER_DISABLED
     const int total = SDL_arraysize(implementations);
@@ -91,16 +91,20 @@ SDL_PowerState SDL_GetPowerInfo(int *seconds, int *percent)
 
     int _seconds, _percent;
     // Make these never NULL for platform-specific implementations.
-    if (!seconds) {
+    if (!seconds)
+    {
         seconds = &_seconds;
     }
-    if (!percent) {
+    if (!percent)
+    {
         percent = &_percent;
     }
 
 #ifndef SDL_POWER_DISABLED
-    for (i = 0; i < total; i++) {
-        if (implementations[i](&result, seconds, percent)) {
+    for (i = 0; i < total; i++)
+    {
+        if (implementations[i](&result, seconds, percent))
+        {
             return result;
         }
     }

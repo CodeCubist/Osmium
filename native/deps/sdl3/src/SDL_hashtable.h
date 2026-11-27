@@ -83,6 +83,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -133,7 +134,7 @@ typedef struct SDL_HashTable SDL_HashTable;
  * \sa SDL_HashID
  * \sa SDL_HashPointer
  */
-typedef Uint32 (SDLCALL *SDL_HashCallback)(void *userdata, const void *key);
+typedef Uint32 (SDLCALL *SDL_HashCallback)(void* userdata, const void* key);
 
 
 /**
@@ -171,7 +172,7 @@ typedef Uint32 (SDLCALL *SDL_HashCallback)(void *userdata, const void *key);
  *
  * \sa SDL_CreateHashTable
  */
-typedef bool (SDLCALL *SDL_HashKeyMatchCallback)(void *userdata, const void *a, const void *b);
+typedef bool (SDLCALL *SDL_HashKeyMatchCallback)(void* userdata, const void* a, const void* b);
 
 
 /**
@@ -198,7 +199,7 @@ typedef bool (SDLCALL *SDL_HashKeyMatchCallback)(void *userdata, const void *a, 
  *
  * \sa SDL_CreateHashTable
  */
-typedef void (SDLCALL *SDL_HashDestroyCallback)(void *userdata, const void *key, const void *value);
+typedef void (SDLCALL *SDL_HashDestroyCallback)(void* userdata, const void* key, const void* value);
 
 
 /**
@@ -229,7 +230,8 @@ typedef void (SDLCALL *SDL_HashDestroyCallback)(void *userdata, const void *key,
  *
  * \sa SDL_IterateHashTable
  */
-typedef bool (SDLCALL *SDL_HashTableIterateCallback)(void *userdata, const SDL_HashTable *table, const void *key, const void *value);
+typedef bool (SDLCALL *SDL_HashTableIterateCallback)(void* userdata, const SDL_HashTable* table, const void* key,
+                                                     const void* value);
 
 
 /**
@@ -287,12 +289,12 @@ typedef bool (SDLCALL *SDL_HashTableIterateCallback)(void *userdata, const SDL_H
  *
  * \sa SDL_DestroyHashTable
  */
-extern SDL_HashTable *SDL_CreateHashTable(int estimated_capacity,
+extern SDL_HashTable* SDL_CreateHashTable(int estimated_capacity,
                                           bool threadsafe,
                                           SDL_HashCallback hash,
                                           SDL_HashKeyMatchCallback keymatch,
                                           SDL_HashDestroyCallback destroy,
-                                          void *userdata);
+                                          void* userdata);
 
 
 /**
@@ -311,7 +313,7 @@ extern SDL_HashTable *SDL_CreateHashTable(int estimated_capacity,
  *
  * \since This function is available since SDL 3.4.0.
  */
-extern void SDL_DestroyHashTable(SDL_HashTable *table);
+extern void SDL_DestroyHashTable(SDL_HashTable* table);
 
 /**
  * Add an item to a hash table.
@@ -336,7 +338,7 @@ extern void SDL_DestroyHashTable(SDL_HashTable *table);
  *
  * \since This function is available since SDL 3.4.0.
  */
-extern bool SDL_InsertIntoHashTable(SDL_HashTable *table, const void *key, const void *value, bool replace);
+extern bool SDL_InsertIntoHashTable(SDL_HashTable* table, const void* key, const void* value, bool replace);
 
 /**
  * Look up an item in a hash table.
@@ -359,7 +361,7 @@ extern bool SDL_InsertIntoHashTable(SDL_HashTable *table, const void *key, const
  *
  * \sa SDL_InsertIntoHashTable
  */
-extern bool SDL_FindInHashTable(const SDL_HashTable *table, const void *key, const void **value);
+extern bool SDL_FindInHashTable(const SDL_HashTable* table, const void* key, const void** value);
 
 /**
  * Remove an item from a hash table.
@@ -376,7 +378,7 @@ extern bool SDL_FindInHashTable(const SDL_HashTable *table, const void *key, con
  *
  * \since This function is available since SDL 3.4.0.
  */
-extern bool SDL_RemoveFromHashTable(SDL_HashTable *table, const void *key);
+extern bool SDL_RemoveFromHashTable(SDL_HashTable* table, const void* key);
 
 /**
  * Remove all items in a hash table.
@@ -392,7 +394,7 @@ extern bool SDL_RemoveFromHashTable(SDL_HashTable *table, const void *key);
  *
  * \since This function is available since SDL 3.4.0.
  */
-extern void SDL_ClearHashTable(SDL_HashTable *table);
+extern void SDL_ClearHashTable(SDL_HashTable* table);
 
 /**
  * Check if any items are currently stored in a hash table.
@@ -409,7 +411,7 @@ extern void SDL_ClearHashTable(SDL_HashTable *table);
  *
  * \sa SDL_ClearHashTable
  */
-extern bool SDL_HashTableEmpty(SDL_HashTable *table);
+extern bool SDL_HashTableEmpty(SDL_HashTable* table);
 
 /**
  * Iterate all key/value pairs in a hash table.
@@ -427,7 +429,7 @@ extern bool SDL_HashTableEmpty(SDL_HashTable *table);
  *
  * \since This function is available since SDL 3.4.0.
  */
-extern bool SDL_IterateHashTable(const SDL_HashTable *table, SDL_HashTableIterateCallback callback, void *userdata);
+extern bool SDL_IterateHashTable(const SDL_HashTable* table, SDL_HashTableIterateCallback callback, void* userdata);
 
 
 /* Helper functions for SDL_CreateHashTable callbacks... */
@@ -454,7 +456,7 @@ extern bool SDL_IterateHashTable(const SDL_HashTable *table, SDL_HashTableIterat
  *
  * \sa SDL_CreateHashTable
  */
-extern Uint32 SDL_HashPointer(void *unused, const void *key);
+extern Uint32 SDL_HashPointer(void* unused, const void* key);
 
 /**
  * Compare two generic pointers as hash table keys.
@@ -473,7 +475,7 @@ extern Uint32 SDL_HashPointer(void *unused, const void *key);
  *
  * \sa SDL_CreateHashTable
  */
-extern bool SDL_KeyMatchPointer(void *unused, const void *a, const void *b);
+extern bool SDL_KeyMatchPointer(void* unused, const void* a, const void* b);
 
 /**
  * Generate a hash from a C string.
@@ -497,7 +499,7 @@ extern bool SDL_KeyMatchPointer(void *unused, const void *a, const void *b);
  *
  * \sa SDL_CreateHashTable
  */
-extern Uint32 SDL_HashString(void *unused, const void *key);
+extern Uint32 SDL_HashString(void* unused, const void* key);
 
 /**
  * Compare two C strings as hash table keys.
@@ -519,7 +521,7 @@ extern Uint32 SDL_HashString(void *unused, const void *key);
  *
  * \sa SDL_CreateHashTable
  */
-extern bool SDL_KeyMatchString(void *unused, const void *a, const void *b);
+extern bool SDL_KeyMatchString(void* unused, const void* a, const void* b);
 
 /**
  * Generate a hash from an integer ID.
@@ -543,7 +545,7 @@ extern bool SDL_KeyMatchString(void *unused, const void *a, const void *b);
  *
  * \sa SDL_CreateHashTable
  */
-extern Uint32 SDL_HashID(void *unused, const void *key);
+extern Uint32 SDL_HashID(void* unused, const void* key);
 
 /**
  * Compare two integer IDs as hash table keys.
@@ -562,7 +564,7 @@ extern Uint32 SDL_HashID(void *unused, const void *key);
  *
  * \sa SDL_CreateHashTable
  */
-extern bool SDL_KeyMatchID(void *unused, const void *a, const void *b);
+extern bool SDL_KeyMatchID(void* unused, const void* a, const void* b);
 
 /**
  * Free both the key and value pointers of a hash table item.
@@ -582,7 +584,7 @@ extern bool SDL_KeyMatchID(void *unused, const void *a, const void *b);
  *
  * \sa SDL_CreateHashTable
  */
-extern void SDL_DestroyHashKeyAndValue(void *unused, const void *key, const void *value);
+extern void SDL_DestroyHashKeyAndValue(void* unused, const void* key, const void* value);
 
 /**
  * Free just the value pointer of a hash table item.
@@ -602,7 +604,7 @@ extern void SDL_DestroyHashKeyAndValue(void *unused, const void *key, const void
  *
  * \sa SDL_CreateHashTable
  */
-extern void SDL_DestroyHashKey(void *unused, const void *key, const void *value);
+extern void SDL_DestroyHashKey(void* unused, const void* key, const void* value);
 
 /**
  * Free just the value pointer of a hash table item.
@@ -622,7 +624,7 @@ extern void SDL_DestroyHashKey(void *unused, const void *key, const void *value)
  *
  * \sa SDL_CreateHashTable
  */
-extern void SDL_DestroyHashValue(void *unused, const void *key, const void *value);
+extern void SDL_DestroyHashValue(void* unused, const void* key, const void* value);
 
 
 /* Ends C function definitions when using C++ */

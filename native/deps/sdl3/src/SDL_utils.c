@@ -29,7 +29,7 @@
 #ifdef SDL_PLATFORM_EMSCRIPTEN
 #include <emscripten.h>
 
-EMSCRIPTEN_KEEPALIVE void Emscripten_force_free(void *ptr)
+EMSCRIPTEN_KEEPALIVE void Emscripten_force_free(void* ptr)
 {
     free(ptr); // This should NOT be SDL_free()
 }
@@ -41,7 +41,8 @@ int SDL_powerof2(int x)
 {
     int value;
 
-    if (x <= 0) {
+    if (x <= 0)
+    {
         // Return some sane value - we shouldn't hit this in our use cases
         return 1;
     }
@@ -64,7 +65,8 @@ int SDL_powerof2(int x)
 
 Uint32 SDL_CalculateGCD(Uint32 a, Uint32 b)
 {
-    if (b == 0) {
+    if (b == 0)
+    {
         return a;
     }
     return SDL_CalculateGCD(b, (a % b));
@@ -72,59 +74,76 @@ Uint32 SDL_CalculateGCD(Uint32 a, Uint32 b)
 
 // Algorithm adapted with thanks from John Cook's blog post:
 // http://www.johndcook.com/blog/2010/10/20/best-rational-approximation
-void SDL_CalculateFraction(float x, int *numerator, int *denominator)
+void SDL_CalculateFraction(float x, int* numerator, int* denominator)
 {
     const int N = 1000;
     int a = 0, b = 1;
     int c = 1, d = 0;
 
-    while (b <= N && d <= N) {
+    while (b <= N && d <= N)
+    {
         float mediant = (float)(a + c) / (b + d);
-        if (x == mediant) {
-            if (b + d <= N) {
+        if (x == mediant)
+        {
+            if (b + d <= N)
+            {
                 *numerator = a + c;
                 *denominator = b + d;
-            } else if (d > b) {
+            }
+            else if (d > b)
+            {
                 *numerator = c;
                 *denominator = d;
-            } else {
+            }
+            else
+            {
                 *numerator = a;
                 *denominator = b;
             }
             return;
-        } else if (x > mediant) {
+        }
+        else if (x > mediant)
+        {
             a = a + c;
             b = b + d;
-        } else {
+        }
+        else
+        {
             c = a + c;
             d = b + d;
         }
     }
-    if (b > N) {
+    if (b > N)
+    {
         *numerator = c;
         *denominator = d;
-    } else {
+    }
+    else
+    {
         *numerator = a;
         *denominator = b;
     }
 }
 
-bool SDL_startswith(const char *string, const char *prefix)
+bool SDL_startswith(const char* string, const char* prefix)
 {
     if (string && prefix &&
-        SDL_strncmp(string, prefix, SDL_strlen(prefix)) == 0) {
+        SDL_strncmp(string, prefix, SDL_strlen(prefix)) == 0)
+    {
         return true;
     }
     return false;
 }
 
-bool SDL_endswith(const char *string, const char *suffix)
+bool SDL_endswith(const char* string, const char* suffix)
 {
     size_t string_length = string ? SDL_strlen(string) : 0;
     size_t suffix_length = suffix ? SDL_strlen(suffix) : 0;
 
-    if (suffix_length > 0 && suffix_length <= string_length) {
-        if (SDL_memcmp(string + string_length - suffix_length, suffix, suffix_length) == 0) {
+    if (suffix_length > 0 && suffix_length <= string_length)
+    {
+        if (SDL_memcmp(string + string_length - suffix_length, suffix, suffix_length) == 0)
+        {
             return true;
         }
     }
@@ -138,23 +157,27 @@ Uint32 SDL_GetNextObjectID(void)
     static SDL_AtomicInt last_id;
 
     Uint32 id = (Uint32)SDL_AtomicIncRef(&last_id) + 1;
-    if (id == 0) {
+    if (id == 0)
+    {
         id = (Uint32)SDL_AtomicIncRef(&last_id) + 1;
     }
     return id;
 }
 
 static SDL_InitState SDL_objects_init;
-static SDL_HashTable *SDL_objects;
+static SDL_HashTable* SDL_objects;
 bool SDL_object_validation = true;
 
-static void SDLCALL SDL_InvalidParamChecksChanged(void *userdata, const char *name, const char *oldValue, const char *hint)
+static void SDLCALL SDL_InvalidParamChecksChanged(void* userdata, const char* name, const char* oldValue,
+                                                  const char* hint)
 {
     bool validation_enabled = true;
 
 #ifndef OBJECT_VALIDATION_REQUIRED
-    if (hint) {
-        switch (*hint) {
+    if (hint)
+    {
+        switch (*hint)
+        {
         case '0':
         case '1':
             validation_enabled = false;
@@ -171,41 +194,47 @@ static void SDLCALL SDL_InvalidParamChecksChanged(void *userdata, const char *na
     SDL_object_validation = validation_enabled;
 }
 
-static Uint32 SDLCALL SDL_HashObject(void *unused, const void *key)
+static Uint32 SDLCALL SDL_HashObject(void* unused, const void* key)
 {
     return (Uint32)(uintptr_t)key;
 }
 
-static bool SDL_KeyMatchObject(void *unused, const void *a, const void *b)
+static bool SDL_KeyMatchObject(void* unused, const void* a, const void* b)
 {
     return (a == b);
 }
 
-void SDL_SetObjectValid(void *object, SDL_ObjectType type, bool valid)
+void SDL_SetObjectValid(void* object, SDL_ObjectType type, bool valid)
 {
     SDL_assert(object != NULL);
 
-    if (SDL_ShouldInit(&SDL_objects_init)) {
+    if (SDL_ShouldInit(&SDL_objects_init))
+    {
         SDL_objects = SDL_CreateHashTable(0, true, SDL_HashObject, SDL_KeyMatchObject, NULL, NULL);
         const bool initialized = (SDL_objects != NULL);
         SDL_SetInitialized(&SDL_objects_init, initialized);
-        if (!initialized) {
+        if (!initialized)
+        {
             return;
         }
         SDL_AddHintCallback(SDL_HINT_INVALID_PARAM_CHECKS, SDL_InvalidParamChecksChanged, NULL);
     }
 
-    if (valid) {
-        SDL_InsertIntoHashTable(SDL_objects, object, (void *)(uintptr_t)type, true);
-    } else {
+    if (valid)
+    {
+        SDL_InsertIntoHashTable(SDL_objects, object, (void*)(uintptr_t)type, true);
+    }
+    else
+    {
         SDL_RemoveFromHashTable(SDL_objects, object);
     }
 }
 
-bool SDL_FindObject(void *object, SDL_ObjectType type)
+bool SDL_FindObject(void* object, SDL_ObjectType type)
 {
-    const void *object_type;
-    if (!SDL_FindInHashTable(SDL_objects, object, &object_type)) {
+    const void* object_type;
+    if (!SDL_FindInHashTable(SDL_objects, object, &object_type))
+    {
         return false;
     }
 
@@ -215,17 +244,20 @@ bool SDL_FindObject(void *object, SDL_ObjectType type)
 typedef struct GetOneObjectData
 {
     const SDL_ObjectType type;
-    void **objects;
+    void** objects;
     const int count;
     int num_objects;
 } GetOneObjectData;
 
-static bool SDLCALL GetOneObject(void *userdata, const SDL_HashTable *table, const void *object, const void *object_type)
+static bool SDLCALL GetOneObject(void* userdata, const SDL_HashTable* table, const void* object,
+                                 const void* object_type)
 {
-    GetOneObjectData *data = (GetOneObjectData *)userdata;
-    if ((SDL_ObjectType)(uintptr_t)object_type == data->type) {
-        if (data->num_objects < data->count) {
-            data->objects[data->num_objects] = (void *)object;
+    GetOneObjectData* data = (GetOneObjectData*)userdata;
+    if ((SDL_ObjectType)(uintptr_t)object_type == data->type)
+    {
+        if (data->num_objects < data->count)
+        {
+            data->objects[data->num_objects] = (void*)object;
         }
         ++data->num_objects;
     }
@@ -233,17 +265,19 @@ static bool SDLCALL GetOneObject(void *userdata, const SDL_HashTable *table, con
 }
 
 
-int SDL_GetObjects(SDL_ObjectType type, void **objects, int count)
+int SDL_GetObjects(SDL_ObjectType type, void** objects, int count)
 {
-    GetOneObjectData data = { type, objects, count, 0 };
+    GetOneObjectData data = {type, objects, count, 0};
     SDL_IterateHashTable(SDL_objects, GetOneObject, &data);
     return data.num_objects;
 }
 
-static bool SDLCALL LogOneLeakedObject(void *userdata, const SDL_HashTable *table, const void *object, const void *object_type)
+static bool SDLCALL LogOneLeakedObject(void* userdata, const SDL_HashTable* table, const void* object,
+                                       const void* object_type)
 {
-    const char *type = "unknown object";
-    switch ((SDL_ObjectType)(uintptr_t)object_type) {
+    const char* type = "unknown object";
+    switch ((SDL_ObjectType)(uintptr_t)object_type)
+    {
 #define SDLOBJTYPECASE(typ, name) case SDL_OBJECT_TYPE_##typ: type = name; break
     SDLOBJTYPECASE(WINDOW, "SDL_Window");
     SDLOBJTYPECASE(RENDERER, "SDL_Renderer");
@@ -266,7 +300,8 @@ static bool SDLCALL LogOneLeakedObject(void *userdata, const SDL_HashTable *tabl
 
 void SDL_SetObjectsInvalid(void)
 {
-    if (SDL_ShouldQuit(&SDL_objects_init)) {
+    if (SDL_ShouldQuit(&SDL_objects_init))
+    {
         // Log any leaked objects
         SDL_IterateHashTable(SDL_objects, LogOneLeakedObject, NULL);
         SDL_DestroyHashTable(SDL_objects);
@@ -276,20 +311,25 @@ void SDL_SetObjectsInvalid(void)
     }
 }
 
-static int SDL_URIDecode(const char *src, char *dst, int len)
+static int SDL_URIDecode(const char* src, char* dst, int len)
 {
     int ri, wi, di;
     char decode = '\0';
-    if (!src || !dst || len < 0) {
+    if (!src || !dst || len < 0)
+    {
         return -1;
     }
-    if (len == 0) {
+    if (len == 0)
+    {
         len = (int)SDL_strlen(src);
     }
-    for (ri = 0, wi = 0, di = 0; ri < len && wi < len; ri += 1) {
-        if (di == 0) {
+    for (ri = 0, wi = 0, di = 0; ri < len && wi < len; ri += 1)
+    {
+        if (di == 0)
+        {
             // start decoding
-            if (src[ri] == '%') {
+            if (src[ri] == '%')
+            {
                 decode = '\0';
                 di += 1;
                 continue;
@@ -297,15 +337,19 @@ static int SDL_URIDecode(const char *src, char *dst, int len)
             // normal write
             dst[wi] = src[ri];
             wi += 1;
-        } else if (di == 1 || di == 2) {
+        }
+        else if (di == 1 || di == 2)
+        {
             char off = '\0';
             char isa = src[ri] >= 'a' && src[ri] <= 'f';
             char isA = src[ri] >= 'A' && src[ri] <= 'F';
             char isn = src[ri] >= '0' && src[ri] <= '9';
-            if (!(isa || isA || isn)) {
+            if (!(isa || isA || isn))
+            {
                 // not a hexadecimal
                 int sri;
-                for (sri = ri - di; sri <= ri; sri += 1) {
+                for (sri = ri - di; sri <= ri; sri += 1)
+                {
                     dst[wi] = src[sri];
                     wi += 1;
                 }
@@ -313,19 +357,27 @@ static int SDL_URIDecode(const char *src, char *dst, int len)
                 continue;
             }
             // itsy bitsy magicsy
-            if (isn) {
+            if (isn)
+            {
                 off = 0 - '0';
-            } else if (isa) {
+            }
+            else if (isa)
+            {
                 off = 10 - 'a';
-            } else if (isA) {
+            }
+            else if (isA)
+            {
                 off = 10 - 'A';
             }
             decode |= (src[ri] + off) << (2 - di) * 4;
-            if (di == 2) {
+            if (di == 2)
+            {
                 dst[wi] = decode;
                 wi += 1;
                 di = 0;
-            } else {
+            }
+            else
+            {
                 di += 1;
             }
         }
@@ -334,39 +386,48 @@ static int SDL_URIDecode(const char *src, char *dst, int len)
     return wi;
 }
 
-int SDL_URIToLocal(const char *src, char *dst)
+int SDL_URIToLocal(const char* src, char* dst)
 {
-    if (SDL_memcmp(src, "file:/", 6) == 0) {
+    if (SDL_memcmp(src, "file:/", 6) == 0)
+    {
         src += 6; // local file?
-    } else if (SDL_strstr(src, ":/") != NULL) {
+    }
+    else if (SDL_strstr(src, ":/") != NULL)
+    {
         return -1; // wrong scheme
     }
 
     bool local = src[0] != '/' || (src[0] != '\0' && src[1] == '/');
 
     // Check the hostname, if present. RFC 3986 states that the hostname component of a URI is not case-sensitive.
-    if (!local && src[0] == '/' && src[2] != '/') {
-        char *hostname_end = SDL_strchr(src + 1, '/');
-        if (hostname_end) {
+    if (!local && src[0] == '/' && src[2] != '/')
+    {
+        char* hostname_end = SDL_strchr(src + 1, '/');
+        if (hostname_end)
+        {
             const size_t src_len = hostname_end - (src + 1);
             size_t hostname_len;
 
 #if defined(HAVE_GETHOSTNAME) && !defined(SDL_PLATFORM_WINDOWS)
             char hostname[257];
-            if (gethostname(hostname, 255) == 0) {
+            if (gethostname(hostname, 255) == 0)
+            {
                 hostname[256] = '\0';
                 hostname_len = SDL_strlen(hostname);
-                if (hostname_len == src_len && SDL_strncasecmp(src + 1, hostname, src_len) == 0) {
+                if (hostname_len == src_len && SDL_strncasecmp(src + 1, hostname, src_len) == 0)
+                {
                     src = hostname_end + 1;
                     local = true;
                 }
             }
 #endif
 
-            if (!local) {
-                static const char *localhost = "localhost";
+            if (!local)
+            {
+                static const char* localhost = "localhost";
                 hostname_len = SDL_strlen(localhost);
-                if (hostname_len == src_len && SDL_strncasecmp(src + 1, localhost, src_len) == 0) {
+                if (hostname_len == src_len && SDL_strncasecmp(src + 1, localhost, src_len) == 0)
+                {
                     src = hostname_end + 1;
                     local = true;
                 }
@@ -374,11 +435,15 @@ int SDL_URIToLocal(const char *src, char *dst)
         }
     }
 
-    if (local) {
+    if (local)
+    {
         // Convert URI escape sequences to real characters
-        if (src[0] == '/') {
+        if (src[0] == '/')
+        {
             src++;
-        } else {
+        }
+        else
+        {
             src--;
         }
         return SDL_URIDecode(src, dst, 0);
@@ -386,32 +451,37 @@ int SDL_URIToLocal(const char *src, char *dst)
     return -1;
 }
 
-bool SDL_IsURI(const char *uri)
+bool SDL_IsURI(const char* uri)
 {
     /* A valid URI begins with a letter and is followed by any sequence of
      * letters, digits, '+', '.', or '-'.
      */
-    if (!uri) {
+    if (!uri)
+    {
         return false;
     }
 
     // The first character of the scheme must be a letter.
-    if (!((*uri >= 'a' && *uri <= 'z') || (*uri >= 'A' && *uri <= 'Z'))) {
+    if (!((*uri >= 'a' && *uri <= 'z') || (*uri >= 'A' && *uri <= 'Z')))
+    {
         return false;
     }
 
     /* If the colon is found before encountering the end of the string or
      * any invalid characters, the scheme can be considered valid.
      */
-    while (*uri) {
+    while (*uri)
+    {
         if (!((*uri >= 'a' && *uri <= 'z') ||
-              (*uri >= 'A' && *uri <= 'Z') ||
-              (*uri >= '0' && *uri <= '9') ||
-              *uri == '+' || *uri == '-' || *uri == '.')) {
+            (*uri >= 'A' && *uri <= 'Z') ||
+            (*uri >= '0' && *uri <= '9') ||
+            *uri == '+' || *uri == '-' || *uri == '.'))
+        {
             return false;
         }
 
-        if (*++uri == ':') {
+        if (*++uri == ':')
+        {
             return true;
         }
     }
@@ -425,35 +495,41 @@ bool SDL_IsURI(const char *uri)
 
 static SDL_TLSID SDL_string_storage;
 
-static void SDL_FreePersistentStrings(void *value)
+static void SDL_FreePersistentStrings(void* value)
 {
-    SDL_HashTable *strings = (SDL_HashTable *)value;
+    SDL_HashTable* strings = (SDL_HashTable*)value;
     SDL_DestroyHashTable(strings);
 }
 
-const char *SDL_GetPersistentString(const char *string)
+const char* SDL_GetPersistentString(const char* string)
 {
-    if (!string) {
+    if (!string)
+    {
         return NULL;
     }
-    if (!*string) {
+    if (!*string)
+    {
         return "";
     }
 
-    SDL_HashTable *strings = (SDL_HashTable *)SDL_GetTLS(&SDL_string_storage);
-    if (!strings) {
+    SDL_HashTable* strings = (SDL_HashTable*)SDL_GetTLS(&SDL_string_storage);
+    if (!strings)
+    {
         strings = SDL_CreateHashTable(0, false, SDL_HashString, SDL_KeyMatchString, SDL_DestroyHashValue, NULL);
-        if (!strings) {
+        if (!strings)
+        {
             return NULL;
         }
 
         SDL_SetTLS(&SDL_string_storage, strings, SDL_FreePersistentStrings);
     }
 
-    const char *result;
-    if (!SDL_FindInHashTable(strings, string, (const void **)&result)) {
-        char *new_string = SDL_strdup(string);
-        if (!new_string) {
+    const char* result;
+    if (!SDL_FindInHashTable(strings, string, (const void**)&result))
+    {
+        char* new_string = SDL_strdup(string);
+        if (!new_string)
+        {
             return NULL;
         }
 
@@ -464,73 +540,90 @@ const char *SDL_GetPersistentString(const char *string)
     return result;
 }
 
-static int PrefixMatch(const char *a, const char *b)
+static int PrefixMatch(const char* a, const char* b)
 {
     int matchlen = 0;
     // Fixes the "HORI HORl Taiko No Tatsujin Drum Controller"
-    if (SDL_strncmp(a, "HORI ", 5) == 0 && SDL_strncmp(b, "HORl ", 5) == 0) {
+    if (SDL_strncmp(a, "HORI ", 5) == 0 && SDL_strncmp(b, "HORl ", 5) == 0)
+    {
         return 5;
     }
-    while (*a && *b) {
-        if (SDL_tolower((unsigned char)*a++) == SDL_tolower((unsigned char)*b++)) {
+    while (*a && *b)
+    {
+        if (SDL_tolower((unsigned char)*a++) == SDL_tolower((unsigned char)*b++))
+        {
             ++matchlen;
-        } else {
+        }
+        else
+        {
             break;
         }
     }
     return matchlen;
 }
 
-char *SDL_CreateDeviceName(Uint16 vendor, Uint16 product, const char *vendor_name, const char *product_name, const char *default_name)
+char* SDL_CreateDeviceName(Uint16 vendor, Uint16 product, const char* vendor_name, const char* product_name,
+                           const char* default_name)
 {
     static struct
     {
-        const char *prefix;
-        const char *replacement;
+        const char* prefix;
+        const char* replacement;
     } replacements[] = {
-        { "(Standard system devices) ", "" },
-        { "8BitDo Tech Ltd", "8BitDo" },
-        { "ASTRO Gaming", "ASTRO" },
-        { "Bensussen Deutsch & Associates,Inc.(BDA)", "BDA" },
-        { "Guangzhou Chicken Run Network Technology Co., Ltd.", "GameSir" },
-        { "HORI CO.,LTD.", "HORI" },
-        { "HORI CO.,LTD", "HORI" },
-        { "Mad Catz Inc.", "Mad Catz" },
-        { "Nintendo Co., Ltd.", "Nintendo" },
-        { "NVIDIA Corporation ", "" },
-        { "Performance Designed Products", "PDP" },
-        { "QANBA USA, LLC", "Qanba" },
-        { "QANBA USA,LLC", "Qanba" },
-        { "Unknown ", "" },
+        {"(Standard system devices) ", ""},
+        {"8BitDo Tech Ltd", "8BitDo"},
+        {"ASTRO Gaming", "ASTRO"},
+        {"Bensussen Deutsch & Associates,Inc.(BDA)", "BDA"},
+        {"Guangzhou Chicken Run Network Technology Co., Ltd.", "GameSir"},
+        {"HORI CO.,LTD.", "HORI"},
+        {"HORI CO.,LTD", "HORI"},
+        {"Mad Catz Inc.", "Mad Catz"},
+        {"Nintendo Co., Ltd.", "Nintendo"},
+        {"NVIDIA Corporation ", ""},
+        {"Performance Designed Products", "PDP"},
+        {"QANBA USA, LLC", "Qanba"},
+        {"QANBA USA,LLC", "Qanba"},
+        {"Unknown ", ""},
     };
-    char *name = NULL;
+    char* name = NULL;
     size_t i, len;
 
-    if (!vendor_name) {
+    if (!vendor_name)
+    {
         vendor_name = "";
     }
-    if (!product_name) {
+    if (!product_name)
+    {
         product_name = "";
     }
 
-    while (*vendor_name == ' ') {
+    while (*vendor_name == ' ')
+    {
         ++vendor_name;
     }
-    while (*product_name == ' ') {
+    while (*product_name == ' ')
+    {
         ++product_name;
     }
 
-    if (*vendor_name && *product_name) {
+    if (*vendor_name && *product_name)
+    {
         len = (SDL_strlen(vendor_name) + 1 + SDL_strlen(product_name) + 1);
-        name = (char *)SDL_malloc(len);
-        if (name) {
+        name = (char*)SDL_malloc(len);
+        if (name)
+        {
             (void)SDL_snprintf(name, len, "%s %s", vendor_name, product_name);
         }
-    } else if (*product_name) {
+    }
+    else if (*product_name)
+    {
         name = SDL_strdup(product_name);
-    } else if (vendor || product) {
+    }
+    else if (vendor || product)
+    {
         // Couldn't find a controller name, try to give it one based on device type
-        switch (SDL_GetGamepadTypeFromVIDPID(vendor, product, NULL, true)) {
+        switch (SDL_GetGamepadTypeFromVIDPID(vendor, product, NULL, true))
+        {
         case SDL_GAMEPAD_TYPE_XBOX360:
             name = SDL_strdup("Xbox 360 Controller");
             break;
@@ -554,46 +647,60 @@ char *SDL_CreateDeviceName(Uint16 vendor, Uint16 product, const char *vendor_nam
             break;
         default:
             len = (6 + 1 + 6 + 1);
-            name = (char *)SDL_malloc(len);
-            if (name) {
+            name = (char*)SDL_malloc(len);
+            if (name)
+            {
                 (void)SDL_snprintf(name, len, "0x%.4x/0x%.4x", vendor, product);
             }
             break;
         }
-    } else if (default_name) {
+    }
+    else if (default_name)
+    {
         name = SDL_strdup(default_name);
     }
 
-    if (!name) {
+    if (!name)
+    {
         return NULL;
     }
 
     // Trim trailing whitespace
-    for (len = SDL_strlen(name); (len > 0 && name[len - 1] == ' '); --len) {
+    for (len = SDL_strlen(name); (len > 0 && name[len - 1] == ' '); --len)
+    {
         // continue
     }
     name[len] = '\0';
 
     // Compress duplicate spaces
-    for (i = 0; i < (len - 1);) {
-        if (name[i] == ' ' && name[i + 1] == ' ') {
+    for (i = 0; i < (len - 1);)
+    {
+        if (name[i] == ' ' && name[i + 1] == ' ')
+        {
             SDL_memmove(&name[i], &name[i + 1], (len - i));
             --len;
-        } else {
+        }
+        else
+        {
             ++i;
         }
     }
 
     // Perform any manufacturer replacements
-    for (i = 0; i < SDL_arraysize(replacements); ++i) {
+    for (i = 0; i < SDL_arraysize(replacements); ++i)
+    {
         size_t prefixlen = SDL_strlen(replacements[i].prefix);
-        if (SDL_strncasecmp(name, replacements[i].prefix, prefixlen) == 0) {
+        if (SDL_strncasecmp(name, replacements[i].prefix, prefixlen) == 0)
+        {
             size_t replacementlen = SDL_strlen(replacements[i].replacement);
-            if (replacementlen <= prefixlen) {
+            if (replacementlen <= prefixlen)
+            {
                 SDL_memcpy(name, replacements[i].replacement, replacementlen);
                 SDL_memmove(name + replacementlen, name + prefixlen, (len - prefixlen) + 1);
                 len -= (prefixlen - replacementlen);
-            } else {
+            }
+            else
+            {
                 // FIXME: Need to handle the expand case by reallocating the string
             }
             break;
@@ -603,16 +710,20 @@ char *SDL_CreateDeviceName(Uint16 vendor, Uint16 product, const char *vendor_nam
     /* Remove duplicate manufacturer or product in the name
      * e.g. Razer Razer Raiju Tournament Edition Wired
      */
-    for (i = 1; i < (len - 1); ++i) {
+    for (i = 1; i < (len - 1); ++i)
+    {
         int matchlen = PrefixMatch(name, &name[i]);
-        while (matchlen > 0) {
-            if (name[matchlen] == ' ' || name[matchlen] == '-') {
+        while (matchlen > 0)
+        {
+            if (name[matchlen] == ' ' || name[matchlen] == '-')
+            {
                 SDL_memmove(name, name + matchlen + 1, len - matchlen);
                 break;
             }
             --matchlen;
         }
-        if (matchlen > 0) {
+        if (matchlen > 0)
+        {
             // We matched the manufacturer's name and removed it
             break;
         }
@@ -622,7 +733,7 @@ char *SDL_CreateDeviceName(Uint16 vendor, Uint16 product, const char *vendor_nam
 }
 
 
-void SDL_DebugLogBackend(const char *subsystem, const char *backend)
+void SDL_DebugLogBackend(const char* subsystem, const char* backend)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "SDL chose %s backend '%s'", subsystem, backend);
 }

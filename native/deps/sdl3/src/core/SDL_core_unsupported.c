@@ -24,7 +24,7 @@
 
 #ifndef SDL_VIDEO_DRIVER_X11
 
-void SDL_SetX11EventHook(SDL_X11EventHook callback, void *userdata)
+void SDL_SetX11EventHook(SDL_X11EventHook callback, void* userdata)
 {
 }
 
@@ -56,16 +56,16 @@ void SDL_GDKSuspendComplete(void)
     SDL_Unsupported();
 }
 
-bool SDL_GetGDKDefaultUser(XUserHandle *outUserHandle)
+bool SDL_GetGDKDefaultUser(XUserHandle* outUserHandle)
 {
     return SDL_Unsupported();
 }
 
-void SDL_GDKSuspendGPU(SDL_GPUDevice *device)
+void SDL_GDKSuspendGPU(SDL_GPUDevice* device)
 {
 }
 
-void SDL_GDKResumeGPU(SDL_GPUDevice *device)
+void SDL_GDKResumeGPU(SDL_GPUDevice* device)
 {
 }
 
@@ -73,7 +73,7 @@ void SDL_GDKResumeGPU(SDL_GPUDevice *device)
 
 #if !defined(SDL_PLATFORM_WINDOWS)
 
-bool SDL_RegisterApp(const char *name, Uint32 style, void *hInst)
+bool SDL_RegisterApp(const char* name, Uint32 style, void* hInst)
 {
     (void)name;
     (void)style;
@@ -81,7 +81,7 @@ bool SDL_RegisterApp(const char *name, Uint32 style, void *hInst)
     return SDL_Unsupported();
 }
 
-void SDL_SetWindowsMessageHook(void *callback, void *userdata)
+void SDL_SetWindowsMessageHook(void* callback, void* userdata)
 {
     (void)callback;
     (void)userdata;
@@ -102,20 +102,20 @@ void SDL_SendAndroidBackButton(void)
     SDL_Unsupported();
 }
 
-void *SDL_GetAndroidActivity(void)
+void* SDL_GetAndroidActivity(void)
 {
     SDL_Unsupported();
     return NULL;
 }
 
-const char *SDL_GetAndroidCachePath(void)
+const char* SDL_GetAndroidCachePath(void)
 {
     SDL_Unsupported();
     return NULL;
 }
 
 
-const char *SDL_GetAndroidExternalStoragePath(void)
+const char* SDL_GetAndroidExternalStoragePath(void)
 {
     SDL_Unsupported();
     return NULL;
@@ -127,19 +127,19 @@ Uint32 SDL_GetAndroidExternalStorageState(void)
     return 0;
 }
 
-const char *SDL_GetAndroidInternalStoragePath(void)
+const char* SDL_GetAndroidInternalStoragePath(void)
 {
     SDL_Unsupported();
     return NULL;
 }
 
-void *SDL_GetAndroidJNIEnv(void)
+void* SDL_GetAndroidJNIEnv(void)
 {
     SDL_Unsupported();
     return NULL;
 }
 
-bool SDL_RequestAndroidPermission(const char *permission, SDL_RequestAndroidPermissionCallback cb, void *userdata)
+bool SDL_RequestAndroidPermission(const char* permission, SDL_RequestAndroidPermissionCallback cb, void* userdata)
 {
     (void)permission;
     (void)cb;
@@ -154,7 +154,7 @@ bool SDL_SendAndroidMessage(Uint32 command, int param)
     return SDL_Unsupported();
 }
 
-bool SDL_ShowAndroidToast(const char *message, int duration, int gravity, int xoffset, int yoffset)
+bool SDL_ShowAndroidToast(const char* message, int duration, int gravity, int xoffset, int yoffset)
 {
     (void)message;
     (void)duration;
@@ -181,7 +181,7 @@ bool SDL_IsDeXMode(void)
     return false;
 }
 
-Sint32 JNI_OnLoad(JavaVM *vm, void *reserved)
+Sint32 JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     (void)vm;
     (void)reserved;

@@ -315,47 +315,47 @@ namespace osmium::proto
     {
         switch (type)
         {
-            case AppPacketType::InputKey:
-            case AppPacketType::InputMouseButton:
-            case AppPacketType::InputMouseWheel:
-            case AppPacketType::InputUnicodeText:
-            case AppPacketType::ControlSwitchDisplay:
-            case AppPacketType::ControlVideoParams:
-            case AppPacketType::ControlMouseMode:
-            case AppPacketType::ControlTextFocus:
-            case AppPacketType::ControlVirtualAudio:
-            case AppPacketType::ControlSystemAction:
-            case AppPacketType::HostTextFocus:
-            case AppPacketType::HostStatusJson:
-            case AppPacketType::VideoIdrRequest:
-                return kKcpConvControl;
+        case AppPacketType::InputKey:
+        case AppPacketType::InputMouseButton:
+        case AppPacketType::InputMouseWheel:
+        case AppPacketType::InputUnicodeText:
+        case AppPacketType::ControlSwitchDisplay:
+        case AppPacketType::ControlVideoParams:
+        case AppPacketType::ControlMouseMode:
+        case AppPacketType::ControlTextFocus:
+        case AppPacketType::ControlVirtualAudio:
+        case AppPacketType::ControlSystemAction:
+        case AppPacketType::HostTextFocus:
+        case AppPacketType::HostStatusJson:
+        case AppPacketType::VideoIdrRequest:
+            return kKcpConvControl;
 
-            case AppPacketType::InputTouch:
-                if (payload && len >= kInputTouchHeaderSize)
+        case AppPacketType::InputTouch:
+            if (payload && len >= kInputTouchHeaderSize)
+            {
+                const auto* tp = reinterpret_cast<const InputTouchPayload*>(payload);
+                if (tp->count == 0)
                 {
-                    const auto* tp = reinterpret_cast<const InputTouchPayload*>(payload);
-                    if (tp->count == 0)
+                    return kKcpConvControl;
+                }
+                const size_t maxContacts =
+                    (len - kInputTouchHeaderSize) / sizeof(InputTouchContact);
+                const size_t n = tp->count < maxContacts ? tp->count : maxContacts;
+                for (size_t i = 0; i < n; ++i)
+                {
+                    if (tp->contacts[i].phase != static_cast<uint8_t>(TouchPhase::Move))
                     {
                         return kKcpConvControl;
                     }
-                    const size_t maxContacts =
-                        (len - kInputTouchHeaderSize) / sizeof(InputTouchContact);
-                    const size_t n = tp->count < maxContacts ? tp->count : maxContacts;
-                    for (size_t i = 0; i < n; ++i)
-                    {
-                        if (tp->contacts[i].phase != static_cast<uint8_t>(TouchPhase::Move))
-                        {
-                            return kKcpConvControl;
-                        }
-                    }
                 }
-                return 0;
+            }
+            return 0;
 
-            case AppPacketType::AuxData:
-                return kKcpConvAux;
+        case AppPacketType::AuxData:
+            return kKcpConvAux;
 
-            default:
-                return 0;
+        default:
+            return 0;
         }
     }
 

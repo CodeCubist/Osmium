@@ -49,6 +49,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /* SDL time constants */
@@ -330,7 +331,7 @@ typedef Uint32 SDL_TimerID;
  *
  * \sa SDL_AddTimer
  */
-typedef Uint32 (SDLCALL *SDL_TimerCallback)(void *userdata, SDL_TimerID timerID, Uint32 interval);
+typedef Uint32 (SDLCALL *SDL_TimerCallback)(void* userdata, SDL_TimerID timerID, Uint32 interval);
 
 /**
  * Call a callback function at a future time.
@@ -366,7 +367,7 @@ typedef Uint32 (SDLCALL *SDL_TimerCallback)(void *userdata, SDL_TimerID timerID,
  * \sa SDL_AddTimerNS
  * \sa SDL_RemoveTimer
  */
-extern SDL_DECLSPEC SDL_TimerID SDLCALL SDL_AddTimer(Uint32 interval, SDL_TimerCallback callback, void *userdata);
+extern SDL_DECLSPEC SDL_TimerID SDLCALL SDL_AddTimer(Uint32 interval, SDL_TimerCallback callback, void* userdata);
 
 /**
  * Function prototype for the nanosecond timer callback function.
@@ -392,7 +393,7 @@ extern SDL_DECLSPEC SDL_TimerID SDLCALL SDL_AddTimer(Uint32 interval, SDL_TimerC
  *
  * \sa SDL_AddTimerNS
  */
-typedef Uint64 (SDLCALL *SDL_NSTimerCallback)(void *userdata, SDL_TimerID timerID, Uint64 interval);
+typedef Uint64 (SDLCALL *SDL_NSTimerCallback)(void* userdata, SDL_TimerID timerID, Uint64 interval);
 
 /**
  * Call a callback function at a future time.
@@ -428,7 +429,7 @@ typedef Uint64 (SDLCALL *SDL_NSTimerCallback)(void *userdata, SDL_TimerID timerI
  * \sa SDL_AddTimer
  * \sa SDL_RemoveTimer
  */
-extern SDL_DECLSPEC SDL_TimerID SDLCALL SDL_AddTimerNS(Uint64 interval, SDL_NSTimerCallback callback, void *userdata);
+extern SDL_DECLSPEC SDL_TimerID SDLCALL SDL_AddTimerNS(Uint64 interval, SDL_NSTimerCallback callback, void* userdata);
 
 /**
  * Remove a timer created with SDL_AddTimer().

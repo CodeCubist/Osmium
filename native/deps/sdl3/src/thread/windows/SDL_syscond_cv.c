@@ -23,11 +23,11 @@
 #include "../generic/SDL_syscond_c.h"
 #include "SDL_sysmutex_c.h"
 
-typedef SDL_Condition *(*pfnSDL_CreateCondition)(void);
-typedef void (*pfnSDL_DestroyCondition)(SDL_Condition *);
-typedef void (*pfnSDL_SignalCondition)(SDL_Condition *);
-typedef void (*pfnSDL_BroadcastCondition)(SDL_Condition *);
-typedef bool (*pfnSDL_WaitConditionTimeoutNS)(SDL_Condition *, SDL_Mutex *, Sint64);
+typedef SDL_Condition*(*pfnSDL_CreateCondition)(void);
+typedef void (*pfnSDL_DestroyCondition)(SDL_Condition*);
+typedef void (*pfnSDL_SignalCondition)(SDL_Condition*);
+typedef void (*pfnSDL_BroadcastCondition)(SDL_Condition*);
+typedef bool (*pfnSDL_WaitConditionTimeoutNS)(SDL_Condition*, SDL_Mutex*, Sint64);
 
 typedef struct SDL_cond_impl_t
 {
@@ -39,7 +39,7 @@ typedef struct SDL_cond_impl_t
 } SDL_cond_impl_t;
 
 // Implementation will be chosen at runtime based on available Kernel features
-static SDL_cond_impl_t SDL_cond_impl_active = { 0 };
+static SDL_cond_impl_t SDL_cond_impl_active = {0};
 
 /**
  * Native Windows Condition Variable (SRW Locks)
@@ -71,46 +71,51 @@ typedef struct SDL_cond_cv
     CONDITION_VARIABLE cond;
 } SDL_cond_cv;
 
-static SDL_Condition *SDL_CreateCondition_cv(void)
+static SDL_Condition* SDL_CreateCondition_cv(void)
 {
     // Relies on CONDITION_VARIABLE_INIT == 0.
-    return (SDL_Condition *)SDL_calloc(1, sizeof(SDL_cond_cv));
+    return (SDL_Condition*)SDL_calloc(1, sizeof(SDL_cond_cv));
 }
 
-static void SDL_DestroyCondition_cv(SDL_Condition *cond)
+static void SDL_DestroyCondition_cv(SDL_Condition* cond)
 {
     // There are no kernel allocated resources
     SDL_free(cond);
 }
 
-static void SDL_SignalCondition_cv(SDL_Condition *_cond)
+static void SDL_SignalCondition_cv(SDL_Condition* _cond)
 {
-    SDL_cond_cv *cond = (SDL_cond_cv *)_cond;
+    SDL_cond_cv* cond = (SDL_cond_cv*)_cond;
     pWakeConditionVariable(&cond->cond);
 }
 
-static void SDL_BroadcastCondition_cv(SDL_Condition *_cond)
+static void SDL_BroadcastCondition_cv(SDL_Condition* _cond)
 {
-    SDL_cond_cv *cond = (SDL_cond_cv *)_cond;
+    SDL_cond_cv* cond = (SDL_cond_cv*)_cond;
     pWakeAllConditionVariable(&cond->cond);
 }
 
-static bool SDL_WaitConditionTimeoutNS_cv(SDL_Condition *_cond, SDL_Mutex *_mutex, Sint64 timeoutNS)
+static bool SDL_WaitConditionTimeoutNS_cv(SDL_Condition* _cond, SDL_Mutex* _mutex, Sint64 timeoutNS)
 {
-    SDL_cond_cv *cond = (SDL_cond_cv *)_cond;
+    SDL_cond_cv* cond = (SDL_cond_cv*)_cond;
     DWORD timeout;
     bool result;
 
-    if (timeoutNS < 0) {
+    if (timeoutNS < 0)
+    {
         timeout = INFINITE;
-    } else {
+    }
+    else
+    {
         timeout = (DWORD)SDL_NS_TO_MS(timeoutNS);
     }
 
-    if (SDL_mutex_impl_active.Type == SDL_MUTEX_SRW) {
-        SDL_mutex_srw *mutex = (SDL_mutex_srw *)_mutex;
+    if (SDL_mutex_impl_active.Type == SDL_MUTEX_SRW)
+    {
+        SDL_mutex_srw* mutex = (SDL_mutex_srw*)_mutex;
 
-        if (mutex->count != 1 || mutex->owner != GetCurrentThreadId()) {
+        if (mutex->count != 1 || mutex->owner != GetCurrentThreadId())
+        {
             // Passed mutex is not locked or locked recursively"
             return false;
         }
@@ -125,8 +130,10 @@ static bool SDL_WaitConditionTimeoutNS_cv(SDL_Condition *_cond, SDL_Mutex *_mute
         SDL_assert(mutex->count == 0 && mutex->owner == 0);
         mutex->count = 1;
         mutex->owner = GetCurrentThreadId();
-    } else {
-        SDL_mutex_cs *mutex = (SDL_mutex_cs *)_mutex;
+    }
+    else
+    {
+        SDL_mutex_cs* mutex = (SDL_mutex_cs*)_mutex;
 
         SDL_assert(SDL_mutex_impl_active.Type == SDL_MUTEX_CS);
 
@@ -154,15 +161,18 @@ static const SDL_cond_impl_t SDL_cond_impl_generic = {
     &SDL_WaitConditionTimeoutNS_generic,
 };
 
-SDL_Condition *SDL_CreateCondition(void)
+SDL_Condition* SDL_CreateCondition(void)
 {
-    if (!SDL_cond_impl_active.Create) {
-        const SDL_cond_impl_t *impl = NULL;
+    if (!SDL_cond_impl_active.Create)
+    {
+        const SDL_cond_impl_t* impl = NULL;
 
-        if (SDL_mutex_impl_active.Type == SDL_MUTEX_INVALID) {
+        if (SDL_mutex_impl_active.Type == SDL_MUTEX_INVALID)
+        {
             // The mutex implementation isn't decided yet, trigger it
-            SDL_Mutex *mutex = SDL_CreateMutex();
-            if (!mutex) {
+            SDL_Mutex* mutex = SDL_CreateMutex();
+            if (!mutex)
+            {
                 return NULL;
             }
             SDL_DestroyMutex(mutex);
@@ -174,12 +184,18 @@ SDL_Condition *SDL_CreateCondition(void)
         impl = &SDL_cond_impl_generic;
         {
             HMODULE kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
-            if (kernel32) {
+            if (kernel32)
+            {
                 pWakeConditionVariable = (pfnWakeConditionVariable)GetProcAddress(kernel32, "WakeConditionVariable");
-                pWakeAllConditionVariable = (pfnWakeAllConditionVariable)GetProcAddress(kernel32, "WakeAllConditionVariable");
-                pSleepConditionVariableSRW = (pfnSleepConditionVariableSRW)GetProcAddress(kernel32, "SleepConditionVariableSRW");
-                pSleepConditionVariableCS = (pfnSleepConditionVariableCS)GetProcAddress(kernel32, "SleepConditionVariableCS");
-                if (pWakeConditionVariable && pWakeAllConditionVariable && pSleepConditionVariableSRW && pSleepConditionVariableCS) {
+                pWakeAllConditionVariable = (pfnWakeAllConditionVariable)GetProcAddress(
+                    kernel32, "WakeAllConditionVariable");
+                pSleepConditionVariableSRW = (pfnSleepConditionVariableSRW)GetProcAddress(
+                    kernel32, "SleepConditionVariableSRW");
+                pSleepConditionVariableCS = (pfnSleepConditionVariableCS)GetProcAddress(
+                    kernel32, "SleepConditionVariableCS");
+                if (pWakeConditionVariable && pWakeAllConditionVariable && pSleepConditionVariableSRW &&
+                    pSleepConditionVariableCS)
+                {
                     // Use the Windows provided API
                     impl = &SDL_cond_impl_cv;
                 }
@@ -191,34 +207,38 @@ SDL_Condition *SDL_CreateCondition(void)
     return SDL_cond_impl_active.Create();
 }
 
-void SDL_DestroyCondition(SDL_Condition *cond)
+void SDL_DestroyCondition(SDL_Condition* cond)
 {
-    if (cond) {
+    if (cond)
+    {
         SDL_cond_impl_active.Destroy(cond);
     }
 }
 
-void SDL_SignalCondition(SDL_Condition *cond)
+void SDL_SignalCondition(SDL_Condition* cond)
 {
-    if (!cond) {
+    if (!cond)
+    {
         return;
     }
 
     SDL_cond_impl_active.Signal(cond);
 }
 
-void SDL_BroadcastCondition(SDL_Condition *cond)
+void SDL_BroadcastCondition(SDL_Condition* cond)
 {
-    if (!cond) {
+    if (!cond)
+    {
         return;
     }
 
     SDL_cond_impl_active.Broadcast(cond);
 }
 
-bool SDL_WaitConditionTimeoutNS(SDL_Condition *cond, SDL_Mutex *mutex, Sint64 timeoutNS)
+bool SDL_WaitConditionTimeoutNS(SDL_Condition* cond, SDL_Mutex* mutex, Sint64 timeoutNS)
 {
-    if (!cond || !mutex) {
+    if (!cond || !mutex)
+    {
         return true;
     }
 

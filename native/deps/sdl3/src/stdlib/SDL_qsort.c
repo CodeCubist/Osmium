@@ -183,8 +183,8 @@ static char _ID[] = "<qsort.c gjm WITH CHANGES FOR SDL3 1.16 2021-02-20>";
 
 typedef struct
 {
-    char *first;
-    char *last;
+    char* first;
+    char* last;
 } stack_entry;
 
 #define pushLeft {stack[stacktop].first=ffirst;stack[stacktop++].last=last;}
@@ -365,18 +365,19 @@ typedef struct
 
 /* ---------------------------------------------------------------------- */
 
-static char *pivot_big(char *first, char *mid, char *last, size_t size,
-                       int (SDLCALL *compare)(void *, const void *, const void *), void *userdata)
+static char* pivot_big(char* first, char* mid, char* last, size_t size,
+                       int (SDLCALL *compare)(void*, const void*, const void*), void* userdata)
 {
     size_t d = (((last - first) / size) >> 3) * size;
 #ifdef DEBUG_QSORT
-    fprintf(stderr, "pivot_big: first=%p last=%p size=%lu n=%lu\n", first, (unsigned long)last, size, (unsigned long)((last - first + 1) / size));
+    fprintf(stderr, "pivot_big: first=%p last=%p size=%lu n=%lu\n", first, (unsigned long)last, size,
+            (unsigned long)((last - first + 1) / size));
 #endif
     char *m1, *m2, *m3;
     {
         char *a = first, *b = first + d, *c = first + 2 * d;
 #ifdef DEBUG_QSORT
-        fprintf(stderr, "< %d %d %d @ %p %p %p\n", *(int *)a, *(int *)b, *(int *)c, a, b, c);
+        fprintf(stderr, "< %d %d %d @ %p %p %p\n", *(int*)a, *(int*)b, *(int*)c, a, b, c);
 #endif
         m1 = compare(userdata, a, b) < 0
                  ? (compare(userdata, b, c) < 0 ? b : (compare(userdata, a, c) < 0 ? c : a))
@@ -385,7 +386,7 @@ static char *pivot_big(char *first, char *mid, char *last, size_t size,
     {
         char *a = mid - d, *b = mid, *c = mid + d;
 #ifdef DEBUG_QSORT
-        fprintf(stderr, ". %d %d %d @ %p %p %p\n", *(int *)a, *(int *)b, *(int *)c, a, b, c);
+        fprintf(stderr, ". %d %d %d @ %p %p %p\n", *(int*)a, *(int*)b, *(int*)c, a, b, c);
 #endif
         m2 = compare(userdata, a, b) < 0
                  ? (compare(userdata, b, c) < 0 ? b : (compare(userdata, a, c) < 0 ? c : a))
@@ -394,14 +395,14 @@ static char *pivot_big(char *first, char *mid, char *last, size_t size,
     {
         char *a = last - 2 * d, *b = last - d, *c = last;
 #ifdef DEBUG_QSORT
-        fprintf(stderr, "> %d %d %d @ %p %p %p\n", *(int *)a, *(int *)b, *(int *)c, a, b, c);
+        fprintf(stderr, "> %d %d %d @ %p %p %p\n", *(int*)a, *(int*)b, *(int*)c, a, b, c);
 #endif
         m3 = compare(userdata, a, b) < 0
                  ? (compare(userdata, b, c) < 0 ? b : (compare(userdata, a, c) < 0 ? c : a))
                  : (compare(userdata, a, c) < 0 ? a : (compare(userdata, b, c) < 0 ? c : b));
     }
 #ifdef DEBUG_QSORT
-    fprintf(stderr, "-> %d %d %d @ %p %p %p\n", *(int *)m1, *(int *)m2, *(int *)m3, m1, m2, m3);
+    fprintf(stderr, "-> %d %d %d @ %p %p %p\n", *(int*)m1, *(int*)m2, *(int*)m3, m1, m2, m3);
 #endif
     return compare(userdata, m1, m2) < 0
                ? (compare(userdata, m2, m3) < 0 ? m2 : (compare(userdata, m1, m3) < 0 ? m3 : m1))
@@ -410,26 +411,27 @@ static char *pivot_big(char *first, char *mid, char *last, size_t size,
 
 /* ---------------------------------------------------------------------- */
 
-static void qsort_r_nonaligned(void *base, size_t nmemb, size_t size,
-                               int (SDLCALL *compare)(void *, const void *, const void *), void *userdata)
+static void qsort_r_nonaligned(void* base, size_t nmemb, size_t size,
+                               int (SDLCALL *compare)(void*, const void*, const void*), void* userdata)
 {
-
     stack_entry stack[STACK_SIZE];
     int stacktop = 0;
     char *first, *last;
-    char *pivot = malloc(size);
+    char* pivot = malloc(size);
     size_t trunc = TRUNC_nonaligned * size;
     assert(pivot != NULL);
 
-    first = (char *)base;
+    first = (char*)base;
     last = first + (nmemb - 1) * size;
 
-    if ((size_t)(last - first) >= trunc) {
+    if ((size_t)(last - first) >= trunc)
+    {
         char *ffirst = first, *llast = last;
-        while (1) {
+        while (1)
+        {
             /* Select pivot */
             {
-                char *mid = first + size * ((last - first) / size >> 1);
+                char* mid = first + size * ((last - first) / size >> 1);
                 if (mid >= last)
                     break;
                 Pivot(SWAP_nonaligned, size);
@@ -446,26 +448,27 @@ static void qsort_r_nonaligned(void *base, size_t nmemb, size_t size,
     free(pivot);
 }
 
-static void qsort_r_aligned(void *base, size_t nmemb, size_t size,
-                            int (SDLCALL *compare)(void *, const void *, const void *), void *userdata)
+static void qsort_r_aligned(void* base, size_t nmemb, size_t size,
+                            int (SDLCALL *compare)(void*, const void*, const void*), void* userdata)
 {
-
     stack_entry stack[STACK_SIZE];
     int stacktop = 0;
     char *first, *last;
-    char *pivot = malloc(size);
+    char* pivot = malloc(size);
     size_t trunc = TRUNC_aligned * size;
     assert(pivot != NULL);
 
-    first = (char *)base;
+    first = (char*)base;
     last = first + (nmemb - 1) * size;
 
-    if ((size_t)(last - first) >= trunc) {
+    if ((size_t)(last - first) >= trunc)
+    {
         char *ffirst = first, *llast = last;
-        while (1) {
+        while (1)
+        {
             /* Select pivot */
             {
-                char *mid = first + size * ((last - first) / size >> 1);
+                char* mid = first + size * ((last - first) / size >> 1);
                 if (mid >= last)
                     break;
                 Pivot(SWAP_aligned, size);
@@ -482,42 +485,45 @@ static void qsort_r_aligned(void *base, size_t nmemb, size_t size,
     free(pivot);
 }
 
-static void qsort_r_words(void *base, size_t nmemb,
-                          int (SDLCALL *compare)(void *, const void *, const void *), void *userdata)
+static void qsort_r_words(void* base, size_t nmemb,
+                          int (SDLCALL *compare)(void*, const void*, const void*), void* userdata)
 {
-
     stack_entry stack[STACK_SIZE];
     int stacktop = 0;
     char *first, *last;
-    char *pivot = malloc(WORD_BYTES);
+    char* pivot = malloc(WORD_BYTES);
     assert(pivot != NULL);
 
-    first = (char *)base;
+    first = (char*)base;
     last = first + (nmemb - 1) * WORD_BYTES;
 
-    if (last - first >= TRUNC_words) {
+    if (last - first >= TRUNC_words)
+    {
         char *ffirst = first, *llast = last;
-        while (1) {
+        while (1)
+        {
 #ifdef DEBUG_QSORT
             fprintf(stderr, "Doing %d:%d: ",
-                    (first - (char *)base) / WORD_BYTES,
-                    (last - (char *)base) / WORD_BYTES);
+                    (first - (char*)base) / WORD_BYTES,
+                    (last - (char*)base) / WORD_BYTES);
 #endif
             /* Select pivot */
             {
-                char *mid = first + WORD_BYTES * ((last - first) / (2 * WORD_BYTES));
+                char* mid = first + WORD_BYTES * ((last - first) / (2 * WORD_BYTES));
                 if (mid >= last)
                     break;
                 Pivot(SWAP_words, WORD_BYTES);
-                *(int *)pivot = *(int *)mid;
+                *(int*)pivot = *(int*)mid;
 #ifdef DEBUG_QSORT
-                fprintf(stderr, "pivot = %p = #%lu = %d\n", mid, (unsigned long)(((int *)mid) - ((int *)base)), *(int *)mid);
+                fprintf(stderr, "pivot = %p = #%lu = %d\n", mid, (unsigned long)(((int*)mid) - ((int*)base)),
+                        *(int*)mid);
 #endif
             }
             /* Partition. */
             Partition(SWAP_words, WORD_BYTES);
 #ifdef DEBUG_QSORT
-            fprintf(stderr, "after partitioning first=#%lu last=#%lu\n", (first - (char *)base) / 4lu, (last - (char *)base) / 4lu);
+            fprintf(stderr, "after partitioning first=#%lu last=#%lu\n", (first - (char*)base) / 4lu,
+                    (last - (char*)base) / 4lu);
 #endif
             /* Prepare to recurse/iterate. */
             Recurse(TRUNC_words)
@@ -525,26 +531,27 @@ static void qsort_r_words(void *base, size_t nmemb,
     }
     PreInsertion(SWAP_words, TRUNC_words/WORD_BYTES, WORD_BYTES);
     /* Now do insertion sort. */
-    last = ((char *)base) + nmemb * WORD_BYTES;
-    for (first = ((char *)base) + WORD_BYTES; first != last; first += WORD_BYTES) {
+    last = ((char*)base) + nmemb * WORD_BYTES;
+    for (first = ((char*)base) + WORD_BYTES; first != last; first += WORD_BYTES)
+    {
         /* Find the right place for |first|. My apologies for var reuse */
-        int *pl = (int *)(first - WORD_BYTES), *pr = (int *)first;
-        *(int *)pivot = *(int *)first;
-        for (; pl >= (int *)base && compare(userdata, pl, pivot) > 0; pr = pl, --pl) {
+        int *pl = (int*)(first - WORD_BYTES), *pr = (int*)first;
+        *(int*)pivot = *(int*)first;
+        for (; pl >= (int*)base && compare(userdata, pl, pivot) > 0; pr = pl, --pl)
+        {
             *pr = *pl;
         }
-        if (pr != (int *)first)
-            *pr = *(int *)pivot;
+        if (pr != (int*)first)
+            *pr = *(int*)pivot;
     }
     free(pivot);
 }
 
 /* ---------------------------------------------------------------------- */
 
-void SDL_qsort_r(void *base, size_t nmemb, size_t size,
-                 SDL_CompareCallback_r compare, void *userdata)
+void SDL_qsort_r(void* base, size_t nmemb, size_t size,
+                 SDL_CompareCallback_r compare, void* userdata)
 {
-
     if (nmemb <= 1)
         return;
     if (((uintptr_t)base | size) & (WORD_BYTES - 1))
@@ -555,13 +562,13 @@ void SDL_qsort_r(void *base, size_t nmemb, size_t size,
         qsort_r_words(base, nmemb, compare, userdata);
 }
 
-static int SDLCALL qsort_non_r_bridge(void *userdata, const void *a, const void *b)
+static int SDLCALL qsort_non_r_bridge(void* userdata, const void* a, const void* b)
 {
-    int (SDLCALL *compare)(const void *, const void *) = (int (SDLCALL *)(const void *, const void *))userdata;
+    int (SDLCALL *compare)(const void*, const void*) = (int (SDLCALL *)(const void*, const void*))userdata;
     return compare(a, b);
 }
 
-void SDL_qsort(void *base, size_t nmemb, size_t size, SDL_CompareCallback compare)
+void SDL_qsort(void* base, size_t nmemb, size_t size, SDL_CompareCallback compare)
 {
     SDL_qsort_r(base, nmemb, size, qsort_non_r_bridge, compare);
 }
@@ -569,32 +576,37 @@ void SDL_qsort(void *base, size_t nmemb, size_t size, SDL_CompareCallback compar
 // Don't use the C runtime for such a simple function, since we want to allow SDLCALL callbacks and userdata.
 // SDL's replacement: Taken from the Public Domain C Library (PDCLib):
 // Permission is granted to use, modify, and / or redistribute at will.
-void *SDL_bsearch_r(const void *key, const void *base, size_t nmemb, size_t size, SDL_CompareCallback_r compare, void *userdata)
+void* SDL_bsearch_r(const void* key, const void* base, size_t nmemb, size_t size, SDL_CompareCallback_r compare,
+                    void* userdata)
 {
-    const void *pivot;
+    const void* pivot;
     size_t corr;
     int rc;
 
-    while (nmemb) {
+    while (nmemb)
+    {
         /* algorithm needs -1 correction if remaining elements are an even number. */
         corr = nmemb % 2;
         nmemb /= 2;
-        pivot = (const char *)base + (nmemb * size);
+        pivot = (const char*)base + (nmemb * size);
         rc = compare(userdata, key, pivot);
 
-        if (rc > 0) {
-            base = (const char *)pivot + size;
+        if (rc > 0)
+        {
+            base = (const char*)pivot + size;
             /* applying correction */
             nmemb -= (1 - corr);
-        } else if (rc == 0) {
-            return (void *)pivot;
+        }
+        else if (rc == 0)
+        {
+            return (void*)pivot;
         }
     }
 
     return NULL;
 }
 
-void *SDL_bsearch(const void *key, const void *base, size_t nmemb, size_t size, SDL_CompareCallback compare)
+void* SDL_bsearch(const void* key, const void* base, size_t nmemb, size_t size, SDL_CompareCallback compare)
 {
     // qsort_non_r_bridge just happens to match calling conventions, so reuse it.
     return SDL_bsearch_r(key, base, nmemb, size, qsort_non_r_bridge, compare);

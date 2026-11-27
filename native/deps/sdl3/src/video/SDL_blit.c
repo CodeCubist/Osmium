@@ -29,8 +29,8 @@
 #include "SDL_pixels_c.h"
 
 // The general purpose software blit routine
-static bool SDLCALL SDL_SoftBlit(SDL_Surface *src, const SDL_Rect *srcrect,
-                                 SDL_Surface *dst, const SDL_Rect *dstrect)
+static bool SDLCALL SDL_SoftBlit(SDL_Surface* src, const SDL_Rect* srcrect,
+                                 SDL_Surface* dst, const SDL_Rect* dstrect)
 {
     bool okay;
     int src_locked;
@@ -41,37 +41,49 @@ static bool SDLCALL SDL_SoftBlit(SDL_Surface *src, const SDL_Rect *srcrect,
 
     // Lock the destination if it's in hardware
     dst_locked = 0;
-    if (SDL_MUSTLOCK(dst)) {
-        if (!SDL_LockSurface(dst)) {
+    if (SDL_MUSTLOCK(dst))
+    {
+        if (!SDL_LockSurface(dst))
+        {
             okay = false;
-        } else {
+        }
+        else
+        {
             dst_locked = 1;
         }
     }
     // Lock the source if it's in hardware
     src_locked = 0;
-    if (SDL_MUSTLOCK(src)) {
-        if (!SDL_LockSurface(src)) {
+    if (SDL_MUSTLOCK(src))
+    {
+        if (!SDL_LockSurface(src))
+        {
             okay = false;
-        } else {
+        }
+        else
+        {
             src_locked = 1;
         }
     }
 
     // Set up source and destination buffer pointers, and BLIT!
-    if (okay) {
+    if (okay)
+    {
         SDL_BlitFunc RunBlit;
-        SDL_BlitInfo *info = &src->map.info;
+        SDL_BlitInfo* info = &src->map.info;
 
         // Set up the blit information
-        if (info->src_fmt->bits_per_pixel >= 8) {
-            info->src = (Uint8 *)src->pixels +
-                        srcrect->y * src->pitch +
-                        srcrect->x * info->src_fmt->bytes_per_pixel;
-        } else {
-            info->src = (Uint8 *)src->pixels +
-                        srcrect->y * src->pitch +
-                        (srcrect->x * info->src_fmt->bits_per_pixel) / 8;
+        if (info->src_fmt->bits_per_pixel >= 8)
+        {
+            info->src = (Uint8*)src->pixels +
+                srcrect->y * src->pitch +
+                srcrect->x * info->src_fmt->bytes_per_pixel;
+        }
+        else
+        {
+            info->src = (Uint8*)src->pixels +
+                srcrect->y * src->pitch +
+                (srcrect->x * info->src_fmt->bits_per_pixel) / 8;
             info->leading_skip =
                 ((srcrect->x * info->src_fmt->bits_per_pixel) % 8) /
                 info->src_fmt->bits_per_pixel;
@@ -81,9 +93,9 @@ static bool SDLCALL SDL_SoftBlit(SDL_Surface *src, const SDL_Rect *srcrect,
         info->src_pitch = src->pitch;
         info->src_skip =
             info->src_pitch - info->src_w * info->src_fmt->bytes_per_pixel;
-        info->dst = (Uint8 *)dst->pixels +
-                    dstrect->y * dst->pitch +
-                    dstrect->x * info->dst_fmt->bytes_per_pixel;
+        info->dst = (Uint8*)dst->pixels +
+            dstrect->y * dst->pitch +
+            dstrect->x * info->dst_fmt->bytes_per_pixel;
         info->dst_w = dstrect->w;
         info->dst_h = dstrect->h;
         info->dst_pitch = dst->pitch;
@@ -96,10 +108,12 @@ static bool SDLCALL SDL_SoftBlit(SDL_Surface *src, const SDL_Rect *srcrect,
     }
 
     // We need to unlock the surfaces if they're locked
-    if (dst_locked) {
+    if (dst_locked)
+    {
         SDL_UnlockSurface(dst);
     }
-    if (src_locked) {
+    if (src_locked)
+    {
         SDL_UnlockSurface(src);
     }
     // Blit is done!
@@ -117,9 +131,12 @@ static bool SDL_UseAltivecPrefetch(void)
     u_int64_t result = 0;
     size_t typeSize = sizeof(result);
 
-    if (sysctlbyname(key, &result, &typeSize, NULL, 0) == 0 && result > 0) {
+    if (sysctlbyname(key, &result, &typeSize, NULL, 0) == 0 && result > 0)
+    {
         return true;
-    } else {
+    }
+    else
+    {
         return false;
     }
 }
@@ -132,48 +149,61 @@ static bool SDL_UseAltivecPrefetch(void)
 #endif // SDL_PLATFORM_MACOS
 
 static SDL_BlitFunc SDL_ChooseBlitFunc(SDL_PixelFormat src_format, SDL_PixelFormat dst_format, int flags,
-                                       SDL_BlitFuncEntry *entries)
+                                       SDL_BlitFuncEntry* entries)
 {
     int i, flagcheck = (flags & (SDL_COPY_MODULATE_MASK | SDL_COPY_BLEND_MASK | SDL_COPY_COLORKEY | SDL_COPY_NEAREST));
     static unsigned int features = 0x7fffffff;
 
     // Get the available CPU features
-    if (features == 0x7fffffff) {
+    if (features == 0x7fffffff)
+    {
         features = SDL_CPU_ANY;
-        if (SDL_HasMMX()) {
+        if (SDL_HasMMX())
+        {
             features |= SDL_CPU_MMX;
         }
-        if (SDL_HasSSE()) {
+        if (SDL_HasSSE())
+        {
             features |= SDL_CPU_SSE;
         }
-        if (SDL_HasSSE2()) {
+        if (SDL_HasSSE2())
+        {
             features |= SDL_CPU_SSE2;
         }
-        if (SDL_HasAltiVec()) {
-            if (SDL_UseAltivecPrefetch()) {
+        if (SDL_HasAltiVec())
+        {
+            if (SDL_UseAltivecPrefetch())
+            {
                 features |= SDL_CPU_ALTIVEC_PREFETCH;
-            } else {
+            }
+            else
+            {
                 features |= SDL_CPU_ALTIVEC_NOPREFETCH;
             }
         }
     }
 
-    for (i = 0; entries[i].func; ++i) {
+    for (i = 0; entries[i].func; ++i)
+    {
         // Check for matching pixel formats
-        if (src_format != entries[i].src_format) {
+        if (src_format != entries[i].src_format)
+        {
             continue;
         }
-        if (dst_format != entries[i].dst_format) {
+        if (dst_format != entries[i].dst_format)
+        {
             continue;
         }
 
         // Check flags
-        if ((flagcheck & entries[i].flags) != flagcheck) {
+        if ((flagcheck & entries[i].flags) != flagcheck)
+        {
             continue;
         }
 
         // Check CPU features
-        if ((entries[i].cpu & features) != entries[i].cpu) {
+        if ((entries[i].cpu & features) != entries[i].cpu)
+        {
             continue;
         }
 
@@ -185,15 +215,16 @@ static SDL_BlitFunc SDL_ChooseBlitFunc(SDL_PixelFormat src_format, SDL_PixelForm
 #endif // SDL_HAVE_BLIT_AUTO
 
 // Figure out which of many blit routines to set up on a surface
-bool SDL_CalculateBlit(SDL_Surface *surface, SDL_Surface *dst)
+bool SDL_CalculateBlit(SDL_Surface* surface, SDL_Surface* dst)
 {
     SDL_BlitFunc blit = NULL;
-    SDL_BlitMap *map = &surface->map;
+    SDL_BlitMap* map = &surface->map;
     SDL_Colorspace src_colorspace = surface->colorspace;
     SDL_Colorspace dst_colorspace = dst->colorspace;
 
     // We don't currently support blitting to < 8 bpp surfaces
-    if (SDL_BITSPERPIXEL(dst->format) < 8) {
+    if (SDL_BITSPERPIXEL(dst->format) < 8)
+    {
         SDL_InvalidateMap(map);
         return SDL_SetError("Blit combination not supported");
     }
@@ -211,53 +242,66 @@ bool SDL_CalculateBlit(SDL_Surface *surface, SDL_Surface *dst)
 
 #ifdef SDL_HAVE_RLE
     // See if we can do RLE acceleration
-    if (map->info.flags & SDL_COPY_RLE_DESIRED) {
-        if (SDL_RLESurface(surface)) {
+    if (map->info.flags & SDL_COPY_RLE_DESIRED)
+    {
+        if (SDL_RLESurface(surface))
+        {
             return true;
         }
     }
 #endif
 
     // Choose a standard blit function
-    if (!blit) {
+    if (!blit)
+    {
         if (src_colorspace != dst_colorspace ||
             SDL_BYTESPERPIXEL(surface->format) > 4 ||
-            SDL_BYTESPERPIXEL(dst->format) > 4) {
+            SDL_BYTESPERPIXEL(dst->format) > 4)
+        {
             blit = SDL_Blit_Slow_Float;
         }
     }
-    if (!blit) {
-        if (map->identity && !(map->info.flags & ~SDL_COPY_RLE_DESIRED)) {
+    if (!blit)
+    {
+        if (map->identity && !(map->info.flags & ~SDL_COPY_RLE_DESIRED))
+        {
             blit = SDL_BlitCopy;
-        } else if (SDL_ISPIXELFORMAT_10BIT(surface->format) ||
-                   SDL_ISPIXELFORMAT_10BIT(dst->format)) {
+        }
+        else if (SDL_ISPIXELFORMAT_10BIT(surface->format) ||
+            SDL_ISPIXELFORMAT_10BIT(dst->format))
+        {
             blit = SDL_Blit_Slow;
         }
 #ifdef SDL_HAVE_BLIT_0
         else if (SDL_BITSPERPIXEL(surface->format) < 8 &&
-                 SDL_ISPIXELFORMAT_INDEXED(surface->format)) {
+            SDL_ISPIXELFORMAT_INDEXED(surface->format))
+        {
             blit = SDL_CalculateBlit0(surface);
         }
 #endif
 #ifdef SDL_HAVE_BLIT_1
         else if (SDL_BYTESPERPIXEL(surface->format) == 1 &&
-                 SDL_ISPIXELFORMAT_INDEXED(surface->format)) {
+            SDL_ISPIXELFORMAT_INDEXED(surface->format))
+        {
             blit = SDL_CalculateBlit1(surface);
         }
 #endif
 #ifdef SDL_HAVE_BLIT_A
-        else if (map->info.flags & SDL_COPY_BLEND) {
+        else if (map->info.flags & SDL_COPY_BLEND)
+        {
             blit = SDL_CalculateBlitA(surface);
         }
 #endif
 #ifdef SDL_HAVE_BLIT_N
-        else {
+        else
+        {
             blit = SDL_CalculateBlitN(surface);
         }
 #endif
     }
 #ifdef SDL_HAVE_BLIT_AUTO
-    if (!blit) {
+    if (!blit)
+    {
         SDL_PixelFormat src_format = surface->format;
         SDL_PixelFormat dst_format = dst->format;
 
@@ -275,18 +319,20 @@ bool SDL_CalculateBlit(SDL_Surface *surface, SDL_Surface *dst)
         SDL_PixelFormat dst_format = dst->format;
 
         if ((!SDL_ISPIXELFORMAT_INDEXED(src_format) ||
-             (src_format == SDL_PIXELFORMAT_INDEX8 && surface->palette)) &&
+                (src_format == SDL_PIXELFORMAT_INDEX8 && surface->palette)) &&
             !SDL_ISPIXELFORMAT_FOURCC(src_format) &&
             (!SDL_ISPIXELFORMAT_INDEXED(dst_format) ||
-             (dst_format == SDL_PIXELFORMAT_INDEX8 && dst->palette)) &&
-            !SDL_ISPIXELFORMAT_FOURCC(dst_format)) {
+                (dst_format == SDL_PIXELFORMAT_INDEX8 && dst->palette)) &&
+            !SDL_ISPIXELFORMAT_FOURCC(dst_format))
+        {
             blit = SDL_Blit_Slow;
         }
     }
-    map->data = (void *)blit;
+    map->data = (void*)blit;
 
     // Make sure we have a blit function
-    if (!blit) {
+    if (!blit)
+    {
         SDL_InvalidateMap(map);
         return SDL_SetError("Blit combination not supported");
     }

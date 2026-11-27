@@ -24,7 +24,7 @@
 #define SDL_blit_h_
 
 // Table to do pixel byte expansion
-extern const Uint8 *SDL_expand_byte[9];
+extern const Uint8* SDL_expand_byte[9];
 extern const Uint16 SDL_expand_byte_10[];
 
 // SDL blit copy flags
@@ -55,29 +55,29 @@ extern const Uint16 SDL_expand_byte_10[];
 
 typedef struct
 {
-    SDL_Surface *src_surface;
-    Uint8 *src;
+    SDL_Surface* src_surface;
+    Uint8* src;
     int src_w, src_h;
     int src_pitch;
     int src_skip;
     int leading_skip;
-    SDL_Surface *dst_surface;
-    Uint8 *dst;
+    SDL_Surface* dst_surface;
+    Uint8* dst;
     int dst_w, dst_h;
     int dst_pitch;
     int dst_skip;
-    const SDL_PixelFormatDetails *src_fmt;
-    const SDL_Palette *src_pal;
-    const SDL_PixelFormatDetails *dst_fmt;
-    const SDL_Palette *dst_pal;
-    Uint8 *table;
-    SDL_HashTable *palette_map;
+    const SDL_PixelFormatDetails* src_fmt;
+    const SDL_Palette* src_pal;
+    const SDL_PixelFormatDetails* dst_fmt;
+    const SDL_Palette* dst_pal;
+    Uint8* table;
+    SDL_HashTable* palette_map;
     int flags;
     Uint32 colorkey;
     Uint8 r, g, b, a;
 } SDL_BlitInfo;
 
-typedef void (*SDL_BlitFunc)(SDL_BlitInfo *info);
+typedef void (*SDL_BlitFunc)(SDL_BlitInfo* info);
 
 typedef struct
 {
@@ -88,14 +88,15 @@ typedef struct
     SDL_BlitFunc func;
 } SDL_BlitFuncEntry;
 
-typedef bool (SDLCALL *SDL_Blit)(struct SDL_Surface *src, const SDL_Rect *srcrect, struct SDL_Surface *dst, const SDL_Rect *dstrect);
+typedef bool (SDLCALL *SDL_Blit)(struct SDL_Surface* src, const SDL_Rect* srcrect, struct SDL_Surface* dst,
+                                 const SDL_Rect* dstrect);
 
 // Blit mapping definition
 typedef struct SDL_BlitMap
 {
     int identity;
     SDL_Blit blit;
-    void *data;
+    void* data;
     SDL_BlitInfo info;
 
     /* the version count matches the destination; mismatch indicates
@@ -105,13 +106,13 @@ typedef struct SDL_BlitMap
 } SDL_BlitMap;
 
 // Functions found in SDL_blit.c
-extern bool SDL_CalculateBlit(SDL_Surface *surface, SDL_Surface *dst);
+extern bool SDL_CalculateBlit(SDL_Surface* surface, SDL_Surface* dst);
 
 /* Functions found in SDL_blit_*.c */
-extern SDL_BlitFunc SDL_CalculateBlit0(SDL_Surface *surface);
-extern SDL_BlitFunc SDL_CalculateBlit1(SDL_Surface *surface);
-extern SDL_BlitFunc SDL_CalculateBlitN(SDL_Surface *surface);
-extern SDL_BlitFunc SDL_CalculateBlitA(SDL_Surface *surface);
+extern SDL_BlitFunc SDL_CalculateBlit0(SDL_Surface* surface);
+extern SDL_BlitFunc SDL_CalculateBlit1(SDL_Surface* surface);
+extern SDL_BlitFunc SDL_CalculateBlitN(SDL_Surface* surface);
+extern SDL_BlitFunc SDL_CalculateBlitA(SDL_Surface* surface);
 
 /*
  * Useful macros for blitting routines

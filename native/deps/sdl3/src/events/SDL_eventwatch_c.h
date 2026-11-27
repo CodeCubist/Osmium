@@ -23,23 +23,23 @@
 typedef struct SDL_EventWatcher
 {
     SDL_EventFilter callback;
-    void *userdata;
+    void* userdata;
     bool removed;
 } SDL_EventWatcher;
 
 typedef struct SDL_EventWatchList
 {
-    SDL_Mutex *lock;
+    SDL_Mutex* lock;
     SDL_EventWatcher filter;
-    SDL_EventWatcher *watchers;
+    SDL_EventWatcher* watchers;
     int count;
     bool dispatching;
     bool removed;
 } SDL_EventWatchList;
 
 
-extern bool SDL_InitEventWatchList(SDL_EventWatchList *list);
-extern void SDL_QuitEventWatchList(SDL_EventWatchList *list);
-extern bool SDL_DispatchEventWatchList(SDL_EventWatchList *list, SDL_Event *event);
-extern bool SDL_AddEventWatchList(SDL_EventWatchList *list, SDL_EventFilter filter, void *userdata);
-extern void SDL_RemoveEventWatchList(SDL_EventWatchList *list, SDL_EventFilter filter, void *userdata);
+extern bool SDL_InitEventWatchList(SDL_EventWatchList* list);
+extern void SDL_QuitEventWatchList(SDL_EventWatchList* list);
+extern bool SDL_DispatchEventWatchList(SDL_EventWatchList* list, SDL_Event* event);
+extern bool SDL_AddEventWatchList(SDL_EventWatchList* list, SDL_EventFilter filter, void* userdata);
+extern void SDL_RemoveEventWatchList(SDL_EventWatchList* list, SDL_EventFilter filter, void* userdata);

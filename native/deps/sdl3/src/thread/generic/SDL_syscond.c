@@ -41,45 +41,51 @@
 
 typedef struct SDL_cond_generic
 {
-    SDL_Semaphore *sem;
-    SDL_Semaphore *handshake_sem;
-    SDL_Semaphore *signal_sem;
+    SDL_Semaphore* sem;
+    SDL_Semaphore* handshake_sem;
+    SDL_Semaphore* signal_sem;
     int num_waiting;
     int num_signals;
 } SDL_cond_generic;
 
 // Create a condition variable
-SDL_Condition *SDL_CreateCondition_generic(void)
+SDL_Condition* SDL_CreateCondition_generic(void)
 {
-    SDL_cond_generic *cond = (SDL_cond_generic *)SDL_calloc(1, sizeof(*cond));
+    SDL_cond_generic* cond = (SDL_cond_generic*)SDL_calloc(1, sizeof(*cond));
 
 #ifndef SDL_THREADS_DISABLED
-    if (cond) {
+    if (cond)
+    {
         cond->sem = SDL_CreateSemaphore(0);
         cond->handshake_sem = SDL_CreateSemaphore(0);
         cond->signal_sem = SDL_CreateSemaphore(1);
-        if (!cond->sem || !cond->handshake_sem || !cond->signal_sem) {
-            SDL_DestroyCondition_generic((SDL_Condition *)cond);
+        if (!cond->sem || !cond->handshake_sem || !cond->signal_sem)
+        {
+            SDL_DestroyCondition_generic((SDL_Condition*)cond);
             cond = NULL;
         }
     }
 #endif
 
-    return (SDL_Condition *)cond;
+    return (SDL_Condition*)cond;
 }
 
 // Destroy a condition variable
-void SDL_DestroyCondition_generic(SDL_Condition *_cond)
+void SDL_DestroyCondition_generic(SDL_Condition* _cond)
 {
-    SDL_cond_generic *cond = (SDL_cond_generic *)_cond;
-    if (cond) {
-        if (cond->sem) {
+    SDL_cond_generic* cond = (SDL_cond_generic*)_cond;
+    if (cond)
+    {
+        if (cond->sem)
+        {
             SDL_DestroySemaphore(cond->sem);
         }
-        if (cond->handshake_sem) {
+        if (cond->handshake_sem)
+        {
             SDL_DestroySemaphore(cond->handshake_sem);
         }
-        if (cond->signal_sem) {
+        if (cond->signal_sem)
+        {
             SDL_DestroySemaphore(cond->signal_sem);
         }
         SDL_free(cond);
@@ -87,10 +93,11 @@ void SDL_DestroyCondition_generic(SDL_Condition *_cond)
 }
 
 // Restart one of the threads that are waiting on the condition variable
-void SDL_SignalCondition_generic(SDL_Condition *_cond)
+void SDL_SignalCondition_generic(SDL_Condition* _cond)
 {
-    SDL_cond_generic *cond = (SDL_cond_generic *)_cond;
-    if (!cond) {
+    SDL_cond_generic* cond = (SDL_cond_generic*)_cond;
+    if (!cond)
+    {
         return;
     }
 
@@ -99,22 +106,26 @@ void SDL_SignalCondition_generic(SDL_Condition *_cond)
        signal the condition and wait for the thread to respond.
      */
     SDL_WaitSemaphore(cond->signal_sem);
-    if (cond->num_waiting > cond->num_signals) {
+    if (cond->num_waiting > cond->num_signals)
+    {
         cond->num_signals++;
         SDL_SignalSemaphore(cond->sem);
         SDL_SignalSemaphore(cond->signal_sem);
         SDL_WaitSemaphore(cond->handshake_sem);
-    } else {
+    }
+    else
+    {
         SDL_SignalSemaphore(cond->signal_sem);
     }
 #endif
 }
 
 // Restart all threads that are waiting on the condition variable
-void SDL_BroadcastCondition_generic(SDL_Condition *_cond)
+void SDL_BroadcastCondition_generic(SDL_Condition* _cond)
 {
-    SDL_cond_generic *cond = (SDL_cond_generic *)_cond;
-    if (!cond) {
+    SDL_cond_generic* cond = (SDL_cond_generic*)_cond;
+    if (!cond)
+    {
         return;
     }
 
@@ -123,20 +134,25 @@ void SDL_BroadcastCondition_generic(SDL_Condition *_cond)
        signal the condition and wait for the thread to respond.
      */
     SDL_WaitSemaphore(cond->signal_sem);
-    if (cond->num_waiting > cond->num_signals) {
+    if (cond->num_waiting > cond->num_signals)
+    {
         const int num_waiting = (cond->num_waiting - cond->num_signals);
         cond->num_signals = cond->num_waiting;
-        for (int i = 0; i < num_waiting; i++) {
+        for (int i = 0; i < num_waiting; i++)
+        {
             SDL_SignalSemaphore(cond->sem);
         }
         /* Now all released threads are blocked here, waiting for us.
            Collect them all (and win fabulous prizes!) :-)
          */
         SDL_SignalSemaphore(cond->signal_sem);
-        for (int i = 0; i < num_waiting; i++) {
+        for (int i = 0; i < num_waiting; i++)
+        {
             SDL_WaitSemaphore(cond->handshake_sem);
         }
-    } else {
+    }
+    else
+    {
         SDL_SignalSemaphore(cond->signal_sem);
     }
 #endif
@@ -163,12 +179,13 @@ Thread B:
     SDL_SignalCondition(cond);
     SDL_UnlockMutex(lock);
  */
-bool SDL_WaitConditionTimeoutNS_generic(SDL_Condition *_cond, SDL_Mutex *mutex, Sint64 timeoutNS)
+bool SDL_WaitConditionTimeoutNS_generic(SDL_Condition* _cond, SDL_Mutex* mutex, Sint64 timeoutNS)
 {
-    SDL_cond_generic *cond = (SDL_cond_generic *)_cond;
+    SDL_cond_generic* cond = (SDL_cond_generic*)_cond;
     bool result = true;
 
-    if (!cond || !mutex) {
+    if (!cond || !mutex)
+    {
         return true;
     }
 
@@ -194,7 +211,8 @@ bool SDL_WaitConditionTimeoutNS_generic(SDL_Condition *_cond, SDL_Mutex *mutex, 
        http://web.archive.org/web/20010914175514/http://www-classic.be.com/aboutbe/benewsletter/volume_III/Issue40.html#Workshop
      */
     SDL_WaitSemaphore(cond->signal_sem);
-    if (cond->num_signals > 0) {
+    if (cond->num_signals > 0)
+    {
         SDL_SignalSemaphore(cond->handshake_sem);
         cond->num_signals--;
     }
@@ -209,7 +227,7 @@ bool SDL_WaitConditionTimeoutNS_generic(SDL_Condition *_cond, SDL_Mutex *mutex, 
 }
 
 #ifndef SDL_THREAD_GENERIC_COND_SUFFIX
-bool SDL_WaitConditionTimeoutNS(SDL_Condition *cond, SDL_Mutex *mutex, Sint64 timeoutNS)
+bool SDL_WaitConditionTimeoutNS(SDL_Condition* cond, SDL_Mutex* mutex, Sint64 timeoutNS)
 {
     return SDL_WaitConditionTimeoutNS_generic(cond, mutex, timeoutNS);
 }

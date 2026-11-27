@@ -30,12 +30,13 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 typedef struct JoyStick_DeviceData
 {
     SDL_GUID guid;
-    char *joystickname;
+    char* joystickname;
     Uint8 send_add_event;
     SDL_JoystickID nInstanceID;
 #ifdef SDL_JOYSTICK_XINPUT
@@ -46,10 +47,10 @@ typedef struct JoyStick_DeviceData
     DIDEVICEINSTANCE dxdevice;
     char path[MAX_PATH];
     int steam_virtual_gamepad_slot;
-    struct JoyStick_DeviceData *pNext;
+    struct JoyStick_DeviceData* pNext;
 } JoyStick_DeviceData;
 
-extern JoyStick_DeviceData *SYS_Joystick; // array to hold joystick ID values
+extern JoyStick_DeviceData* SYS_Joystick; // array to hold joystick ID values
 
 typedef enum Type
 {
@@ -84,14 +85,14 @@ struct joystick_hwdata
     int NumInputs;
     int NumSliders;
     bool ff_initialized;
-    DIEFFECT *ffeffect;
+    DIEFFECT* ffeffect;
     LPDIRECTINPUTEFFECT ffeffect_ref;
 #endif
 
 #ifdef SDL_JOYSTICK_XINPUT
     bool bXInputDevice; // true if this device supports using the xinput API rather than DirectInput
     bool bXInputHaptic; // Supports force feedback via XInput.
-    Uint8 userid;       // XInput userid index for this joystick
+    Uint8 userid; // XInput userid index for this joystick
     DWORD dwPacketNumber;
 #endif
 };
@@ -100,7 +101,7 @@ struct joystick_hwdata
 extern const DIDATAFORMAT SDL_c_dfDIJoystick2;
 #endif
 
-extern void WINDOWS_AddJoystickDevice(JoyStick_DeviceData *device);
+extern void WINDOWS_AddJoystickDevice(JoyStick_DeviceData* device);
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

@@ -28,18 +28,22 @@
 /* Win32-specific SDL_RunApp(), which does most of the SDL_main work,
   based on SDL_windows_main.c, placed in the public domain by Sam Lantinga  4/13/98 */
 
-int MINGW32_FORCEALIGN SDL_RunApp(int argc, char *argv[], SDL_main_func mainFunction, void *reserved)
+int MINGW32_FORCEALIGN SDL_RunApp(int argc, char* argv[], SDL_main_func mainFunction, void* reserved)
 {
     (void)reserved;
 
     int result = -1;
-    void *heap_allocated = NULL;
-    const char *args_error = WIN_CheckDefaultArgcArgv(&argc, &argv, &heap_allocated);
-    if (args_error) {
+    void* heap_allocated = NULL;
+    const char* args_error = WIN_CheckDefaultArgcArgv(&argc, &argv, &heap_allocated);
+    if (args_error)
+    {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fatal Error", args_error, NULL);
-    } else {
+    }
+    else
+    {
         result = SDL_CallMainFunction(argc, argv, mainFunction);
-        if (heap_allocated) {
+        if (heap_allocated)
+        {
             HeapFree(GetProcessHeap(), 0, heap_allocated);
         }
     }

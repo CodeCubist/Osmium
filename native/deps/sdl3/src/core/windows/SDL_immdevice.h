@@ -30,17 +30,19 @@ struct SDL_AudioDevice; // defined in src/audio/SDL_sysaudio.h
 
 typedef struct SDL_IMMDevice_callbacks
 {
-    void (*audio_device_disconnected)(struct SDL_AudioDevice *device);
-    void (*default_audio_device_changed)(struct SDL_AudioDevice *new_default_device);
+    void (*audio_device_disconnected)(struct SDL_AudioDevice* device);
+    void (*default_audio_device_changed)(struct SDL_AudioDevice* new_default_device);
 } SDL_IMMDevice_callbacks;
 
-bool SDL_IMMDevice_Init(const SDL_IMMDevice_callbacks *callbacks);
+bool SDL_IMMDevice_Init(const SDL_IMMDevice_callbacks* callbacks);
 void SDL_IMMDevice_Quit(void);
-bool SDL_IMMDevice_Get(struct SDL_AudioDevice *device, IMMDevice **immdevice, bool recording);
-bool SDL_IMMDevice_GetIsCapture(IMMDevice *device);
-void SDL_IMMDevice_EnumerateEndpoints(struct SDL_AudioDevice **default_playback, struct SDL_AudioDevice **default_recording, SDL_AudioFormat force_format, bool supports_recording_playback_devices);
-LPGUID SDL_IMMDevice_GetDirectSoundGUID(struct SDL_AudioDevice *device);
-LPCWSTR SDL_IMMDevice_GetDevID(struct SDL_AudioDevice *device);
-void SDL_IMMDevice_FreeDeviceHandle(struct SDL_AudioDevice *device);
+bool SDL_IMMDevice_Get(struct SDL_AudioDevice* device, IMMDevice** immdevice, bool recording);
+bool SDL_IMMDevice_GetIsCapture(IMMDevice* device);
+void SDL_IMMDevice_EnumerateEndpoints(struct SDL_AudioDevice** default_playback,
+                                      struct SDL_AudioDevice** default_recording, SDL_AudioFormat force_format,
+                                      bool supports_recording_playback_devices);
+LPGUID SDL_IMMDevice_GetDirectSoundGUID(struct SDL_AudioDevice* device);
+LPCWSTR SDL_IMMDevice_GetDevID(struct SDL_AudioDevice* device);
+void SDL_IMMDevice_FreeDeviceHandle(struct SDL_AudioDevice* device);
 
 #endif // SDL_IMMDEVICE_H

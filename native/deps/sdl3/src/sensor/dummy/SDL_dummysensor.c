@@ -39,7 +39,7 @@ static void SDL_DUMMY_SensorDetect(void)
 {
 }
 
-static const char *SDL_DUMMY_SensorGetDeviceName(int device_index)
+static const char* SDL_DUMMY_SensorGetDeviceName(int device_index)
 {
     return NULL;
 }
@@ -59,16 +59,16 @@ static SDL_SensorID SDL_DUMMY_SensorGetDeviceInstanceID(int device_index)
     return -1;
 }
 
-static bool SDL_DUMMY_SensorOpen(SDL_Sensor *sensor, int device_index)
+static bool SDL_DUMMY_SensorOpen(SDL_Sensor* sensor, int device_index)
 {
     return SDL_Unsupported();
 }
 
-static void SDL_DUMMY_SensorUpdate(SDL_Sensor *sensor)
+static void SDL_DUMMY_SensorUpdate(SDL_Sensor* sensor)
 {
 }
 
-static void SDL_DUMMY_SensorClose(SDL_Sensor *sensor)
+static void SDL_DUMMY_SensorClose(SDL_Sensor* sensor)
 {
 }
 

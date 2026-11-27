@@ -25,13 +25,13 @@
 
 #ifdef SDL_THREAD_GENERIC_RWLOCK_SUFFIX
 
-SDL_RWLock *SDL_CreateRWLock_generic(void);
-void SDL_DestroyRWLock_generic(SDL_RWLock *rwlock);
-void SDL_LockRWLockForReading_generic(SDL_RWLock *rwlock);
-void SDL_LockRWLockForWriting_generic(SDL_RWLock *rwlock);
-bool SDL_TryLockRWLockForReading_generic(SDL_RWLock *rwlock);
-bool SDL_TryLockRWLockForWriting_generic(SDL_RWLock *rwlock);
-void SDL_UnlockRWLock_generic(SDL_RWLock *rwlock);
+SDL_RWLock* SDL_CreateRWLock_generic(void);
+void SDL_DestroyRWLock_generic(SDL_RWLock* rwlock);
+void SDL_LockRWLockForReading_generic(SDL_RWLock* rwlock);
+void SDL_LockRWLockForWriting_generic(SDL_RWLock* rwlock);
+bool SDL_TryLockRWLockForReading_generic(SDL_RWLock* rwlock);
+bool SDL_TryLockRWLockForWriting_generic(SDL_RWLock* rwlock);
+void SDL_UnlockRWLock_generic(SDL_RWLock* rwlock);
 
 #endif // SDL_THREAD_GENERIC_RWLOCK_SUFFIX
 

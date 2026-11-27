@@ -194,12 +194,8 @@ namespace
         uint64_t lastRxMs = lastStatsMs;
         ctx->lastRenderedMs.store(lastStatsMs, std::memory_order_relaxed);
         std::vector<uint8_t> plain;
-
-        // Immediately request an IDR keyframe so first frame arrives fast
-        {
-            osmium::proto::AppPacketHeader idrReq{};
-            ctx->transport->SendEncrypted(osmium::proto::AppPacketType::VideoIdrRequest, &idrReq, sizeof(idrReq));
-        }
+        
+        ctx->RequestIdr(0, false);
 
         while (!ctx->stopFlag.load(std::memory_order_acquire))
         {
@@ -484,7 +480,11 @@ namespace
                     continue;
                 }
 
-                if (gateWaiting || !ctx->firstFrameRendered.load(std::memory_order_relaxed))
+                if (!ctx->firstFrameRendered.load(std::memory_order_relaxed))
+                {
+                    ctx->RequestIdr(120, false);
+                }
+                else if (gateWaiting)
                 {
                     ctx->RequestIdr(350);
                 }

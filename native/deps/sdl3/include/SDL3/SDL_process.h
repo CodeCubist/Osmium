@@ -53,6 +53,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -104,7 +105,7 @@ typedef struct SDL_Process SDL_Process;
  * \sa SDL_WaitProcess
  * \sa SDL_DestroyProcess
  */
-extern SDL_DECLSPEC SDL_Process * SDLCALL SDL_CreateProcess(const char *const *args, bool pipe_stdio);
+extern SDL_DECLSPEC SDL_Process* SDLCALL SDL_CreateProcess(const char* const * args, bool pipe_stdio);
 
 /**
  * Description of where standard I/O should be directed when creating a
@@ -151,9 +152,10 @@ extern SDL_DECLSPEC SDL_Process * SDLCALL SDL_CreateProcess(const char *const *a
 typedef enum SDL_ProcessIO
 {
     SDL_PROCESS_STDIO_INHERITED, /**< The I/O stream is inherited from the application. */
-    SDL_PROCESS_STDIO_NULL,      /**< The I/O stream is ignored. */
-    SDL_PROCESS_STDIO_APP,       /**< The I/O stream is connected to a new SDL_IOStream that the application can read or write */
-    SDL_PROCESS_STDIO_REDIRECT   /**< The I/O stream is redirected to an existing SDL_IOStream. */
+    SDL_PROCESS_STDIO_NULL, /**< The I/O stream is ignored. */
+    SDL_PROCESS_STDIO_APP,
+    /**< The I/O stream is connected to a new SDL_IOStream that the application can read or write */
+    SDL_PROCESS_STDIO_REDIRECT /**< The I/O stream is redirected to an existing SDL_IOStream. */
 } SDL_ProcessIO;
 
 /**
@@ -225,7 +227,7 @@ typedef enum SDL_ProcessIO
  * \sa SDL_WaitProcess
  * \sa SDL_DestroyProcess
  */
-extern SDL_DECLSPEC SDL_Process * SDLCALL SDL_CreateProcessWithProperties(SDL_PropertiesID props);
+extern SDL_DECLSPEC SDL_Process* SDLCALL SDL_CreateProcessWithProperties(SDL_PropertiesID props);
 
 #define SDL_PROP_PROCESS_CREATE_ARGS_POINTER                "SDL.process.create.args"
 #define SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER         "SDL.process.create.environment"
@@ -269,7 +271,7 @@ extern SDL_DECLSPEC SDL_Process * SDLCALL SDL_CreateProcessWithProperties(SDL_Pr
  * \sa SDL_CreateProcess
  * \sa SDL_CreateProcessWithProperties
  */
-extern SDL_DECLSPEC SDL_PropertiesID SDLCALL SDL_GetProcessProperties(SDL_Process *process);
+extern SDL_DECLSPEC SDL_PropertiesID SDLCALL SDL_GetProcessProperties(SDL_Process* process);
 
 #define SDL_PROP_PROCESS_PID_NUMBER         "SDL.process.pid"
 #define SDL_PROP_PROCESS_STDIN_POINTER      "SDL.process.stdin"
@@ -306,7 +308,7 @@ extern SDL_DECLSPEC SDL_PropertiesID SDLCALL SDL_GetProcessProperties(SDL_Proces
  * \sa SDL_CreateProcessWithProperties
  * \sa SDL_DestroyProcess
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_ReadProcess(SDL_Process *process, size_t *datasize, int *exitcode);
+extern SDL_DECLSPEC void* SDLCALL SDL_ReadProcess(SDL_Process* process, size_t* datasize, int* exitcode);
 
 /**
  * Get the SDL_IOStream associated with process standard input.
@@ -332,7 +334,7 @@ extern SDL_DECLSPEC void * SDLCALL SDL_ReadProcess(SDL_Process *process, size_t 
  * \sa SDL_CreateProcessWithProperties
  * \sa SDL_GetProcessOutput
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_GetProcessInput(SDL_Process *process);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_GetProcessInput(SDL_Process* process);
 
 /**
  * Get the SDL_IOStream associated with process standard output.
@@ -356,7 +358,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_GetProcessInput(SDL_Process *proc
  * \sa SDL_CreateProcessWithProperties
  * \sa SDL_GetProcessInput
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_GetProcessOutput(SDL_Process *process);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_GetProcessOutput(SDL_Process* process);
 
 /**
  * Stop a process.
@@ -379,7 +381,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_GetProcessOutput(SDL_Process *pro
  * \sa SDL_WaitProcess
  * \sa SDL_DestroyProcess
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_KillProcess(SDL_Process *process, bool force);
+extern SDL_DECLSPEC bool SDLCALL SDL_KillProcess(SDL_Process* process, bool force);
 
 /**
  * Wait for a process to finish.
@@ -412,7 +414,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_KillProcess(SDL_Process *process, bool forc
  * \sa SDL_KillProcess
  * \sa SDL_DestroyProcess
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WaitProcess(SDL_Process *process, bool block, int *exitcode);
+extern SDL_DECLSPEC bool SDLCALL SDL_WaitProcess(SDL_Process* process, bool block, int* exitcode);
 
 /**
  * Destroy a previously created process object.
@@ -431,7 +433,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WaitProcess(SDL_Process *process, bool bloc
  * \sa SDL_CreateProcessWithProperties
  * \sa SDL_KillProcess
  */
-extern SDL_DECLSPEC void SDLCALL SDL_DestroyProcess(SDL_Process *process);
+extern SDL_DECLSPEC void SDLCALL SDL_DestroyProcess(SDL_Process* process);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

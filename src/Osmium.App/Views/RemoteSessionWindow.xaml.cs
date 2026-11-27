@@ -267,7 +267,8 @@ public sealed partial class RemoteSessionWindow : Window
             OsmiumSettings.MinStreamFps, OsmiumSettings.MaxStreamFps);
         RefreshTargetMouseSamplingHz();
         _maxBitrateKbps = s.UnlockBitrate ? 500000 : 150000;
-        _manualBitrateKbps = Math.Clamp(launchArgs.InitialConfig.BitrateKbps > 0 ? launchArgs.InitialConfig.BitrateKbps : 20000,
+        _manualBitrateKbps = Math.Clamp(
+            launchArgs.InitialConfig.BitrateKbps > 0 ? launchArgs.InitialConfig.BitrateKbps : 20000,
             500, GetSessionBitrateLimitKbps());
         _requestedBitrateKbps = _manualBitrateKbps;
         _autoAdjustBitrate = s.AutoAdjustBitrate;
@@ -665,8 +666,10 @@ public sealed partial class RemoteSessionWindow : Window
                 if (_lastStatsSampleTime != 0 && sampleTime > _lastStatsSampleTime)
                 {
                     uint received = unchecked(copy.ReceivedFrames - _latestStats.ReceivedFrames);
-                    _receivedVideoFps = received / Stopwatch.GetElapsedTime(_lastStatsSampleTime, sampleTime).TotalSeconds;
+                    _receivedVideoFps =
+                        received / Stopwatch.GetElapsedTime(_lastStatsSampleTime, sampleTime).TotalSeconds;
                 }
+
                 _lastStatsSampleTime = sampleTime;
                 _latestStats = copy;
                 if (copy.VideoWidth > 0 && copy.VideoHeight > 0)
@@ -801,8 +804,10 @@ public sealed partial class RemoteSessionWindow : Window
                 if (_targetCustomWidth <= 0 && _targetCustomHeight <= 0 &&
                     _targetScalePercent > 0 && _targetScalePercent < 100)
                 {
-                    _targetCustomWidth = Math.Max(320, ((int)Math.Round(dto.NativeWidth * _targetScalePercent / 100.0)) & ~1);
-                    _targetCustomHeight = Math.Max(180, ((int)Math.Round(dto.NativeHeight * _targetScalePercent / 100.0)) & ~1);
+                    _targetCustomWidth = Math.Max(320,
+                        ((int)Math.Round(dto.NativeWidth * _targetScalePercent / 100.0)) & ~1);
+                    _targetCustomHeight = Math.Max(180,
+                        ((int)Math.Round(dto.NativeHeight * _targetScalePercent / 100.0)) & ~1);
                     SendUpdatedVideoParams();
                 }
 

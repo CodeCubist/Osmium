@@ -24,13 +24,13 @@
 
 typedef struct SDL_ListNode
 {
-    void *entry;
-    struct SDL_ListNode *next;
+    void* entry;
+    struct SDL_ListNode* next;
 } SDL_ListNode;
 
-bool SDL_ListAdd(SDL_ListNode **head, void *ent);
-void SDL_ListPop(SDL_ListNode **head, void **ent);
-void SDL_ListRemove(SDL_ListNode **head, void *ent);
-void SDL_ListClear(SDL_ListNode **head);
+bool SDL_ListAdd(SDL_ListNode** head, void* ent);
+void SDL_ListPop(SDL_ListNode** head, void** ent);
+void SDL_ListRemove(SDL_ListNode** head, void* ent);
+void SDL_ListClear(SDL_ListNode** head);
 
 #endif // SDL_list_h_

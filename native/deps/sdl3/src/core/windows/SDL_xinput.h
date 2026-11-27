@@ -164,6 +164,7 @@ using namespace XInputOnGameInput;
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 // typedef's for XInput structs we use
@@ -225,33 +226,33 @@ typedef struct
 
 // Forward decl's for XInput API's we load dynamically and use if available
 typedef DWORD (WINAPI *XInputGetState_t)(
-    DWORD dwUserIndex,   // [in] Index of the gamer associated with the device
-    XINPUT_STATE *pState // [out] Receives the current state
-    );
+    DWORD dwUserIndex, // [in] Index of the gamer associated with the device
+    XINPUT_STATE* pState // [out] Receives the current state
+);
 
 typedef DWORD (WINAPI *XInputSetState_t)(
-    DWORD dwUserIndex,           // [in] Index of the gamer associated with the device
-    XINPUT_VIBRATION *pVibration // [in, out] The vibration information to send to the controller
-    );
+    DWORD dwUserIndex, // [in] Index of the gamer associated with the device
+    XINPUT_VIBRATION* pVibration // [in, out] The vibration information to send to the controller
+);
 
 typedef DWORD (WINAPI *XInputGetCapabilities_t)(
-    DWORD dwUserIndex,                 // [in] Index of the gamer associated with the device
-    DWORD dwFlags,                     // [in] Input flags that identify the device type
-    XINPUT_CAPABILITIES *pCapabilities // [out] Receives the capabilities
-    );
+    DWORD dwUserIndex, // [in] Index of the gamer associated with the device
+    DWORD dwFlags, // [in] Input flags that identify the device type
+    XINPUT_CAPABILITIES* pCapabilities // [out] Receives the capabilities
+);
 
 // Only available in XInput 1.4 that is shipped with Windows 8 and newer.
 typedef DWORD (WINAPI *XInputGetCapabilitiesEx_t)(
-    DWORD dwReserved,                           // [in] Must be 1
-    DWORD dwUserIndex,                          // [in] Index of the gamer associated with the device
-    DWORD dwFlags,                              // [in] Input flags that identify the device type
-    SDL_XINPUT_CAPABILITIES_EX *pCapabilitiesEx // [out] Receives the capabilities
-    );
+    DWORD dwReserved, // [in] Must be 1
+    DWORD dwUserIndex, // [in] Index of the gamer associated with the device
+    DWORD dwFlags, // [in] Input flags that identify the device type
+    SDL_XINPUT_CAPABILITIES_EX* pCapabilitiesEx // [out] Receives the capabilities
+);
 
 typedef DWORD (WINAPI *XInputGetBatteryInformation_t)(
     DWORD dwUserIndex,
     BYTE devType,
-    XINPUT_BATTERY_INFORMATION_EX *pBatteryInformation);
+    XINPUT_BATTERY_INFORMATION_EX* pBatteryInformation);
 
 extern bool WIN_LoadXInputDLL(void);
 extern void WIN_UnloadXInputDLL(void);

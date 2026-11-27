@@ -27,6 +27,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 typedef enum
@@ -37,10 +38,10 @@ typedef enum
 
 extern void SDL_InitWindowEventWatch(void);
 extern void SDL_QuitWindowEventWatch(void);
-extern void SDL_AddWindowEventWatch(SDL_WindowEventWatchPriority priority, SDL_EventFilter filter, void *userdata);
-extern void SDL_RemoveWindowEventWatch(SDL_WindowEventWatchPriority priority, SDL_EventFilter filter, void *userdata);
+extern void SDL_AddWindowEventWatch(SDL_WindowEventWatchPriority priority, SDL_EventFilter filter, void* userdata);
+extern void SDL_RemoveWindowEventWatch(SDL_WindowEventWatchPriority priority, SDL_EventFilter filter, void* userdata);
 
-extern bool SDL_SendWindowEvent(SDL_Window *window, SDL_EventType windowevent, int data1, int data2);
+extern bool SDL_SendWindowEvent(SDL_Window* window, SDL_EventType windowevent, int data1, int data2);
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

@@ -441,13 +441,13 @@ DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
 #endif // NTDDI_VERSION < 0x0A000006
 
 typedef BOOL (*PFNSHFullScreen)(HWND, DWORD);
-typedef void (*PFCoordTransform)(SDL_Window *, POINT *);
+typedef void (*PFCoordTransform)(SDL_Window*, POINT*);
 
 typedef struct
 {
-    void **lpVtbl;
+    void** lpVtbl;
     int refcount;
-    void *data;
+    void* data;
 } TSFSink;
 
 #ifndef SDL_DISABLE_WINDOWS_IME
@@ -534,7 +534,7 @@ struct SDL_VideoData
     DWORD clipboard_count;
 
 #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) // Xbox doesn't support user32/shcore
-    SDL_SharedObject *userDLL;
+    SDL_SharedObject* userDLL;
 
     // DisplayConfig functions
     /* *INDENT-OFF* */ // clang-format off
@@ -551,7 +551,7 @@ struct SDL_VideoData
     /* *INDENT-ON* */ // clang-format on
 
     // DWM functions
-    SDL_SharedObject *dwmapiDLL;
+    SDL_SharedObject* dwmapiDLL;
     /* *INDENT-OFF* */ // clang-format off
     HRESULT (WINAPI *DwmFlush)(void);
     HRESULT (WINAPI *DwmEnableBlurBehindWindow)(HWND hwnd, const DWM_BLURBEHIND *pBlurBehind);
@@ -566,7 +566,7 @@ struct SDL_VideoData
     /* *INDENT-ON* */ // clang-format on
 
     // DPI functions
-    SDL_SharedObject *shcoreDLL;
+    SDL_SharedObject* shcoreDLL;
     /* *INDENT-OFF* */ // clang-format off
     BOOL (WINAPI *SetProcessDPIAware)( void );
     BOOL (WINAPI *SetProcessDpiAwarenessContext)( DPI_AWARENESS_CONTEXT );
@@ -587,8 +587,8 @@ struct SDL_VideoData
 #endif                // !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
 
 #ifdef HAVE_DXGI_H
-    SDL_SharedObject *dxgiDLL;
-    IDXGIFactory *pDXGIFactory;
+    SDL_SharedObject* dxgiDLL;
+    IDXGIFactory* pDXGIFactory;
 #endif
 
     bool cleared;
@@ -596,7 +596,7 @@ struct SDL_VideoData
 
     bool detect_device_hotplug;
 
-    BYTE *rawinput;
+    BYTE* rawinput;
     UINT rawinput_offset;
     UINT rawinput_size;
     UINT rawinput_count;
@@ -610,7 +610,7 @@ struct SDL_VideoData
     Uint32 raw_input_enabled;
     SDL_PenID raw_input_fake_pen_id;
 
-    WIN_GameInputData *gameinput_context;
+    WIN_GameInputData* gameinput_context;
 
 #ifndef SDL_DISABLE_WINDOWS_IME
     bool ime_initialized;
@@ -623,7 +623,7 @@ struct SDL_VideoData
     bool ime_needs_clear_composition;
     HIMC ime_himc;
 
-    WCHAR *ime_composition;
+    WCHAR* ime_composition;
     int ime_composition_length;
     WCHAR ime_readingstring[16];
     int ime_cursor;
@@ -632,7 +632,7 @@ struct SDL_VideoData
 
     bool ime_candidates_open;
     bool ime_update_candidates;
-    char *ime_candidates[MAX_CANDLIST];
+    char* ime_candidates[MAX_CANDLIST];
     int ime_candcount;
     DWORD ime_candref;
     DWORD ime_candsel;
@@ -647,7 +647,7 @@ struct SDL_VideoData
 
 #ifndef SDL_DISABLE_WINDOWS_IME
     HKL ime_hkl;
-    SDL_SharedObject *ime_himm32;
+    SDL_SharedObject* ime_himm32;
     /* *INDENT-OFF* */ // clang-format off
     UINT (WINAPI *GetReadingString)(HIMC himc, UINT uReadingBufLen, LPWSTR lpwReadingBuf, PINT pnErrorIndex, BOOL *pfIsVertical, PUINT puMaxReadingLen);
     BOOL (WINAPI *ShowReadingWindow)(HIMC himc, BOOL bShow);
@@ -664,7 +664,7 @@ struct SDL_VideoData
 
 #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
     UINT WM_TASKBAR_BUTTON_CREATED;
-    ITaskbarList3 *taskbar_list;
+    ITaskbarList3* taskbar_list;
 #endif
 };
 
@@ -673,9 +673,9 @@ extern bool g_WindowsEnableMenuMnemonics;
 extern bool g_WindowFrameUsableWhileCursorHidden;
 
 typedef struct IDirect3D9 IDirect3D9;
-extern bool D3D_LoadDLL(void **pD3DDLL, IDirect3D9 **pDirect3D9Interface);
+extern bool D3D_LoadDLL(void** pD3DDLL, IDirect3D9** pDirect3D9Interface);
 
 extern SDL_SystemTheme WIN_GetSystemTheme(void);
-extern bool WIN_IsPerMonitorV2DPIAware(SDL_VideoDevice *_this);
+extern bool WIN_IsPerMonitorV2DPIAware(SDL_VideoDevice* _this);
 
 #endif // SDL_windowsvideo_h_

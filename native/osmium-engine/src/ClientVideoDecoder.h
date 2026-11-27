@@ -78,7 +78,8 @@ namespace osmium
         bool InitQuadRenderer();
         bool EnsureDecoder(proto::VideoCodecId codecId, int width, int height, uint8_t colorFlags, bool isKeyFrame);
         bool PresentD3D11Frame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats, bool forceImmediatePresent);
-        bool PresentSoftwareFrame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats, bool forceImmediatePresent);
+        bool PresentSoftwareFrame(AVFrame* frame, bool srcHdr, const OsmiumClientStats& stats,
+                                  bool forceImmediatePresent);
         bool RenderHwSurfaceLocked(ID3D11Texture2D* srcTex, UINT subresource, int frameW, int frameH, bool srcHdr,
                                    UINT syncInterval, const OsmiumClientStats* stats);
         bool RenderBgraQuadLocked(int fw, int fh, bool srcHdr, UINT syncInterval, const OsmiumClientStats* stats);

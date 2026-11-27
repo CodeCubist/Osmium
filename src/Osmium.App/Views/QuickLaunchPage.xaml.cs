@@ -116,9 +116,14 @@ public sealed partial class QuickLaunchPage : Page
         if (!_isRefreshingAll) _ = LoadAppsAsync();
     });
 
-    private void OnHostSessionChanged(Osmium.Core.Network.HostSessionActiveInfo _) => DispatcherQueue.TryEnqueue(SyncLocalHostToggle);
+    private void OnHostSessionChanged(Osmium.Core.Network.HostSessionActiveInfo _) =>
+        DispatcherQueue.TryEnqueue(SyncLocalHostToggle);
+
     private void OnHostSessionEnded(string _) => DispatcherQueue.TryEnqueue(SyncLocalHostToggle);
-    private void OnClientStageUpdated(string stage) => DispatcherQueue.TryEnqueue(() => _activeStageSink?.Invoke(stage));
+
+    private void OnClientStageUpdated(string stage) =>
+        DispatcherQueue.TryEnqueue(() => _activeStageSink?.Invoke(stage));
+
     private void OnClientStreamStarted() => DispatcherQueue.TryEnqueue(() => _activeStreamStartedSink?.Invoke());
 
     private void ApplyLocalization()
@@ -330,7 +335,8 @@ public sealed partial class QuickLaunchPage : Page
         return !string.IsNullOrWhiteSpace(fallback) ? fallback : DeviceIdentity.FormatDeviceId(norm);
     }
 
-    private (bool IsLocal, bool IsCached, bool IsOnline, bool AllowQuickLaunch, bool AllowRemote, bool IsBusy) GetLiveDeviceStatus(QuickLaunchAppDto app)
+    private (bool IsLocal, bool IsCached, bool IsOnline, bool AllowQuickLaunch, bool AllowRemote, bool IsBusy)
+        GetLiveDeviceStatus(QuickLaunchAppDto app)
     {
         string norm = DeviceIdentity.NormalizeDeviceId(app.DeviceId);
         string localId = DeviceIdentity.NormalizeDeviceId(App.Engine.SettingsService.Identity.DeviceId);
@@ -359,7 +365,8 @@ public sealed partial class QuickLaunchPage : Page
 
         bool hasDevicesSnapshot = App.Engine.AccountService.SameAccountDevices.Count > 0;
         bool isCached = !hasDevicesSnapshot && app.DeviceCached;
-        return (false, isCached, isCached && app.DeviceOnline, isCached && app.AllowQuickLaunch, isCached && app.AllowRemote, false);
+        return (false, isCached, isCached && app.DeviceOnline, isCached && app.AllowQuickLaunch,
+            isCached && app.AllowRemote, false);
     }
 
     private void RenderLauncherGrid()
@@ -386,7 +393,8 @@ public sealed partial class QuickLaunchPage : Page
 
         var filtered = _selectedDeviceFilter == "ALL"
             ? _apps
-            : _apps.Where(a => string.Equals(DeviceIdentity.NormalizeDeviceId(a.DeviceId), _selectedDeviceFilter, StringComparison.Ordinal)).ToList();
+            : _apps.Where(a => string.Equals(DeviceIdentity.NormalizeDeviceId(a.DeviceId), _selectedDeviceFilter,
+                StringComparison.Ordinal)).ToList();
 
         AppsGridView.Items.Clear();
         if (filtered.Count == 0)
@@ -410,7 +418,8 @@ public sealed partial class QuickLaunchPage : Page
     {
         var status = GetLiveDeviceStatus(app);
         bool isCacheLost = !status.IsOnline && !status.IsCached;
-        bool ready = status.IsOnline && status.AllowQuickLaunch && (status.IsLocal || (status.AllowRemote && !status.IsBusy));
+        bool ready = status.IsOnline && status.AllowQuickLaunch &&
+                     (status.IsLocal || (status.AllowRemote && !status.IsBusy));
         string deviceLabel = status.IsLocal
             ? LocalizationService.GetString("QL_ThisPcTag")
             : ResolveDeviceDisplayName(app.DeviceId, app.DeviceName);
@@ -715,6 +724,7 @@ public sealed partial class QuickLaunchPage : Page
                         FormatQuickLaunchError(OsmiumErrorCode.QuickLaunchNotFound, err));
                 }
             }
+
             return;
         }
 
@@ -865,7 +875,8 @@ public sealed partial class QuickLaunchPage : Page
                     }
                 });
 
-                return await App.Engine.Coordinator.ConnectToSameAccountDeviceAsync(targetId, viewOnly: false, cts.Token);
+                return await App.Engine.Coordinator.ConnectToSameAccountDeviceAsync(targetId, viewOnly: false,
+                    cts.Token);
             }
 
             var workTask = RunFullLaunchAsync();
@@ -898,7 +909,8 @@ public sealed partial class QuickLaunchPage : Page
                 try
                 {
                     var (ok, msg) = await workTask;
-                    if (!ok && !userCanceled) await ShowMessageDialogAsync(LocalizationService.GetString("Assist_ErrorTitle"), msg);
+                    if (!ok && !userCanceled)
+                        await ShowMessageDialogAsync(LocalizationService.GetString("Assist_ErrorTitle"), msg);
                 }
                 catch (OperationCanceledException)
                 {

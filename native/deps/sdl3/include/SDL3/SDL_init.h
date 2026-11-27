@@ -58,6 +58,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /* As of version 0.5, SDL is loaded dynamically into the application */
@@ -80,6 +81,7 @@ typedef Uint32 SDL_InitFlags;
 
 #define SDL_INIT_AUDIO      0x00000010u /**< `SDL_INIT_AUDIO` implies `SDL_INIT_EVENTS` */
 #define SDL_INIT_VIDEO      0x00000020u /**< `SDL_INIT_VIDEO` implies `SDL_INIT_EVENTS`, should be initialized on the main thread */
+
 #define SDL_INIT_JOYSTICK   0x00000200u /**< `SDL_INIT_JOYSTICK` implies `SDL_INIT_EVENTS` */
 #define SDL_INIT_HAPTIC     0x00001000u
 #define SDL_INIT_GAMEPAD    0x00002000u /**< `SDL_INIT_GAMEPAD` implies `SDL_INIT_JOYSTICK` */
@@ -110,8 +112,8 @@ typedef Uint32 SDL_InitFlags;
 typedef enum SDL_AppResult
 {
     SDL_APP_CONTINUE, /**< Value that requests that the app continue from the main callbacks. */
-    SDL_APP_SUCCESS,  /**< Value that requests termination with success from the main callbacks. */
-    SDL_APP_FAILURE   /**< Value that requests termination with error from the main callbacks. */
+    SDL_APP_SUCCESS, /**< Value that requests termination with success from the main callbacks. */
+    SDL_APP_FAILURE /**< Value that requests termination with error from the main callbacks. */
 } SDL_AppResult;
 
 /**
@@ -131,7 +133,7 @@ typedef enum SDL_AppResult
  *
  * \since This datatype is available since SDL 3.2.0.
  */
-typedef SDL_AppResult (SDLCALL *SDL_AppInit_func)(void **appstate, int argc, char *argv[]);
+typedef SDL_AppResult (SDLCALL *SDL_AppInit_func)(void** appstate, int argc, char* argv[]);
 
 /**
  * Function pointer typedef for SDL_AppIterate.
@@ -146,7 +148,7 @@ typedef SDL_AppResult (SDLCALL *SDL_AppInit_func)(void **appstate, int argc, cha
  *
  * \since This datatype is available since SDL 3.2.0.
  */
-typedef SDL_AppResult (SDLCALL *SDL_AppIterate_func)(void *appstate);
+typedef SDL_AppResult (SDLCALL *SDL_AppIterate_func)(void* appstate);
 
 /**
  * Function pointer typedef for SDL_AppEvent.
@@ -162,7 +164,7 @@ typedef SDL_AppResult (SDLCALL *SDL_AppIterate_func)(void *appstate);
  *
  * \since This datatype is available since SDL 3.2.0.
  */
-typedef SDL_AppResult (SDLCALL *SDL_AppEvent_func)(void *appstate, SDL_Event *event);
+typedef SDL_AppResult (SDLCALL *SDL_AppEvent_func)(void* appstate, SDL_Event* event);
 
 /**
  * Function pointer typedef for SDL_AppQuit.
@@ -176,7 +178,7 @@ typedef SDL_AppResult (SDLCALL *SDL_AppEvent_func)(void *appstate, SDL_Event *ev
  *
  * \since This datatype is available since SDL 3.2.0.
  */
-typedef void (SDLCALL *SDL_AppQuit_func)(void *appstate, SDL_AppResult result);
+typedef void (SDLCALL *SDL_AppQuit_func)(void* appstate, SDL_AppResult result);
 
 
 /**
@@ -339,7 +341,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_IsMainThread(void);
  *
  * \sa SDL_RunOnMainThread
  */
-typedef void (SDLCALL *SDL_MainThreadCallback)(void *userdata);
+typedef void (SDLCALL *SDL_MainThreadCallback)(void* userdata);
 
 /**
  * Call a function on the main thread during event processing.
@@ -365,7 +367,8 @@ typedef void (SDLCALL *SDL_MainThreadCallback)(void *userdata);
  *
  * \sa SDL_IsMainThread
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_RunOnMainThread(SDL_MainThreadCallback callback, void *userdata, bool wait_complete);
+extern SDL_DECLSPEC bool SDLCALL SDL_RunOnMainThread(SDL_MainThreadCallback callback, void* userdata,
+                                                     bool wait_complete);
 
 /**
  * Specify basic metadata about your app.
@@ -403,7 +406,8 @@ extern SDL_DECLSPEC bool SDLCALL SDL_RunOnMainThread(SDL_MainThreadCallback call
  *
  * \sa SDL_SetAppMetadataProperty
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadata(const char *appname, const char *appversion, const char *appidentifier);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadata(const char* appname, const char* appversion,
+                                                    const char* appidentifier);
 
 /**
  * Specify metadata about your app through a set of properties.
@@ -467,7 +471,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadata(const char *appname, const c
  * \sa SDL_GetAppMetadataProperty
  * \sa SDL_SetAppMetadata
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadataProperty(const char *name, const char *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadataProperty(const char* name, const char* value);
 
 #define SDL_PROP_APP_METADATA_NAME_STRING         "SDL.app.metadata.name"
 #define SDL_PROP_APP_METADATA_VERSION_STRING      "SDL.app.metadata.version"
@@ -498,7 +502,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadataProperty(const char *name, co
  * \sa SDL_SetAppMetadata
  * \sa SDL_SetAppMetadataProperty
  */
-extern SDL_DECLSPEC const char * SDLCALL SDL_GetAppMetadataProperty(const char *name);
+extern SDL_DECLSPEC const char* SDLCALL SDL_GetAppMetadataProperty(const char* name);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

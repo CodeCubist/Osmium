@@ -59,6 +59,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -98,7 +99,7 @@ typedef int SDL_SpinLock;
  * \sa SDL_LockSpinlock
  * \sa SDL_UnlockSpinlock
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_TryLockSpinlock(SDL_SpinLock *lock);
+extern SDL_DECLSPEC bool SDLCALL SDL_TryLockSpinlock(SDL_SpinLock* lock);
 
 /**
  * Lock a spin lock by setting it to a non-zero value.
@@ -115,7 +116,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_TryLockSpinlock(SDL_SpinLock *lock);
  * \sa SDL_TryLockSpinlock
  * \sa SDL_UnlockSpinlock
  */
-extern SDL_DECLSPEC void SDLCALL SDL_LockSpinlock(SDL_SpinLock *lock);
+extern SDL_DECLSPEC void SDLCALL SDL_LockSpinlock(SDL_SpinLock* lock);
 
 /**
  * Unlock a spin lock by setting it to 0.
@@ -134,7 +135,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_LockSpinlock(SDL_SpinLock *lock);
  * \sa SDL_LockSpinlock
  * \sa SDL_TryLockSpinlock
  */
-extern SDL_DECLSPEC void SDLCALL SDL_UnlockSpinlock(SDL_SpinLock *lock);
+extern SDL_DECLSPEC void SDLCALL SDL_UnlockSpinlock(SDL_SpinLock* lock);
 
 
 #ifdef SDL_WIKI_DOCUMENTATION_SECTION
@@ -358,6 +359,7 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
 
 #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__)) && !defined(__arm64ec__)
 #define SDL_CPUPauseInstruction() __asm__ __volatile__("pause\n")  /* Some assemblers can't do REP NOP, so go with PAUSE. */
+
 #elif (defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7) || defined(__aarch64__)
 #define SDL_CPUPauseInstruction() __asm__ __volatile__("yield" ::: "memory")
 #elif (defined(__powerpc__) || defined(__powerpc64__))
@@ -366,6 +368,7 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
 #define SDL_CPUPauseInstruction() __asm__ __volatile__(".insn i 0x0F, 0, x0, x0, 0x010");
 #elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
 #define SDL_CPUPauseInstruction() _mm_pause()  /* this is actually "rep nop" and not a SIMD instruction. No inline asm in MSVC x86-64! */
+
 #elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
 #define SDL_CPUPauseInstruction() __yield()
 #elif defined(__WATCOMC__) && defined(__386__)
@@ -426,7 +429,7 @@ typedef struct SDL_AtomicInt
  * \sa SDL_GetAtomicInt
  * \sa SDL_SetAtomicInt
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicInt(SDL_AtomicInt *a, int oldval, int newval);
+extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicInt(SDL_AtomicInt* a, int oldval, int newval);
 
 /**
  * Set an atomic variable to a value.
@@ -446,7 +449,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicInt(SDL_AtomicInt *a, i
  *
  * \sa SDL_GetAtomicInt
  */
-extern SDL_DECLSPEC int SDLCALL SDL_SetAtomicInt(SDL_AtomicInt *a, int v);
+extern SDL_DECLSPEC int SDLCALL SDL_SetAtomicInt(SDL_AtomicInt* a, int v);
 
 /**
  * Get the value of an atomic variable.
@@ -463,7 +466,7 @@ extern SDL_DECLSPEC int SDLCALL SDL_SetAtomicInt(SDL_AtomicInt *a, int v);
  *
  * \sa SDL_SetAtomicInt
  */
-extern SDL_DECLSPEC int SDLCALL SDL_GetAtomicInt(SDL_AtomicInt *a);
+extern SDL_DECLSPEC int SDLCALL SDL_GetAtomicInt(SDL_AtomicInt* a);
 
 /**
  * Add to an atomic variable.
@@ -484,7 +487,7 @@ extern SDL_DECLSPEC int SDLCALL SDL_GetAtomicInt(SDL_AtomicInt *a);
  * \sa SDL_AtomicDecRef
  * \sa SDL_AtomicIncRef
  */
-extern SDL_DECLSPEC int SDLCALL SDL_AddAtomicInt(SDL_AtomicInt *a, int v);
+extern SDL_DECLSPEC int SDLCALL SDL_AddAtomicInt(SDL_AtomicInt* a, int v);
 
 #ifndef SDL_AtomicIncRef
 
@@ -574,7 +577,7 @@ typedef struct SDL_AtomicU32
  * \sa SDL_GetAtomicU32
  * \sa SDL_SetAtomicU32
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicU32(SDL_AtomicU32 *a, Uint32 oldval, Uint32 newval);
+extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicU32(SDL_AtomicU32* a, Uint32 oldval, Uint32 newval);
 
 /**
  * Set an atomic variable to a value.
@@ -594,7 +597,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicU32(SDL_AtomicU32 *a, U
  *
  * \sa SDL_GetAtomicU32
  */
-extern SDL_DECLSPEC Uint32 SDLCALL SDL_SetAtomicU32(SDL_AtomicU32 *a, Uint32 v);
+extern SDL_DECLSPEC Uint32 SDLCALL SDL_SetAtomicU32(SDL_AtomicU32* a, Uint32 v);
 
 /**
  * Get the value of an atomic variable.
@@ -611,7 +614,7 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_SetAtomicU32(SDL_AtomicU32 *a, Uint32 v);
  *
  * \sa SDL_SetAtomicU32
  */
-extern SDL_DECLSPEC Uint32 SDLCALL SDL_GetAtomicU32(SDL_AtomicU32 *a);
+extern SDL_DECLSPEC Uint32 SDLCALL SDL_GetAtomicU32(SDL_AtomicU32* a);
 
 /**
  * Add to an atomic variable.
@@ -629,7 +632,7 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_GetAtomicU32(SDL_AtomicU32 *a);
  *
  * \since This function is available since SDL 3.4.0.
  */
-extern SDL_DECLSPEC Uint32 SDLCALL SDL_AddAtomicU32(SDL_AtomicU32 *a, int v);
+extern SDL_DECLSPEC Uint32 SDLCALL SDL_AddAtomicU32(SDL_AtomicU32* a, int v);
 
 /**
  * Set a pointer to a new value if it is currently an old value.
@@ -650,7 +653,7 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_AddAtomicU32(SDL_AtomicU32 *a, int v);
  * \sa SDL_GetAtomicPointer
  * \sa SDL_SetAtomicPointer
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicPointer(void **a, void *oldval, void *newval);
+extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicPointer(void** a, void* oldval, void* newval);
 
 /**
  * Set a pointer to a value atomically.
@@ -669,7 +672,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CompareAndSwapAtomicPointer(void **a, void 
  * \sa SDL_CompareAndSwapAtomicPointer
  * \sa SDL_GetAtomicPointer
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_SetAtomicPointer(void **a, void *v);
+extern SDL_DECLSPEC void* SDLCALL SDL_SetAtomicPointer(void** a, void* v);
 
 /**
  * Get the value of a pointer atomically.
@@ -687,7 +690,7 @@ extern SDL_DECLSPEC void * SDLCALL SDL_SetAtomicPointer(void **a, void *v);
  * \sa SDL_CompareAndSwapAtomicPointer
  * \sa SDL_SetAtomicPointer
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_GetAtomicPointer(void **a);
+extern SDL_DECLSPEC void* SDLCALL SDL_GetAtomicPointer(void** a);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

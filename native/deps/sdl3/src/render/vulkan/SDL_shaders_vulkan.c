@@ -34,32 +34,42 @@
 
 static struct
 {
-    const void *ps_shader_data;
+    const void* ps_shader_data;
     size_t ps_shader_size;
-    const void *vs_shader_data;
+    const void* vs_shader_data;
     size_t vs_shader_size;
 } VULKAN_shaders[NUM_SHADERS] = {
-    { VULKAN_PixelShader_Colors, sizeof(VULKAN_PixelShader_Colors),
-      VULKAN_VertexShader, sizeof(VULKAN_VertexShader) },
-    { VULKAN_PixelShader_Textures, sizeof(VULKAN_PixelShader_Textures),
-      VULKAN_VertexShader, sizeof(VULKAN_VertexShader) },
-    { VULKAN_PixelShader_Textures_YUV, sizeof(VULKAN_PixelShader_Textures_YUV),
-      VULKAN_VertexShader, sizeof(VULKAN_VertexShader) },
-    { VULKAN_PixelShader_Advanced, sizeof(VULKAN_PixelShader_Advanced),
-      VULKAN_VertexShader, sizeof(VULKAN_VertexShader) },
-    { VULKAN_PixelShader_Advanced_YUV, sizeof(VULKAN_PixelShader_Advanced_YUV),
-      VULKAN_VertexShader, sizeof(VULKAN_VertexShader) },
+    {
+        VULKAN_PixelShader_Colors, sizeof(VULKAN_PixelShader_Colors),
+        VULKAN_VertexShader, sizeof(VULKAN_VertexShader)
+    },
+    {
+        VULKAN_PixelShader_Textures, sizeof(VULKAN_PixelShader_Textures),
+        VULKAN_VertexShader, sizeof(VULKAN_VertexShader)
+    },
+    {
+        VULKAN_PixelShader_Textures_YUV, sizeof(VULKAN_PixelShader_Textures_YUV),
+        VULKAN_VertexShader, sizeof(VULKAN_VertexShader)
+    },
+    {
+        VULKAN_PixelShader_Advanced, sizeof(VULKAN_PixelShader_Advanced),
+        VULKAN_VertexShader, sizeof(VULKAN_VertexShader)
+    },
+    {
+        VULKAN_PixelShader_Advanced_YUV, sizeof(VULKAN_PixelShader_Advanced_YUV),
+        VULKAN_VertexShader, sizeof(VULKAN_VertexShader)
+    },
 };
 
-void VULKAN_GetVertexShader(VULKAN_Shader shader, const uint32_t **outBytecode, size_t *outSize)
+void VULKAN_GetVertexShader(VULKAN_Shader shader, const uint32_t** outBytecode, size_t* outSize)
 {
-    *outBytecode = (const uint32_t *)VULKAN_shaders[shader].vs_shader_data;
+    *outBytecode = (const uint32_t*)VULKAN_shaders[shader].vs_shader_data;
     *outSize = VULKAN_shaders[shader].vs_shader_size;
 }
 
-void VULKAN_GetPixelShader(VULKAN_Shader shader, const uint32_t **outBytecode, size_t *outSize)
+void VULKAN_GetPixelShader(VULKAN_Shader shader, const uint32_t** outBytecode, size_t* outSize)
 {
-    *outBytecode = (const uint32_t *)VULKAN_shaders[shader].ps_shader_data;
+    *outBytecode = (const uint32_t*)VULKAN_shaders[shader].ps_shader_data;
     *outSize = VULKAN_shaders[shader].ps_shader_size;
 }
 

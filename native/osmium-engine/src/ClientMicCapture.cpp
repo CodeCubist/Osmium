@@ -203,7 +203,9 @@ namespace osmium
         }
 
         if (audioEvent &&
-            SUCCEEDED(client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, 200000, 0, mixFmt, nullptr)) &&
+            SUCCEEDED(
+                client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, 200000, 0, mixFmt,
+                    nullptr)) &&
             SUCCEEDED(client->SetEventHandle(audioEvent)))
         {
             useEventDriven = true;

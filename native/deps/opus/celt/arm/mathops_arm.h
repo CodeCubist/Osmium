@@ -38,6 +38,7 @@
 static inline int32x4_t vroundf(float32x4_t x)
 {
 
+
 #  if defined(__aarch64__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 8)
 return vcvtaq_s32_f32 (x);
 #  else
@@ -49,6 +50,7 @@ uint32x4_t bias = vdupq_n_u32(0x3F000000);
 
 static inline float vminvf(float32x4_t a)
 {
+
 
 #if defined(__aarch64__)
 return vminvq_f32 (a);
@@ -62,6 +64,7 @@ float y = vget_lane_f32(xy, 1);
 
 static inline float vmaxvf(float32x4_t a)
 {
+
 
 #if defined(__aarch64__)
 return vmaxvq_f32 (a);

@@ -27,7 +27,8 @@
 
 #include "../video/SDL_sysvideo.h" // for SDL_Window internals.
 
-static bool SDL_SendDrop(SDL_Window *window, const SDL_EventType evtype, const char *source, const char *data, float x, float y)
+static bool SDL_SendDrop(SDL_Window* window, const SDL_EventType evtype, const char* source, const char* data, float x,
+                         float y)
 {
     static bool app_is_dropping = false;
     static float last_drop_x = 0;
@@ -35,22 +36,28 @@ static bool SDL_SendDrop(SDL_Window *window, const SDL_EventType evtype, const c
     bool posted = false;
 
     // Post the event, if desired
-    if (SDL_EventEnabled(evtype)) {
+    if (SDL_EventEnabled(evtype))
+    {
         const bool need_begin = window ? !window->is_dropping : !app_is_dropping;
         SDL_Event event;
 
-        if (need_begin) {
+        if (need_begin)
+        {
             SDL_zero(event);
             event.type = SDL_EVENT_DROP_BEGIN;
             event.common.timestamp = 0;
             event.drop.windowID = window ? window->id : 0;
             posted = SDL_PushEvent(&event);
-            if (!posted) {
+            if (!posted)
+            {
                 return false;
             }
-            if (window) {
+            if (window)
+            {
                 window->is_dropping = true;
-            } else {
+            }
+            else
+            {
                 app_is_dropping = true;
             }
         }
@@ -58,21 +65,26 @@ static bool SDL_SendDrop(SDL_Window *window, const SDL_EventType evtype, const c
         SDL_zero(event);
         event.type = evtype;
         event.common.timestamp = 0;
-        if (source) {
+        if (source)
+        {
             event.drop.source = SDL_CreateTemporaryString(source);
-            if (!event.drop.source) {
+            if (!event.drop.source)
+            {
                 return false;
             }
         }
-        if (data) {
+        if (data)
+        {
             event.drop.data = SDL_CreateTemporaryString(data);
-            if (!event.drop.data) {
+            if (!event.drop.data)
+            {
                 return false;
             }
         }
         event.drop.windowID = window ? window->id : 0;
 
-        if (evtype == SDL_EVENT_DROP_POSITION) {
+        if (evtype == SDL_EVENT_DROP_POSITION)
+        {
             last_drop_x = x;
             last_drop_y = y;
         }
@@ -80,10 +92,14 @@ static bool SDL_SendDrop(SDL_Window *window, const SDL_EventType evtype, const c
         event.drop.y = last_drop_y;
         posted = SDL_PushEvent(&event);
 
-        if (posted && (evtype == SDL_EVENT_DROP_COMPLETE)) {
-            if (window) {
+        if (posted && (evtype == SDL_EVENT_DROP_COMPLETE))
+        {
+            if (window)
+            {
                 window->is_dropping = false;
-            } else {
+            }
+            else
+            {
                 app_is_dropping = false;
             }
 
@@ -94,22 +110,22 @@ static bool SDL_SendDrop(SDL_Window *window, const SDL_EventType evtype, const c
     return posted;
 }
 
-bool SDL_SendDropFile(SDL_Window *window, const char *source, const char *file)
+bool SDL_SendDropFile(SDL_Window* window, const char* source, const char* file)
 {
     return SDL_SendDrop(window, SDL_EVENT_DROP_FILE, source, file, 0, 0);
 }
 
-bool SDL_SendDropPosition(SDL_Window *window, float x, float y)
+bool SDL_SendDropPosition(SDL_Window* window, float x, float y)
 {
     return SDL_SendDrop(window, SDL_EVENT_DROP_POSITION, NULL, NULL, x, y);
 }
 
-bool SDL_SendDropText(SDL_Window *window, const char *text)
+bool SDL_SendDropText(SDL_Window* window, const char* text)
 {
     return SDL_SendDrop(window, SDL_EVENT_DROP_TEXT, NULL, text, 0, 0);
 }
 
-bool SDL_SendDropComplete(SDL_Window *window)
+bool SDL_SendDropComplete(SDL_Window* window)
 {
     return SDL_SendDrop(window, SDL_EVENT_DROP_COMPLETE, NULL, NULL, 0, 0);
 }

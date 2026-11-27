@@ -32,25 +32,30 @@ static SDL_INLINE Uint32 murmur_32_scramble(Uint32 k)
     return k;
 }
 
-Uint32 SDLCALL SDL_murmur3_32(const void *data, size_t len, Uint32 seed)
+Uint32 SDLCALL SDL_murmur3_32(const void* data, size_t len, Uint32 seed)
 {
-    const Uint8 *bytes = (const Uint8 *)data;
+    const Uint8* bytes = (const Uint8*)data;
     Uint32 hash = seed;
     Uint32 k;
 
     // Read in groups of 4.
-    if ((((uintptr_t)bytes) & 3) == 0) {
+    if ((((uintptr_t)bytes) & 3) == 0)
+    {
         // We can do aligned 32-bit reads
-        for (size_t i = len >> 2; i--;) {
-            k = *(const Uint32 *)bytes;
+        for (size_t i = len >> 2; i--;)
+        {
+            k = *(const Uint32*)bytes;
             k = SDL_Swap32LE(k);
             bytes += sizeof(Uint32);
             hash ^= murmur_32_scramble(k);
             hash = (hash << 13) | (hash >> 19);
             hash = hash * 5 + 0xe6546b64;
         }
-    } else {
-        for (size_t i = len >> 2; i--;) {
+    }
+    else
+    {
+        for (size_t i = len >> 2; i--;)
+        {
             SDL_memcpy(&k, bytes, sizeof(Uint32));
             k = SDL_Swap32LE(k);
             bytes += sizeof(Uint32);
@@ -62,9 +67,11 @@ Uint32 SDLCALL SDL_murmur3_32(const void *data, size_t len, Uint32 seed)
 
     // Read the rest.
     size_t left = (len & 3);
-    if (left) {
+    if (left)
+    {
         k = 0;
-        for (size_t i = left; i--;) {
+        for (size_t i = left; i--;)
+        {
             k <<= 8;
             k |= bytes[i];
         }

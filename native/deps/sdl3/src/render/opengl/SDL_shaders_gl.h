@@ -50,9 +50,9 @@ typedef enum
 
 typedef struct GL_ShaderContext GL_ShaderContext;
 
-extern GL_ShaderContext *GL_CreateShaderContext(void);
-extern bool GL_SupportsShader(GL_ShaderContext *ctx, GL_Shader shader);
-extern void GL_SelectShader(GL_ShaderContext *ctx, GL_Shader shader, const float *shader_params);
-extern void GL_DestroyShaderContext(GL_ShaderContext *ctx);
+extern GL_ShaderContext* GL_CreateShaderContext(void);
+extern bool GL_SupportsShader(GL_ShaderContext* ctx, GL_Shader shader);
+extern void GL_SelectShader(GL_ShaderContext* ctx, GL_Shader shader, const float* shader_params);
+extern void GL_DestroyShaderContext(GL_ShaderContext* ctx);
 
 #endif // SDL_shaders_gl_h_

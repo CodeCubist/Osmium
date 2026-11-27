@@ -44,6 +44,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -53,12 +54,12 @@ extern "C" {
  */
 typedef enum SDL_IOStatus
 {
-    SDL_IO_STATUS_READY,     /**< Everything is ready (no errors and not EOF). */
-    SDL_IO_STATUS_ERROR,     /**< Read or write I/O error */
-    SDL_IO_STATUS_EOF,       /**< End of file */
+    SDL_IO_STATUS_READY, /**< Everything is ready (no errors and not EOF). */
+    SDL_IO_STATUS_ERROR, /**< Read or write I/O error */
+    SDL_IO_STATUS_EOF, /**< End of file */
     SDL_IO_STATUS_NOT_READY, /**< Non blocking I/O, not ready */
-    SDL_IO_STATUS_READONLY,  /**< Tried to write a read-only buffer */
-    SDL_IO_STATUS_WRITEONLY  /**< Tried to read a write-only buffer */
+    SDL_IO_STATUS_READONLY, /**< Tried to write a read-only buffer */
+    SDL_IO_STATUS_WRITEONLY /**< Tried to read a write-only buffer */
 } SDL_IOStatus;
 
 /**
@@ -73,7 +74,7 @@ typedef enum SDL_IOWhence
 {
     SDL_IO_SEEK_SET, /**< Seek from the beginning of data */
     SDL_IO_SEEK_CUR, /**< Seek relative to current read point */
-    SDL_IO_SEEK_END  /**< Seek relative to the end of data */
+    SDL_IO_SEEK_END /**< Seek relative to the end of data */
 } SDL_IOWhence;
 
 /**
@@ -100,7 +101,7 @@ typedef struct SDL_IOStreamInterface
      *
      *  \return the total size of the data stream, or -1 on error.
      */
-    Sint64 (SDLCALL *size)(void *userdata);
+    Sint64 (SDLCALL *size)(void* userdata);
 
     /**
      *  Seek to `offset` relative to `whence`, one of stdio's whence values:
@@ -108,7 +109,7 @@ typedef struct SDL_IOStreamInterface
      *
      *  \return the final offset in the data stream, or -1 on error.
      */
-    Sint64 (SDLCALL *seek)(void *userdata, Sint64 offset, SDL_IOWhence whence);
+    Sint64 (SDLCALL *seek)(void* userdata, Sint64 offset, SDL_IOWhence whence);
 
     /**
      *  Read up to `size` bytes from the data stream to the area pointed
@@ -120,7 +121,7 @@ typedef struct SDL_IOStreamInterface
      *
      *  \return the number of bytes read
      */
-    size_t (SDLCALL *read)(void *userdata, void *ptr, size_t size, SDL_IOStatus *status);
+    size_t (SDLCALL *read)(void* userdata, void* ptr, size_t size, SDL_IOStatus* status);
 
     /**
      *  Write exactly `size` bytes from the area pointed at by `ptr`
@@ -132,7 +133,7 @@ typedef struct SDL_IOStreamInterface
      *
      *  \return the number of bytes written
      */
-    size_t (SDLCALL *write)(void *userdata, const void *ptr, size_t size, SDL_IOStatus *status);
+    size_t (SDLCALL *write)(void* userdata, const void* ptr, size_t size, SDL_IOStatus* status);
 
     /**
      *  If the stream is buffering, make sure the data is written out.
@@ -143,7 +144,7 @@ typedef struct SDL_IOStreamInterface
      *
      *  \return true if successful or false on write error when flushing data.
      */
-    bool (SDLCALL *flush)(void *userdata, SDL_IOStatus *status);
+    bool (SDLCALL *flush)(void* userdata, SDL_IOStatus* status);
 
     /**
      *  Close and free any allocated resources.
@@ -156,8 +157,7 @@ typedef struct SDL_IOStreamInterface
      *
      *  \return true if successful or false on write error when flushing data.
      */
-    bool (SDLCALL *close)(void *userdata);
-
+    bool (SDLCALL *close)(void* userdata);
 } SDL_IOStreamInterface;
 
 /* Check the size of SDL_IOStreamInterface
@@ -276,7 +276,7 @@ typedef struct SDL_IOStream SDL_IOStream;
  * \sa SDL_TellIO
  * \sa SDL_WriteIO
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromFile(const char *file, const char *mode);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_IOFromFile(const char* file, const char* mode);
 
 #define SDL_PROP_IOSTREAM_WINDOWS_HANDLE_POINTER    "SDL.iostream.windows.handle"
 #define SDL_PROP_IOSTREAM_STDIO_FILE_POINTER        "SDL.iostream.stdio.file"
@@ -328,7 +328,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromFile(const char *file, cons
  * \sa SDL_TellIO
  * \sa SDL_WriteIO
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromMem(void *mem, size_t size);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_IOFromMem(void* mem, size_t size);
 
 #define SDL_PROP_IOSTREAM_MEMORY_POINTER "SDL.iostream.memory.base"
 #define SDL_PROP_IOSTREAM_MEMORY_SIZE_NUMBER  "SDL.iostream.memory.size"
@@ -379,7 +379,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromMem(void *mem, size_t size)
  * \sa SDL_SeekIO
  * \sa SDL_TellIO
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromConstMem(const void *mem, size_t size);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_IOFromConstMem(const void* mem, size_t size);
 
 /**
  * Use this function to create an SDL_IOStream that is backed by dynamically
@@ -409,7 +409,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromConstMem(const void *mem, s
  * \sa SDL_TellIO
  * \sa SDL_WriteIO
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromDynamicMem(void);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_IOFromDynamicMem(void);
 
 #define SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER    "SDL.iostream.dynamic.memory"
 #define SDL_PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER  "SDL.iostream.dynamic.chunksize"
@@ -444,7 +444,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromDynamicMem(void);
  * \sa SDL_IOFromFile
  * \sa SDL_IOFromMem
  */
-extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_OpenIO(const SDL_IOStreamInterface *iface, void *userdata);
+extern SDL_DECLSPEC SDL_IOStream* SDLCALL SDL_OpenIO(const SDL_IOStreamInterface* iface, void* userdata);
 
 /**
  * Close and free an allocated SDL_IOStream structure.
@@ -476,7 +476,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_OpenIO(const SDL_IOStreamInterfac
  *
  * \sa SDL_OpenIO
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_CloseIO(SDL_IOStream *context);
+extern SDL_DECLSPEC bool SDLCALL SDL_CloseIO(SDL_IOStream* context);
 
 /**
  * Get the properties associated with an SDL_IOStream.
@@ -489,7 +489,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_CloseIO(SDL_IOStream *context);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_PropertiesID SDLCALL SDL_GetIOProperties(SDL_IOStream *context);
+extern SDL_DECLSPEC SDL_PropertiesID SDLCALL SDL_GetIOProperties(SDL_IOStream* context);
 
 /**
  * Query the stream status of an SDL_IOStream.
@@ -509,7 +509,7 @@ extern SDL_DECLSPEC SDL_PropertiesID SDLCALL SDL_GetIOProperties(SDL_IOStream *c
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC SDL_IOStatus SDLCALL SDL_GetIOStatus(SDL_IOStream *context);
+extern SDL_DECLSPEC SDL_IOStatus SDLCALL SDL_GetIOStatus(SDL_IOStream* context);
 
 /**
  * Use this function to get the size of the data stream in an SDL_IOStream.
@@ -523,7 +523,7 @@ extern SDL_DECLSPEC SDL_IOStatus SDLCALL SDL_GetIOStatus(SDL_IOStream *context);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC Sint64 SDLCALL SDL_GetIOSize(SDL_IOStream *context);
+extern SDL_DECLSPEC Sint64 SDLCALL SDL_GetIOSize(SDL_IOStream* context);
 
 /**
  * Seek within an SDL_IOStream data stream.
@@ -552,7 +552,7 @@ extern SDL_DECLSPEC Sint64 SDLCALL SDL_GetIOSize(SDL_IOStream *context);
  *
  * \sa SDL_TellIO
  */
-extern SDL_DECLSPEC Sint64 SDLCALL SDL_SeekIO(SDL_IOStream *context, Sint64 offset, SDL_IOWhence whence);
+extern SDL_DECLSPEC Sint64 SDLCALL SDL_SeekIO(SDL_IOStream* context, Sint64 offset, SDL_IOWhence whence);
 
 /**
  * Determine the current read/write offset in an SDL_IOStream data stream.
@@ -572,7 +572,7 @@ extern SDL_DECLSPEC Sint64 SDLCALL SDL_SeekIO(SDL_IOStream *context, Sint64 offs
  *
  * \sa SDL_SeekIO
  */
-extern SDL_DECLSPEC Sint64 SDLCALL SDL_TellIO(SDL_IOStream *context);
+extern SDL_DECLSPEC Sint64 SDLCALL SDL_TellIO(SDL_IOStream* context);
 
 /**
  * Read from a data source.
@@ -602,7 +602,7 @@ extern SDL_DECLSPEC Sint64 SDLCALL SDL_TellIO(SDL_IOStream *context);
  * \sa SDL_WriteIO
  * \sa SDL_GetIOStatus
  */
-extern SDL_DECLSPEC size_t SDLCALL SDL_ReadIO(SDL_IOStream *context, void *ptr, size_t size);
+extern SDL_DECLSPEC size_t SDLCALL SDL_ReadIO(SDL_IOStream* context, void* ptr, size_t size);
 
 /**
  * Write to an SDL_IOStream data stream.
@@ -638,7 +638,7 @@ extern SDL_DECLSPEC size_t SDLCALL SDL_ReadIO(SDL_IOStream *context, void *ptr, 
  * \sa SDL_FlushIO
  * \sa SDL_GetIOStatus
  */
-extern SDL_DECLSPEC size_t SDLCALL SDL_WriteIO(SDL_IOStream *context, const void *ptr, size_t size);
+extern SDL_DECLSPEC size_t SDLCALL SDL_WriteIO(SDL_IOStream* context, const void* ptr, size_t size);
 
 /**
  * Print to an SDL_IOStream data stream.
@@ -659,7 +659,8 @@ extern SDL_DECLSPEC size_t SDLCALL SDL_WriteIO(SDL_IOStream *context, const void
  * \sa SDL_IOvprintf
  * \sa SDL_WriteIO
  */
-extern SDL_DECLSPEC size_t SDLCALL SDL_IOprintf(SDL_IOStream *context, SDL_PRINTF_FORMAT_STRING const char *fmt, ...) SDL_PRINTF_VARARG_FUNC(2);
+extern SDL_DECLSPEC size_t SDLCALL SDL_IOprintf(SDL_IOStream* context, SDL_PRINTF_FORMAT_STRING const char* fmt, ...)
+SDL_PRINTF_VARARG_FUNC(2);
 
 /**
  * Print to an SDL_IOStream data stream.
@@ -679,7 +680,8 @@ extern SDL_DECLSPEC size_t SDLCALL SDL_IOprintf(SDL_IOStream *context, SDL_PRINT
  * \sa SDL_IOprintf
  * \sa SDL_WriteIO
  */
-extern SDL_DECLSPEC size_t SDLCALL SDL_IOvprintf(SDL_IOStream *context, SDL_PRINTF_FORMAT_STRING const char *fmt, va_list ap) SDL_PRINTF_VARARG_FUNCV(2);
+extern SDL_DECLSPEC size_t SDLCALL SDL_IOvprintf(SDL_IOStream* context, SDL_PRINTF_FORMAT_STRING const char* fmt,
+                                                 va_list ap) SDL_PRINTF_VARARG_FUNCV(2);
 
 /**
  * Flush any buffered data in the stream.
@@ -699,7 +701,7 @@ extern SDL_DECLSPEC size_t SDLCALL SDL_IOvprintf(SDL_IOStream *context, SDL_PRIN
  * \sa SDL_OpenIO
  * \sa SDL_WriteIO
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_FlushIO(SDL_IOStream *context);
+extern SDL_DECLSPEC bool SDLCALL SDL_FlushIO(SDL_IOStream* context);
 
 /**
  * Load all the data from an SDL data stream.
@@ -725,7 +727,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_FlushIO(SDL_IOStream *context);
  * \sa SDL_LoadFile
  * \sa SDL_SaveFile_IO
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_LoadFile_IO(SDL_IOStream *src, size_t *datasize, bool closeio);
+extern SDL_DECLSPEC void* SDLCALL SDL_LoadFile_IO(SDL_IOStream* src, size_t* datasize, bool closeio);
 
 /**
  * Load all the data from a file path.
@@ -748,7 +750,7 @@ extern SDL_DECLSPEC void * SDLCALL SDL_LoadFile_IO(SDL_IOStream *src, size_t *da
  * \sa SDL_LoadFile_IO
  * \sa SDL_SaveFile
  */
-extern SDL_DECLSPEC void * SDLCALL SDL_LoadFile(const char *file, size_t *datasize);
+extern SDL_DECLSPEC void* SDLCALL SDL_LoadFile(const char* file, size_t* datasize);
 
 /**
  * Save all the data into an SDL data stream.
@@ -769,7 +771,7 @@ extern SDL_DECLSPEC void * SDLCALL SDL_LoadFile(const char *file, size_t *datasi
  * \sa SDL_SaveFile
  * \sa SDL_LoadFile_IO
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SaveFile_IO(SDL_IOStream *src, const void *data, size_t datasize, bool closeio);
+extern SDL_DECLSPEC bool SDLCALL SDL_SaveFile_IO(SDL_IOStream* src, const void* data, size_t datasize, bool closeio);
 
 /**
  * Save all the data into a file path.
@@ -788,7 +790,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SaveFile_IO(SDL_IOStream *src, const void *
  * \sa SDL_SaveFile_IO
  * \sa SDL_LoadFile
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_SaveFile(const char *file, const void *data, size_t datasize);
+extern SDL_DECLSPEC bool SDLCALL SDL_SaveFile(const char* file, const void* data, size_t datasize);
 
 /**
  *  \name Read endian functions
@@ -814,7 +816,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SaveFile(const char *file, const void *data
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU8(SDL_IOStream *src, Uint8 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU8(SDL_IOStream* src, Uint8* value);
 
 /**
  * Use this function to read a signed byte from an SDL_IOStream.
@@ -833,7 +835,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU8(SDL_IOStream *src, Uint8 *value);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS8(SDL_IOStream *src, Sint8 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS8(SDL_IOStream* src, Sint8* value);
 
 /**
  * Use this function to read 16 bits of little-endian data from an
@@ -856,7 +858,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS8(SDL_IOStream *src, Sint8 *value);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU16LE(SDL_IOStream *src, Uint16 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU16LE(SDL_IOStream* src, Uint16* value);
 
 /**
  * Use this function to read 16 bits of little-endian data from an
@@ -879,7 +881,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU16LE(SDL_IOStream *src, Uint16 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS16LE(SDL_IOStream *src, Sint16 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS16LE(SDL_IOStream* src, Sint16* value);
 
 /**
  * Use this function to read 16 bits of big-endian data from an SDL_IOStream
@@ -902,7 +904,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS16LE(SDL_IOStream *src, Sint16 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU16BE(SDL_IOStream *src, Uint16 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU16BE(SDL_IOStream* src, Uint16* value);
 
 /**
  * Use this function to read 16 bits of big-endian data from an SDL_IOStream
@@ -925,7 +927,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU16BE(SDL_IOStream *src, Uint16 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS16BE(SDL_IOStream *src, Sint16 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS16BE(SDL_IOStream* src, Sint16* value);
 
 /**
  * Use this function to read 32 bits of little-endian data from an
@@ -948,7 +950,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS16BE(SDL_IOStream *src, Sint16 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU32LE(SDL_IOStream *src, Uint32 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU32LE(SDL_IOStream* src, Uint32* value);
 
 /**
  * Use this function to read 32 bits of little-endian data from an
@@ -971,7 +973,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU32LE(SDL_IOStream *src, Uint32 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS32LE(SDL_IOStream *src, Sint32 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS32LE(SDL_IOStream* src, Sint32* value);
 
 /**
  * Use this function to read 32 bits of big-endian data from an SDL_IOStream
@@ -994,7 +996,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS32LE(SDL_IOStream *src, Sint32 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU32BE(SDL_IOStream *src, Uint32 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU32BE(SDL_IOStream* src, Uint32* value);
 
 /**
  * Use this function to read 32 bits of big-endian data from an SDL_IOStream
@@ -1017,7 +1019,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU32BE(SDL_IOStream *src, Uint32 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS32BE(SDL_IOStream *src, Sint32 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS32BE(SDL_IOStream* src, Sint32* value);
 
 /**
  * Use this function to read 64 bits of little-endian data from an
@@ -1040,7 +1042,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS32BE(SDL_IOStream *src, Sint32 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU64LE(SDL_IOStream *src, Uint64 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU64LE(SDL_IOStream* src, Uint64* value);
 
 /**
  * Use this function to read 64 bits of little-endian data from an
@@ -1063,7 +1065,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU64LE(SDL_IOStream *src, Uint64 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS64LE(SDL_IOStream *src, Sint64 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS64LE(SDL_IOStream* src, Sint64* value);
 
 /**
  * Use this function to read 64 bits of big-endian data from an SDL_IOStream
@@ -1086,7 +1088,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS64LE(SDL_IOStream *src, Sint64 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadU64BE(SDL_IOStream *src, Uint64 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadU64BE(SDL_IOStream* src, Uint64* value);
 
 /**
  * Use this function to read 64 bits of big-endian data from an SDL_IOStream
@@ -1109,7 +1111,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadU64BE(SDL_IOStream *src, Uint64 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_ReadS64BE(SDL_IOStream *src, Sint64 *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_ReadS64BE(SDL_IOStream* src, Sint64* value);
 /* @} */ /* Read endian functions */
 
 /**
@@ -1131,7 +1133,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_ReadS64BE(SDL_IOStream *src, Sint64 *value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU8(SDL_IOStream *dst, Uint8 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU8(SDL_IOStream* dst, Uint8 value);
 
 /**
  * Use this function to write a signed byte to an SDL_IOStream.
@@ -1145,7 +1147,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU8(SDL_IOStream *dst, Uint8 value);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS8(SDL_IOStream *dst, Sint8 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS8(SDL_IOStream* dst, Sint8 value);
 
 /**
  * Use this function to write 16 bits in native format to an SDL_IOStream as
@@ -1164,7 +1166,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteS8(SDL_IOStream *dst, Sint8 value);
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU16LE(SDL_IOStream *dst, Uint16 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU16LE(SDL_IOStream* dst, Uint16 value);
 
 /**
  * Use this function to write 16 bits in native format to an SDL_IOStream as
@@ -1183,7 +1185,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU16LE(SDL_IOStream *dst, Uint16 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS16LE(SDL_IOStream *dst, Sint16 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS16LE(SDL_IOStream* dst, Sint16 value);
 
 /**
  * Use this function to write 16 bits in native format to an SDL_IOStream as
@@ -1201,7 +1203,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteS16LE(SDL_IOStream *dst, Sint16 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU16BE(SDL_IOStream *dst, Uint16 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU16BE(SDL_IOStream* dst, Uint16 value);
 
 /**
  * Use this function to write 16 bits in native format to an SDL_IOStream as
@@ -1219,7 +1221,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU16BE(SDL_IOStream *dst, Uint16 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS16BE(SDL_IOStream *dst, Sint16 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS16BE(SDL_IOStream* dst, Sint16 value);
 
 /**
  * Use this function to write 32 bits in native format to an SDL_IOStream as
@@ -1238,7 +1240,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteS16BE(SDL_IOStream *dst, Sint16 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU32LE(SDL_IOStream *dst, Uint32 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU32LE(SDL_IOStream* dst, Uint32 value);
 
 /**
  * Use this function to write 32 bits in native format to an SDL_IOStream as
@@ -1257,7 +1259,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU32LE(SDL_IOStream *dst, Uint32 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS32LE(SDL_IOStream *dst, Sint32 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS32LE(SDL_IOStream* dst, Sint32 value);
 
 /**
  * Use this function to write 32 bits in native format to an SDL_IOStream as
@@ -1275,7 +1277,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteS32LE(SDL_IOStream *dst, Sint32 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU32BE(SDL_IOStream *dst, Uint32 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU32BE(SDL_IOStream* dst, Uint32 value);
 
 /**
  * Use this function to write 32 bits in native format to an SDL_IOStream as
@@ -1293,7 +1295,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU32BE(SDL_IOStream *dst, Uint32 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS32BE(SDL_IOStream *dst, Sint32 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS32BE(SDL_IOStream* dst, Sint32 value);
 
 /**
  * Use this function to write 64 bits in native format to an SDL_IOStream as
@@ -1312,7 +1314,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteS32BE(SDL_IOStream *dst, Sint32 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU64LE(SDL_IOStream *dst, Uint64 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU64LE(SDL_IOStream* dst, Uint64 value);
 
 /**
  * Use this function to write 64 bits in native format to an SDL_IOStream as
@@ -1331,7 +1333,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU64LE(SDL_IOStream *dst, Uint64 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS64LE(SDL_IOStream *dst, Sint64 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS64LE(SDL_IOStream* dst, Sint64 value);
 
 /**
  * Use this function to write 64 bits in native format to an SDL_IOStream as
@@ -1349,7 +1351,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteS64LE(SDL_IOStream *dst, Sint64 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteU64BE(SDL_IOStream *dst, Uint64 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteU64BE(SDL_IOStream* dst, Uint64 value);
 
 /**
  * Use this function to write 64 bits in native format to an SDL_IOStream as
@@ -1367,7 +1369,7 @@ extern SDL_DECLSPEC bool SDLCALL SDL_WriteU64BE(SDL_IOStream *dst, Uint64 value)
  *
  * \since This function is available since SDL 3.2.0.
  */
-extern SDL_DECLSPEC bool SDLCALL SDL_WriteS64BE(SDL_IOStream *dst, Sint64 value);
+extern SDL_DECLSPEC bool SDLCALL SDL_WriteS64BE(SDL_IOStream* dst, Sint64 value);
 
 /* @} */ /* Write endian functions */
 

@@ -218,7 +218,7 @@
             <Output TaskParameter="Filtered" ItemName="_PublishLangDirsToDelete"/>
         </RemoveDuplicates>
         <RemoveDir Directories="@(_PublishLangDirsToDelete)" Condition="'@(_PublishLangDirsToDelete)' != ''"/>
-        
+
         <Message Text="清理完成" Importance="high"/>
     </Target>
 </Project>

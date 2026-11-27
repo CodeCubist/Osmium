@@ -50,7 +50,7 @@
 #ifndef __PRFCHWINTRIN_H
 #define __PRFCHWINTRIN_H
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
-_m_prefetch(void *__P)
+_m_prefetch(void* __P)
 {
     __builtin_prefetch(__P, 0, 3 /* _MM_HINT_T0 */);
 }
@@ -216,6 +216,7 @@ _m_prefetch(void *__P)
 /* Set up for C function definitions, even when using C++ */
 #ifdef __cplusplus
 extern "C" {
+
 
 #endif
 

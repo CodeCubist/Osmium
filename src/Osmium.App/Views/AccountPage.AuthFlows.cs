@@ -530,7 +530,8 @@ public sealed partial class AccountPage : Page
             }
             else
             {
-                ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
+                ShowStatus(InfoBarSeverity.Error,
+                    acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
             }
         }
         finally
@@ -693,7 +694,8 @@ public sealed partial class AccountPage : Page
             }
             else
             {
-                ShowStatus(InfoBarSeverity.Error, acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
+                ShowStatus(InfoBarSeverity.Error,
+                    acc.FormatFriendlyError(res.Code, res.HttpStatusCode, res.RetryAfter));
             }
         }
         finally

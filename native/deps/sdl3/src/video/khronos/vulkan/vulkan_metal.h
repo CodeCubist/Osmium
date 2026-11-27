@@ -41,19 +41,22 @@ typedef VkFlags VkMetalSurfaceCreateFlagsEXT;
 typedef struct VkMetalSurfaceCreateInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkMetalSurfaceCreateFlagsEXT flags;
-    const CAMetalLayer SDL_UNSAFE_UNRETAINED *pLayer;
+    const CAMetalLayer SDL_UNSAFE_UNRETAINED * pLayer;
 } VkMetalSurfaceCreateInfoEXT;
 
-typedef VkResult(VKAPI_PTR *PFN_vkCreateMetalSurfaceEXT)(VkInstance instance, const VkMetalSurfaceCreateInfoEXT *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface);
+typedef VkResult(VKAPI_PTR* PFN_vkCreateMetalSurfaceEXT)(VkInstance instance,
+                                                         const VkMetalSurfaceCreateInfoEXT* pCreateInfo,
+                                                         const VkAllocationCallbacks* pAllocator,
+                                                         VkSurfaceKHR* pSurface);
 
 #ifndef VK_NO_PROTOTYPES
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateMetalSurfaceEXT(
     VkInstance instance,
-    const VkMetalSurfaceCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkSurfaceKHR *pSurface);
+    const VkMetalSurfaceCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkSurfaceKHR* pSurface);
 #endif
 
 
@@ -63,31 +66,31 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateMetalSurfaceEXT(
 @ protocol MTLDevice;
 typedef __unsafe_unretained id<MTLDevice> MTLDevice_id;
 #else
-typedef void *MTLDevice_id;
+typedef void* MTLDevice_id;
 #endif
 
 #ifdef __OBJC__
 @ protocol MTLCommandQueue;
 typedef __unsafe_unretained id<MTLCommandQueue> MTLCommandQueue_id;
 #else
-typedef void *MTLCommandQueue_id;
+typedef void* MTLCommandQueue_id;
 #endif
 
 #ifdef __OBJC__
 @ protocol MTLBuffer;
 typedef __unsafe_unretained id<MTLBuffer> MTLBuffer_id;
 #else
-typedef void *MTLBuffer_id;
+typedef void* MTLBuffer_id;
 #endif
 
 #ifdef __OBJC__
 @ protocol MTLTexture;
 typedef __unsafe_unretained id<MTLTexture> MTLTexture_id;
 #else
-typedef void *MTLTexture_id;
+typedef void* MTLTexture_id;
 #endif
 
-typedef struct __IOSurface *IOSurfaceRef;
+typedef struct __IOSurface* IOSurfaceRef;
 #ifdef __OBJC__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
@@ -95,7 +98,7 @@ typedef struct __IOSurface *IOSurfaceRef;
 typedef __unsafe_unretained id<MTLSharedEvent> MTLSharedEvent_id;
 #pragma clang diagnostic pop
 #else
-typedef void *MTLSharedEvent_id;
+typedef void* MTLSharedEvent_id;
 #endif
 
 #define VK_EXT_METAL_OBJECTS_SPEC_VERSION 2
@@ -117,27 +120,27 @@ typedef VkFlags VkExportMetalObjectTypeFlagsEXT;
 typedef struct VkExportMetalObjectCreateInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkExportMetalObjectTypeFlagBitsEXT exportObjectType;
 } VkExportMetalObjectCreateInfoEXT;
 
 typedef struct VkExportMetalObjectsInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
 } VkExportMetalObjectsInfoEXT;
 
 typedef struct VkExportMetalDeviceInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     MTLDevice_id mtlDevice;
 } VkExportMetalDeviceInfoEXT;
 
 typedef struct VkExportMetalCommandQueueInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkQueue queue;
     MTLCommandQueue_id mtlCommandQueue;
 } VkExportMetalCommandQueueInfoEXT;
@@ -145,7 +148,7 @@ typedef struct VkExportMetalCommandQueueInfoEXT
 typedef struct VkExportMetalBufferInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkDeviceMemory memory;
     MTLBuffer_id mtlBuffer;
 } VkExportMetalBufferInfoEXT;
@@ -153,14 +156,14 @@ typedef struct VkExportMetalBufferInfoEXT
 typedef struct VkImportMetalBufferInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     MTLBuffer_id mtlBuffer;
 } VkImportMetalBufferInfoEXT;
 
 typedef struct VkExportMetalTextureInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkImage image;
     VkImageView imageView;
     VkBufferView bufferView;
@@ -171,7 +174,7 @@ typedef struct VkExportMetalTextureInfoEXT
 typedef struct VkImportMetalTextureInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkImageAspectFlagBits plane;
     MTLTexture_id mtlTexture;
 } VkImportMetalTextureInfoEXT;
@@ -179,7 +182,7 @@ typedef struct VkImportMetalTextureInfoEXT
 typedef struct VkExportMetalIOSurfaceInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkImage image;
     IOSurfaceRef ioSurface;
 } VkExportMetalIOSurfaceInfoEXT;
@@ -187,14 +190,14 @@ typedef struct VkExportMetalIOSurfaceInfoEXT
 typedef struct VkImportMetalIOSurfaceInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     IOSurfaceRef ioSurface;
 } VkImportMetalIOSurfaceInfoEXT;
 
 typedef struct VkExportMetalSharedEventInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     VkSemaphore semaphore;
     VkEvent event;
     MTLSharedEvent_id mtlSharedEvent;
@@ -203,16 +206,16 @@ typedef struct VkExportMetalSharedEventInfoEXT
 typedef struct VkImportMetalSharedEventInfoEXT
 {
     VkStructureType sType;
-    const void *pNext;
+    const void* pNext;
     MTLSharedEvent_id mtlSharedEvent;
 } VkImportMetalSharedEventInfoEXT;
 
-typedef void (VKAPI_PTR *PFN_vkExportMetalObjectsEXT)(VkDevice device, VkExportMetalObjectsInfoEXT *pMetalObjectsInfo);
+typedef void (VKAPI_PTR *PFN_vkExportMetalObjectsEXT)(VkDevice device, VkExportMetalObjectsInfoEXT* pMetalObjectsInfo);
 
 #ifndef VK_NO_PROTOTYPES
 VKAPI_ATTR void VKAPI_CALL vkExportMetalObjectsEXT(
     VkDevice device,
-    VkExportMetalObjectsInfoEXT *pMetalObjectsInfo);
+    VkExportMetalObjectsInfoEXT* pMetalObjectsInfo);
 #endif
 
 #ifdef __cplusplus

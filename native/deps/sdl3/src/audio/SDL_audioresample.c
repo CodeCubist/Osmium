@@ -65,10 +65,9 @@ typedef union Cubic
 #ifdef SDL_NEON_INTRINSICS
     float32x4_t v128;
 #endif
-
 } Cubic;
 
-static void ResampleFrame_Generic(const float *src, float *dst, const Cubic *filter, float frac, int chans)
+static void ResampleFrame_Generic(const float* src, float* dst, const Cubic* filter, float frac, int chans)
 {
     const float frac2 = frac * frac;
     const float frac3 = frac * frac2;
@@ -76,14 +75,17 @@ static void ResampleFrame_Generic(const float *src, float *dst, const Cubic *fil
     int i, chan;
     float scales[RESAMPLER_SAMPLES_PER_FRAME];
 
-    for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i, ++filter) {
+    for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i, ++filter)
+    {
         scales[i] = filter->v[0] + (filter->v[1] * frac) + (filter->v[2] * frac2) + (filter->v[3] * frac3);
     }
 
-    for (chan = 0; chan < chans; ++chan) {
+    for (chan = 0; chan < chans; ++chan)
+    {
         float out = 0.0f;
 
-        for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i) {
+        for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i)
+        {
             out += src[i * chans + chan] * scales[i];
         }
 
@@ -91,7 +93,7 @@ static void ResampleFrame_Generic(const float *src, float *dst, const Cubic *fil
     }
 }
 
-static void ResampleFrame_Mono(const float *src, float *dst, const Cubic *filter, float frac, int chans)
+static void ResampleFrame_Mono(const float* src, float* dst, const Cubic* filter, float frac, int chans)
 {
     const float frac2 = frac * frac;
     const float frac3 = frac * frac2;
@@ -99,7 +101,8 @@ static void ResampleFrame_Mono(const float *src, float *dst, const Cubic *filter
     int i;
     float out = 0.0f;
 
-    for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i, ++filter) {
+    for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i, ++filter)
+    {
         // Interpolate between the nearest two filters
         const float scale = filter->v[0] + (filter->v[1] * frac) + (filter->v[2] * frac2) + (filter->v[3] * frac3);
 
@@ -109,7 +112,7 @@ static void ResampleFrame_Mono(const float *src, float *dst, const Cubic *filter
     dst[0] = out;
 }
 
-static void ResampleFrame_Stereo(const float *src, float *dst, const Cubic *filter, float frac, int chans)
+static void ResampleFrame_Stereo(const float* src, float* dst, const Cubic* filter, float frac, int chans)
 {
     const float frac2 = frac * frac;
     const float frac3 = frac * frac2;
@@ -118,7 +121,8 @@ static void ResampleFrame_Stereo(const float *src, float *dst, const Cubic *filt
     float out0 = 0.0f;
     float out1 = 0.0f;
 
-    for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i, ++filter) {
+    for (i = 0; i < RESAMPLER_SAMPLES_PER_FRAME; ++i, ++filter)
+    {
         // Interpolate between the nearest two filters
         const float scale = filter->v[0] + (filter->v[1] * frac) + (filter->v[2] * frac2) + (filter->v[3] * frac3);
 
@@ -133,7 +137,8 @@ static void ResampleFrame_Stereo(const float *src, float *dst, const Cubic *filt
 #ifdef SDL_SSE_INTRINSICS
 #define sdl_madd_ps(a, b, c) _mm_add_ps(a, _mm_mul_ps(b, c)) // Not-so-fused multiply-add
 
-static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float *src, float *dst, const Cubic *filter, float frac, int chans)
+static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float* src, float* dst, const Cubic* filter,
+                                                           float frac, int chans)
 {
 #if RESAMPLER_SAMPLES_PER_FRAME != 12
 #error Invalid samples per frame
@@ -162,7 +167,8 @@ static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float *src, flo
 #undef X
     }
 
-    if (chans == 2) {
+    if (chans == 2)
+    {
         // Duplicate each of the filter elements and multiply by the input
         // Use two accumulators to improve throughput
         __m128 out0 = _mm_mul_ps(_mm_loadu_ps(src + 0), _mm_unpacklo_ps(f0, f0));
@@ -179,11 +185,12 @@ static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float *src, flo
         out = _mm_add_ps(out, _mm_movehl_ps(out, out));
 
         // Store the result
-        _mm_storel_pi((__m64 *)dst, out);
+        _mm_storel_pi((__m64*)dst, out);
         return;
     }
 
-    if (chans == 1) {
+    if (chans == 1)
+    {
         // Multiply the filter by the input
         __m128 out = _mm_mul_ps(f0, _mm_loadu_ps(src + 0));
         out = sdl_madd_ps(out, f1, _mm_loadu_ps(src + 4));
@@ -201,8 +208,9 @@ static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float *src, flo
     int chan = 0;
 
     // Process 4 channels at once
-    for (; chan + 4 <= chans; chan += 4) {
-        const float *in = &src[chan];
+    for (; chan + 4 <= chans; chan += 4)
+    {
+        const float* in = &src[chan];
         __m128 out0 = _mm_setzero_ps();
         __m128 out1 = _mm_setzero_ps();
 
@@ -232,8 +240,9 @@ static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float *src, flo
     // Process the remaining channels one at a time.
     // Channel counts 1,2,4,8 are already handled above, leaving 3,5,6,7 to deal with (looping 3,1,2,3 times).
     // Without vgatherdps (AVX2), this gets quite messy.
-    for (; chan < chans; ++chan) {
-        const float *in = &src[chan];
+    for (; chan < chans; ++chan)
+    {
+        const float* in = &src[chan];
         __m128 v0, v1, v2;
 
 #define X(x)                                                                         \
@@ -265,8 +274,9 @@ static void SDL_TARGETING("sse") ResampleFrame_Generic_SSE(const float *src, flo
 #endif
 
 #ifdef SDL_NEON_INTRINSICS
-static void ResampleFrame_Generic_NEON(const float *src, float *dst, const Cubic *filter, float frac, int chans)
+static void ResampleFrame_Generic_NEON(const float* src, float* dst, const Cubic* filter, float frac, int chans)
 {
+
 
 #if RESAMPLER_SAMPLES_PER_FRAME != 12
 #error Invalid samples per frame
@@ -399,7 +409,7 @@ int chan = 0;
 // Calculate the cubic equation which passes through all four points.
 // https://en.wikipedia.org/wiki/Ordinary_least_squares
 // https://en.wikipedia.org/wiki/Polynomial_regression
-static void CubicLeastSquares(Cubic *coeffs, float y0, float y1, float y2, float y3)
+static void CubicLeastSquares(Cubic* coeffs, float y0, float y1, float y2, float y3)
 {
     // Least squares matrix for xs = [0, 1/3, 2/3, 1]
     // [  1.0   0.0   0.0  0.0 ]
@@ -422,7 +432,8 @@ static float BesselI0(float x)
     float t = 1.0f;
     x *= x * 0.25f;
 
-    while (t >= sum * SDL_FLT_EPSILON) {
+    while (t >= sum * SDL_FLT_EPSILON)
+    {
         sum += t;
         t *= x / (i * i);
         ++i;
@@ -435,17 +446,18 @@ static float BesselI0(float x)
 // The speedup from this isn't huge, but it also avoids precision issues.
 // If sinf isn't available, SDL_sinf just calls SDL_sin.
 // Know what SDL_sin(SDL_PI_F) equals? Not quite zero.
-static void SincTable(float *table, int len)
+static void SincTable(float* table, int len)
 {
     int i;
 
-    for (i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i)
+    {
         table[i] = SDL_sinf(i * (SDL_PI_F / len)) / SDL_PI_F;
     }
 }
 
 // Calculate Sinc(x/y), using a lookup table
-static float Sinc(const float *table, int x, int y)
+static float Sinc(const float* table, int x, int y)
 {
     float s = table[x % y];
     s = ((x / y) & 1) ? -s : s;
@@ -480,7 +492,8 @@ static void GenerateResamplerFilter(void)
     float filter[TABLE_SIZE + 1];
     filter[0] = 1.0f;
 
-    for (i = 1; i <= TABLE_SIZE; ++i) {
+    for (i = 1; i <= TABLE_SIZE; ++i)
+    {
         float b = BesselI0(beta * SDL_sqrtf((lensqr - (i * i)) / lensqr)) / bessel_beta;
         float s = Sinc(sinc, i, TABLE_SAMPLES_PER_ZERO_CROSSING);
         filter[i] = b * s;
@@ -500,12 +513,14 @@ static void GenerateResamplerFilter(void)
     // Since the right wing is offset by 1, this just means we interpolate backwards
     // between the same points, instead of forwards
     // interp(p[n], p[n+1], t) = interp(p[n+1], p[n+1-1], 1 - t) = interp(p[n+1], p[n], 1 - t)
-    for (i = 0; i < RESAMPLER_SAMPLES_PER_ZERO_CROSSING; ++i) {
-        for (j = 0; j < RESAMPLER_ZERO_CROSSINGS; ++j) {
-            const float *ys = &filter[((j * RESAMPLER_SAMPLES_PER_ZERO_CROSSING) + i) * 3];
+    for (i = 0; i < RESAMPLER_SAMPLES_PER_ZERO_CROSSING; ++i)
+    {
+        for (j = 0; j < RESAMPLER_ZERO_CROSSINGS; ++j)
+        {
+            const float* ys = &filter[((j * RESAMPLER_SAMPLES_PER_ZERO_CROSSING) + i) * 3];
 
-            Cubic *fwd = &ResamplerFilter[i][RESAMPLER_ZERO_CROSSINGS - j - 1];
-            Cubic *rev = &ResamplerFilter[RESAMPLER_SAMPLES_PER_ZERO_CROSSING - i - 1][RESAMPLER_ZERO_CROSSINGS + j];
+            Cubic* fwd = &ResamplerFilter[i][RESAMPLER_ZERO_CROSSINGS - j - 1];
+            Cubic* rev = &ResamplerFilter[RESAMPLER_SAMPLES_PER_ZERO_CROSSING - i - 1][RESAMPLER_ZERO_CROSSINGS + j];
 
             // Calculate the cubic equation of the 4 points
             CubicLeastSquares(fwd, ys[0], ys[1], ys[2], ys[3]);
@@ -514,18 +529,20 @@ static void GenerateResamplerFilter(void)
     }
 }
 
-typedef void (*ResampleFrameFunc)(const float *src, float *dst, const Cubic *filter, float frac, int chans);
+typedef void (*ResampleFrameFunc)(const float* src, float* dst, const Cubic* filter, float frac, int chans);
 static ResampleFrameFunc ResampleFrame[8];
 
 // Transpose 4x4 floats
-static void Transpose4x4(Cubic *data)
+static void Transpose4x4(Cubic* data)
 {
     int i, j;
 
-    Cubic temp[4] = { data[0], data[1], data[2], data[3] };
+    Cubic temp[4] = {data[0], data[1], data[2], data[3]};
 
-    for (i = 0; i < 4; ++i) {
-        for (j = 0; j < 4; ++j) {
+    for (i = 0; i < 4; ++i)
+    {
+        for (j = 0; j < 4; ++j)
+        {
             data[i].v[j] = temp[j].v[i];
         }
     }
@@ -539,23 +556,30 @@ static void SetupAudioResampler(void)
     GenerateResamplerFilter();
 
 #ifdef SDL_SSE_INTRINSICS
-    if (SDL_HasSSE()) {
-        for (i = 0; i < 8; ++i) {
+    if (SDL_HasSSE())
+    {
+        for (i = 0; i < 8; ++i)
+        {
             ResampleFrame[i] = ResampleFrame_Generic_SSE;
         }
         transpose = true;
-    } else
+    }
+    else
 #endif
 #ifdef SDL_NEON_INTRINSICS
-    if (SDL_HasNEON()) {
-        for (i = 0; i < 8; ++i) {
+    if (SDL_HasNEON())
+    {
+        for (i = 0; i < 8; ++i)
+        {
             ResampleFrame[i] = ResampleFrame_Generic_NEON;
         }
         transpose = true;
-    } else
+    }
+    else
 #endif
     {
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < 8; ++i)
+        {
             ResampleFrame[i] = ResampleFrame_Generic;
         }
 
@@ -563,10 +587,13 @@ static void SetupAudioResampler(void)
         ResampleFrame[1] = ResampleFrame_Stereo;
     }
 
-    if (transpose) {
+    if (transpose)
+    {
         // Transpose each set of 4 coefficients, to reduce work when resampling
-        for (i = 0; i < RESAMPLER_SAMPLES_PER_ZERO_CROSSING; ++i) {
-            for (j = 0; j + 4 <= RESAMPLER_SAMPLES_PER_FRAME; j += 4) {
+        for (i = 0; i < RESAMPLER_SAMPLES_PER_ZERO_CROSSING; ++i)
+        {
+            for (j = 0; j + 4 <= RESAMPLER_SAMPLES_PER_FRAME; j += 4)
+            {
                 Transpose4x4(&ResamplerFilter[i][j]);
             }
         }
@@ -577,7 +604,8 @@ void SDL_SetupAudioResampler(void)
 {
     static SDL_InitState init;
 
-    if (SDL_ShouldInit(&init)) {
+    if (SDL_ShouldInit(&init))
+    {
         SetupAudioResampler();
         SDL_SetInitialized(&init, true);
     }
@@ -620,9 +648,10 @@ int SDL_GetResamplerPaddingFrames(Sint64 resample_rate)
 }
 
 // These are not general purpose. They do not check for all possible underflow/overflow
-SDL_FORCE_INLINE bool ResamplerAdd(Sint64 a, Sint64 b, Sint64 *ret)
+SDL_FORCE_INLINE bool ResamplerAdd(Sint64 a, Sint64 b, Sint64* ret)
 {
-    if ((b > 0) && (a > SDL_MAX_SINT64 - b)) {
+    if ((b > 0) && (a > SDL_MAX_SINT64 - b))
+    {
         return false;
     }
 
@@ -630,9 +659,10 @@ SDL_FORCE_INLINE bool ResamplerAdd(Sint64 a, Sint64 b, Sint64 *ret)
     return true;
 }
 
-SDL_FORCE_INLINE bool ResamplerMul(Sint64 a, Sint64 b, Sint64 *ret)
+SDL_FORCE_INLINE bool ResamplerMul(Sint64 a, Sint64 b, Sint64* ret)
 {
-    if ((b > 0) && (a > SDL_MAX_SINT64 / b)) {
+    if ((b > 0) && (a > SDL_MAX_SINT64 / b))
+    {
         return false;
     }
 
@@ -647,7 +677,8 @@ Sint64 SDL_GetResamplerInputFrames(Sint64 output_frames, Sint64 resample_rate, S
 
     Sint64 output_offset;
     if (!ResamplerMul(output_frames, resample_rate, &output_offset) ||
-        !ResamplerAdd(output_offset, -resample_rate + resample_offset + 0x100000000, &output_offset)) {
+        !ResamplerAdd(output_offset, -resample_rate + resample_offset + 0x100000000, &output_offset))
+    {
         output_offset = SDL_MAX_SINT64;
     }
 
@@ -657,14 +688,15 @@ Sint64 SDL_GetResamplerInputFrames(Sint64 output_frames, Sint64 resample_rate, S
     return input_frames;
 }
 
-Sint64 SDL_GetResamplerOutputFrames(Sint64 input_frames, Sint64 resample_rate, Sint64 *inout_resample_offset)
+Sint64 SDL_GetResamplerOutputFrames(Sint64 input_frames, Sint64 resample_rate, Sint64* inout_resample_offset)
 {
     Sint64 resample_offset = *inout_resample_offset;
 
     // input_offset = (input_frames << 32) - resample_offset;
     Sint64 input_offset;
     if (!ResamplerMul(input_frames, 0x100000000, &input_offset) ||
-        !ResamplerAdd(input_offset, -resample_offset, &input_offset)) {
+        !ResamplerAdd(input_offset, -resample_offset, &input_offset))
+    {
         input_offset = SDL_MAX_SINT64;
     }
 
@@ -676,8 +708,8 @@ Sint64 SDL_GetResamplerOutputFrames(Sint64 input_frames, Sint64 resample_rate, S
     return output_frames;
 }
 
-void SDL_ResampleAudio(int chans, const float *src, int inframes, float *dst, int outframes,
-                       Sint64 resample_rate, Sint64 *inout_resample_offset)
+void SDL_ResampleAudio(int chans, const float* src, int inframes, float* dst, int outframes,
+                       Sint64 resample_rate, Sint64* inout_resample_offset)
 {
     int i;
     Sint64 srcpos = *inout_resample_offset;
@@ -687,17 +719,19 @@ void SDL_ResampleAudio(int chans, const float *src, int inframes, float *dst, in
 
     src -= (RESAMPLER_ZERO_CROSSINGS - 1) * chans;
 
-    for (i = 0; i < outframes; ++i) {
+    for (i = 0; i < outframes; ++i)
+    {
         int srcindex = (int)(Sint32)(srcpos >> 32);
         Uint32 srcfraction = (Uint32)(srcpos & 0xFFFFFFFF);
         srcpos += resample_rate;
 
         SDL_assert(srcindex >= -1 && srcindex < inframes);
 
-        const Cubic *filter = ResamplerFilter[srcfraction >> RESAMPLER_FILTER_INTERP_BITS];
-        const float frac = (float)(srcfraction & (RESAMPLER_FILTER_INTERP_RANGE - 1)) * (1.0f / RESAMPLER_FILTER_INTERP_RANGE);
+        const Cubic* filter = ResamplerFilter[srcfraction >> RESAMPLER_FILTER_INTERP_BITS];
+        const float frac = (float)(srcfraction & (RESAMPLER_FILTER_INTERP_RANGE - 1)) * (1.0f /
+            RESAMPLER_FILTER_INTERP_RANGE);
 
-        const float *frame = &src[srcindex * chans];
+        const float* frame = &src[srcindex * chans];
         resample_frame(frame, dst, filter, frac, chans);
 
         dst += chans;

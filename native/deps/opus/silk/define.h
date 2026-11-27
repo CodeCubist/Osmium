@@ -214,6 +214,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /* Transition filtering for mode switching */
 #define TRANSITION_TIME_MS                      5120    /* 5120 = 64 * FRAME_LENGTH_MS * ( TRANSITION_INT_NUM - 1 ) = 64*(20*4)*/
 
+
 #define TRANSITION_NB                           3       /* Hardcoded in tables */
 #define TRANSITION_NA                           2       /* Hardcoded in tables */
 #define TRANSITION_INT_NUM                      5       /* Hardcoded in tables */

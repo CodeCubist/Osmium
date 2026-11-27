@@ -291,13 +291,16 @@ static bool CPU_OSSavesZMM = false;
 static void CPU_calcCPUIDFeatures(void)
 {
     static bool checked = false;
-    if (!checked) {
+    if (!checked)
+    {
         checked = true;
-        if (CPU_haveCPUID()) {
+        if (CPU_haveCPUID())
+        {
             int a, b, c, d;
             cpuid(0, a, b, c, d);
             CPU_CPUIDMaxFunction = a;
-            if (CPU_CPUIDMaxFunction >= 1) {
+            if (CPU_CPUIDMaxFunction >= 1)
+            {
                 cpuid(1, a, b, c, d);
                 CPU_CPUIDFeatures[0] = a;
                 CPU_CPUIDFeatures[1] = b;
@@ -305,7 +308,8 @@ static void CPU_calcCPUIDFeatures(void)
                 CPU_CPUIDFeatures[3] = d;
 
                 // Check to make sure we can call xgetbv
-                if (c & 0x08000000) {
+                if (c & 0x08000000)
+                {
                     // Call xgetbv to see if YMM (etc) register state is saved
 #if (defined(__GNUC__) || defined(__llvm__)) && (defined(__i386__) || defined(__x86_64__)) && !defined(__arm64ec__)
                     __asm__(".byte 0x0f, 0x01, 0xd0"
@@ -336,20 +340,22 @@ static int CPU_haveAltiVec(void)
 #ifndef SDL_CPUINFO_DISABLED
 #if (defined(SDL_PLATFORM_FREEBSD) || defined(SDL_PLATFORM_OPENBSD)) && defined(__powerpc__) && defined(HAVE_ELF_AUX_INFO)
     unsigned long cpufeatures;
-    if (elf_aux_info(AT_HWCAP, &cpufeatures, sizeof(cpufeatures)) != 0) {
+    if (elf_aux_info(AT_HWCAP, &cpufeatures, sizeof(cpufeatures)) != 0)
+    {
         cpufeatures = 0;
     }
     altivec = cpufeatures & PPC_FEATURE_HAS_ALTIVEC;
 #elif (defined(SDL_PLATFORM_MACOS) && (defined(__ppc__) || defined(__ppc64__))) || (defined(SDL_PLATFORM_OPENBSD) && defined(__powerpc__))
 #ifdef SDL_PLATFORM_OPENBSD
-    int selectors[2] = { CTL_MACHDEP, CPU_ALTIVEC };
+    int selectors[2] = {CTL_MACHDEP, CPU_ALTIVEC};
 #else
-    int selectors[2] = { CTL_HW, HW_VECTORUNIT };
+    int selectors[2] = {CTL_HW, HW_VECTORUNIT};
 #endif
     int hasVectorUnit = 0;
     size_t length = sizeof(hasVectorUnit);
     int error = sysctl(selectors, 2, &hasVectorUnit, &length, NULL, 0);
-    if (0 == error) {
+    if (0 == error)
+    {
         altivec = (hasVectorUnit != 0);
     }
 #elif defined(SDL_PLATFORM_LINUX) && defined(__powerpc__) && defined(HAVE_GETAUXVAL)
@@ -357,11 +363,14 @@ static int CPU_haveAltiVec(void)
 #elif defined(SDL_ALTIVEC_BLITTERS) && defined(HAVE_SETJMP)
     void (*handler)(int sig);
     handler = signal(SIGILL, illegal_instruction);
-    if (setjmp(jmpbuf) == 0) {
+    if (setjmp(jmpbuf) == 0)
+    {
         asm volatile (
+        
         "mtspr 256, %0\n\t"
             "vand %%v0, %%v0, %%v0"
         ::
+        
         "r"(-1));
         altivec = 1;
     }
@@ -390,14 +399,18 @@ static int CPU_haveARMSIMD(void)
     int fd;
 
     fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
-    if (fd >= 0) {
+    if (fd >= 0)
+    {
         Elf32_auxv_t aux;
-        while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
-            if (aux.a_type == AT_PLATFORM) {
-                const char *plat = (const char *)aux.a_un.a_val;
-                if (plat) {
+        while (read(fd, &aux, sizeof(aux)) == sizeof(aux))
+        {
+            if (aux.a_type == AT_PLATFORM)
+            {
+                const char* plat = (const char*)aux.a_un.a_val;
+                if (plat)
+                {
                     arm_simd = SDL_strncmp(plat, "v6l", 3) == 0 ||
-                               SDL_strncmp(plat, "v7l", 3) == 0;
+                        SDL_strncmp(plat, "v7l", 3) == 0;
                 }
             }
         }
@@ -411,17 +424,20 @@ static int CPU_haveARMSIMD(void)
 {
     _kernel_swi_regs regs;
     regs.r[0] = 0;
-    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL) {
+    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
+    {
         return 0;
     }
 
-    if (!(regs.r[0] & (1 << 31))) {
+    if (!(regs.r[0] & (1 << 31)))
+    {
         return 0;
     }
 
     regs.r[0] = 34;
     regs.r[1] = 29;
-    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL) {
+    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
+    {
         return 0;
     }
 
@@ -449,10 +465,13 @@ static int readProcAuxvForNeon(void)
     int fd;
 
     fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
-    if (fd >= 0) {
+    if (fd >= 0)
+    {
         Elf32_auxv_t aux;
-        while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
-            if (aux.a_type == AT_HWCAP) {
+        while (read(fd, &aux, sizeof(aux)) == sizeof(aux))
+        {
+            if (aux.a_type == AT_HWCAP)
+            {
                 neon = (aux.a_un.a_val & HWCAP_NEON) == HWCAP_NEON;
                 break;
             }
@@ -492,7 +511,8 @@ static int CPU_haveNEON(void)
     return 0; // not an ARM CPU at all.
 #elif defined(HAVE_ELF_AUX_INFO)
     unsigned long hasneon;
-    if (elf_aux_info(AT_HWCAP, (void *)&hasneon, (int)sizeof(hasneon)) != 0) {
+    if (elf_aux_info(AT_HWCAP, (void*)&hasneon, (int)sizeof(hasneon)) != 0)
+    {
         hasneon = 0;
     }
     return (hasneon & HWCAP_NEON) == HWCAP_NEON;
@@ -505,8 +525,10 @@ static int CPU_haveNEON(void)
     {
         _kernel_swi_regs regs;
         regs.r[0] = 0;
-        if (_kernel_swi(VFPSupport_Features, &regs, &regs) == NULL) {
-            if ((regs.r[2] & 0xFFF000) == 0x111000) {
+        if (_kernel_swi(VFPSupport_Features, &regs, &regs) == NULL)
+        {
+            if ((regs.r[2] & 0xFFF000) == 0x111000)
+            {
                 return 1;
             }
         }
@@ -588,6 +610,7 @@ inline int
 CPU_haveAVX2(void)
 {
 
+
 #ifdef __AVX2__
 return 1;
 #else
@@ -597,7 +620,8 @@ return 0;
 #else
 static int CPU_haveAVX2(void)
 {
-    if (CPU_OSSavesYMM && (CPU_CPUIDMaxFunction >= 7)) {
+    if (CPU_OSSavesYMM && (CPU_CPUIDMaxFunction >= 7))
+    {
         int a, b, c, d;
         (void)a;
         (void)b;
@@ -619,7 +643,8 @@ CPU_haveAVX512F(void)
 #else
 static int CPU_haveAVX512F(void)
 {
-    if (CPU_OSSavesZMM && (CPU_CPUIDMaxFunction >= 7)) {
+    if (CPU_OSSavesZMM && (CPU_CPUIDMaxFunction >= 7))
+    {
         int a, b, c, d;
         (void)a;
         (void)b;
@@ -636,27 +661,32 @@ static int SDL_NumLogicalCPUCores = 0;
 
 int SDL_GetNumLogicalCPUCores(void)
 {
-    if (!SDL_NumLogicalCPUCores) {
+    if (!SDL_NumLogicalCPUCores)
+    {
 #if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
-        if (SDL_NumLogicalCPUCores <= 0) {
+        if (SDL_NumLogicalCPUCores <= 0)
+        {
             SDL_NumLogicalCPUCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
         }
 #endif
 #ifdef HAVE_SYSCTLBYNAME
-        if (SDL_NumLogicalCPUCores <= 0) {
+        if (SDL_NumLogicalCPUCores <= 0)
+        {
             size_t size = sizeof(SDL_NumLogicalCPUCores);
             sysctlbyname("hw.ncpu", &SDL_NumLogicalCPUCores, &size, NULL, 0);
         }
 #endif
 #if defined(SDL_PLATFORM_WINDOWS)
-        if (SDL_NumLogicalCPUCores <= 0) {
+        if (SDL_NumLogicalCPUCores <= 0)
+        {
             SYSTEM_INFO info;
             GetSystemInfo(&info);
             SDL_NumLogicalCPUCores = info.dwNumberOfProcessors;
         }
 #endif
 #ifdef SDL_PLATFORM_3DS
-        if (SDL_NumLogicalCPUCores <= 0) {
+        if (SDL_NumLogicalCPUCores <= 0)
+        {
             bool isNew3DS = false;
             APT_CheckNew3DS(&isNew3DS);
             // 1 core is always dedicated to the OS
@@ -665,7 +695,8 @@ int SDL_GetNumLogicalCPUCores(void)
         }
 #endif
         // There has to be at least 1, right? :)
-        if (SDL_NumLogicalCPUCores <= 0) {
+        if (SDL_NumLogicalCPUCores <= 0)
+        {
             SDL_NumLogicalCPUCores = 1;
         }
     }
@@ -673,7 +704,7 @@ int SDL_GetNumLogicalCPUCores(void)
 }
 
 #ifdef __e2k__
-inline const char *
+inline const char*
 SDL_GetCPUType(void)
 {
     static char SDL_CPUType[13];
@@ -684,15 +715,17 @@ SDL_GetCPUType(void)
 }
 #else
 // Oh, such a sweet sweet trick, just not very useful. :)
-static const char *SDL_GetCPUType(void)
+static const char* SDL_GetCPUType(void)
 {
     static char SDL_CPUType[13];
 
-    if (!SDL_CPUType[0]) {
+    if (!SDL_CPUType[0])
+    {
         int i = 0;
 
         CPU_calcCPUIDFeatures();
-        if (CPU_CPUIDMaxFunction > 0) {
+        if (CPU_CPUIDMaxFunction > 0)
+        {
             // do we have CPUID at all?
             int a, b, c, d;
             cpuid(0x00000000, a, b, c, d);
@@ -721,7 +754,8 @@ static const char *SDL_GetCPUType(void)
             c >>= 8;
             SDL_CPUType[i++] = (char)(c & 0xff);
         }
-        if (!SDL_CPUType[0]) {
+        if (!SDL_CPUType[0])
+        {
             SDL_strlcpy(SDL_CPUType, "Unknown", sizeof(SDL_CPUType));
         }
     }
@@ -732,7 +766,7 @@ static const char *SDL_GetCPUType(void)
 #if 0
 !!! FIXME: Not used at the moment.  */
 #ifdef __e2k__
-inline const char *
+inline const char*
 SDL_GetCPUName(void)
 {
     static char SDL_CPUName[48];
@@ -742,19 +776,22 @@ SDL_GetCPUName(void)
     return SDL_CPUName;
 }
 #else
-static const char *SDL_GetCPUName(void)
+static const char* SDL_GetCPUName(void)
 {
     static char SDL_CPUName[48];
 
-    if (!SDL_CPUName[0]) {
+    if (!SDL_CPUName[0])
+    {
         int i = 0;
         int a, b, c, d;
 
         CPU_calcCPUIDFeatures();
-        if (CPU_CPUIDMaxFunction > 0) {
+        if (CPU_CPUIDMaxFunction > 0)
+        {
             // do we have CPUID at all?
             cpuid(0x80000000, a, b, c, d);
-            if (a >= 0x80000004) {
+            if (a >= 0x80000004)
+            {
                 cpuid(0x80000002, a, b, c, d);
                 SDL_CPUName[i++] = (char)(a & 0xff);
                 a >>= 8;
@@ -856,7 +893,8 @@ static const char *SDL_GetCPUName(void)
                 d >>= 8;
             }
         }
-        if (!SDL_CPUName[0]) {
+        if (!SDL_CPUName[0])
+        {
             SDL_strlcpy(SDL_CPUName, "Unknown", sizeof(SDL_CPUName));
         }
     }
@@ -867,33 +905,44 @@ static const char *SDL_GetCPUName(void)
 
 int SDL_GetCPUCacheLineSize(void)
 {
-    const char *cpuType = SDL_GetCPUType();
+    const char* cpuType = SDL_GetCPUType();
     int cacheline_size = SDL_CACHELINE_SIZE; // initial guess
     int a, b, c, d;
     (void)a;
     (void)b;
     (void)c;
     (void)d;
-    if (SDL_strcmp(cpuType, "GenuineIntel") == 0 || SDL_strcmp(cpuType, "CentaurHauls") == 0 || SDL_strcmp(cpuType, "  Shanghai  ") == 0) {
+    if (SDL_strcmp(cpuType, "GenuineIntel") == 0 || SDL_strcmp(cpuType, "CentaurHauls") == 0 || SDL_strcmp(
+        cpuType, "  Shanghai  ") == 0)
+    {
         cpuid(0x00000001, a, b, c, d);
         cacheline_size = ((b >> 8) & 0xff) * 8;
-    } else if (SDL_strcmp(cpuType, "AuthenticAMD") == 0 || SDL_strcmp(cpuType, "HygonGenuine") == 0) {
+    }
+    else if (SDL_strcmp(cpuType, "AuthenticAMD") == 0 || SDL_strcmp(cpuType, "HygonGenuine") == 0)
+    {
         cpuid(0x80000005, a, b, c, d);
         cacheline_size = c & 0xff;
-    } else {
+    }
+    else
+    {
 #if defined(HAVE_SYSCONF) && defined(_SC_LEVEL1_DCACHE_LINESIZE)
-        if ((cacheline_size = (int)sysconf(_SC_LEVEL1_DCACHE_LINESIZE)) > 0) {
+        if ((cacheline_size = (int)sysconf(_SC_LEVEL1_DCACHE_LINESIZE)) > 0)
+        {
             return cacheline_size;
-        } else {
+        }
+        else
+        {
             cacheline_size = SDL_CACHELINE_SIZE;
         }
 #endif
 #if defined(SDL_PLATFORM_LINUX)
         {
-            FILE *f = fopen("/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
-            if (f) {
+            FILE* f = fopen("/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
+            if (f)
+            {
                 int size;
-                if (fscanf(f, "%d", &size) == 1) {
+                if (fscanf(f, "%d", &size) == 1)
+                {
                     cacheline_size = size;
                 }
                 fclose(f);
@@ -911,74 +960,117 @@ int SDL_GetCPUCacheLineSize(void)
 static Uint32 SDL_CPUFeatures = SDL_CPUFEATURES_RESET_VALUE;
 static Uint32 SDL_SIMDAlignment = 0xFFFFFFFF;
 
-static bool ref_string_equals(const char *ref, const char *test, const char *end_test)
+static bool ref_string_equals(const char* ref, const char* test, const char* end_test)
 {
     size_t len_test = end_test - test;
-    return SDL_strncmp(ref, test, len_test) == 0 && ref[len_test] == '\0' && (test[len_test] == '\0' || test[len_test] == ',');
+    return SDL_strncmp(ref, test, len_test) == 0 && ref[len_test] == '\0' && (test[len_test] == '\0' || test[len_test]
+        == ',');
 }
 
 static Uint32 SDLCALL SDL_CPUFeatureMaskFromHint(void)
 {
     Uint32 result_mask = SDL_CPUFEATURES_RESET_VALUE;
 
-    const char *hint = SDL_GetHint(SDL_HINT_CPU_FEATURE_MASK);
+    const char* hint = SDL_GetHint(SDL_HINT_CPU_FEATURE_MASK);
 
-    if (hint) {
-        for (const char *spot = hint, *next; *spot; spot = next) {
-            const char *end = SDL_strchr(spot, ',');
+    if (hint)
+    {
+        for (const char *spot = hint, *next; *spot; spot = next)
+        {
+            const char* end = SDL_strchr(spot, ',');
             Uint32 spot_mask;
             bool add_spot_mask = true;
-            if (end) {
+            if (end)
+            {
                 next = end + 1;
-            } else {
+            }
+            else
+            {
                 size_t len = SDL_strlen(spot);
                 end = spot + len;
                 next = end;
             }
-            if (spot[0] == '+') {
+            if (spot[0] == '+')
+            {
                 add_spot_mask = true;
                 spot += 1;
-            } else if (spot[0] == '-') {
+            }
+            else if (spot[0] == '-')
+            {
                 add_spot_mask = false;
                 spot += 1;
             }
-            if (ref_string_equals("all", spot, end)) {
+            if (ref_string_equals("all", spot, end))
+            {
                 spot_mask = SDL_CPUFEATURES_RESET_VALUE;
-            } else if (ref_string_equals("altivec", spot, end)) {
+            }
+            else if (ref_string_equals("altivec", spot, end))
+            {
                 spot_mask = CPU_HAS_ALTIVEC;
-            } else if (ref_string_equals("mmx", spot, end)) {
+            }
+            else if (ref_string_equals("mmx", spot, end))
+            {
                 spot_mask = CPU_HAS_MMX;
-            } else if (ref_string_equals("sse", spot, end)) {
+            }
+            else if (ref_string_equals("sse", spot, end))
+            {
                 spot_mask = CPU_HAS_SSE;
-            } else if (ref_string_equals("sse2", spot, end)) {
+            }
+            else if (ref_string_equals("sse2", spot, end))
+            {
                 spot_mask = CPU_HAS_SSE2;
-            } else if (ref_string_equals("sse3", spot, end)) {
+            }
+            else if (ref_string_equals("sse3", spot, end))
+            {
                 spot_mask = CPU_HAS_SSE3;
-            } else if (ref_string_equals("sse41", spot, end)) {
+            }
+            else if (ref_string_equals("sse41", spot, end))
+            {
                 spot_mask = CPU_HAS_SSE41;
-            } else if (ref_string_equals("sse42", spot, end)) {
+            }
+            else if (ref_string_equals("sse42", spot, end))
+            {
                 spot_mask = CPU_HAS_SSE42;
-            } else if (ref_string_equals("avx", spot, end)) {
+            }
+            else if (ref_string_equals("avx", spot, end))
+            {
                 spot_mask = CPU_HAS_AVX;
-            } else if (ref_string_equals("avx2", spot, end)) {
+            }
+            else if (ref_string_equals("avx2", spot, end))
+            {
                 spot_mask = CPU_HAS_AVX2;
-            } else if (ref_string_equals("avx512f", spot, end)) {
+            }
+            else if (ref_string_equals("avx512f", spot, end))
+            {
                 spot_mask = CPU_HAS_AVX512F;
-            } else if (ref_string_equals("arm-simd", spot, end)) {
+            }
+            else if (ref_string_equals("arm-simd", spot, end))
+            {
                 spot_mask = CPU_HAS_ARM_SIMD;
-            } else if (ref_string_equals("neon", spot, end)) {
+            }
+            else if (ref_string_equals("neon", spot, end))
+            {
                 spot_mask = CPU_HAS_NEON;
-            } else if (ref_string_equals("lsx", spot, end)) {
+            }
+            else if (ref_string_equals("lsx", spot, end))
+            {
                 spot_mask = CPU_HAS_LSX;
-            } else if (ref_string_equals("lasx", spot, end)) {
+            }
+            else if (ref_string_equals("lasx", spot, end))
+            {
                 spot_mask = CPU_HAS_LASX;
-            } else {
+            }
+            else
+            {
                 // Ignore unknown/incorrect cpu feature(s)
                 continue;
             }
-            if (add_spot_mask) {
+            if (add_spot_mask)
+            {
                 result_mask |= spot_mask;
-            } else {
+            }
+            else
+            {
                 result_mask &= ~spot_mask;
             }
         }
@@ -988,63 +1080,78 @@ static Uint32 SDLCALL SDL_CPUFeatureMaskFromHint(void)
 
 static Uint32 SDL_GetCPUFeatures(void)
 {
-    if (SDL_CPUFeatures == SDL_CPUFEATURES_RESET_VALUE) {
+    if (SDL_CPUFeatures == SDL_CPUFEATURES_RESET_VALUE)
+    {
         CPU_calcCPUIDFeatures();
         SDL_CPUFeatures = 0;
-        SDL_SIMDAlignment = sizeof(void *); // a good safe base value
-        if (CPU_haveAltiVec()) {
+        SDL_SIMDAlignment = sizeof(void*); // a good safe base value
+        if (CPU_haveAltiVec())
+        {
             SDL_CPUFeatures |= CPU_HAS_ALTIVEC;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveMMX()) {
+        if (CPU_haveMMX())
+        {
             SDL_CPUFeatures |= CPU_HAS_MMX;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 8);
         }
-        if (CPU_haveSSE()) {
+        if (CPU_haveSSE())
+        {
             SDL_CPUFeatures |= CPU_HAS_SSE;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveSSE2()) {
+        if (CPU_haveSSE2())
+        {
             SDL_CPUFeatures |= CPU_HAS_SSE2;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveSSE3()) {
+        if (CPU_haveSSE3())
+        {
             SDL_CPUFeatures |= CPU_HAS_SSE3;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveSSE41()) {
+        if (CPU_haveSSE41())
+        {
             SDL_CPUFeatures |= CPU_HAS_SSE41;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveSSE42()) {
+        if (CPU_haveSSE42())
+        {
             SDL_CPUFeatures |= CPU_HAS_SSE42;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveAVX()) {
+        if (CPU_haveAVX())
+        {
             SDL_CPUFeatures |= CPU_HAS_AVX;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 32);
         }
-        if (CPU_haveAVX2()) {
+        if (CPU_haveAVX2())
+        {
             SDL_CPUFeatures |= CPU_HAS_AVX2;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 32);
         }
-        if (CPU_haveAVX512F()) {
+        if (CPU_haveAVX512F())
+        {
             SDL_CPUFeatures |= CPU_HAS_AVX512F;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 64);
         }
-        if (CPU_haveARMSIMD()) {
+        if (CPU_haveARMSIMD())
+        {
             SDL_CPUFeatures |= CPU_HAS_ARM_SIMD;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveNEON()) {
+        if (CPU_haveNEON())
+        {
             SDL_CPUFeatures |= CPU_HAS_NEON;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveLSX()) {
+        if (CPU_haveLSX())
+        {
             SDL_CPUFeatures |= CPU_HAS_LSX;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
-        if (CPU_haveLASX()) {
+        if (CPU_haveLASX())
+        {
             SDL_CPUFeatures |= CPU_HAS_LASX;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 32);
         }
@@ -1134,9 +1241,11 @@ static int SDL_SystemRAM = 0;
 
 int SDL_GetSystemRAM(void)
 {
-    if (!SDL_SystemRAM) {
+    if (!SDL_SystemRAM)
+    {
 #if defined(HAVE_SYSCONF) && defined(_SC_PHYS_PAGES) && defined(_SC_PAGESIZE)
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             SDL_SystemRAM = (int)((Sint64)sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGESIZE) / (1024 * 1024));
         }
 #endif
@@ -1144,69 +1253,80 @@ int SDL_GetSystemRAM(void)
         if (SDL_SystemRAM <= 0) { 
 #ifdef HW_PHYSMEM64
         // (64-bit): NetBSD since 2003, OpenBSD
-        int mib[2] = { CTL_HW, HW_PHYSMEM64 };
+        int mib[2] = {CTL_HW, HW_PHYSMEM64};
 #elif defined(HW_REALMEM)
         // (64-bit): FreeBSD since 2005, DragonFly
-        int mib[2] = { CTL_HW, HW_REALMEM };
+        int mib[2] = {CTL_HW, HW_REALMEM};
 #elif defined(HW_MEMSIZE)
         // (64-bit): Darwin
-        int mib[2] = { CTL_HW, HW_MEMSIZE };
+        int mib[2] = {CTL_HW, HW_MEMSIZE};
 #else
         // (32-bit): very old BSD, might only report up to 2 GiB
-        int mib[2] = { CTL_HW, HW_PHYSMEM };
+        int mib[2] = {CTL_HW, HW_PHYSMEM};
 #endif // HW_PHYSMEM64
         Uint64 memsize = 0;
         size_t len = sizeof(memsize);
 
-        if (sysctl(mib, 2, &memsize, &len, NULL, 0) == 0) {
+        if (sysctl(mib, 2, &memsize, &len, NULL, 0) == 0)
+        {
             SDL_SystemRAM = (int)(memsize / (1024 * 1024));
         }
         }
 #endif
 #if defined(SDL_PLATFORM_WINDOWS)
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             MEMORYSTATUSEX stat;
             stat.dwLength = sizeof(stat);
-            if (GlobalMemoryStatusEx(&stat)) {
+            if (GlobalMemoryStatusEx(&stat))
+            {
                 SDL_SystemRAM = (int)(stat.ullTotalPhys / (1024 * 1024));
             }
         }
 #endif
 #ifdef SDL_PLATFORM_RISCOS
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             _kernel_swi_regs regs;
             regs.r[0] = 0x108;
-            if (_kernel_swi(OS_Memory, &regs, &regs) == NULL) {
+            if (_kernel_swi(OS_Memory, &regs, &regs) == NULL)
+            {
                 SDL_SystemRAM = (int)(regs.r[1] * regs.r[2] / (1024 * 1024));
             }
         }
 #endif
 #ifdef SDL_PLATFORM_3DS
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             // The New3DS has 255MiB, the Old3DS 127MiB
             SDL_SystemRAM = (int)(osGetMemRegionSize(MEMREGION_ALL) / (1024 * 1024));
         }
 #endif
 #ifdef SDL_PLATFORM_VITA
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             /* Vita has 512MiB on SoC, that's split into 256MiB(+109MiB in extended memory mode) for app
                +26MiB of physically continuous memory, +112MiB of CDRAM(VRAM) + system reserved memory. */
             SDL_SystemRAM = 536870912;
         }
 #endif
 #ifdef SDL_PLATFORM_PS2
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             // PlayStation 2 has 32MiB however there are some special models with 64 and 128
             SDL_SystemRAM = GetMemorySize();
         }
 #endif
 #ifdef SDL_PLATFORM_HAIKU
-        if (SDL_SystemRAM <= 0) {
+        if (SDL_SystemRAM <= 0)
+        {
             system_info info;
-            if (get_system_info(&info) == B_OK) {
+            if (get_system_info(&info) == B_OK)
+            {
                 /* To have an accurate amount, we also take in account the inaccessible pages (aka ignored)
                   which is a bit handier compared to the legacy system's api (i.e. used_pages).*/
-                SDL_SystemRAM = (int)SDL_round((info.max_pages + info.ignored_pages > 0 ? info.ignored_pages : 0) * B_PAGE_SIZE / 1048576.0);
+                SDL_SystemRAM = (int)SDL_round(
+                    (info.max_pages + info.ignored_pages > 0 ? info.ignored_pages : 0) * B_PAGE_SIZE / 1048576.0);
             }
         }
 #endif
@@ -1219,7 +1339,8 @@ static int SDL_SystemPageSize = -1;
 
 int SDL_GetSystemPageSize(void)
 {
-    if (SDL_SystemPageSize == -1) {
+    if (SDL_SystemPageSize == -1)
+    {
 #ifdef SDL_PLATFORM_SYSTEM_PAGE_SIZE_PRIVATE  // consoles will define this in a platform-specific internal header.
         SDL_SystemPageSize = SDL_PLATFORM_SYSTEM_PAGE_SIZE_PRIVATE;
 #endif
@@ -1242,30 +1363,35 @@ int SDL_GetSystemPageSize(void)
         }
 #endif
 #if defined(HAVE_SYSCTLBYNAME) && defined(HW_PAGESIZE)
-        if (SDL_SystemPageSize <= 0) {
+        if (SDL_SystemPageSize <= 0)
+        {
             // NetBSD, OpenBSD, FreeBSD, Darwin...everything agrees to use HW_PAGESIZE.
-            int mib[2] = { CTL_HW, HW_PAGESIZE };
+            int mib[2] = {CTL_HW, HW_PAGESIZE};
             int pagesize = 0;
             size_t len = sizeof(pagesize);
 
-            if (sysctl(mib, 2, &pagesize, &len, NULL, 0) == 0) {
+            if (sysctl(mib, 2, &pagesize, &len, NULL, 0) == 0)
+            {
                 SDL_SystemPageSize = pagesize;
             }
         }
 #endif
 #ifdef USE_GETPAGESIZE
-        if (SDL_SystemPageSize <= 0) {
+        if (SDL_SystemPageSize <= 0)
+        {
             SDL_SystemPageSize = getpagesize();
         }
 #endif
 #if defined(SDL_PLATFORM_WINDOWS)
-        if (SDL_SystemPageSize <= 0) {
+        if (SDL_SystemPageSize <= 0)
+        {
             SYSTEM_INFO sysinfo;
             GetSystemInfo(&sysinfo);
             SDL_SystemPageSize = (int)sysinfo.dwPageSize;
         }
 #endif
-        if (SDL_SystemPageSize < 0) {
+        if (SDL_SystemPageSize < 0)
+        {
             // in case we got a weird result somewhere, or no better information, force it to 0.
             SDL_SystemPageSize = 0; // unknown page size, sorry.
         }
@@ -1276,7 +1402,8 @@ int SDL_GetSystemPageSize(void)
 
 size_t SDL_GetSIMDAlignment(void)
 {
-    if (SDL_SIMDAlignment == 0xFFFFFFFF) {
+    if (SDL_SIMDAlignment == 0xFFFFFFFF)
+    {
         SDL_GetCPUFeatures(); // make sure this has been calculated
     }
     SDL_assert(SDL_SIMDAlignment != 0);

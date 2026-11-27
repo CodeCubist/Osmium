@@ -53,20 +53,20 @@
 
 #include <SDL3/SDL_vulkan.h>
 
-extern const char *SDL_Vulkan_GetResultString(VkResult result);
+extern const char* SDL_Vulkan_GetResultString(VkResult result);
 
-extern VkExtensionProperties *SDL_Vulkan_CreateInstanceExtensionsList(
+extern VkExtensionProperties* SDL_Vulkan_CreateInstanceExtensionsList(
     PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties,
-    Uint32 *extensionCount); // free returned list with SDL_free
+    Uint32* extensionCount); // free returned list with SDL_free
 
 /* Create a surface directly from a display connected to a physical device
  * using the DisplayKHR extension.
  * This needs to be passed an instance that was created with the VK_KHR_DISPLAY_EXTENSION_NAME
  * extension. */
-extern bool SDL_Vulkan_Display_CreateSurface(void *vkGetInstanceProcAddr,
+extern bool SDL_Vulkan_Display_CreateSurface(void* vkGetInstanceProcAddr,
                                              VkInstance instance,
-                                             const struct VkAllocationCallbacks *allocator,
-                                             VkSurfaceKHR *surface);
+                                             const struct VkAllocationCallbacks* allocator,
+                                             VkSurfaceKHR* surface);
 
 /* Platform independent base function for destroying the Vulkan surface. Unlike surface
  * creation, surface destruction doesn't require platform specific extensions like
@@ -74,10 +74,10 @@ extern bool SDL_Vulkan_Display_CreateSurface(void *vkGetInstanceProcAddr,
  * necessary extension is cross platform VK_KHR_surface, which is a dependency to all
  * WSI platform extensions, so we can handle surface destruction in an platform-independent
  * manner. */
-extern void SDL_Vulkan_DestroySurface_Internal(void *vkGetInstanceProcAddr,
+extern void SDL_Vulkan_DestroySurface_Internal(void* vkGetInstanceProcAddr,
                                                VkInstance instance,
                                                VkSurfaceKHR surface,
-                                               const struct VkAllocationCallbacks *allocator);
+                                               const struct VkAllocationCallbacks* allocator);
 #else
 
 // No SDL Vulkan support, just include the header for typedefs

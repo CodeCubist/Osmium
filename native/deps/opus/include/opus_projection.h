@@ -38,6 +38,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /** @cond OPUS_INTERNAL_DOC */

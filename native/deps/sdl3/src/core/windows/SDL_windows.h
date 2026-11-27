@@ -77,6 +77,7 @@
 #define _WIN32_WINNT _WIN32_WINNT_VISTA
 #else
 #define _WIN32_WINNT _WIN32_WINNT_WINXP // Need 0x410 for AlphaBlend() and 0x500 for EnumDisplayDevices(), 0x501 for raw input
+
 #endif
 #define WINVER _WIN32_WINNT
 
@@ -150,16 +151,17 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 // Sets an error message based on a given HRESULT
-extern bool WIN_SetErrorFromHRESULT(const char *prefix, HRESULT hr);
+extern bool WIN_SetErrorFromHRESULT(const char* prefix, HRESULT hr);
 
 // Sets an error message based on GetLastError(). Always returns false.
-extern bool WIN_SetError(const char *prefix);
+extern bool WIN_SetError(const char* prefix);
 
 // Load a function from combase.dll
-FARPROC WIN_LoadComBaseFunction(const char *name);
+FARPROC WIN_LoadComBaseFunction(const char* name);
 
 // Wrap up the oddities of CoInitialize() into a common function.
 extern HRESULT WIN_CoInitialize(void);
@@ -191,33 +193,35 @@ extern BOOL WIN_IsWindows81OrGreater(void);
 extern BOOL WIN_IsWindows11OrGreater(void);
 
 // You need to SDL_free() the result of this call.
-extern char *WIN_LookupAudioDeviceName(const WCHAR *name, const GUID *guid);
+extern char* WIN_LookupAudioDeviceName(const WCHAR* name, const GUID* guid);
 
 // Checks to see if two GUID are the same.
-extern BOOL WIN_IsEqualGUID(const GUID *a, const GUID *b);
+extern BOOL WIN_IsEqualGUID(const GUID* a, const GUID* b);
 extern BOOL WIN_IsEqualIID(REFIID a, REFIID b);
 
 // Convert between SDL_rect and RECT
-extern void WIN_RECTToRect(const RECT *winrect, SDL_Rect *sdlrect);
-extern void WIN_RectToRECT(const SDL_Rect *sdlrect, RECT *winrect);
+extern void WIN_RECTToRect(const RECT* winrect, SDL_Rect* sdlrect);
+extern void WIN_RectToRECT(const SDL_Rect* sdlrect, RECT* winrect);
 
 // Returns false if a window client rect is not valid
-extern bool WIN_WindowRectValid(const RECT *rect);
+extern bool WIN_WindowRectValid(const RECT* rect);
 
 extern void WIN_UpdateDarkModeForHWND(HWND hwnd);
 
-extern HICON WIN_CreateIconFromSurface(SDL_Surface *surface);
+extern HICON WIN_CreateIconFromSurface(SDL_Surface* surface);
 
-extern SDL_AudioFormat SDL_WaveFormatExToSDLFormat(WAVEFORMATEX *waveformat);
+extern SDL_AudioFormat SDL_WaveFormatExToSDLFormat(WAVEFORMATEX* waveformat);
 
 // WideCharToMultiByte, but with some WinXP management.
-extern int WIN_WideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWCH lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte, LPCCH lpDefaultChar, LPBOOL lpUsedDefaultChar);
+extern int WIN_WideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWCH lpWideCharStr, int cchWideChar,
+                                   LPSTR lpMultiByteStr, int cbMultiByte, LPCCH lpDefaultChar,
+                                   LPBOOL lpUsedDefaultChar);
 
 // parse out command lines from OS if argv is NULL, otherwise pass through unchanged. `*pallocated` must be HeapFree'd by caller if not NULL on successful return. Returns NULL on success, error string on problems.
-extern const char *WIN_CheckDefaultArgcArgv(int *pargc, char ***pargv, void **pallocated);
+extern const char* WIN_CheckDefaultArgcArgv(int* pargc, char*** pargv, void** pallocated);
 
 // Does all the win32 tapdancing to make GetModuleFileName work. Returns a SDL_malloc'd UTF-8 string, or NULL on failure.
-extern char *WIN_GetModulePath(HMODULE handle);
+extern char* WIN_GetModulePath(HMODULE handle);
 
 // Return true if this system has a broken EZFRD64.DLL installed
 extern bool WIN_HasBrokenEZFRD64DLL(void);

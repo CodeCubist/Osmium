@@ -27,7 +27,8 @@ static bool SDL_rand_initialized = false;
 
 void SDL_srand(Uint64 seed)
 {
-    if (!seed) {
+    if (!seed)
+    {
         seed = SDL_GetPerformanceCounter();
     }
     SDL_rand_state = seed;
@@ -36,7 +37,8 @@ void SDL_srand(Uint64 seed)
 
 Sint32 SDL_rand(Sint32 n)
 {
-    if (!SDL_rand_initialized) {
+    if (!SDL_rand_initialized)
+    {
         SDL_srand(0);
     }
 
@@ -45,7 +47,8 @@ Sint32 SDL_rand(Sint32 n)
 
 float SDL_randf(void)
 {
-    if (!SDL_rand_initialized) {
+    if (!SDL_rand_initialized)
+    {
         SDL_srand(0);
     }
 
@@ -54,16 +57,18 @@ float SDL_randf(void)
 
 Uint32 SDL_rand_bits(void)
 {
-    if (!SDL_rand_initialized) {
+    if (!SDL_rand_initialized)
+    {
         SDL_srand(0);
     }
 
     return SDL_rand_bits_r(&SDL_rand_state);
 }
 
-Uint32 SDL_rand_bits_r(Uint64 *state)
+Uint32 SDL_rand_bits_r(Uint64* state)
 {
-    if (!state) {
+    if (!state)
+    {
         return 0;
     }
 
@@ -88,13 +93,14 @@ Uint32 SDL_rand_bits_r(Uint64 *state)
     return (Uint32)(*state >> 32);
 }
 
-Sint32 SDL_rand_r(Uint64 *state, Sint32 n)
+Sint32 SDL_rand_r(Uint64* state, Sint32 n)
 {
     // Algorithm: get 32 bits from SDL_rand_bits() and treat it as a 0.32 bit
     // fixed point number. Multiply by the 31.0 bit n to get a 31.32 bit
     // result. Shift right by 32 to get the 31 bit integer that we want.
 
-    if (n < 0) {
+    if (n < 0)
+    {
         // The algorithm looks like it works for numbers < 0 but it has an
         // infinitesimal chance of returning a value out of range.
         // Returning -SDL_rand(abs(n)) blows up at INT_MIN instead.
@@ -107,7 +113,7 @@ Sint32 SDL_rand_r(Uint64 *state, Sint32 n)
     return (Sint32)(val >> 32);
 }
 
-float SDL_randf_r(Uint64 *state)
+float SDL_randf_r(Uint64* state)
 {
     // Note: its using 24 bits because float has 23 bits significand + 1 implicit bit
 #if (defined(_MSC_VER) && (_MSC_VER < 1913)) || (!defined(_MSC_VER) && (!defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)))
@@ -116,7 +122,7 @@ float SDL_randf_r(Uint64 *state)
     {
         Uint32 u32;
         float f;
-    } float_union = { 0x33800000U };
+    } float_union = {0x33800000U};
     return (SDL_rand_bits_r(state) >> (32 - 24)) * float_union.f;
 #else
     return (SDL_rand_bits_r(state) >> (32 - 24)) * 0x1p-24f;
