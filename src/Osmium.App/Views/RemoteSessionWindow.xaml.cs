@@ -750,6 +750,7 @@ public sealed partial class RemoteSessionWindow : Window
         }
 
         _clientHandle = handle;
+        _launchArgs.OnClientHandleReady?.Invoke(handle);
         StartAuxTransferAfterSessionReady();
         DispatcherQueue.TryEnqueue(UpdateVideoSwapChainSize);
         SyncKeyboardHookAndCursorCapture();

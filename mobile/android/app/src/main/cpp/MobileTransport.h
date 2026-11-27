@@ -90,6 +90,10 @@ namespace osmium::mobile
             std::string& outError);
 
         void Close();
+        bool IsConnected() const
+        {
+            return m_Connected.load(std::memory_order_acquire) && !m_Closed.load(std::memory_order_acquire);
+        }
 
         int32_t GetRoute() const { return m_Route.load(std::memory_order_relaxed); }
         void RecordRttMs(uint32_t rttMs) { m_RttMs.store(rttMs, std::memory_order_relaxed); }

@@ -397,6 +397,12 @@ public sealed class BridgeReadyEventArgs : EventArgs
         init;
     }
 
+    public string AudioCandidatesJson
+    {
+        get;
+        init;
+    } = "[]";
+
     public string StunHost
     {
         get;
@@ -421,6 +427,18 @@ public sealed class BridgeReadyEventArgs : EventArgs
         init;
     } = "/relay";
 
+    public string AudioRelayToken
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string AudioRelayPath
+    {
+        get;
+        init;
+    } = "/relay-audio";
+
     public bool KcpEnabled
     {
         get;
@@ -436,6 +454,12 @@ public sealed class RelayFallbackEventArgs : EventArgs
         init;
     }
 
+    public string Channel
+    {
+        get;
+        init;
+    } = "video";
+
     public string RelayToken
     {
         get;
@@ -447,6 +471,18 @@ public sealed class RelayFallbackEventArgs : EventArgs
         get;
         init;
     } = "/relay";
+
+    public string AudioRelayToken
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string AudioRelayPath
+    {
+        get;
+        init;
+    } = "/relay-audio";
 
     public string FromDeviceId
     {
@@ -1109,24 +1145,27 @@ public sealed partial class SignalingClient : IDisposable
         });
     }
 
-    public async Task SendBridgeCandidatesAsync(string sessionId, string candidatesJson)
+    public async Task SendBridgeCandidatesAsync(string sessionId, string candidatesJson, string? audioCandidatesJson = null)
     {
         using var candDoc = JsonDocument.Parse(string.IsNullOrWhiteSpace(candidatesJson) ? "[]" : candidatesJson);
+        using var audioCandDoc = JsonDocument.Parse(string.IsNullOrWhiteSpace(audioCandidatesJson) ? "[]" : audioCandidatesJson);
         await SendJsonAsync(new
         {
             type = "bridge_candidates",
             sessionId,
             candidates = candDoc.RootElement,
-            transportCaps = new[] { "kcp-v1" }
+            audioCandidates = audioCandDoc.RootElement,
+            transportCaps = new[] { "kcp-v1", "audio-sep-v2" }
         });
     }
 
-    public async Task SendRelayFallbackAsync(string sessionId)
+    public async Task SendRelayFallbackAsync(string sessionId, string channel = "video")
     {
         await SendJsonAsync(new
         {
             type = "relay_fallback",
-            sessionId
+            sessionId,
+            channel = string.IsNullOrWhiteSpace(channel) ? "video" : channel
         });
     }
 

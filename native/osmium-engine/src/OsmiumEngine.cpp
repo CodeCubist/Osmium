@@ -259,6 +259,8 @@ namespace
     struct HostSessionContext
     {
         OsmiumTransport* transport = nullptr;
+        std::atomic<OsmiumTransport*> audioTransport{nullptr};
+        std::mutex audioAttachMutex;
         OsmiumHostConfig config{};
         OsmiumClientConfig clientProfile{};
         OsmiumHostCallbacks callbacks{};
@@ -272,6 +274,9 @@ namespace
         UsbIpVirtualDevices virtualUsb;
         HostSystemAgent systemAgent;
         ActionSeqDeduplicator actionDedup;
+
+        std::atomic<uint8_t> audioQualityPreset{0};
+        std::atomic<uint16_t> audioRequestedBitrateKbps{0};
 
         std::mutex cfgMutex;
         int32_t activeDisplayIndex = 0;
@@ -329,6 +334,7 @@ namespace
 
         std::thread videoThread;
         std::thread recvThread;
+        std::thread audioRecvThread;
         std::thread sysActionThread;
         std::thread statusThread;
     };
@@ -730,20 +736,42 @@ namespace
 
         if (ctx->config.captureAudio)
         {
-            ctx->audio.Start([ctx](const uint8_t* opusData, int bytes, int sampleCount)
+            ctx->audio.Start([ctx](const uint8_t* opusData, int bytes, int sampleCount,
+                                   uint64_t captureTimeUs, uint8_t audioFlags,
+                                   const uint8_t* prevOpusData, int prevBytes)
             {
-                if (ctx->stopFlag.load() || !ctx->transport || bytes <= 0 || bytes > 1400) return;
+                if (ctx->stopFlag.load(std::memory_order_acquire) || bytes <= 0 || bytes > 1350) return;
+                OsmiumTransport* audioTx = ctx->audioTransport.load(std::memory_order_acquire);
+                if (!audioTx || !audioTx->IsConnected()) return;
+
+                const int safeRedBytes = (prevOpusData && prevBytes > 0 && (bytes + prevBytes) <= 1350)
+                                             ? prevBytes
+                                             : 0;
                 uint8_t pkt[sizeof(proto::AudioFrameHeader) + 1400];
                 auto* hdr = reinterpret_cast<proto::AudioFrameHeader*>(pkt);
                 memset(hdr, 0, sizeof(*hdr));
-                hdr->sequence = ctx->audioSeqCounter.fetch_add(1);
+                hdr->hdr.flags = safeRedBytes > 0
+                                     ? audioFlags
+                                     : static_cast<uint8_t>(audioFlags & ~proto::kAudioFlagHasPrevRedundant);
+                hdr->sequence = ctx->audioSeqCounter.fetch_add(1, std::memory_order_relaxed);
+                hdr->captureTimeUs = captureTimeUs;
                 hdr->sampleRate = 48000;
                 hdr->channels = 2;
+                hdr->codecFlags = proto::kAudioCodecFlagOpusAudioMode;
                 hdr->sampleCount = static_cast<uint16_t>(sampleCount);
                 hdr->payloadBytes = static_cast<uint16_t>(bytes);
+                hdr->redundantBytes = static_cast<uint16_t>(safeRedBytes);
                 memcpy(pkt + sizeof(proto::AudioFrameHeader), opusData, static_cast<size_t>(bytes));
-                ctx->transport->SendEncrypted(proto::AppPacketType::AudioFrame, pkt,
-                                              sizeof(proto::AudioFrameHeader) + static_cast<size_t>(bytes));
+                if (safeRedBytes > 0)
+                {
+                    memcpy(pkt + sizeof(proto::AudioFrameHeader) + static_cast<size_t>(bytes),
+                           prevOpusData,
+                           static_cast<size_t>(safeRedBytes));
+                }
+                audioTx->SendEncrypted(
+                    proto::AppPacketType::AudioFrame,
+                    pkt,
+                    sizeof(proto::AudioFrameHeader) + static_cast<size_t>(bytes) + static_cast<size_t>(safeRedBytes));
             });
         }
 
@@ -1364,7 +1392,22 @@ namespace
                     }
                     pong.hdr.flags = 0;
                     pong.hdr.reserved = 0;
+                    pong.hostTimeUs = NowMicros();
                     ctx->transport->SendEncrypted(proto::AppPacketType::Pong, &pong, sizeof(pong));
+                }
+                else if (type == proto::AppPacketType::AudioControl && plain.size() >= sizeof(proto::AudioControlPayload))
+                {
+                    const auto* ctrl = reinterpret_cast<const proto::AudioControlPayload*>(plain.data());
+                    ctx->audio.SetPaused(ctrl->muted != 0);
+                    ctx->audioQualityPreset.store(ctrl->qualityPreset, std::memory_order_relaxed);
+                    ctx->audioRequestedBitrateKbps.store(ctrl->targetBitrateKbps, std::memory_order_relaxed);
+                    if (ctrl->targetBitrateKbps >= 64)
+                    {
+                        ctx->audio.SetTargetBitrateKbps(ctrl->targetBitrateKbps);
+                    }
+                    else if (ctrl->qualityPreset == 1) ctx->audio.SetTargetBitrateKbps(128);
+                    else if (ctrl->qualityPreset == 2) ctx->audio.SetTargetBitrateKbps(192);
+                    else if (ctrl->qualityPreset == 3) ctx->audio.SetTargetBitrateKbps(256);
                 }
                 else if (type == proto::AppPacketType::AuthRequest)
                 {
@@ -1373,20 +1416,6 @@ namespace
                     resp.errorCode = 0;
                     CopyStringSafe(resp.message, sizeof(resp.message), "Authenticated");
                     ctx->transport->SendEncrypted(proto::AppPacketType::AuthResponse, &resp, sizeof(resp));
-                }
-                else if (type == proto::AppPacketType::ClientMicAudioFrame && plain.size() >= sizeof(
-                    proto::AudioFrameHeader))
-                {
-                    const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
-                    if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
-                    {
-                        ctx->audio.PushClientMicOpus(
-                            plain.data() + sizeof(proto::AudioFrameHeader),
-                            hdr->payloadBytes,
-                            hdr->sampleRate,
-                            hdr->channels,
-                            hdr->sampleCount);
-                    }
                 }
                 else if (type == proto::AppPacketType::ControlSwitchDisplay && plain.size() >= sizeof(
                     proto::ControlSwitchDisplayPayload))
@@ -1521,6 +1550,97 @@ namespace
         }
     }
 
+    void HostAudioRecvLoop(HostSessionContext* ctx, OsmiumTransport* audioTransport)
+    {
+        if (!ctx || !audioTransport) return;
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+        std::vector<uint8_t> plain;
+        uint32_t cleanWindows = 0;
+
+        while (!ctx->stopFlag.load(std::memory_order_acquire))
+        {
+            if (ctx->audioTransport.load(std::memory_order_acquire) != audioTransport) break;
+
+            int r = audioTransport->ReceiveEncrypted(plain, 20);
+            if (r < 0)
+            {
+                // Independent audio channel closed/errored: NEVER tear down video session!
+                OSM_LOG_WARN("Host independent audio channel ended; video session remains unaffected");
+                break;
+            }
+            if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
+
+            auto type = static_cast<proto::AppPacketType>(plain[0]);
+            if (type == proto::AppPacketType::ClientMicAudioFrame && plain.size() >= sizeof(proto::AudioFrameHeader))
+            {
+                const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
+                if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
+                {
+                    ctx->audio.PushClientMicOpus(
+                        plain.data() + sizeof(proto::AudioFrameHeader),
+                        hdr->payloadBytes,
+                        hdr->sampleRate,
+                        hdr->channels,
+                        hdr->sampleCount);
+                }
+            }
+            else if (type == proto::AppPacketType::AudioPing && plain.size() >= sizeof(proto::AudioPingPongPayload))
+            {
+                auto pong = *reinterpret_cast<const proto::AudioPingPongPayload*>(plain.data());
+                if ((pong.hdr.flags & proto::kAudioPingFlagHasTelemetry) != 0)
+                {
+                    const uint16_t lossPermille = pong.audioLossPermille;
+                    const uint16_t jitterMs = pong.hdr.reserved;
+                    const bool needRedundancy = (lossPermille >= 5U) || (jitterMs >= 25U);
+                    if (needRedundancy)
+                    {
+                        cleanWindows = 0;
+                        ctx->audio.SetRedundancyEnabled(true);
+                    }
+                    else if (++cleanWindows >= 12)
+                    {
+                        ctx->audio.SetRedundancyEnabled(false);
+                    }
+
+                    const int expectedLossPct = std::clamp(static_cast<int>(lossPermille / 10U) + 2, 2, 25);
+                    ctx->audio.SetExpectedLossPerc(expectedLossPct);
+
+                    if (ctx->audioRequestedBitrateKbps.load(std::memory_order_relaxed) == 0 &&
+                        ctx->audioQualityPreset.load(std::memory_order_relaxed) == 0)
+                    {
+                        int autoKbps = 192;
+                        if (lossPermille >= 60U) autoKbps = 96;
+                        else if (lossPermille >= 30U) autoKbps = 128;
+                        else if (lossPermille >= 10U) autoKbps = 160;
+                        ctx->audio.SetTargetBitrateKbps(autoKbps);
+                    }
+                }
+                pong.hdr.flags = 0;
+                pong.hdr.reserved = 0;
+                pong.hostTimeUs = NowMicros();
+                audioTransport->SendEncrypted(proto::AppPacketType::AudioPong, &pong, sizeof(pong));
+            }
+            else if (type == proto::AppPacketType::AudioControl && plain.size() >= sizeof(proto::AudioControlPayload))
+            {
+                const auto* ctrl = reinterpret_cast<const proto::AudioControlPayload*>(plain.data());
+                ctx->audio.SetPaused(ctrl->muted != 0);
+                ctx->audioQualityPreset.store(ctrl->qualityPreset, std::memory_order_relaxed);
+                ctx->audioRequestedBitrateKbps.store(ctrl->targetBitrateKbps, std::memory_order_relaxed);
+                if (ctrl->targetBitrateKbps >= 64)
+                {
+                    ctx->audio.SetTargetBitrateKbps(ctrl->targetBitrateKbps);
+                }
+                else if (ctrl->qualityPreset == 1) ctx->audio.SetTargetBitrateKbps(128);
+                else if (ctrl->qualityPreset == 2) ctx->audio.SetTargetBitrateKbps(192);
+                else if (ctrl->qualityPreset == 3) ctx->audio.SetTargetBitrateKbps(256);
+            }
+            else if (type == proto::AppPacketType::Disconnect)
+            {
+                break;
+            }
+        }
+    }
+
     struct AssembledVideoFrame
     {
         uint32_t frameId = 0;
@@ -1529,6 +1649,7 @@ namespace
         int width = 0;
         int height = 0;
         uint8_t colorFlags = 0;
+        uint64_t captureTimeUs = 0;
         std::vector<uint8_t> payload;
     };
 
@@ -1539,6 +1660,7 @@ namespace
         int width = 0;
         int height = 0;
         uint8_t colorFlags = 0;
+        uint64_t captureTimeUs = 0;
         uint16_t totalChunks = 0;
         uint16_t receivedCount = 0;
         uint32_t chunkStride = 0;
@@ -1582,6 +1704,7 @@ namespace
             outFrame.width = hdr->width;
             outFrame.height = hdr->height;
             outFrame.colorFlags = hdr->colorFlags;
+            outFrame.captureTimeUs = hdr->captureTimeUs;
             outFrame.payload.assign(dataPtr, dataPtr + dataBytes);
 
             if (isKey)
@@ -1612,6 +1735,7 @@ namespace
             pf.width = hdr->width;
             pf.height = hdr->height;
             pf.colorFlags = hdr->colorFlags;
+            pf.captureTimeUs = hdr->captureTimeUs;
             pf.totalChunks = hdr->totalChunks;
             pf.receivedMask.assign(hdr->totalChunks, 0);
             pf.createdMs = nowMs;
@@ -1687,6 +1811,7 @@ namespace
         outFrame.width = pf.width;
         outFrame.height = pf.height;
         outFrame.colorFlags = pf.colorFlags;
+        outFrame.captureTimeUs = pf.captureTimeUs;
         outFrame.payload = std::move(pf.flatBuf);
 
         if (outFrame.isKeyFrame)
@@ -1713,6 +1838,9 @@ namespace
     struct EmbeddedClientContext
     {
         OsmiumTransport* transport = nullptr;
+        std::atomic<OsmiumTransport*> audioTransport{nullptr};
+        std::mutex audioAttachMutex;
+        std::atomic<bool> audioMuted{false};
         OsmiumClientConfig config{};
         OsmiumClientCallbacks callbacks{};
 
@@ -1758,6 +1886,7 @@ namespace
         std::deque<std::vector<uint8_t>> pendingAuxData;
 
         std::thread recvThread;
+        std::thread audioRecvThread;
         std::thread renderThread;
         std::thread callbackThread;
     };
@@ -1956,20 +2085,6 @@ namespace
                         ctx->queueCv.notify_one();
                     }
                 }
-                else if (type == proto::AppPacketType::AudioFrame && plain.size() >= sizeof(proto::AudioFrameHeader))
-                {
-                    const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
-                    if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
-                    {
-                        ctx->audioPlayer.PushOpusFrame(
-                            plain.data() + sizeof(proto::AudioFrameHeader),
-                            hdr->payloadBytes,
-                            hdr->sampleRate,
-                            hdr->channels,
-                            hdr->sampleCount,
-                            hdr->sequence);
-                    }
-                }
                 else if (type == proto::AppPacketType::HostStatusJson && plain.size() > sizeof(proto::AppPacketHeader))
                 {
                     std::string json(
@@ -1992,7 +2107,15 @@ namespace
                     const uint64_t nowUs = NowMicros();
                     if (nowUs >= pong->timestampUs)
                     {
-                        ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                        const uint64_t rttUs = nowUs - pong->timestampUs;
+                        ctx->transport->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+                        if (pong->hostTimeUs > 0)
+                        {
+                            const int64_t midClientUs = static_cast<int64_t>(pong->timestampUs + (rttUs / 2ULL));
+                            ctx->audioPlayer.RecordClockOffset(
+                                midClientUs - static_cast<int64_t>(pong->hostTimeUs),
+                                static_cast<uint32_t>(std::min<uint64_t>(rttUs, UINT32_MAX)));
+                        }
                     }
                 }
                 else if (type == proto::AppPacketType::AuxData && plain.size() > sizeof(proto::AppPacketHeader))
@@ -2021,6 +2144,105 @@ namespace
                 }
             }
             if (ended) break;
+        }
+    }
+
+    void EmbeddedClientAudioRecvLoop(EmbeddedClientContext* ctx, OsmiumTransport* audioTransport)
+    {
+        if (!ctx || !audioTransport) return;
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+        std::vector<uint8_t> plain;
+        uint64_t lastAudioPingMs = 0;
+
+        while (!ctx->stopFlag.load(std::memory_order_acquire))
+        {
+            if (ctx->audioTransport.load(std::memory_order_acquire) != audioTransport) break;
+
+            const uint64_t preNowMs = NowMillis();
+            if (preNowMs - lastAudioPingMs >= 300ULL)
+            {
+                lastAudioPingMs = preNowMs;
+                uint16_t lossPermille = 0, jitterMs = 0, bufferMs = 0;
+                ctx->audioPlayer.GetAudioTelemetry(lossPermille, jitterMs, bufferMs);
+
+                proto::AudioPingPongPayload ping{};
+                ping.hdr.flags = proto::kAudioPingFlagHasTelemetry;
+                ping.hdr.reserved = jitterMs;
+                ping.clientTimeUs = NowMicros();
+                ping.hostTimeUs = 0;
+                ping.audioLossPermille = lossPermille;
+                ping.playoutBufferMs = bufferMs;
+                audioTransport->SendEncrypted(proto::AppPacketType::AudioPing, &ping, sizeof(ping));
+            }
+
+            int r = audioTransport->ReceiveEncrypted(plain, 15);
+            if (r < 0)
+            {
+                // Independent audio channel failure NEVER impacts the video session!
+                OSM_LOG_WARN("Client independent audio channel ended; video session remains unaffected");
+                break;
+            }
+            if (r == 0 || plain.size() < sizeof(proto::AppPacketHeader)) continue;
+
+            for (int burst = 0; burst < 16 && !ctx->stopFlag.load(std::memory_order_acquire); ++burst)
+            {
+                if (burst > 0)
+                {
+                    r = audioTransport->ReceiveEncrypted(plain, 0);
+                    if (r <= 0 || plain.size() < sizeof(proto::AppPacketHeader)) break;
+                }
+
+                auto type = static_cast<proto::AppPacketType>(plain[0]);
+                if (type == proto::AppPacketType::AudioFrame && plain.size() >= sizeof(proto::AudioFrameHeader))
+                {
+                    const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
+                    const size_t primaryEnd = sizeof(proto::AudioFrameHeader) + hdr->payloadBytes;
+                    if (plain.size() >= primaryEnd)
+                    {
+                        const uint8_t* redPtr = nullptr;
+                        int redLen = 0;
+                        if ((hdr->hdr.flags & proto::kAudioFlagHasPrevRedundant) != 0 &&
+                            hdr->redundantBytes > 0 &&
+                            plain.size() >= primaryEnd + hdr->redundantBytes)
+                        {
+                            redPtr = plain.data() + primaryEnd;
+                            redLen = hdr->redundantBytes;
+                        }
+                        ctx->audioPlayer.PushOpusFrame(
+                            plain.data() + sizeof(proto::AudioFrameHeader),
+                            hdr->payloadBytes,
+                            hdr->sampleRate,
+                            hdr->channels,
+                            hdr->sampleCount,
+                            hdr->sequence,
+                            hdr->captureTimeUs,
+                            hdr->hdr.flags,
+                            redPtr,
+                            redLen);
+                    }
+                }
+                else if (type == proto::AppPacketType::AudioPong && plain.size() >= sizeof(proto::AudioPingPongPayload))
+                {
+                    const auto* pong = reinterpret_cast<const proto::AudioPingPongPayload*>(plain.data());
+                    const uint64_t nowUs = NowMicros();
+                    if (nowUs >= pong->clientTimeUs)
+                    {
+                        const uint64_t rttUs = nowUs - pong->clientTimeUs;
+                        audioTransport->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+                        if (pong->hostTimeUs > 0)
+                        {
+                            const int64_t midClientUs = static_cast<int64_t>(pong->clientTimeUs + (rttUs / 2ULL));
+                            ctx->audioPlayer.RecordClockOffset(
+                                midClientUs - static_cast<int64_t>(pong->hostTimeUs),
+                                static_cast<uint32_t>(std::min<uint64_t>(rttUs, UINT32_MAX)));
+                        }
+                    }
+                }
+                else if (type == proto::AppPacketType::Disconnect)
+                {
+                    return;
+                }
+            }
         }
     }
 
@@ -2215,6 +2437,10 @@ namespace
 
                     if (ok)
                     {
+                        if (nextFrame.captureTimeUs > 0)
+                        {
+                            ctx->audioPlayer.NotifyVideoFrameRendered(nextFrame.captureTimeUs, NowMicros());
+                        }
                         hasRenderedFirstFrame = true;
                         idrRetryCount = 0;
                         ctx->enableHdr.store((nextFrame.colorFlags & proto::kVideoFlagHdr) != 0 ? 1 : 0);
@@ -2925,14 +3151,52 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     return 1;
 }
 
+OSMIUM_API int32_t Osmium_AttachHostAudioTransport(void* hostHandle, void* audioTransport)
+{
+    if (!hostHandle || !audioTransport) return 0;
+    auto* ctx = static_cast<HostSessionContext*>(hostHandle);
+    auto* at = static_cast<OsmiumTransport*>(audioTransport);
+    std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+    if (ctx->stopFlag.load(std::memory_order_acquire)) return 0;
+
+    OsmiumTransport* prev = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+    if (prev && prev != at)
+    {
+        prev->Close();
+    }
+    if (ctx->audioRecvThread.joinable())
+    {
+        if (ctx->audioRecvThread.get_id() == std::this_thread::get_id()) ctx->audioRecvThread.detach();
+        else ctx->audioRecvThread.join();
+    }
+
+    at->SetKcpEnabled(false);
+    ctx->audioTransport.store(at, std::memory_order_release);
+    ctx->audioRecvThread = std::thread(HostAudioRecvLoop, ctx, at);
+    OSM_LOG_INFO("Host independent audio transport attached (route=%d)", at->GetTransportRoute());
+    return 1;
+}
+
 OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
 {
     if (!hostHandle) return;
     auto* ctx = static_cast<HostSessionContext*>(hostHandle);
-    ctx->stopFlag.store(true);
+    ctx->stopFlag.store(true, std::memory_order_release);
     ctx->sysActionCv.notify_all();
     ctx->statusCv.notify_all();
     ctx->textFocus.Stop();
+    ctx->audio.Stop();
+
+    {
+        std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+        OsmiumTransport* at = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+        if (at)
+        {
+            proto::AppPacketHeader bye{};
+            at->SendEncrypted(proto::AppPacketType::Disconnect, &bye, sizeof(bye));
+            at->Close();
+        }
+    }
 
     if (ctx->transport)
     {
@@ -2955,6 +3219,11 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
     {
         if (ctx->recvThread.get_id() == curTid) ctx->recvThread.detach();
         else ctx->recvThread.join();
+    }
+    if (ctx->audioRecvThread.joinable())
+    {
+        if (ctx->audioRecvThread.get_id() == curTid) ctx->audioRecvThread.detach();
+        else ctx->audioRecvThread.join();
     }
     if (ctx->statusThread.joinable())
     {
@@ -3086,15 +3355,58 @@ OSMIUM_API int32_t Osmium_StartClientEmbedded(
     return 1;
 }
 
+OSMIUM_API int32_t Osmium_AttachClientAudioTransport(void* clientHandle, void* audioTransport)
+{
+    if (!clientHandle || !audioTransport) return 0;
+    auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
+    auto* at = static_cast<OsmiumTransport*>(audioTransport);
+    std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+    if (ctx->stopFlag.load(std::memory_order_acquire)) return 0;
+
+    OsmiumTransport* prev = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+    if (prev && prev != at)
+    {
+        prev->Close();
+    }
+    if (ctx->audioRecvThread.joinable())
+    {
+        if (ctx->audioRecvThread.get_id() == std::this_thread::get_id()) ctx->audioRecvThread.detach();
+        else ctx->audioRecvThread.join();
+    }
+
+    at->SetKcpEnabled(false);
+    ctx->audioTransport.store(at, std::memory_order_release);
+
+    // Sync initial mute state immediately on the dedicated audio transport
+    proto::AudioControlPayload ctrl{};
+    ctrl.muted = ctx->audioMuted.load(std::memory_order_acquire) ? 1 : 0;
+    at->SendEncrypted(proto::AppPacketType::AudioControl, &ctrl, sizeof(ctrl));
+
+    ctx->audioRecvThread = std::thread(EmbeddedClientAudioRecvLoop, ctx, at);
+    OSM_LOG_INFO("Client independent audio transport attached (route=%d)", at->GetTransportRoute());
+    return 1;
+}
+
 OSMIUM_API void Osmium_StopClientEmbedded(void* clientHandle)
 {
     if (!clientHandle) return;
     auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
-    ctx->stopFlag.store(true);
+    ctx->stopFlag.store(true, std::memory_order_release);
     ctx->queueCv.notify_all();
     ctx->callbackCv.notify_all();
 
     ctx->micCapture.Stop();
+
+    {
+        std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+        OsmiumTransport* at = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+        if (at)
+        {
+            proto::AppPacketHeader bye{};
+            at->SendEncrypted(proto::AppPacketType::Disconnect, &bye, sizeof(bye));
+            at->Close();
+        }
+    }
 
     if (ctx->transport)
     {
@@ -3112,6 +3424,11 @@ OSMIUM_API void Osmium_StopClientEmbedded(void* clientHandle)
     {
         if (ctx->recvThread.get_id() == curTid) ctx->recvThread.detach();
         else ctx->recvThread.join();
+    }
+    if (ctx->audioRecvThread.joinable())
+    {
+        if (ctx->audioRecvThread.get_id() == curTid) ctx->audioRecvThread.detach();
+        else ctx->audioRecvThread.join();
     }
     if (ctx->renderThread.joinable())
     {
@@ -3214,17 +3531,20 @@ OSMIUM_API void Osmium_ClientSetVirtualAudio(
         std::string micId = localMicDeviceId ? localMicDeviceId : "";
         ctx->micCapture.Start(micId, [ctx](const uint8_t* opusData, int bytes, int sampleCount)
         {
-            if (ctx->stopFlag.load() || !ctx->transport) return;
+            if (ctx->stopFlag.load(std::memory_order_acquire) || bytes <= 0 || bytes > 1350) return;
+            OsmiumTransport* audioTx = ctx->audioTransport.load(std::memory_order_acquire);
+            if (!audioTx || !audioTx->IsConnected()) return;
             std::vector<uint8_t> mpkt(sizeof(proto::AudioFrameHeader) + static_cast<size_t>(bytes));
             auto* hdr = reinterpret_cast<proto::AudioFrameHeader*>(mpkt.data());
             memset(hdr, 0, sizeof(*hdr));
-            hdr->sequence = ctx->micSeqCounter.fetch_add(1);
+            hdr->sequence = ctx->micSeqCounter.fetch_add(1, std::memory_order_relaxed);
+            hdr->captureTimeUs = NowMicros();
             hdr->sampleRate = 48000;
             hdr->channels = 2;
             hdr->sampleCount = static_cast<uint16_t>(sampleCount);
             hdr->payloadBytes = static_cast<uint16_t>(bytes);
             memcpy(mpkt.data() + sizeof(proto::AudioFrameHeader), opusData, static_cast<size_t>(bytes));
-            ctx->transport->SendEncrypted(proto::AppPacketType::ClientMicAudioFrame, mpkt.data(), mpkt.size());
+            audioTx->SendEncrypted(proto::AppPacketType::ClientMicAudioFrame, mpkt.data(), mpkt.size());
         });
     }
     else
@@ -3367,7 +3687,22 @@ OSMIUM_API void Osmium_ClientSetVsync(void* clientHandle, int32_t enableVsync)
 OSMIUM_API void Osmium_ClientSetMute(void* clientHandle, int32_t muted)
 {
     if (!clientHandle) return;
-    static_cast<EmbeddedClientContext*>(clientHandle)->audioPlayer.SetMuted(muted != 0);
+    auto* ctx = static_cast<EmbeddedClientContext*>(clientHandle);
+    const bool isMuted = (muted != 0);
+    ctx->audioMuted.store(isMuted, std::memory_order_release);
+    ctx->audioPlayer.SetMuted(isMuted);
+
+    proto::AudioControlPayload ctrl{};
+    ctrl.muted = isMuted ? 1 : 0;
+    OsmiumTransport* audioTx = ctx->audioTransport.load(std::memory_order_acquire);
+    if (audioTx && audioTx->IsConnected())
+    {
+        audioTx->SendEncrypted(proto::AppPacketType::AudioControl, &ctrl, sizeof(ctrl));
+    }
+    else if (ctx->transport)
+    {
+        ctx->transport->SendEncrypted(proto::AppPacketType::AudioControl, &ctrl, sizeof(ctrl));
+    }
 }
 
 OSMIUM_API int32_t Osmium_ClientSendAuxData(void* clientHandle, const uint8_t* data, int32_t length)
@@ -3554,11 +3889,22 @@ OSMIUM_API int32_t Osmium_RunClientSession(
             else if (type == proto::AppPacketType::AudioFrame && plain.size() >= sizeof(proto::AudioFrameHeader))
             {
                 const auto* hdr = reinterpret_cast<const proto::AudioFrameHeader*>(plain.data());
-                if (plain.size() >= sizeof(proto::AudioFrameHeader) + hdr->payloadBytes)
+                const size_t primaryEnd = sizeof(proto::AudioFrameHeader) + hdr->payloadBytes;
+                if (plain.size() >= primaryEnd)
                 {
+                    const uint8_t* redPtr = nullptr;
+                    int redLen = 0;
+                    if ((hdr->hdr.flags & proto::kAudioFlagHasPrevRedundant) != 0 &&
+                        hdr->redundantBytes > 0 &&
+                        plain.size() >= primaryEnd + hdr->redundantBytes)
+                    {
+                        redPtr = plain.data() + primaryEnd;
+                        redLen = hdr->redundantBytes;
+                    }
                     audioPlayer.PushOpusFrame(
                         plain.data() + sizeof(proto::AudioFrameHeader),
-                        hdr->payloadBytes, hdr->sampleRate, hdr->channels, hdr->sampleCount, hdr->sequence);
+                        hdr->payloadBytes, hdr->sampleRate, hdr->channels, hdr->sampleCount,
+                        hdr->sequence, hdr->captureTimeUs, hdr->hdr.flags, redPtr, redLen);
                 }
             }
             else if (type == proto::AppPacketType::Pong && plain.size() >= sizeof(proto::PingPongPayload))
@@ -3567,7 +3913,15 @@ OSMIUM_API int32_t Osmium_RunClientSession(
                 const uint64_t nowUs = NowMicros();
                 if (nowUs >= pong->timestampUs)
                 {
-                    t->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                    const uint64_t rttUs = nowUs - pong->timestampUs;
+                    t->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+                    if (pong->hostTimeUs > 0)
+                    {
+                        const int64_t midClientUs = static_cast<int64_t>(pong->timestampUs + (rttUs / 2ULL));
+                        audioPlayer.RecordClockOffset(
+                            midClientUs - static_cast<int64_t>(pong->hostTimeUs),
+                            static_cast<uint32_t>(std::min<uint64_t>(rttUs, UINT32_MAX)));
+                    }
                 }
             }
             else if (type == proto::AppPacketType::Disconnect)

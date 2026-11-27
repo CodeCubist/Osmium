@@ -258,11 +258,16 @@ class RemoteSessionController extends ChangeNotifier {
   String? get toastMessage => _toastMessage;
 
   Pointer<Void>? _transportHandle;
+  Pointer<Void>? _audioTransportHandle;
   Pointer<Void>? _sessionHandle;
   NativeKeyPair? _keyPair;
 
   WebSocket? _relayWs;
   Timer? _relayPumpTimer;
+  WebSocket? _audioRelayWs;
+  Timer? _audioRelayPumpTimer;
+  bool _audioTransportConnected = false;
+  bool _audioTransportAttached = false;
   Timer? _eventPollTimer;
   Timer? _statsTimer;
 
@@ -349,8 +354,10 @@ class RemoteSessionController extends ChangeNotifier {
   }) async {
     if (_phase != SessionPhase.idle ||
         _transportHandle != null ||
+        _audioTransportHandle != null ||
         _sessionHandle != null ||
         _relayWs != null ||
+        _audioRelayWs != null ||
         _textureId != null) {
       await disconnect(notifySignaling: false, resetState: false);
     }
@@ -369,6 +376,8 @@ class RemoteSessionController extends ChangeNotifier {
     _sessionEstablished = false;
     _reliableAuxTransport = false;
     _relayAttempts = 0;
+    _audioTransportConnected = false;
+    _audioTransportAttached = false;
 
     bool aborted() => _isStale(epoch);
 
@@ -404,6 +413,8 @@ class RemoteSessionController extends ChangeNotifier {
     final sessionToken = Uint8List.fromList(
       List<int>.generate(16, (_) => rng.nextInt(256)),
     );
+    final audioSessionToken = Uint8List.fromList(sessionToken);
+    audioSessionToken[15] ^= 0xA5;
     final sid = sessionToken
         .map((b) => b.toRadixString(16).padLeft(2, '0'))
         .join()
@@ -449,7 +460,9 @@ class RemoteSessionController extends ChangeNotifier {
         }
       }),
       signaling.relayFallbackStream.listen((e) {
-        if (e.sessionId == sid && !relayFallbackComp.isCompleted) {
+        if (e.sessionId == sid &&
+            e.channel != 'audio' &&
+            !relayFallbackComp.isCompleted) {
           relayFallbackComp.complete(e);
         }
       }),
@@ -499,13 +512,17 @@ class RemoteSessionController extends ChangeNotifier {
 
     Timer? bridgeRetry;
     Future<(int, String)?>? preTransportFuture;
+    Future<(int, String)?>? preAudioTransportFuture;
     Future<NativeSurfaceInfo?>? preSurfaceFuture;
     try {
       final engineFactory = _isolateEngineFactory;
       final preStunHost = signaling.advertisedStunHost;
       final preStunPort = signaling.advertisedStunPort;
 
-      preTransportFuture = _engineOpRunner(
+      preTransportFuture = _engineOpRunner<(int, String)?>(
+        _createTransportOp(engineFactory, preStunHost, preStunPort),
+      );
+      preAudioTransportFuture = _engineOpRunner<(int, String)?>(
         _createTransportOp(engineFactory, preStunHost, preStunPort),
       );
 
@@ -636,17 +653,34 @@ class RemoteSessionController extends ChangeNotifier {
       final transportAddr = transportPtr.address;
       final localCandidatesJson = transportRes.$2;
 
+      var localAudioCandidatesJson = '[]';
+      final audioTransportRes = await preAudioTransportFuture;
+      preAudioTransportFuture = null;
+      if (audioTransportRes != null) {
+        final audioPtr = Pointer<Void>.fromAddress(audioTransportRes.$1);
+        if (aborted()) {
+          engine.destroyTransport(audioPtr);
+          return;
+        }
+        _audioTransportHandle = audioPtr;
+        if (audioTransportRes.$2.isNotEmpty) {
+          localAudioCandidatesJson = audioTransportRes.$2;
+        }
+      }
+
       // Step 8: Send candidates & await bridge_ready, retrying like Windows
       // every 4s in case the host's candidate message was not ready yet.
       signaling.sendBridgeCandidates(
         sessionId: sid,
         candidatesJson: localCandidatesJson,
+        audioCandidatesJson: localAudioCandidatesJson,
       );
       bridgeRetry = Timer.periodic(const Duration(seconds: 4), (_) {
         if (!aborted() && !bridgeComp.isCompleted) {
           signaling.sendBridgeCandidates(
             sessionId: sid,
             candidatesJson: localCandidatesJson,
+            audioCandidatesJson: localAudioCandidatesJson,
           );
         }
       });
@@ -658,6 +692,31 @@ class RemoteSessionController extends ChangeNotifier {
       bridgeRetry = null;
       if (bridge == null || aborted()) return;
       _bridgeReached = true;
+
+      // Launch independent audio channel punching / /relay-audio fallback IN PARALLEL
+      // with video punching so audio adds zero latency and never affects video.
+      final audioPtr = _audioTransportHandle;
+      if (audioPtr != null) {
+        final audioAesKey = engine.deriveAudioKey(material.aesKey32);
+        if (audioAesKey != null) {
+          engine.configureTransportCrypto(
+            transport: audioPtr,
+            aesKey32: audioAesKey,
+            enabled: challenge.enableEncryption && _settings.enableEncryption,
+          );
+          engine.setTransportKcpEnabled(transport: audioPtr, enabled: false);
+          unawaited(
+            _setupAudioTransportAsync(
+              epoch: epoch,
+              sessionId: sid,
+              audioTransport: audioPtr,
+              audioSessionToken: audioSessionToken,
+              bridge: bridge,
+              engineFactory: engineFactory,
+            ),
+          );
+        }
+      }
 
       final peerCandidates = bridge.candidatesJson;
       const maxDirectAttempts = 2;
@@ -674,6 +733,7 @@ class RemoteSessionController extends ChangeNotifier {
           signaling.sendBridgeCandidates(
             sessionId: sid,
             candidatesJson: localCandidatesJson,
+            audioCandidatesJson: localAudioCandidatesJson,
           );
         }
         final attemptStartMs = DateTime.now().millisecondsSinceEpoch;
@@ -809,6 +869,16 @@ class RemoteSessionController extends ChangeNotifier {
       }
       if (aborted()) return;
 
+      if (_audioTransportConnected &&
+          !_audioTransportAttached &&
+          _audioTransportHandle != null) {
+        _audioTransportAttached = true;
+        engine.attachAudioTransport(
+          session: _sessionHandle,
+          audioTransport: _audioTransportHandle,
+        );
+      }
+
       // Step 13: Wire Aux / events / stats / native inputs. `session_confirm`
       // is sent from the first-frame callback (red line: the host must not
       // consider the session agreed before it has pushed real video).
@@ -826,6 +896,16 @@ class RemoteSessionController extends ChangeNotifier {
         final orphanTransport = preTransportFuture;
         unawaited(
           orphanTransport.then((res) {
+            if (res != null) {
+              engine.destroyTransport(Pointer<Void>.fromAddress(res.$1));
+            }
+          }).catchError((_) {}),
+        );
+      }
+      if (preAudioTransportFuture != null) {
+        final orphanAudioTransport = preAudioTransportFuture;
+        unawaited(
+          orphanAudioTransport.then((res) {
             if (res != null) {
               engine.destroyTransport(Pointer<Void>.fromAddress(res.$1));
             }
@@ -980,6 +1060,199 @@ class RemoteSessionController extends ChangeNotifier {
       try {
         ws.add(batch.takeBytes());
       } catch (_) {}
+    }
+  }
+
+  Future<void> _setupAudioTransportAsync({
+    required int epoch,
+    required String sessionId,
+    required Pointer<Void> audioTransport,
+    required Uint8List audioSessionToken,
+    required BridgeReadyEvent bridge,
+    required OsmiumEngine Function() engineFactory,
+  }) async {
+    bool aborted() => _isStale(epoch);
+    final audioAddr = audioTransport.address;
+    final audioFallbackComp = Completer<RelayFallbackEvent>();
+    final fbSub = signaling.relayFallbackStream.listen((e) {
+      if (e.sessionId == sessionId &&
+          e.channel == 'audio' &&
+          !audioFallbackComp.isCompleted) {
+        audioFallbackComp.complete(e);
+      }
+    });
+
+    try {
+      var audioConnected = false;
+      if (bridge.audioCandidatesJson.isNotEmpty &&
+          bridge.audioCandidatesJson != '[]') {
+        for (var attempt = 1; attempt <= 2; attempt++) {
+          if (aborted()) return;
+          final res = await _runTransportOp(
+            audioAddr,
+            _connectPeerOp(
+              engineFactory,
+              audioAddr,
+              audioSessionToken,
+              bridge.audioCandidatesJson,
+              1400,
+            ),
+          );
+          if (aborted()) return;
+          if (res.$1) {
+            audioConnected = true;
+            break;
+          }
+          if (audioFallbackComp.isCompleted) break;
+        }
+      }
+
+      if (!audioConnected && !aborted()) {
+        signaling.sendRelayFallback(sessionId: sessionId, channel: 'audio');
+        var arToken = bridge.audioRelayToken;
+        var arPath = bridge.audioRelayPath.isNotEmpty
+            ? bridge.audioRelayPath
+            : '/relay-audio';
+        if (arToken.trim().isEmpty) {
+          try {
+            final rf = await audioFallbackComp.future.timeout(
+              const Duration(seconds: 4),
+            );
+            if (rf.audioRelayToken.trim().isNotEmpty) {
+              arToken = rf.audioRelayToken;
+            }
+            if (rf.audioRelayPath.trim().isNotEmpty) {
+              arPath = rf.audioRelayPath;
+            }
+          } catch (_) {}
+        }
+
+        if (!aborted() && arToken.trim().isNotEmpty) {
+          audioConnected = await _connectAudioCloudRelay(
+            sessionId: sessionId,
+            relayPath: arPath,
+            relayToken: arToken,
+            audioSessionToken: audioSessionToken,
+            audioTransport: audioTransport,
+            aborted: aborted,
+          );
+        }
+      }
+
+      if (audioConnected &&
+          !aborted() &&
+          _audioTransportHandle?.address == audioAddr) {
+        _audioTransportConnected = true;
+        final sess = _sessionHandle;
+        if (sess != null && !_audioTransportAttached) {
+          _audioTransportAttached = true;
+          engine.attachAudioTransport(
+            session: sess,
+            audioTransport: audioTransport,
+          );
+        }
+      }
+    } catch (_) {
+      // Independent audio failure NEVER terminates video session!
+    } finally {
+      await fbSub.cancel();
+    }
+  }
+
+  Future<bool> _connectAudioCloudRelay({
+    required String sessionId,
+    required String relayPath,
+    required String relayToken,
+    required Uint8List audioSessionToken,
+    required Pointer<Void> audioTransport,
+    required bool Function() aborted,
+  }) async {
+    try {
+      final baseUri = Uri.parse(
+        SignalingClient.normalizeServerUrl(signaling.serverUrl),
+      );
+      final normalizedPath = relayPath.startsWith('/')
+          ? relayPath
+          : '/$relayPath';
+      final relayUri = baseUri.replace(
+        path: normalizedPath,
+        queryParameters: {
+          'sessionId': sessionId,
+          'role': 'client',
+          'token': relayToken,
+        },
+      );
+
+      final ws = await WebSocket.connect(relayUri.toString())
+          .timeout(const Duration(seconds: 8));
+      final audioAddr = audioTransport.address;
+      if (aborted() || _audioTransportHandle?.address != audioAddr) {
+        await ws.close();
+        return false;
+      }
+      _audioRelayWs = ws;
+
+      if (!engine.enableRelay(
+        transport: audioTransport,
+        sessionToken16: audioSessionToken,
+        label: 'wss-audio-relay',
+      )) {
+        if (identical(_audioRelayWs, ws)) _audioRelayWs = null;
+        await ws.close();
+        return false;
+      }
+
+      final peerReady = Completer<bool>();
+      ws.listen(
+        (dynamic data) {
+          if (data is String) {
+            try {
+              final map = jsonDecode(data) as Map<String, dynamic>;
+              if (map['type'] == 'relay_peer_ready' && !peerReady.isCompleted) {
+                peerReady.complete(true);
+              }
+            } catch (_) {}
+          } else if (data is List<int>) {
+            if (!peerReady.isCompleted && data.length >= 10) {
+              peerReady.complete(true);
+            }
+            if (!aborted() && _audioTransportHandle?.address == audioAddr) {
+              final bytes = data is Uint8List ? data : Uint8List.fromList(data);
+              engine.pushRelayBatch(audioTransport, bytes);
+            }
+          }
+        },
+        onError: (_) {
+          if (!peerReady.isCompleted) peerReady.complete(false);
+        },
+        onDone: () {
+          if (!peerReady.isCompleted) peerReady.complete(false);
+        },
+        cancelOnError: true,
+      );
+
+      _audioRelayPumpTimer?.cancel();
+      _audioRelayPumpTimer = Timer.periodic(const Duration(milliseconds: 5), (_) {
+        if (aborted() || !identical(_audioRelayWs, ws)) return;
+        _flushRelayOutgoing(ws, audioTransport);
+      });
+
+      final ready = await peerReady.future.timeout(
+        const Duration(seconds: 12),
+        onTimeout: () => false,
+      );
+      if (!ready || aborted() || !identical(_audioRelayWs, ws)) {
+        if (identical(_audioRelayWs, ws)) {
+          _audioRelayPumpTimer?.cancel();
+          _audioRelayPumpTimer = null;
+          _audioRelayWs = null;
+        }
+        await ws.close();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -1463,6 +1736,10 @@ class RemoteSessionController extends ChangeNotifier {
     _statsTimer = null;
     _relayPumpTimer?.cancel();
     _relayPumpTimer = null;
+    _audioRelayPumpTimer?.cancel();
+    _audioRelayPumpTimer = null;
+    _audioTransportConnected = false;
+    _audioTransportAttached = false;
 
     await _nativeInputSub?.cancel();
     _nativeInputSub = null;
@@ -1508,6 +1785,21 @@ class RemoteSessionController extends ChangeNotifier {
       await _relayWs?.close();
     } catch (_) {}
     _relayWs = null;
+
+    try {
+      await _audioRelayWs?.close();
+    } catch (_) {}
+    _audioRelayWs = null;
+
+    final audioTransport = _audioTransportHandle;
+    _audioTransportHandle = null;
+    if (audioTransport != null) {
+      if (_nativeOpsInFlight.contains(audioTransport.address)) {
+        _deferredTransportDestroy[audioTransport.address] = audioTransport;
+      } else {
+        engine.destroyTransport(audioTransport);
+      }
+    }
 
     final transport = _transportHandle;
     _transportHandle = null;

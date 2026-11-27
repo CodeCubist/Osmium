@@ -129,6 +129,12 @@ class NativeBindings {
           void Function(Pointer<Void>)
         >('OsmiumMobile_DestroyKeyPair');
 
+    deriveAudioKey = _lib
+        .lookupFunction<
+          Int32 Function(Pointer<Uint8>, Pointer<Uint8>),
+          int Function(Pointer<Uint8>, Pointer<Uint8>)
+        >('OsmiumMobile_DeriveAudioKey');
+
     createTransport = _lib
         .lookupFunction<
           Int32 Function(
@@ -252,6 +258,12 @@ class NativeBindings {
           Void Function(Pointer<Void>),
           void Function(Pointer<Void>)
         >('OsmiumMobile_StopSession');
+
+    attachAudioTransport = _lib
+        .lookupFunction<
+          Int32 Function(Pointer<Void>, Pointer<Void>),
+          int Function(Pointer<Void>, Pointer<Void>)
+        >('OsmiumMobile_AttachAudioTransport');
 
     updateSurface = _lib
         .lookupFunction<
@@ -427,6 +439,7 @@ class NativeBindings {
   )
   deriveSessionMaterial;
   late final void Function(Pointer<Void>) destroyKeyPair;
+  late final int Function(Pointer<Uint8>, Pointer<Uint8>) deriveAudioKey;
 
   late final int Function(
     Pointer<Utf8>,
@@ -473,6 +486,7 @@ class NativeBindings {
   )
   startSession;
   late final void Function(Pointer<Void>) stopSession;
+  late final int Function(Pointer<Void>, Pointer<Void>) attachAudioTransport;
   late final void Function(Pointer<Void>, int) updateSurface;
   late final int Function(Pointer<Void>, Pointer<OsmiumMobileStatsStruct>)
   getStats;

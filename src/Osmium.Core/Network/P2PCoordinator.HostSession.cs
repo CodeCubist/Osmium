@@ -87,10 +87,20 @@ public sealed partial class P2PCoordinator : IDisposable
             byte[] fixedTag = hasFixed
                 ? ComputeAccessAuthTag(id.FixedAccessCode, sessionToken, challengeNonce, clientPubBytes, hostPubBytes)
                 : new byte[32];
+            byte[] audioSessionToken = DeriveAudioSessionToken(sessionToken);
             byte[]? aesKey = null;
             IntPtr transport = IntPtr.Zero;
+            IntPtr audioTransport = IntPtr.Zero;
             Task<(IntPtr Handle, string CandidatesJson)>? preTransportTask = null;
+            Task<(IntPtr Handle, string CandidatesJson)>? preAudioTransportTask = null;
             CloudRelayTransport? hostRelay = null;
+            CloudRelayTransport? hostAudioRelay = null;
+            CancellationTokenSource? hostAudioCts = null;
+            Task? hostAudioTask = null;
+            var hostAudioAttachLock = new object();
+            IntPtr activeHostHandleForAudio = IntPtr.Zero;
+            bool audioTransportReady = false;
+            bool audioTransportAttached = false;
             WebRtcPeerTransport? hostWebRtc = null;
             bool startedHost = false;
 
@@ -125,7 +135,11 @@ public sealed partial class P2PCoordinator : IDisposable
 
             void OnRelayFallback(RelayFallbackEventArgs rf)
             {
-                if (rf.SessionId == args.SessionId) relayFallbackTcs.TrySetResult(rf);
+                if (rf.SessionId == args.SessionId &&
+                    !string.Equals(rf.Channel, "audio", StringComparison.OrdinalIgnoreCase))
+                {
+                    relayFallbackTcs.TrySetResult(rf);
+                }
             }
 
             void OnWebRtcOffer(WebRtcSdpEventArgs offer)
@@ -172,6 +186,13 @@ public sealed partial class P2PCoordinator : IDisposable
 
                 var (preStunHost, preStunPort) = GetStunEndpoint();
                 preTransportTask = Task.Run(() =>
+                {
+                    var sb = new StringBuilder(4096);
+                    int ok = NativeMethods.Osmium_CreateTransport(preStunHost, preStunPort, out IntPtr h, sb,
+                        sb.Capacity);
+                    return ok != 0 && h != IntPtr.Zero ? (h, sb.ToString()) : (IntPtr.Zero, string.Empty);
+                });
+                preAudioTransportTask = Task.Run(() =>
                 {
                     var sb = new StringBuilder(4096);
                     int ok = NativeMethods.Osmium_CreateTransport(preStunHost, preStunPort, out IntPtr h, sb,
@@ -263,6 +284,25 @@ public sealed partial class P2PCoordinator : IDisposable
                     }
                 }
 
+                string preAudioCandidatesJson = "[]";
+                if (preAudioTransportTask != null)
+                {
+                    try
+                    {
+                        var preAudio = await preAudioTransportTask;
+                        preAudioTransportTask = null;
+                        audioTransport = preAudio.Handle;
+                        if (audioTransport != IntPtr.Zero && !string.IsNullOrWhiteSpace(preAudio.CandidatesJson))
+                        {
+                            preAudioCandidatesJson = preAudio.CandidatesJson;
+                        }
+                    }
+                    catch
+                    {
+                        preAudioTransportTask = null;
+                    }
+                }
+
                 if (transport == IntPtr.Zero)
                 {
                     await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "TRANSPORT_ERROR",
@@ -275,19 +315,39 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     bridgeReadyReached = true;
                     aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
+                    if (audioTransport != IntPtr.Zero)
+                    {
+                        byte[] audioAesKey = DeriveAudioAesKey(aesKey);
+                        try
+                        {
+                            NativeMethods.Osmium_SetTransportEncryption(audioTransport, hostEncrypt ? 1 : 0);
+                            if (hostEncrypt)
+                            {
+                                NativeMethods.Osmium_SetTransportKey(audioTransport, audioAesKey);
+                            }
+                            NativeMethods.Osmium_SetTransportKcpEnabled(audioTransport, 0);
+                        }
+                        finally
+                        {
+                            CryptographicOperations.ZeroMemory(audioAesKey);
+                        }
+                    }
+
                     string rtcStunHost = !string.IsNullOrWhiteSpace(versionRes.StunHost)
                         ? versionRes.StunHost
                         : stunHost;
                     ushort rtcStunPort = versionRes.StunPort > 0 ? versionRes.StunPort : stunPort;
 
-                    var rtc = new WebRtcPeerTransport(transport, _signaling, args.SessionId, _log);
-                    if (!rtc.InitializePeerConnection(rtcStunHost, rtcStunPort, sessionToken))
+                    var rtc = new WebRtcPeerTransport(transport, audioTransport, _signaling, args.SessionId, _log);
+                    if (!rtc.InitializePeerConnection(rtcStunHost, rtcStunPort, sessionToken, audioSessionToken))
                     {
                         rtc.Dispose();
                         await _signaling.SendConnectRejectAsync(args.SessionId, args.ClientDeviceId, "TRANSPORT_ERROR",
                             "Host failed to initialize WebRTC transport");
                         return;
                     }
+
+                    audioTransportReady = audioTransport != IntPtr.Zero;
 
                     List<WebRtcIceEventArgs> bufferedIce;
                     lock (earlyIceLock)
@@ -371,7 +431,9 @@ public sealed partial class P2PCoordinator : IDisposable
                 else
                 {
                     string localCandidatesJson = preCandidatesJson;
-                    await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+                    string localAudioCandidatesJson = preAudioCandidatesJson;
+                    await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson,
+                        localAudioCandidatesJson);
 
                     BridgeReadyEventArgs bridge;
                     using (var bridgeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18)))
@@ -393,7 +455,8 @@ public sealed partial class P2PCoordinator : IDisposable
 
                                 if (!bridgeTimeout.IsCancellationRequested)
                                 {
-                                    await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+                                    await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson,
+                                        localAudioCandidatesJson);
                                 }
                             }
 
@@ -409,6 +472,163 @@ public sealed partial class P2PCoordinator : IDisposable
 
                     aesKey = DeriveSessionAesKey(hostEcdh, clientPubBytes, sessionToken);
 
+                    // Setup independent audio transport IN PARALLEL with video punching (zero extra latency!)
+                    if (audioTransport != IntPtr.Zero)
+                    {
+                        byte[] audioAesKey = DeriveAudioAesKey(aesKey);
+                        try
+                        {
+                            NativeMethods.Osmium_SetTransportEncryption(audioTransport, hostEncrypt ? 1 : 0);
+                            if (hostEncrypt)
+                            {
+                                NativeMethods.Osmium_SetTransportKey(audioTransport, audioAesKey);
+                            }
+                            NativeMethods.Osmium_SetTransportKcpEnabled(audioTransport, 0);
+                        }
+                        finally
+                        {
+                            CryptographicOperations.ZeroMemory(audioAesKey);
+                        }
+
+                        hostAudioCts = new CancellationTokenSource();
+                        CancellationToken audioCt = hostAudioCts.Token;
+                        string sidForAudio = args.SessionId;
+                        IntPtr audioTxLocal = audioTransport;
+                        hostAudioTask = Task.Run(async () =>
+                        {
+                            var audioFbTcs = new TaskCompletionSource<RelayFallbackEventArgs>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                            void OnAudioFb(RelayFallbackEventArgs rf)
+                            {
+                                if (rf.SessionId == sidForAudio &&
+                                    string.Equals(rf.Channel, "audio", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    audioFbTcs.TrySetResult(rf);
+                                }
+                            }
+
+                            _signaling.RelayFallbackReceived += OnAudioFb;
+                            try
+                            {
+                                int aRoute = 0;
+                                var aEpSb = new StringBuilder(128);
+                                int aPunchOk = 0;
+                                if (!string.IsNullOrWhiteSpace(bridge.AudioCandidatesJson) &&
+                                    bridge.AudioCandidatesJson != "[]")
+                                {
+                                    for (int aAttempt = 1; aAttempt <= 2 && !audioCt.IsCancellationRequested; aAttempt++)
+                                    {
+                                        aEpSb.Clear();
+                                        aPunchOk = NativeMethods.Osmium_ConnectPeerP2P(
+                                            audioTxLocal,
+                                            audioSessionToken,
+                                            2,
+                                            bridge.AudioCandidatesJson,
+                                            1400,
+                                            out aRoute,
+                                            aEpSb,
+                                            aEpSb.Capacity);
+                                        if (aPunchOk != 0 || audioFbTcs.Task.IsCompleted) break;
+                                    }
+                                }
+
+                                bool aReady = aPunchOk != 0;
+                                if (!aReady && !audioCt.IsCancellationRequested)
+                                {
+                                    try
+                                    {
+                                        await _signaling.SendRelayFallbackAsync(sidForAudio, "audio");
+                                    }
+                                    catch
+                                    {
+                                    }
+
+                                    string arToken = bridge.AudioRelayToken;
+                                    string arPath = string.IsNullOrWhiteSpace(bridge.AudioRelayPath)
+                                        ? "/relay-audio"
+                                        : bridge.AudioRelayPath;
+                                    if (string.IsNullOrWhiteSpace(arToken))
+                                    {
+                                        using var tokCts = CancellationTokenSource.CreateLinkedTokenSource(audioCt);
+                                        tokCts.CancelAfter(TimeSpan.FromSeconds(4));
+                                        try
+                                        {
+                                            var rf = await audioFbTcs.Task.WaitAsync(tokCts.Token);
+                                            arToken = rf.AudioRelayToken;
+                                            if (!string.IsNullOrWhiteSpace(rf.AudioRelayPath)) arPath = rf.AudioRelayPath;
+                                        }
+                                        catch
+                                        {
+                                        }
+                                    }
+
+                                    if (!string.IsNullOrWhiteSpace(arToken) && !audioCt.IsCancellationRequested)
+                                    {
+                                        string sigNorm = SignalingClient.NormalizeServerUrl(
+                                            _settings.Settings.SignalingServerUrl);
+                                        string relayLabel = $"{new Uri(sigNorm).Host} (WSS Audio Relay)";
+                                        var relayUri = CloudRelayTransport.BuildRelayUri(
+                                            sigNorm, arPath, sidForAudio, "host", arToken);
+                                        var aRelay = new CloudRelayTransport(audioTxLocal, relayLabel, _log);
+                                        bool relayOk = await aRelay.ConnectAndBindAsync(
+                                            relayUri, audioSessionToken, 2, 12000, audioCt);
+                                        if (relayOk && !audioCt.IsCancellationRequested)
+                                        {
+                                            lock (_hostLock)
+                                            {
+                                                if (_activeHostAudioTransport == audioTxLocal)
+                                                {
+                                                    _activeHostAudioRelay = aRelay;
+                                                }
+                                                else
+                                                {
+                                                    hostAudioRelay = aRelay;
+                                                }
+                                            }
+                                            aReady = true;
+                                            _log.Info($"Host independent audio connected via {arPath}");
+                                        }
+                                        else
+                                        {
+                                            aRelay.Dispose();
+                                        }
+                                    }
+                                }
+                                else if (aReady)
+                                {
+                                    _log.Info($"Host independent audio connected direct (route={aRoute}, ep={aEpSb})");
+                                }
+
+                                if (aReady && !audioCt.IsCancellationRequested)
+                                {
+                                    IntPtr attachTarget = IntPtr.Zero;
+                                    lock (hostAudioAttachLock)
+                                    {
+                                        audioTransportReady = true;
+                                        if (activeHostHandleForAudio != IntPtr.Zero && !audioTransportAttached)
+                                        {
+                                            attachTarget = activeHostHandleForAudio;
+                                            audioTransportAttached = true;
+                                        }
+                                    }
+
+                                    if (attachTarget != IntPtr.Zero)
+                                    {
+                                        NativeMethods.Osmium_AttachHostAudioTransport(attachTarget, audioTxLocal);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.Warn($"Host independent audio setup failed (video unaffected): {ex.Message}");
+                            }
+                            finally
+                            {
+                                _signaling.RelayFallbackReceived -= OnAudioFb;
+                            }
+                        }, CancellationToken.None);
+                    }
+
                     const int maxDirectAttempts = 2;
                     int punchOk = 0;
                     for (int attempt = 1; attempt <= maxDirectAttempts; attempt++)
@@ -417,7 +637,8 @@ public sealed partial class P2PCoordinator : IDisposable
                         {
                             try
                             {
-                                await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson);
+                                await _signaling.SendBridgeCandidatesAsync(args.SessionId, localCandidatesJson,
+                                    localAudioCandidatesJson);
                             }
                             catch
                             {
@@ -792,7 +1013,14 @@ public sealed partial class P2PCoordinator : IDisposable
                 {
                     _activeHostHandle = hostHandle;
                     _activeHostTransport = transport;
+                    _activeHostAudioTransport = audioTransport;
                     _activeHostRelay = hostRelay;
+                    if (hostAudioRelay != null && _activeHostAudioRelay == null)
+                    {
+                        _activeHostAudioRelay = hostAudioRelay;
+                    }
+                    _activeHostAudioCts = hostAudioCts;
+                    _activeHostAudioTask = hostAudioTask;
                     _activeHostWebRtc = hostWebRtc;
                     _activeHostSessionId = args.SessionId;
                     _activeHostPeerId = args.ClientDeviceId;
@@ -806,6 +1034,23 @@ public sealed partial class P2PCoordinator : IDisposable
                     _hostConfirmTimeoutCts = confirmWatchdogCts;
                     HostSessionStartedAtUtc = null;
                     ActiveHostSessionInfo = null;
+                }
+
+                // Attach audio transport immediately if already ready, or register hostHandle for async hot-attach
+                bool attachAudioNow = false;
+                lock (hostAudioAttachLock)
+                {
+                    activeHostHandleForAudio = hostHandle;
+                    if (audioTransportReady && !audioTransportAttached && audioTransport != IntPtr.Zero)
+                    {
+                        audioTransportAttached = true;
+                        attachAudioNow = true;
+                    }
+                }
+
+                if (attachAudioNow)
+                {
+                    NativeMethods.Osmium_AttachHostAudioTransport(hostHandle, audioTransport);
                 }
 
                 string confirmSid = args.SessionId;
@@ -883,6 +1128,54 @@ public sealed partial class P2PCoordinator : IDisposable
                                 NativeMethods.Osmium_DestroyTransport(t.Result.Handle);
                             }
                         }, TaskScheduler.Default);
+                    }
+
+                    if (preAudioTransportTask != null)
+                    {
+                        var orphanAudioTask = preAudioTransportTask;
+                        preAudioTransportTask = null;
+                        _ = orphanAudioTask.ContinueWith(t =>
+                        {
+                            if (t.IsCompletedSuccessfully && t.Result.Handle != IntPtr.Zero)
+                            {
+                                NativeMethods.Osmium_DestroyTransport(t.Result.Handle);
+                            }
+                        }, TaskScheduler.Default);
+                    }
+
+                    try
+                    {
+                        hostAudioCts?.Cancel();
+                    }
+                    catch
+                    {
+                    }
+
+                    if (audioTransport != IntPtr.Zero)
+                    {
+                        IntPtr audioToDestroy = audioTransport;
+                        var audioRelayToDispose = hostAudioRelay;
+                        var audioCtsToDispose = hostAudioCts;
+                        if (hostAudioTask != null && !hostAudioTask.IsCompleted)
+                        {
+                            _ = hostAudioTask.ContinueWith(_ =>
+                            {
+                                audioRelayToDispose?.Dispose();
+                                audioCtsToDispose?.Dispose();
+                                NativeMethods.Osmium_DestroyTransport(audioToDestroy);
+                            }, TaskScheduler.Default);
+                        }
+                        else
+                        {
+                            audioRelayToDispose?.Dispose();
+                            audioCtsToDispose?.Dispose();
+                            NativeMethods.Osmium_DestroyTransport(audioToDestroy);
+                        }
+                    }
+                    else
+                    {
+                        hostAudioRelay?.Dispose();
+                        hostAudioCts?.Dispose();
                     }
 
                     if (transport != IntPtr.Zero)
@@ -1113,7 +1406,11 @@ public sealed partial class P2PCoordinator : IDisposable
     {
         IntPtr handle;
         IntPtr transport;
+        IntPtr audioTransport;
         CloudRelayTransport? hostRelay;
+        CloudRelayTransport? hostAudioRelay;
+        CancellationTokenSource? hostAudioCts;
+        Task? hostAudioTask;
         WebRtcPeerTransport? hostWebRtc;
         CancellationTokenSource? confirmCts;
         string? sid;
@@ -1124,16 +1421,25 @@ public sealed partial class P2PCoordinator : IDisposable
         {
             handle = _activeHostHandle;
             transport = _activeHostTransport;
+            audioTransport = _activeHostAudioTransport;
             hostRelay = _activeHostRelay;
+            hostAudioRelay = _activeHostAudioRelay;
+            hostAudioCts = _activeHostAudioCts;
+            hostAudioTask = _activeHostAudioTask;
             hostWebRtc = _activeHostWebRtc;
             confirmCts = _hostConfirmTimeoutCts;
             sid = _activeHostSessionId;
             peerId = _activeHostPeerId;
             wasEstablished = _hostSessionEstablished;
-            hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero || hostRelay != null || hostWebRtc != null;
+            hadSession = handle != IntPtr.Zero || transport != IntPtr.Zero || audioTransport != IntPtr.Zero ||
+                         hostRelay != null || hostAudioRelay != null || hostWebRtc != null;
             _activeHostHandle = IntPtr.Zero;
             _activeHostTransport = IntPtr.Zero;
+            _activeHostAudioTransport = IntPtr.Zero;
             _activeHostRelay = null;
+            _activeHostAudioRelay = null;
+            _activeHostAudioCts = null;
+            _activeHostAudioTask = null;
             _activeHostWebRtc = null;
             _hostConfirmTimeoutCts = null;
             _activeHostSessionId = null;
@@ -1158,7 +1464,22 @@ public sealed partial class P2PCoordinator : IDisposable
             confirmCts.Dispose();
         }
 
-        if (!hadSession) return;
+        if (hostAudioCts != null)
+        {
+            try
+            {
+                hostAudioCts.Cancel();
+            }
+            catch
+            {
+            }
+        }
+
+        if (!hadSession)
+        {
+            hostAudioCts?.Dispose();
+            return;
+        }
 
         StopHostClipboardWatcher();
         Interlocked.Exchange(ref _hostAuxChannel, null)?.Dispose();
@@ -1170,6 +1491,30 @@ public sealed partial class P2PCoordinator : IDisposable
 
         hostRelay?.Dispose();
         hostWebRtc?.Dispose();
+
+        if (audioTransport != IntPtr.Zero)
+        {
+            if (hostAudioTask != null && !hostAudioTask.IsCompleted)
+            {
+                _ = hostAudioTask.ContinueWith(_ =>
+                {
+                    hostAudioRelay?.Dispose();
+                    hostAudioCts?.Dispose();
+                    NativeMethods.Osmium_DestroyTransport(audioTransport);
+                }, TaskScheduler.Default);
+            }
+            else
+            {
+                hostAudioRelay?.Dispose();
+                hostAudioCts?.Dispose();
+                NativeMethods.Osmium_DestroyTransport(audioTransport);
+            }
+        }
+        else
+        {
+            hostAudioRelay?.Dispose();
+            hostAudioCts?.Dispose();
+        }
 
         if (transport != IntPtr.Zero)
         {

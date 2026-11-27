@@ -222,7 +222,7 @@ namespace osmium::mobile
         return true;
     }
 
-    uint32_t AndroidVideoDecoder::DrainOutputsLocked(int64_t firstTimeoutUs, bool& outFatalError)
+    uint32_t AndroidVideoDecoder::DrainOutputsLocked(int64_t firstTimeoutUs, bool& outFatalError, uint64_t& outLastPtsUs)
     {
         outFatalError = false;
         if (!m_Codec) return 0;
@@ -240,6 +240,10 @@ namespace osmium::mobile
                 if (relSt == AMEDIA_OK)
                 {
                     ++rendered;
+                    if (info.presentationTimeUs > 0)
+                    {
+                        outLastPtsUs = static_cast<uint64_t>(info.presentationTimeUs);
+                    }
                 }
                 else
                 {
@@ -286,15 +290,18 @@ namespace osmium::mobile
         return rendered;
     }
 
-    uint32_t AndroidVideoDecoder::DrainPendingOutput(uint32_t& outDecodeTimeUs)
+    uint32_t AndroidVideoDecoder::DrainPendingOutput(uint32_t& outDecodeTimeUs, uint64_t* outRenderedCaptureUs)
     {
         outDecodeTimeUs = 0;
+        if (outRenderedCaptureUs) *outRenderedCaptureUs = 0;
         std::lock_guard<std::mutex> lock(m_Mutex);
         if (!m_Codec || m_InFlightFrames.load(std::memory_order_relaxed) <= 0) return 0;
 
         uint64_t t0 = MobileTransport::NowMicros();
         bool fatalError = false;
-        uint32_t rendered = DrainOutputsLocked(0, fatalError);
+        uint64_t lastPtsUs = 0;
+        uint32_t rendered = DrainOutputsLocked(0, fatalError, lastPtsUs);
+        if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
         if (fatalError)
         {
             DestroyCodecLocked();
@@ -313,9 +320,11 @@ namespace osmium::mobile
     uint32_t AndroidVideoDecoder::DecodeAndRender(
         const AssembledVideoFrame& frame,
         uint32_t& outDecodeTimeUs,
-        bool hasBacklog)
+        bool hasBacklog,
+        uint64_t* outRenderedCaptureUs)
     {
         outDecodeTimeUs = 0;
+        if (outRenderedCaptureUs) *outRenderedCaptureUs = 0;
         if (frame.payload.empty()) return 0;
 
         std::lock_guard<std::mutex> lock(m_Mutex);
@@ -332,12 +341,14 @@ namespace osmium::mobile
 
         uint64_t t0 = MobileTransport::NowMicros();
         bool fatalError = false;
+        uint64_t lastPtsUs = 0;
 
         // Drain any ready output surfaces BEFORE dequeuing an input buffer so the
         // hardware codec never stalls on a full output ring and silently drops a P-frame.
-        uint32_t rendered = DrainOutputsLocked(0, fatalError);
+        uint32_t rendered = DrainOutputsLocked(0, fatalError, lastPtsUs);
         if (fatalError)
         {
+            if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
             DestroyCodecLocked();
             m_WaitForKeyFrame.store(true, std::memory_order_relaxed);
             return rendered;
@@ -346,6 +357,7 @@ namespace osmium::mobile
         ssize_t inIdx = AMediaCodec_dequeueInputBuffer(m_Codec, 8000);
         if (inIdx < 0 && inIdx != AMEDIACODEC_INFO_TRY_AGAIN_LATER)
         {
+            if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
             LOGW("AMediaCodec_dequeueInputBuffer fatal error (%zd); rebuilding codec", inIdx);
             DestroyCodecLocked();
             m_WaitForKeyFrame.store(true, std::memory_order_relaxed);
@@ -353,9 +365,10 @@ namespace osmium::mobile
         }
         if (inIdx < 0)
         {
-            rendered += DrainOutputsLocked(2000, fatalError);
+            rendered += DrainOutputsLocked(2000, fatalError, lastPtsUs);
             if (fatalError)
             {
+                if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
                 DestroyCodecLocked();
                 m_WaitForKeyFrame.store(true, std::memory_order_relaxed);
                 return rendered;
@@ -363,6 +376,7 @@ namespace osmium::mobile
             inIdx = AMediaCodec_dequeueInputBuffer(m_Codec, 4000);
             if (inIdx < 0)
             {
+                if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
                 if (inIdx != AMEDIACODEC_INFO_TRY_AGAIN_LATER)
                 {
                     LOGW("AMediaCodec_dequeueInputBuffer retry error (%zd); rebuilding codec", inIdx);
@@ -382,6 +396,7 @@ namespace osmium::mobile
         uint8_t* inBuf = AMediaCodec_getInputBuffer(m_Codec, static_cast<size_t>(inIdx), &inCap);
         if (!inBuf || frame.payload.size() > inCap)
         {
+            if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
             LOGW("AMediaCodec input buffer too small (%zu > %zu); rebuilding codec with larger max-input-size",
                  frame.payload.size(), inCap);
             AMediaCodec_queueInputBuffer(m_Codec, static_cast<size_t>(inIdx), 0, 0, 0, 0);
@@ -392,7 +407,7 @@ namespace osmium::mobile
 
         std::memcpy(inBuf, frame.payload.data(), frame.payload.size());
         uint32_t flags = frame.isKeyFrame ? 1u : 0u; // BUFFER_FLAG_KEY_FRAME
-        int64_t ptsUs = static_cast<int64_t>(frame.captureTimeUs > 0 ? frame.captureTimeUs : t0);
+        int64_t ptsUs = static_cast<int64_t>(frame.captureTimeUs > 0 ? frame.captureTimeUs : 0);
         media_status_t qSt = AMediaCodec_queueInputBuffer(
             m_Codec,
             static_cast<size_t>(inIdx),
@@ -402,6 +417,7 @@ namespace osmium::mobile
             flags);
         if (qSt != AMEDIA_OK)
         {
+            if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
             LOGW("AMediaCodec_queueInputBuffer failed (%d); rebuilding codec", static_cast<int>(qSt));
             DestroyCodecLocked();
             m_WaitForKeyFrame.store(true, std::memory_order_relaxed);
@@ -409,7 +425,8 @@ namespace osmium::mobile
         }
         m_InFlightFrames.fetch_add(1, std::memory_order_relaxed);
 
-        rendered += DrainOutputsLocked(hasBacklog ? 0 : 4000, fatalError);
+        rendered += DrainOutputsLocked(hasBacklog ? 0 : 4000, fatalError, lastPtsUs);
+        if (outRenderedCaptureUs && lastPtsUs > 0) *outRenderedCaptureUs = lastPtsUs;
         if (fatalError)
         {
             DestroyCodecLocked();

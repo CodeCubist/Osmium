@@ -158,6 +158,8 @@ namespace osmium
             SecureZeroMemory(m_DecKeyObj.data(), m_DecKeyObj.size());
             m_DecKeyObj.clear();
         }
+        SecureZeroMemory(m_MasterKey, sizeof(m_MasterKey));
+        m_HasMasterKey = false;
         if (m_AesAlg)
         {
             BCryptCloseAlgorithmProvider(m_AesAlg, 0);
@@ -170,6 +172,12 @@ namespace osmium
         m_Closed.store(true);
         m_Connected.store(false);
         StopKcp();
+        {
+            std::lock_guard<std::mutex> lockSend(m_SendMutex);
+            std::lock_guard<std::mutex> lockRecv(m_RecvCryptoMutex);
+            SecureZeroMemory(m_MasterKey, sizeof(m_MasterKey));
+            m_HasMasterKey = false;
+        }
         {
             std::lock_guard<std::mutex> rl(m_RelaySendMutex);
             m_RelaySendFn = nullptr;
@@ -404,7 +412,7 @@ namespace osmium
         uint8_t osmReq[16]{};
         uint64_t reqId = NowMicros();
         memcpy(osmReq, proto::kMagic, 4);
-        osmReq[4] = proto::kVersion;
+        osmReq[4] = 1;
         osmReq[5] = static_cast<uint8_t>(proto::WireMsgType::StunReq);
         memcpy(osmReq + 8, &reqId, 8);
 
@@ -714,6 +722,7 @@ namespace osmium
         const int32_t attempt = ++m_PunchAttemptCount;
         memcpy(m_SessionToken, sessionToken, 16);
         m_LocalRole = localRole;
+        RefreshSessionKeyForRole();
         outTransportRoute = 0;
 
         u_long nbInit = 1;
@@ -1123,6 +1132,9 @@ namespace osmium
 
         const uint8_t* encBytes = (m_LocalRole == proto::PeerRole::Host) ? h2cKey : c2hKey;
         const uint8_t* decBytes = (m_LocalRole == proto::PeerRole::Host) ? c2hKey : h2cKey;
+        memcpy(m_MasterKey, aesKey, 32);
+        m_HasMasterKey = true;
+        m_KeyDerivedRole = m_LocalRole;
 
         DWORD keyObjLen = 0, cbData = 0;
         NTSTATUS stLen = BCryptGetProperty(
@@ -1167,6 +1179,26 @@ namespace osmium
         }
 
         return true;
+    }
+
+    void OsmiumTransport::RefreshSessionKeyForRole()
+    {
+        uint8_t keyCopy[32]{};
+        bool needRebind = false;
+        {
+            std::lock_guard<std::mutex> lockSend(m_SendMutex);
+            std::lock_guard<std::mutex> lockRecv(m_RecvCryptoMutex);
+            if (m_HasMasterKey && m_KeyDerivedRole != m_LocalRole)
+            {
+                memcpy(keyCopy, m_MasterKey, 32);
+                needRebind = true;
+            }
+        }
+        if (needRebind)
+        {
+            SetSessionKey(keyCopy);
+            SecureZeroMemory(keyCopy, sizeof(keyCopy));
+        }
     }
 
     bool OsmiumTransport::RawSendTo(SOCKET sock, const sockaddr_storage& target, int addrLen, const void* data,
@@ -1466,6 +1498,7 @@ namespace osmium
         StopKcp();
         memcpy(m_SessionToken, sessionToken, 16);
         m_LocalRole = localRole;
+        RefreshSessionKeyForRole();
 
         SOCKET s4 = m_Sock4;
         SOCKET s6 = m_Sock6;

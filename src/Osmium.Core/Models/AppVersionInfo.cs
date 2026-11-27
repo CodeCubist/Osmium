@@ -4,8 +4,8 @@ namespace Osmium.Core.Models;
 
 public static class AppVersionInfo
 {
-    public const string MinimumSupported = "1.0.2";
-    private static readonly Version MinimumSupportedVersion = new(1, 0, 2);
+    public const string MinimumSupported = "1.1.0";
+    private static readonly Version MinimumSupportedVersion = new(1, 1, 0);
 
     public static string Current
     {
@@ -66,7 +66,7 @@ public static class AppVersionInfo
             return $"{v.Major}.{Math.Max(0, v.Minor)}.{Math.Max(0, v.Build)}";
         }
 
-        return "1.0.2";
+        return "1.1.0";
     }
 
     private static string? ResolveAssemblyMetadata(string key)

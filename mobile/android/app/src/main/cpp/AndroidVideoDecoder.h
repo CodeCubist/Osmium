@@ -25,10 +25,10 @@ namespace osmium::mobile
 
         // Returns the number of decoded frames submitted to the output surface.
         uint32_t DecodeAndRender(const AssembledVideoFrame& frame, uint32_t& outDecodeTimeUs,
-                                 bool hasBacklog = false);
+                                 bool hasBacklog = false, uint64_t* outRenderedCaptureUs = nullptr);
 
         // Non-blocking drain of hardware-pipelined output frames when no new input is ready.
-        uint32_t DrainPendingOutput(uint32_t& outDecodeTimeUs);
+        uint32_t DrainPendingOutput(uint32_t& outDecodeTimeUs, uint64_t* outRenderedCaptureUs = nullptr);
 
         // Recovers a stalled/errored AMediaCodec (soft flush or full destroy+recreate).
         void RecoverCodec(bool hardRebuild);
@@ -45,7 +45,7 @@ namespace osmium::mobile
     private:
         bool EnsureConfiguredLocked(uint8_t codecId, uint16_t width, uint16_t height, size_t minInputBytes);
         void DestroyCodecLocked();
-        uint32_t DrainOutputsLocked(int64_t firstTimeoutUs, bool& outFatalError);
+        uint32_t DrainOutputsLocked(int64_t firstTimeoutUs, bool& outFatalError, uint64_t& outLastPtsUs);
         static const char* CodecMimeFromId(uint8_t codecId);
 
         std::mutex m_Mutex;

@@ -6,7 +6,7 @@
 namespace osmium::proto
 {
     constexpr uint8_t kMagic[4] = {'O', 'S', 'M', '1'};
-    constexpr uint8_t kVersion = 1;
+    constexpr uint8_t kVersion = 2;
 
     enum class WireMsgType : uint8_t
     {
@@ -36,6 +36,9 @@ namespace osmium::proto
         VideoIdrRequest = 0x21,
         AudioFrame = 0x22,
         ClientMicAudioFrame = 0x23,
+        AudioPing = 0x24,
+        AudioPong = 0x25,
+        AudioControl = 0x26,
 
         InputKey = 0x30,
         InputMouseMove = 0x31,
@@ -73,6 +76,15 @@ namespace osmium::proto
     //   hdr.flags    = kPingFlagHasTelemetry | ((min(lossStep02Pct, 63)) << 1)  (0.2% units, 0..12.6%)
     //   hdr.reserved = min(lastRttMs, 65535)
     constexpr uint8_t kPingFlagHasTelemetry = 0x80;
+
+    // AudioFrameHeader::hdr.flags bits (protocol v2, independent audio transport)
+    constexpr uint8_t kAudioFlagStreamStart = 0x01;
+    constexpr uint8_t kAudioFlagSilenceEnd = 0x02;
+    constexpr uint8_t kAudioFlagHasPrevRedundant = 0x04;
+    // AudioFrameHeader::codecFlags bits
+    constexpr uint8_t kAudioCodecFlagOpusAudioMode = 0x01;
+    // AudioPingPongPayload::hdr.flags bits
+    constexpr uint8_t kAudioPingFlagHasTelemetry = 0x01;
 
     enum class MouseModeId : int32_t
     {
@@ -135,6 +147,7 @@ namespace osmium::proto
     {
         AppPacketHeader hdr;
         uint64_t timestampUs;
+        uint64_t hostTimeUs;
     };
 
     struct VideoChunkHeader
@@ -156,11 +169,31 @@ namespace osmium::proto
     {
         AppPacketHeader hdr;
         uint32_t sequence;
+        uint64_t captureTimeUs;
         uint16_t sampleRate;
         uint8_t channels;
-        uint8_t reserved2;
+        uint8_t codecFlags;
         uint16_t sampleCount;
         uint16_t payloadBytes;
+        uint16_t redundantBytes;
+        uint16_t reserved2;
+    };
+
+    struct AudioPingPongPayload
+    {
+        AppPacketHeader hdr;
+        uint64_t clientTimeUs;
+        uint64_t hostTimeUs;
+        uint16_t audioLossPermille;
+        uint16_t playoutBufferMs;
+    };
+
+    struct AudioControlPayload
+    {
+        AppPacketHeader hdr;
+        uint8_t muted;
+        uint8_t qualityPreset;
+        uint16_t targetBitrateKbps;
     };
 
     struct InputKeyPayload

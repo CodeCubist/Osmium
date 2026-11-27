@@ -144,6 +144,21 @@ class OsmiumEngine {
     _bindings?.destroyKeyPair(handle);
   }
 
+  Uint8List? deriveAudioKey(Uint8List aesKey32) {
+    final b = _bindings;
+    if (b == null || aesKey32.length < 32) return null;
+    final inPtr = calloc<Uint8>(32);
+    final outPtr = calloc<Uint8>(32);
+    try {
+      inPtr.asTypedList(32).setAll(0, aesKey32.take(32));
+      if (b.deriveAudioKey(inPtr, outPtr) == 0) return null;
+      return Uint8List.fromList(outPtr.asTypedList(32));
+    } finally {
+      calloc.free(inPtr);
+      calloc.free(outPtr);
+    }
+  }
+
   TransportCreationResult? createTransport({
     required String stunHost,
     required int stunPort,
@@ -357,6 +372,21 @@ class OsmiumEngine {
   void stopSession(Pointer<Void>? session) {
     if (session == null || session == nullptr) return;
     _bindings?.stopSession(session);
+  }
+
+  bool attachAudioTransport({
+    required Pointer<Void>? session,
+    required Pointer<Void>? audioTransport,
+  }) {
+    final b = _bindings;
+    if (b == null ||
+        session == null ||
+        session == nullptr ||
+        audioTransport == null ||
+        audioTransport == nullptr) {
+      return false;
+    }
+    return b.attachAudioTransport(session, audioTransport) != 0;
   }
 
   void updateSurface(Pointer<Void>? session, int surfaceHandleId) {

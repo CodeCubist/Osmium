@@ -57,6 +57,9 @@ namespace
     struct MobileSessionContext
     {
         MobileTransport* transport = nullptr;
+        std::atomic<MobileTransport*> audioTransport{nullptr};
+        std::mutex audioAttachMutex;
+        std::atomic<bool> audioMuted{false};
         OsmiumMobileClientConfig config{};
         AndroidVideoDecoder decoder;
         AndroidAudioEngine audio;
@@ -94,6 +97,7 @@ namespace
         std::atomic<float> lastAbsMouseY{0.5f};
 
         std::thread recvThread;
+        std::thread audioRecvThread;
         std::thread decodeThread;
 
         uint16_t AllocateActionSeq()
@@ -312,24 +316,6 @@ namespace
                         ctx->frameQueueCv.notify_one();
                     }
                 }
-                else if (type == osmium::proto::AppPacketType::AudioFrame &&
-                         plain.size() >= sizeof(osmium::proto::AudioFrameHeader))
-                {
-                    if (ctx->config.enableAudio != 0)
-                    {
-                        const auto* hdr = reinterpret_cast<const osmium::proto::AudioFrameHeader*>(plain.data());
-                        if (plain.size() >= sizeof(osmium::proto::AudioFrameHeader) + hdr->payloadBytes)
-                        {
-                            ctx->audio.PushOpusFrame(
-                                plain.data() + sizeof(osmium::proto::AudioFrameHeader),
-                                hdr->payloadBytes,
-                                hdr->sampleRate,
-                                hdr->channels,
-                                hdr->sampleCount,
-                                hdr->sequence);
-                        }
-                    }
-                }
                 else if (type == osmium::proto::AppPacketType::HostStatusJson &&
                          plain.size() > sizeof(osmium::proto::AppPacketHeader))
                 {
@@ -355,7 +341,15 @@ namespace
                     uint64_t nowUs = MobileTransport::NowMicros();
                     if (nowUs >= pong->timestampUs)
                     {
-                        ctx->transport->RecordRttMs(static_cast<uint32_t>((nowUs - pong->timestampUs) / 1000ULL));
+                        const uint64_t rttUs = nowUs - pong->timestampUs;
+                        ctx->transport->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+                        if (pong->hostTimeUs > 0)
+                        {
+                            const int64_t midClientUs = static_cast<int64_t>(pong->timestampUs + (rttUs / 2ULL));
+                            ctx->audio.RecordClockOffset(
+                                midClientUs - static_cast<int64_t>(pong->hostTimeUs),
+                                static_cast<uint32_t>(std::min<uint64_t>(rttUs, UINT32_MAX)));
+                        }
                     }
                 }
                 else if (type == osmium::proto::AppPacketType::AuxData &&
@@ -379,6 +373,111 @@ namespace
         }
     }
 
+    void AudioRecvLoop(MobileSessionContext* ctx, MobileTransport* audioTransport)
+    {
+        if (!ctx || !audioTransport) return;
+        // Strictly below video RecvLoop (-10) and DecodeLoop (-6) so audio can NEVER starve video.
+        setpriority(PRIO_PROCESS, 0, -4);
+        std::vector<uint8_t> plain;
+        uint64_t lastAudioPingMs = 0;
+
+        while (!ctx->stopFlag.load(std::memory_order_acquire))
+        {
+            if (ctx->audioTransport.load(std::memory_order_acquire) != audioTransport) break;
+
+            const uint64_t nowMs = MobileTransport::NowMillis();
+            if (nowMs - lastAudioPingMs >= 300ULL)
+            {
+                lastAudioPingMs = nowMs;
+                uint16_t lossPermille = 0, jitterMs = 0, bufferMs = 0;
+                ctx->audio.GetAudioTelemetry(lossPermille, jitterMs, bufferMs);
+
+                osmium::proto::AudioPingPongPayload ping{};
+                ping.hdr.flags = osmium::proto::kAudioPingFlagHasTelemetry;
+                ping.hdr.reserved = jitterMs;
+                ping.clientTimeUs = MobileTransport::NowMicros();
+                ping.hostTimeUs = 0;
+                ping.audioLossPermille = lossPermille;
+                ping.playoutBufferMs = bufferMs;
+                audioTransport->SendEncrypted(osmium::proto::AppPacketType::AudioPing, &ping, sizeof(ping));
+            }
+
+            int r = audioTransport->ReceiveEncrypted(plain, 15);
+            if (r < 0)
+            {
+                // Independent audio channel error/close NEVER terminates the video session!
+                LOGW("Mobile independent audio channel ended; video session remains active");
+                break;
+            }
+            if (r == 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) continue;
+
+            for (int burst = 0; burst < 16 && !ctx->stopFlag.load(std::memory_order_acquire); ++burst)
+            {
+                if (burst > 0)
+                {
+                    r = audioTransport->ReceiveEncrypted(plain, 0);
+                    if (r <= 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) break;
+                }
+
+                auto type = static_cast<osmium::proto::AppPacketType>(plain[0]);
+                if (type == osmium::proto::AppPacketType::AudioFrame &&
+                    plain.size() >= sizeof(osmium::proto::AudioFrameHeader))
+                {
+                    if (ctx->config.enableAudio != 0)
+                    {
+                        const auto* hdr = reinterpret_cast<const osmium::proto::AudioFrameHeader*>(plain.data());
+                        const size_t primaryEnd = sizeof(osmium::proto::AudioFrameHeader) + hdr->payloadBytes;
+                        if (plain.size() >= primaryEnd)
+                        {
+                            const uint8_t* redPtr = nullptr;
+                            uint16_t redLen = 0;
+                            if ((hdr->hdr.flags & osmium::proto::kAudioFlagHasPrevRedundant) != 0 &&
+                                hdr->redundantBytes > 0 &&
+                                plain.size() >= primaryEnd + hdr->redundantBytes)
+                            {
+                                redPtr = plain.data() + primaryEnd;
+                                redLen = hdr->redundantBytes;
+                            }
+                            ctx->audio.PushOpusFrame(
+                                plain.data() + sizeof(osmium::proto::AudioFrameHeader),
+                                hdr->payloadBytes,
+                                hdr->sampleRate,
+                                hdr->channels,
+                                hdr->sampleCount,
+                                hdr->sequence,
+                                hdr->captureTimeUs,
+                                hdr->hdr.flags,
+                                redPtr,
+                                redLen);
+                        }
+                    }
+                }
+                else if (type == osmium::proto::AppPacketType::AudioPong &&
+                         plain.size() >= sizeof(osmium::proto::AudioPingPongPayload))
+                {
+                    const auto* pong = reinterpret_cast<const osmium::proto::AudioPingPongPayload*>(plain.data());
+                    const uint64_t nowUs = MobileTransport::NowMicros();
+                    if (nowUs >= pong->clientTimeUs)
+                    {
+                        const uint64_t rttUs = nowUs - pong->clientTimeUs;
+                        audioTransport->RecordRttMs(static_cast<uint32_t>(rttUs / 1000ULL));
+                        if (pong->hostTimeUs > 0)
+                        {
+                            const int64_t midClientUs = static_cast<int64_t>(pong->clientTimeUs + (rttUs / 2ULL));
+                            ctx->audio.RecordClockOffset(
+                                midClientUs - static_cast<int64_t>(pong->hostTimeUs),
+                                static_cast<uint32_t>(std::min<uint64_t>(rttUs, UINT32_MAX)));
+                        }
+                    }
+                }
+                else if (type == osmium::proto::AppPacketType::Disconnect)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
     void DecodeLoop(MobileSessionContext* ctx)
     {
         setpriority(PRIO_PROCESS, 0, -6);
@@ -386,10 +485,15 @@ namespace
         uint32_t watchdogRecoverCount = 0;
         uint64_t lastSurfaceRebindReqMs = 0;
 
-        auto onRendered = [&](uint32_t rendered, uint32_t decUs)
+        auto onRendered = [&](uint32_t rendered, uint32_t decUs, uint64_t renderedCaptureUs)
         {
             if (rendered == 0) return;
-            const uint64_t nowMs = MobileTransport::NowMillis();
+            const uint64_t nowUs = MobileTransport::NowMicros();
+            if (renderedCaptureUs > 0)
+            {
+                ctx->audio.NotifyVideoFrameRendered(renderedCaptureUs, nowUs);
+            }
+            const uint64_t nowMs = nowUs / 1000ULL;
             ctx->lastRenderedMs.store(nowMs, std::memory_order_relaxed);
             ctx->idrRetryCount.store(0, std::memory_order_relaxed);
             watchdogRecoverCount = 0;
@@ -449,10 +553,11 @@ namespace
                 // Drain hardware-pipelined decoded frames immediately so we never sit idle
                 // for 30ms while a decoded frame is already waiting inside AMediaCodec.
                 uint32_t drainDecUs = 0;
-                uint32_t drained = ctx->decoder.DrainPendingOutput(drainDecUs);
+                uint64_t drainCaptureUs = 0;
+                uint32_t drained = ctx->decoder.DrainPendingOutput(drainDecUs, &drainCaptureUs);
                 if (drained > 0)
                 {
-                    onRendered(drained, drainDecUs);
+                    onRendered(drained, drainDecUs, drainCaptureUs);
                 }
 
                 // Self-healing 0-FPS watchdog: if video bandwidth is actively flowing
@@ -493,10 +598,12 @@ namespace
             }
 
             uint32_t decUs = 0;
-            const uint32_t rendered = ctx->decoder.DecodeAndRender(frame, decUs, queuedAfterPop > 0);
+            uint64_t renderedCaptureUs = 0;
+            const uint32_t rendered = ctx->decoder.DecodeAndRender(
+                frame, decUs, queuedAfterPop > 0, &renderedCaptureUs);
             if (rendered != 0)
             {
-                onRendered(rendered, decUs);
+                onRendered(rendered, decUs, renderedCaptureUs > 0 ? renderedCaptureUs : frame.captureTimeUs);
             }
             else if (ctx->decoder.IsWaitingForKeyFrame())
             {
@@ -611,6 +718,12 @@ extern "C"
     void OsmiumMobile_DestroyKeyPair(void* keyHandle)
     {
         delete static_cast<EcdhKeyPair*>(keyHandle);
+    }
+
+    int32_t OsmiumMobile_DeriveAudioKey(const uint8_t* aesKey32, uint8_t* outAudioKey32)
+    {
+        if (!aesKey32 || !outAudioKey32) return 0;
+        return DeriveDirectionalSubkey(aesKey32, "OSM2-AUDIO-KEY", outAudioKey32) ? 1 : 0;
     }
 
     int32_t OsmiumMobile_CreateTransport(
@@ -766,10 +879,42 @@ extern "C"
             ANativeWindow_release(win);
         }
 
+        ctx->audioMuted.store(cfg->enableAudio == 0, std::memory_order_release);
+        ctx->audio.SetMuted(cfg->enableAudio == 0);
         ctx->recvThread = std::thread(RecvLoop, ctx);
         ctx->decodeThread = std::thread(DecodeLoop, ctx);
         *outSession = ctx;
         LOGI("Mobile session started (surface=%lld)", static_cast<long long>(surfaceHandleId));
+        return 1;
+    }
+
+    int32_t OsmiumMobile_AttachAudioTransport(void* session, void* audioTransport)
+    {
+        if (!session || !audioTransport) return 0;
+        auto* ctx = static_cast<MobileSessionContext*>(session);
+        auto* at = static_cast<MobileTransport*>(audioTransport);
+        std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+        if (ctx->stopFlag.load(std::memory_order_acquire)) return 0;
+
+        MobileTransport* prev = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+        if (prev && prev != at)
+        {
+            prev->Close();
+        }
+        if (ctx->audioRecvThread.joinable())
+        {
+            ctx->audioRecvThread.join();
+        }
+
+        at->SetKcpEnabled(false);
+        ctx->audioTransport.store(at, std::memory_order_release);
+
+        osmium::proto::AudioControlPayload ctrl{};
+        ctrl.muted = ctx->audioMuted.load(std::memory_order_acquire) ? 1 : 0;
+        at->SendEncrypted(osmium::proto::AppPacketType::AudioControl, &ctrl, sizeof(ctrl));
+
+        ctx->audioRecvThread = std::thread(AudioRecvLoop, ctx, at);
+        LOGI("Mobile independent audio transport attached (route=%d)", at->GetRoute());
         return 1;
     }
 
@@ -781,6 +926,19 @@ extern "C"
         ctx->sessionActive.store(false, std::memory_order_release);
         ctx->frameQueueCv.notify_all();
 
+        ctx->audio.StopMicCapture();
+
+        {
+            std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+            MobileTransport* at = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+            if (at)
+            {
+                osmium::proto::AppPacketHeader disc{};
+                at->SendEncrypted(osmium::proto::AppPacketType::Disconnect, &disc, sizeof(disc));
+                at->Close();
+            }
+        }
+
         if (ctx->transport)
         {
             osmium::proto::AppPacketHeader disc{};
@@ -788,6 +946,7 @@ extern "C"
         }
 
         if (ctx->recvThread.joinable()) ctx->recvThread.join();
+        if (ctx->audioRecvThread.joinable()) ctx->audioRecvThread.join();
         if (ctx->decodeThread.joinable()) ctx->decodeThread.join();
 
         ctx->audio.StopAll();
@@ -1029,7 +1188,22 @@ extern "C"
     void OsmiumMobile_SetAudioMute(void* session, int32_t muted)
     {
         if (!session) return;
-        static_cast<MobileSessionContext*>(session)->audio.SetMuted(muted != 0);
+        auto* ctx = static_cast<MobileSessionContext*>(session);
+        const bool isMuted = (muted != 0);
+        ctx->audioMuted.store(isMuted, std::memory_order_release);
+        ctx->audio.SetMuted(isMuted);
+
+        osmium::proto::AudioControlPayload ctrl{};
+        ctrl.muted = isMuted ? 1 : 0;
+        MobileTransport* audioTx = ctx->audioTransport.load(std::memory_order_acquire);
+        if (audioTx && audioTx->IsConnected())
+        {
+            audioTx->SendEncrypted(osmium::proto::AppPacketType::AudioControl, &ctrl, sizeof(ctrl));
+        }
+        else if (ctx->transport)
+        {
+            ctx->transport->SendEncrypted(osmium::proto::AppPacketType::AudioControl, &ctrl, sizeof(ctrl));
+        }
     }
 
     void OsmiumMobile_SetVirtualAudio(void* session, int32_t virtualSpeaker, int32_t virtualMic)
@@ -1052,17 +1226,20 @@ extern "C"
                 [ctx](const uint8_t* opusData, uint16_t payloadBytes,
                       uint16_t sampleRate, uint8_t channels, uint16_t sampleCount)
                 {
-                    if (ctx->stopFlag.load(std::memory_order_acquire) || !ctx->transport) return;
+                    if (ctx->stopFlag.load(std::memory_order_acquire)) return;
+                    MobileTransport* audioTx = ctx->audioTransport.load(std::memory_order_acquire);
+                    if (!audioTx || !audioTx->IsConnected()) return;
                     std::vector<uint8_t> buf(sizeof(osmium::proto::AudioFrameHeader) + payloadBytes);
                     auto* hdr = reinterpret_cast<osmium::proto::AudioFrameHeader*>(buf.data());
                     std::memset(hdr, 0, sizeof(*hdr));
                     hdr->sequence = ctx->micSeqCounter.fetch_add(1, std::memory_order_relaxed);
+                    hdr->captureTimeUs = MobileTransport::NowMicros();
                     hdr->sampleRate = sampleRate;
                     hdr->channels = channels;
                     hdr->sampleCount = sampleCount;
                     hdr->payloadBytes = payloadBytes;
                     std::memcpy(buf.data() + sizeof(osmium::proto::AudioFrameHeader), opusData, payloadBytes);
-                    ctx->transport->SendEncrypted(
+                    audioTx->SendEncrypted(
                         osmium::proto::AppPacketType::ClientMicAudioFrame, buf.data(), buf.size());
                 });
         }

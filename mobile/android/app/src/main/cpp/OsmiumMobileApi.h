@@ -91,6 +91,10 @@ OSMIUM_MOBILE_API int32_t OsmiumMobile_DeriveSessionMaterial(
 
 OSMIUM_MOBILE_API void OsmiumMobile_DestroyKeyPair(void* keyHandle);
 
+OSMIUM_MOBILE_API int32_t OsmiumMobile_DeriveAudioKey(
+    const uint8_t* aesKey32,
+    uint8_t* outAudioKey32);
+
 // ---------------------------------------------------------------------------
 // Transport & Handshake
 // ---------------------------------------------------------------------------
@@ -158,6 +162,10 @@ OSMIUM_MOBILE_API int32_t OsmiumMobile_StartSession(
     void** outSession);
 
 OSMIUM_MOBILE_API void OsmiumMobile_StopSession(void* session);
+
+OSMIUM_MOBILE_API int32_t OsmiumMobile_AttachAudioTransport(
+    void* session,
+    void* audioTransport);
 
 OSMIUM_MOBILE_API void OsmiumMobile_UpdateSurface(
     void* session,

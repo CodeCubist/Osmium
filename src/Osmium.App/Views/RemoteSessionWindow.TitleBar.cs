@@ -954,6 +954,7 @@ public sealed partial class RemoteSessionWindow : Window
         IntPtr handle = Interlocked.Exchange(ref _clientHandle, IntPtr.Zero);
         if (handle != IntPtr.Zero)
         {
+            _launchArgs.OnClientHandleReady?.Invoke(IntPtr.Zero);
             _ = Task.Run(() => NativeMethods.Osmium_StopClientEmbedded(handle));
         }
     }

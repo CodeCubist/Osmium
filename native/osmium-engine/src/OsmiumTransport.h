@@ -83,6 +83,10 @@ namespace osmium
             int timeoutMs);
 
         void Close();
+        bool IsConnected() const
+        {
+            return m_Connected.load(std::memory_order_acquire) && !m_Closed.load(std::memory_order_acquire);
+        }
 
         int32_t GetTransportRoute() const { return m_Route.load(); }
         std::string GetActiveEndpointString() const;
@@ -105,6 +109,7 @@ namespace osmium
         bool DecryptFrame(const uint8_t* wire, size_t wireLen, std::vector<uint8_t>& outPlain);
         bool UnframePlaintext(const uint8_t* wire, size_t wireLen, std::vector<uint8_t>& outPlain);
         bool RecordReceivedSequence(uint64_t seq);
+        void RefreshSessionKeyForRole();
         bool SendRawEncrypted(proto::AppPacketType pktType, const void* payload, size_t payloadLen);
         void SendKcpSegments(const std::vector<std::vector<uint8_t>>& segments);
         bool HandleIncomingKcpSegment(const uint8_t* segData, size_t segLen, std::vector<uint8_t>& outPlaintext);
@@ -139,6 +144,9 @@ namespace osmium
         BCRYPT_KEY_HANDLE m_DecKey = nullptr;
         std::vector<uint8_t> m_EncKeyObj;
         std::vector<uint8_t> m_DecKeyObj;
+        uint8_t m_MasterKey[32]{};
+        bool m_HasMasterKey = false;
+        proto::PeerRole m_KeyDerivedRole = proto::PeerRole::Client;
 
         std::mutex m_SendMutex;
         std::mutex m_RecvCryptoMutex;

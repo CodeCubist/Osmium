@@ -55,33 +55,45 @@ class BridgeReadyEvent {
     required this.sessionId,
     required this.peerDeviceId,
     required this.candidatesJson,
+    this.audioCandidatesJson = '[]',
     required this.stunHost,
     required this.stunPort,
     required this.relayToken,
     required this.relayPath,
+    this.audioRelayToken = '',
+    this.audioRelayPath = '/relay-audio',
     this.kcpEnabled = false,
   });
 
   final String sessionId;
   final String peerDeviceId;
   final String candidatesJson;
+  final String audioCandidatesJson;
   final String stunHost;
   final int stunPort;
   final String relayToken;
   final String relayPath;
+  final String audioRelayToken;
+  final String audioRelayPath;
   final bool kcpEnabled;
 }
 
 class RelayFallbackEvent {
   const RelayFallbackEvent({
     required this.sessionId,
+    this.channel = 'video',
     required this.relayToken,
     required this.relayPath,
+    this.audioRelayToken = '',
+    this.audioRelayPath = '/relay-audio',
   });
 
   final String sessionId;
+  final String channel;
   final String relayToken;
   final String relayPath;
+  final String audioRelayToken;
+  final String audioRelayPath;
 }
 
 class ConnectRejectEvent {
@@ -487,11 +499,15 @@ class SignalingClient {
 
       case 'bridge_ready':
         final cands = root['candidates'];
+        final audioCands = root['audioCandidates'];
         _bridgeReadyCtrl.add(
           BridgeReadyEvent(
             sessionId: (root['sessionId'] ?? '').toString(),
             peerDeviceId: (root['peerDeviceId'] ?? '').toString(),
             candidatesJson: cands != null ? jsonEncode(cands) : '[]',
+            audioCandidatesJson: audioCands != null
+                ? jsonEncode(audioCands)
+                : '[]',
             stunHost: (root['stunHost'] as String?)?.isNotEmpty == true
                 ? root['stunHost'] as String
                 : advertisedStunHost,
@@ -500,6 +516,11 @@ class SignalingClient {
             relayPath: (root['relayPath'] as String?)?.isNotEmpty == true
                 ? root['relayPath'] as String
                 : '/relay',
+            audioRelayToken: (root['audioRelayToken'] ?? '').toString(),
+            audioRelayPath:
+                (root['audioRelayPath'] as String?)?.isNotEmpty == true
+                ? root['audioRelayPath'] as String
+                : '/relay-audio',
             kcpEnabled: root['kcpEnabled'] == true,
           ),
         );
@@ -509,10 +530,18 @@ class SignalingClient {
         _relayFallbackCtrl.add(
           RelayFallbackEvent(
             sessionId: (root['sessionId'] ?? '').toString(),
+            channel: (root['channel'] as String?)?.isNotEmpty == true
+                ? root['channel'] as String
+                : 'video',
             relayToken: (root['relayToken'] ?? '').toString(),
             relayPath: (root['relayPath'] as String?)?.isNotEmpty == true
                 ? root['relayPath'] as String
                 : '/relay',
+            audioRelayToken: (root['audioRelayToken'] ?? '').toString(),
+            audioRelayPath:
+                (root['audioRelayPath'] as String?)?.isNotEmpty == true
+                ? root['audioRelayPath'] as String
+                : '/relay-audio',
           ),
         );
         break;
@@ -639,21 +668,34 @@ class SignalingClient {
   void sendBridgeCandidates({
     required String sessionId,
     required String candidatesJson,
+    String audioCandidatesJson = '[]',
   }) {
     dynamic parsed = const <dynamic>[];
     try {
       parsed = jsonDecode(candidatesJson);
     } catch (_) {}
+    dynamic parsedAudio = const <dynamic>[];
+    try {
+      parsedAudio = jsonDecode(audioCandidatesJson);
+    } catch (_) {}
     sendJson({
       'type': 'bridge_candidates',
       'sessionId': sessionId,
       'candidates': parsed,
-      'transportCaps': const ['kcp-v1'],
+      'audioCandidates': parsedAudio,
+      'transportCaps': const ['kcp-v1', 'audio-sep-v2'],
     });
   }
 
-  void sendRelayFallback({required String sessionId}) {
-    sendJson({'type': 'relay_fallback', 'sessionId': sessionId});
+  void sendRelayFallback({
+    required String sessionId,
+    String channel = 'video',
+  }) {
+    sendJson({
+      'type': 'relay_fallback',
+      'sessionId': sessionId,
+      'channel': channel,
+    });
   }
 
   void sendSessionConfirm({required String sessionId}) {

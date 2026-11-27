@@ -331,7 +331,7 @@ namespace osmium::mobile
         uint64_t reqId = NowMicros();
         uint8_t osmReq[16]{};
         std::memcpy(osmReq, proto::kMagic, 4);
-        osmReq[4] = proto::kVersion;
+        osmReq[4] = 1;
         osmReq[5] = static_cast<uint8_t>(proto::WireMsgType::StunReq);
         std::memcpy(osmReq + 8, &reqId, 8);
 

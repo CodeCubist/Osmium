@@ -594,6 +594,7 @@ public sealed partial class SignalingClient : IDisposable
                             ? pid.GetString() ?? string.Empty
                             : string.Empty,
                         CandidatesJson = root.TryGetProperty("candidates", out var cands) ? cands.GetRawText() : "[]",
+                        AudioCandidatesJson = root.TryGetProperty("audioCandidates", out var acands) ? acands.GetRawText() : "[]",
                         StunHost = root.TryGetProperty("stunHost", out var sh) && sh.ValueKind == JsonValueKind.String
                             ? sh.GetString() ?? string.Empty
                             : AdvertisedStunHost,
@@ -607,6 +608,14 @@ public sealed partial class SignalingClient : IDisposable
                         RelayPath = root.TryGetProperty("relayPath", out var rp) && rp.ValueKind == JsonValueKind.String
                             ? rp.GetString() ?? "/relay"
                             : "/relay",
+                        AudioRelayToken = root.TryGetProperty("audioRelayToken", out var art) &&
+                                          art.ValueKind == JsonValueKind.String
+                            ? art.GetString() ?? string.Empty
+                            : string.Empty,
+                        AudioRelayPath = root.TryGetProperty("audioRelayPath", out var arp) &&
+                                         arp.ValueKind == JsonValueKind.String
+                            ? arp.GetString() ?? "/relay-audio"
+                            : "/relay-audio",
                         KcpEnabled = root.TryGetProperty("kcpEnabled", out var ke) && ke.ValueKind == JsonValueKind.True
                     };
                     BridgeReady?.Invoke(args);
@@ -620,6 +629,10 @@ public sealed partial class SignalingClient : IDisposable
                                     rsid.ValueKind == JsonValueKind.String
                             ? rsid.GetString() ?? string.Empty
                             : string.Empty,
+                        Channel = root.TryGetProperty("channel", out var rch) &&
+                                  rch.ValueKind == JsonValueKind.String
+                            ? rch.GetString() ?? "video"
+                            : "video",
                         RelayToken = root.TryGetProperty("relayToken", out var rtok) &&
                                      rtok.ValueKind == JsonValueKind.String
                             ? rtok.GetString() ?? string.Empty
@@ -628,6 +641,14 @@ public sealed partial class SignalingClient : IDisposable
                                     rpath.ValueKind == JsonValueKind.String
                             ? rpath.GetString() ?? "/relay"
                             : "/relay",
+                        AudioRelayToken = root.TryGetProperty("audioRelayToken", out var ratok) &&
+                                          ratok.ValueKind == JsonValueKind.String
+                            ? ratok.GetString() ?? string.Empty
+                            : string.Empty,
+                        AudioRelayPath = root.TryGetProperty("audioRelayPath", out var rapath) &&
+                                         rapath.ValueKind == JsonValueKind.String
+                            ? rapath.GetString() ?? "/relay-audio"
+                            : "/relay-audio",
                         FromDeviceId = root.TryGetProperty("fromDeviceId", out var rfid) &&
                                        rfid.ValueKind == JsonValueKind.String
                             ? rfid.GetString() ?? string.Empty

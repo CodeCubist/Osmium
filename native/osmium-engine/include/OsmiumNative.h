@@ -279,6 +279,7 @@ OSMIUM_API int32_t Osmium_StartHostSession(
     void** outHostHandle);
 
 OSMIUM_API void Osmium_StopHostSession(void* hostHandle);
+OSMIUM_API int32_t Osmium_AttachHostAudioTransport(void* hostHandle, void* audioTransport);
 OSMIUM_API void Osmium_HostAllowPrivacyScreen(void* hostHandle, const wchar_t* wallpaperPath);
 OSMIUM_API int32_t Osmium_HostSendAuxData(void* hostHandle, const uint8_t* data, int32_t length);
 
@@ -293,6 +294,7 @@ OSMIUM_API int32_t Osmium_StartClientEmbedded(
     void** outClientHandle);
 
 OSMIUM_API void Osmium_StopClientEmbedded(void* clientHandle);
+OSMIUM_API int32_t Osmium_AttachClientAudioTransport(void* clientHandle, void* audioTransport);
 OSMIUM_API void Osmium_ClientResize(void* clientHandle, int32_t width, int32_t height, float dpiScale);
 OSMIUM_API void Osmium_ClientSwitchDisplay(void* clientHandle, int32_t displayIndex);
 OSMIUM_API void Osmium_ClientUpdateVideoParams(

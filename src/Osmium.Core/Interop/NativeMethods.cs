@@ -457,6 +457,9 @@ public static class NativeMethods
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_StopHostSession(IntPtr hostHandle);
 
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_AttachHostAudioTransport(IntPtr hostHandle, IntPtr audioTransport);
+
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     public static extern void Osmium_HostAllowPrivacyScreen(IntPtr hostHandle, string? wallpaperPath);
 
@@ -476,6 +479,9 @@ public static class NativeMethods
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_StopClientEmbedded(IntPtr clientHandle);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int Osmium_AttachClientAudioTransport(IntPtr clientHandle, IntPtr audioTransport);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void Osmium_ClientResize(IntPtr clientHandle, int width, int height, float dpiScale);

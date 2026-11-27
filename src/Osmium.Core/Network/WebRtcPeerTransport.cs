@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Net;
 using System.Runtime.InteropServices;
 using Osmium.Core.Interop;
 using Osmium.Core.Services;
@@ -12,39 +11,47 @@ public sealed class WebRtcPeerTransport : IDisposable
 {
     private const int MaxPacketBytes = 32768;
     private const int MaxQueuedVideoBytes = 384 * 1024;
-    private const int MaxQueuedAudioPackets = 8;
+    private const int MaxQueuedAudioPackets = 12;
     private const int MaxBufferedControlBytes = 1024 * 1024;
     private const int MaxBufferedMediaBytes = 256 * 1024;
+    private const int MaxBufferedAudioBytes = 128 * 1024;
 
     private readonly IntPtr _nativeTransport;
+    private readonly IntPtr _nativeAudioTransport;
     private readonly SignalingClient _signaling;
     private readonly string _sessionId;
     private readonly LoggingService _log;
     private readonly CancellationTokenSource _cts = new();
     private readonly TaskCompletionSource<bool> _readyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<bool> _mediaReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private readonly TaskCompletionSource<bool>
-        _mediaReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
+    // Video / Control send pipeline (completely isolated from audio)
     private readonly ConcurrentQueue<(byte[] Buf, int Len)> _ctrlQueue = new();
-    private readonly object _audioQueueLock = new();
-    private readonly Queue<(byte[] Buf, int Len)> _audioQueue = new();
-    private int _queuedAudioCount;
     private readonly object _videoQueueLock = new();
     private readonly Queue<(byte[] Buf, int Len, int GroupId)> _videoQueue = new();
     private readonly SemaphoreSlim _sendSignal = new(0, 1);
+    private int _signalPending;
+    private int _queuedVideoBytes;
+    private int _droppedVideoGroupId;
+
+    // Dedicated Audio send pipeline ("audio" DataChannel)
+    private readonly object _audioQueueLock = new();
+    private readonly Queue<(byte[] Buf, int Len)> _audioQueue = new();
+    private readonly SemaphoreSlim _audioSendSignal = new(0, 1);
+    private int _audioSignalPending;
+
     private readonly object _iceLock = new();
     private readonly List<RTCIceCandidateInit> _pendingRemoteIce = [];
 
     private RTCPeerConnection? _pc;
     private RTCDataChannel? _ctrlChannel;
     private RTCDataChannel? _mediaChannel;
+    private RTCDataChannel? _audioChannel;
     private OsmiumRelaySendDelegate? _sendDelegate;
+    private OsmiumRelaySendDelegate? _audioSendDelegate;
     private Task? _sendTask;
+    private Task? _audioSendTask;
     private bool _remoteDescSet;
-    private int _signalPending;
-    private int _queuedVideoBytes;
-    private int _droppedVideoGroupId;
     private int _disposed;
 
     public string EndpointLabel
@@ -55,17 +62,23 @@ public sealed class WebRtcPeerTransport : IDisposable
 
     public WebRtcPeerTransport(
         IntPtr nativeTransport,
+        IntPtr nativeAudioTransport,
         SignalingClient signaling,
         string sessionId,
         LoggingService log)
     {
         _nativeTransport = nativeTransport;
+        _nativeAudioTransport = nativeAudioTransport;
         _signaling = signaling;
         _sessionId = sessionId;
         _log = log;
     }
 
-    public bool InitializePeerConnection(string stunHost, ushort stunPort, byte[] sessionToken16)
+    public bool InitializePeerConnection(
+        string stunHost,
+        ushort stunPort,
+        byte[] sessionToken16,
+        byte[]? audioSessionToken16 = null)
     {
         try
         {
@@ -134,8 +147,26 @@ public sealed class WebRtcPeerTransport : IDisposable
                     _sendDelegate,
                     EndpointLabel) == 0)
             {
-                _log.Warn("Osmium_EnableTransportRelay returned 0 for WebRTC transport");
+                _log.Warn("Osmium_EnableTransportRelay returned 0 for WebRTC video transport");
                 return false;
+            }
+
+            if (_nativeAudioTransport != IntPtr.Zero && audioSessionToken16 != null && audioSessionToken16.Length == 16)
+            {
+                _audioSendDelegate = OnNativeSendAudioRelay;
+                if (NativeMethods.Osmium_EnableTransportRelay(
+                        _nativeAudioTransport,
+                        audioSessionToken16,
+                        2,
+                        _audioSendDelegate,
+                        "WebRTC Audio") != 0)
+                {
+                    _audioSendTask = Task.Run(() => AudioSendLoopAsync(_cts.Token));
+                }
+                else
+                {
+                    _log.Warn("Osmium_EnableTransportRelay returned 0 for WebRTC audio transport; video continues");
+                }
             }
 
             _sendTask = Task.Run(() => SendLoopAsync(_cts.Token));
@@ -259,6 +290,36 @@ public sealed class WebRtcPeerTransport : IDisposable
     private void AttachDataChannel(RTCDataChannel dc)
     {
         string label = (dc.label ?? string.Empty).Trim().ToLowerInvariant();
+        if (label == "audio")
+        {
+            _audioChannel = dc;
+            dc.onopen += () =>
+            {
+                _log.Info("WebRTC DataChannel opened: audio (independent)");
+                SignalAudioSender();
+            };
+            dc.onclose += () =>
+            {
+                // Independent audio channel close NEVER terminates video/ctrl session
+                _log.Info("WebRTC DataChannel closed: audio");
+            };
+            dc.onmessage += (channel, protocol, data) =>
+            {
+                if (Volatile.Read(ref _disposed) != 0 || _nativeAudioTransport == IntPtr.Zero ||
+                    data == null || data.Length < 8 || data.Length > MaxPacketBytes)
+                {
+                    return;
+                }
+
+                NativeMethods.Osmium_PushTransportRelayPacket(_nativeAudioTransport, data, data.Length);
+            };
+            if (dc.readyState == RTCDataChannelState.open)
+            {
+                SignalAudioSender();
+            }
+            return;
+        }
+
         if (label == "media")
         {
             _mediaChannel = dc;
@@ -331,6 +392,50 @@ public sealed class WebRtcPeerTransport : IDisposable
         }
     }
 
+    private void SignalAudioSender()
+    {
+        if (Interlocked.Exchange(ref _audioSignalPending, 1) == 0)
+        {
+            try
+            {
+                _audioSendSignal.Release();
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private int OnNativeSendAudioRelay(IntPtr dataPtr, int length, int dropGroupId)
+    {
+        if (Volatile.Read(ref _disposed) != 0 || dataPtr == IntPtr.Zero || length <= 0 || length > MaxPacketBytes)
+        {
+            return 0;
+        }
+
+        var audioCh = _audioChannel;
+        if (audioCh == null || audioCh.readyState != RTCDataChannelState.open)
+        {
+            return 1;
+        }
+
+        byte[] rented = ArrayPool<byte>.Shared.Rent(length);
+        Marshal.Copy(dataPtr, rented, 0, length);
+        lock (_audioQueueLock)
+        {
+            while (_audioQueue.Count >= MaxQueuedAudioPackets)
+            {
+                var stale = _audioQueue.Dequeue();
+                ArrayPool<byte>.Shared.Return(stale.Buf);
+            }
+
+            _audioQueue.Enqueue((rented, length));
+        }
+
+        SignalAudioSender();
+        return 1;
+    }
+
     private int OnNativeSendRelay(IntPtr dataPtr, int length, int dropGroupId)
     {
         if (Volatile.Read(ref _disposed) != 0 || dataPtr == IntPtr.Zero || length <= 0 || length > MaxPacketBytes)
@@ -343,22 +448,6 @@ public sealed class WebRtcPeerTransport : IDisposable
             byte[] rented = ArrayPool<byte>.Shared.Rent(length);
             Marshal.Copy(dataPtr, rented, 0, length);
             _ctrlQueue.Enqueue((rented, length));
-        }
-        else if (dropGroupId == -1)
-        {
-            byte[] rentedAudio = ArrayPool<byte>.Shared.Rent(length);
-            Marshal.Copy(dataPtr, rentedAudio, 0, length);
-            lock (_audioQueueLock)
-            {
-                while (_audioQueue.Count >= MaxQueuedAudioPackets)
-                {
-                    var staleAudio = _audioQueue.Dequeue();
-                    ArrayPool<byte>.Shared.Return(staleAudio.Buf);
-                }
-
-                _audioQueue.Enqueue((rentedAudio, length));
-                Volatile.Write(ref _queuedAudioCount, _audioQueue.Count);
-            }
         }
         else
         {
@@ -422,22 +511,13 @@ public sealed class WebRtcPeerTransport : IDisposable
 
     private bool TryDequeueAudioPacket(out (byte[] Buf, int Len) item)
     {
-        if (Volatile.Read(ref _queuedAudioCount) == 0)
-        {
-            item = default;
-            return false;
-        }
-
         lock (_audioQueueLock)
         {
             if (_audioQueue.Count > 0)
             {
                 item = _audioQueue.Dequeue();
-                Volatile.Write(ref _queuedAudioCount, _audioQueue.Count);
                 return true;
             }
-
-            Volatile.Write(ref _queuedAudioCount, 0);
         }
 
         item = default;
@@ -465,6 +545,46 @@ public sealed class WebRtcPeerTransport : IDisposable
 
         item = default;
         return false;
+    }
+
+    private async Task AudioSendLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await _audioSendSignal.WaitAsync(ct);
+                Interlocked.Exchange(ref _audioSignalPending, 0);
+
+                while (!ct.IsCancellationRequested && TryDequeueAudioPacket(out var aud))
+                {
+                    try
+                    {
+                        var audioCh = _audioChannel;
+                        if (audioCh != null &&
+                            audioCh.readyState == RTCDataChannelState.open &&
+                            audioCh.bufferedAmount <= MaxBufferedAudioBytes)
+                        {
+                            audioCh.send(aud.Buf, 0, aud.Len);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(aud.Buf);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _log.Warn($"WebRtcPeerTransport audio send loop error: {ex.Message}");
+        }
     }
 
     private async Task SendLoopAsync(CancellationToken ct)
@@ -505,34 +625,6 @@ public sealed class WebRtcPeerTransport : IDisposable
                         finally
                         {
                             ArrayPool<byte>.Shared.Return(hi.Buf);
-                        }
-                    }
-
-                    // Route real-time audio over the unreliable low-latency media DataChannel
-                    // so audio never causes SCTP Head-of-Line blocking on Ping/Pong/Input.
-                    while (TryDequeueAudioPacket(out var aud))
-                    {
-                        didWork = true;
-                        try
-                        {
-                            var audioCh = mediaOpen ? media : ctrl;
-                            if (audioCh != null && audioCh.readyState == RTCDataChannelState.open)
-                            {
-                                ulong cap = ReferenceEquals(audioCh, media)
-                                    ? (ulong)(MaxBufferedMediaBytes + 65536)
-                                    : (ulong)MaxBufferedControlBytes;
-                                if (audioCh.bufferedAmount <= cap)
-                                {
-                                    audioCh.send(aud.Buf, 0, aud.Len);
-                                }
-                            }
-                        }
-                        catch
-                        {
-                        }
-                        finally
-                        {
-                            ArrayPool<byte>.Shared.Return(aud.Buf);
                         }
                     }
 
@@ -604,8 +696,6 @@ public sealed class WebRtcPeerTransport : IDisposable
                 var aud = _audioQueue.Dequeue();
                 ArrayPool<byte>.Shared.Return(aud.Buf);
             }
-
-            Volatile.Write(ref _queuedAudioCount, 0);
         }
 
         lock (_videoQueueLock)
@@ -651,6 +741,14 @@ public sealed class WebRtcPeerTransport : IDisposable
 
         try
         {
+            _audioChannel?.close();
+        }
+        catch
+        {
+        }
+
+        try
+        {
             _pc?.close();
             _pc?.Dispose();
         }
@@ -661,5 +759,6 @@ public sealed class WebRtcPeerTransport : IDisposable
         DrainQueues();
         _cts.Dispose();
         _sendSignal.Dispose();
+        _audioSendSignal.Dispose();
     }
 }

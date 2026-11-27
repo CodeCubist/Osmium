@@ -10,9 +10,9 @@
         <Platforms>x64</Platforms>
         <RootNamespace>Osmium.Core</RootNamespace>
         <AssemblyName>Osmium.Core</AssemblyName>
-        <Version>1.0.2</Version>
-        <AssemblyVersion>1.0.2</AssemblyVersion>
-        <FileVersion>1.0.2</FileVersion>
+        <Version>1.1.0</Version>
+        <AssemblyVersion>1.1.0</AssemblyVersion>
+        <FileVersion>1.1.0</FileVersion>
         <Copyright>Copyright © Osmium Development Team</Copyright>
     </PropertyGroup>
 
