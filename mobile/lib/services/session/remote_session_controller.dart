@@ -616,7 +616,7 @@ class RemoteSessionController extends ChangeNotifier {
           (stunHost.toLowerCase() != preStunHost.toLowerCase() ||
               stunPort != preStunPort)) {
         engine.destroyTransport(Pointer<Void>.fromAddress(transportRes.$1));
-        transportRes = await _engineOpRunner(
+        transportRes = await _engineOpRunner<(int, String)?>(
           _createTransportOp(engineFactory, stunHost, stunPort),
         );
       }
