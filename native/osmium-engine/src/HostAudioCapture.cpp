@@ -48,7 +48,23 @@ namespace osmium
 
     bool HostAudioCapture::Start(EncodedAudioCallback callback)
     {
-        Stop();
+        std::lock_guard<std::mutex> lock(m_LifecycleMutex);
+        m_StopFlag.store(true, std::memory_order_release);
+        if (m_Thread.joinable())
+        {
+            if (m_Thread.get_id() == std::this_thread::get_id()) m_Thread.detach();
+            else m_Thread.join();
+        }
+        if (m_Swr)
+        {
+            swr_free(&m_Swr);
+            m_Swr = nullptr;
+        }
+        if (m_Opus)
+        {
+            opus_encoder_destroy(m_Opus);
+            m_Opus = nullptr;
+        }
         m_Callback = std::move(callback);
         m_StopFlag.store(false, std::memory_order_release);
         m_Thread = std::thread(&HostAudioCapture::CaptureThreadProc, this);
@@ -58,9 +74,11 @@ namespace osmium
     void HostAudioCapture::Stop()
     {
         m_StopFlag.store(true, std::memory_order_release);
+        std::lock_guard<std::mutex> lock(m_LifecycleMutex);
         if (m_Thread.joinable())
         {
-            m_Thread.join();
+            if (m_Thread.get_id() == std::this_thread::get_id()) m_Thread.detach();
+            else m_Thread.join();
         }
         if (m_Swr)
         {
@@ -205,8 +223,11 @@ namespace osmium
                 return false;
             }
 
+            // Use a 100ms WASAPI loopback ring buffer (zero extra latency — WASAPI still
+            // delivers packets every ~10ms engine period — while eliminating Windows loopback
+            // DATA_DISCONTINUITY drops under scheduling jitter).
             if (FAILED(audioClient->Initialize(
-                AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, 200000, 0, mixFmt, nullptr)))
+                AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, 1000000, 0, mixFmt, nullptr)))
             {
                 return false;
             }
@@ -260,7 +281,7 @@ namespace osmium
 
         constexpr int kFrameSamples = 960;
         constexpr size_t kFrameFloats = static_cast<size_t>(kFrameSamples) * 2;
-        constexpr uint32_t kSilenceTailFrames = 25; // 500ms trailing silence preserves quiet reverb tails
+        constexpr uint32_t kSilenceTailFrames = 75; // 1500ms trailing silence avoids re-priming during speech pauses
         std::vector<int16_t> vspkPcm(kFrameSamples * 2);
         std::vector<float> encodeFloatFrame(kFrameFloats);
         size_t vspkHave = 0;
@@ -473,7 +494,7 @@ namespace osmium
 
             if (packetLength == 0)
             {
-                waitShort(5);
+                waitShort(3);
                 continue;
             }
 
@@ -526,9 +547,9 @@ namespace osmium
 
                 captureClient->ReleaseBuffer(numFrames);
 
-                // Click-free crossfade backlog trim if WASAPI delivered a late burst (> 80ms).
+                // Click-free crossfade backlog trim only if WASAPI delivered a severe late burst (> 120ms).
                 const size_t avail = pcmFifo.size() - fifoReadPos;
-                if (avail > kFrameFloats * 4)
+                if (avail > kFrameFloats * 6)
                 {
                     const size_t targetPos = pcmFifo.size() - kFrameFloats * 2;
                     constexpr size_t kCrossfadeSamples = 192; // 4ms @ 48kHz

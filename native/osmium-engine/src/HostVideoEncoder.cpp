@@ -234,9 +234,10 @@ namespace osmium
         if (clamped == m_ActiveBitrateKbps) return;
         const int64_t bps = static_cast<int64_t>(clamped) * 1000LL;
         m_CodecCtx->bit_rate = bps;
-        m_CodecCtx->rc_max_rate = bps;
-        m_CodecCtx->rc_buffer_size = static_cast<int>(std::max<int64_t>(
-            16000, (bps * 5) / (std::max(1, m_ActiveFps) * 4)));
+        m_CodecCtx->rc_max_rate = (bps * 6LL) / 5LL;
+        // Keep rc_buffer_size untouched at runtime: mutating vbvBufferSize on NVENC
+        // causes FFmpeg to call nvEncReconfigureEncoder(resetEncoder=1, forceIDR=1),
+        // producing periodic blurry IDR flashes during bitrate recovery.
         m_ActiveBitrateKbps = clamped;
     }
 
@@ -505,11 +506,14 @@ namespace osmium
         ctx->time_base = AVRational{1, std::max(1, fps)};
         ctx->framerate = AVRational{std::max(1, fps), 1};
         ctx->bit_rate = static_cast<int64_t>(std::max(500, bitrateKbps)) * 1000LL;
-        ctx->rc_max_rate = ctx->bit_rate;
-        // Tight ~1.25-frame VBV smooths scene-change/keyframe spikes so 2.4GHz Wi-Fi AP
-        // queues don't overflow on sudden motion or IDR keyframes.
-        ctx->rc_buffer_size = static_cast<int>(std::max<
-            int64_t>(16000, (ctx->bit_rate * 5) / (ctx->framerate.num * 4)));
+        // Give VBR/CBR 20% peak headroom + healthy ~250ms (min 8-frame) VBV buffer so IDR
+        // keyframes and scene changes never get starved into blurry high-QP pulses; wire-level
+        // UDP chunk pacing in HostVideoLoop smooths packet bursts cleanly for Wi-Fi APs.
+        ctx->rc_max_rate = (ctx->bit_rate * 6LL) / 5LL;
+        const int64_t minFramesVbv = (ctx->bit_rate * 8LL) / std::max(1, fps);
+        const int64_t quarterSecVbv = ctx->bit_rate / 4LL;
+        ctx->rc_buffer_size = static_cast<int>(std::clamp<int64_t>(
+            std::max<int64_t>(minFramesVbv, quarterSecVbv), 400000LL, 16000000LL));
         // Long periodic GOP (10s instead of 2s) eliminates frequent unsolicited keyframe
         // spikes on Wi-Fi/P2P/Relay while on-demand VideoIdrRequest handles loss recovery.
         ctx->gop_size = std::max(1, fps * 10);
@@ -563,14 +567,15 @@ namespace osmium
         std::string name(cand.ffmpegName);
         if (name.find("nvenc") != std::string::npos)
         {
-            av_opt_set(ctx->priv_data, "preset", "p1", 0);
+            av_opt_set(ctx->priv_data, "preset", fps > 120 ? "p2" : "p3", 0);
             av_opt_set(ctx->priv_data, "tune", "ull", 0);
-            av_opt_set(ctx->priv_data, "rc", "cbr", 0);
+            av_opt_set(ctx->priv_data, "rc", "vbr", 0);
             av_opt_set(ctx->priv_data, "zerolatency", "1", 0);
             av_opt_set(ctx->priv_data, "delay", "0", 0);
             av_opt_set(ctx->priv_data, "forced-idr", "1", 0);
-            av_opt_set(ctx->priv_data, "strict_gop", "1", 0);
             av_opt_set(ctx->priv_data, "b_ref_mode", "disabled", 0);
+            av_opt_set(ctx->priv_data, "spatial-aq", "1", 0);
+            av_opt_set(ctx->priv_data, "aq-strength", "8", 0);
             if (yuv444Used && name == "hevc_nvenc")
             {
                 av_opt_set(ctx->priv_data, "profile", "rext", 0);
@@ -583,8 +588,9 @@ namespace osmium
         else if (name.find("amf") != std::string::npos)
         {
             av_opt_set(ctx->priv_data, "usage", "ultralowlatency", 0);
-            av_opt_set(ctx->priv_data, "quality", "speed", 0);
-            av_opt_set(ctx->priv_data, "rc", "cbr", 0);
+            av_opt_set(ctx->priv_data, "quality", "balanced", 0);
+            av_opt_set(ctx->priv_data, "rc", "vbr_latency", 0);
+            av_opt_set(ctx->priv_data, "vbaq", "1", 0);
             av_opt_set(ctx->priv_data, "header_insertion_mode", "idr", 0);
         }
         else if (name.find("qsv") != std::string::npos)

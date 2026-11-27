@@ -181,15 +181,24 @@ namespace osmium
         m_Thread = std::thread(&HostTextFocus::Run, this);
     }
 
-    void HostTextFocus::Stop()
+    void HostTextFocus::RequestStop()
     {
-        std::lock_guard<std::mutex> control(m_ControlMutex);
         {
             std::lock_guard<std::mutex> lock(m_Mutex);
             m_Stop = true;
         }
         m_Cv.notify_all();
-        if (m_Thread.joinable()) m_Thread.join();
+    }
+
+    void HostTextFocus::Stop()
+    {
+        RequestStop();
+        std::lock_guard<std::mutex> control(m_ControlMutex);
+        if (m_Thread.joinable())
+        {
+            if (m_Thread.get_id() == std::this_thread::get_id()) m_Thread.detach();
+            else m_Thread.join();
+        }
     }
 
     void HostTextFocus::SetDisplayRect(RECT rect)

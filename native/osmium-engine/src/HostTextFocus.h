@@ -39,6 +39,7 @@ namespace osmium
         // Reports the current state at once, then on every change and once a
         // second so a lost packet heals itself.
         void Start(Sink sink);
+        void RequestStop();
         void Stop();
         void SetDisplayRect(RECT rect);
 

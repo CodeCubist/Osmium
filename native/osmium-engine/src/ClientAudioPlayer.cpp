@@ -81,9 +81,12 @@ namespace osmium
             m_FirstArrivalUs = 0;
             m_LastFramePopUs = 0;
             m_ConsecutivePlc = 0;
+            m_EmptyBridgePlc = 0;
             m_NeedFadeIn = true;
             m_HasLastArrival = false;
             m_JitterUs = 6000.0;
+            m_PeakExcursionUs = 10000.0;
+            m_AdaptiveMinQueuedUs.store(36000, std::memory_order_relaxed);
             m_StatsExpected = 0;
             m_StatsLost = 0;
             m_StatsWindowStartMs = NowMillis();
@@ -242,15 +245,35 @@ namespace osmium
         {
             std::lock_guard<std::mutex> ql(m_QueueMutex);
 
-            // RFC3550 inter-arrival jitter estimate
+            // RFC3550 inter-arrival jitter + peak late-arrival burst excursion estimator
             if (m_HasLastArrival && captureTimeUs > m_LastCaptureUs && (flags & proto::kAudioFlagStreamStart) == 0)
             {
                 const int64_t dArrival = static_cast<int64_t>(nowUs - m_LastArrivalUs);
                 const int64_t dCapture = static_cast<int64_t>(captureTimeUs - m_LastCaptureUs);
-                if (dCapture > 0 && dCapture < 200000LL)
+                if (dCapture > 0 && dCapture < 250000LL)
                 {
-                    const double err = std::fabs(static_cast<double>(dArrival - dCapture));
-                    m_JitterUs += (std::min(err, 120000.0) - m_JitterUs) / 16.0;
+                    const int64_t lateUs = dArrival - dCapture;
+                    const double err = std::fabs(static_cast<double>(lateUs));
+                    m_JitterUs += (std::min(err, 150000.0) - m_JitterUs) / 16.0;
+                    if (lateUs > 0)
+                    {
+                        const double clampedLate = std::min(static_cast<double>(lateUs), 160000.0);
+                        if (clampedLate > m_PeakExcursionUs)
+                        {
+                            m_PeakExcursionUs = m_PeakExcursionUs * 0.35 + clampedLate * 0.65;
+                        }
+                        else
+                        {
+                            m_PeakExcursionUs *= 0.9985;
+                        }
+                    }
+                    else
+                    {
+                        m_PeakExcursionUs *= 0.9985;
+                    }
+                    m_AdaptiveMinQueuedUs.store(
+                        static_cast<int64_t>(ComputeMinSafeQueuedMsLocked()) * 1000LL,
+                        std::memory_order_relaxed);
                     m_TelemetryJitterMs.store(
                         static_cast<uint16_t>(std::clamp(m_JitterUs / 1000.0, 0.0, 500.0)),
                         std::memory_order_relaxed);
@@ -373,6 +396,26 @@ namespace osmium
         }
     }
 
+    int ClientAudioPlayer::ComputeMinSafeQueuedMsLocked() const
+    {
+        const double jitterMs = m_JitterUs / 1000.0;
+        const double peakMs = m_PeakExcursionUs / 1000.0;
+        return std::clamp(
+            static_cast<int>(std::ceil(std::max(jitterMs * 3.0 + 20.0, peakMs * 0.85 + 22.0))),
+            36,
+            110);
+    }
+
+    int ClientAudioPlayer::ComputeTargetPrimeMsLocked() const
+    {
+        return std::clamp(ComputeMinSafeQueuedMsLocked() + 8, 40, 115);
+    }
+
+    int ClientAudioPlayer::ComputeMaxFeedQueuedMsLocked() const
+    {
+        return std::max(90, ComputeMinSafeQueuedMsLocked() + 50);
+    }
+
     void ClientAudioPlayer::UpdateAvSyncRatio(uint64_t audioCaptureTimeUs, int queuedBytes)
     {
         if (!m_AudioStream || audioCaptureTimeUs == 0) return;
@@ -380,6 +423,9 @@ namespace osmium
         const uint64_t nowUs = NowMicros();
         const int64_t queuedAudioUs =
             (static_cast<int64_t>(queuedBytes) * 1000000LL) / (kDefaultSampleRate * kDefaultChannels * static_cast<int64_t>(sizeof(float)));
+        const int64_t minSafeUs = std::clamp<int64_t>(
+            m_AdaptiveMinQueuedUs.load(std::memory_order_relaxed), 36000LL, 110000LL);
+        const int64_t targetQueuedUs = minSafeUs + 15000LL;
 
         int64_t targetOffsetUs = 0;
         bool haveSyncRef = false;
@@ -398,51 +444,92 @@ namespace osmium
             }
         }
 
-        if (!haveSyncRef)
-        {
-            // No sync reference yet: keep gentle buffer-depth stabilization around 40ms
-            if (std::fabs(m_CurrentFreqRatio - 1.0f) > 0.0005f)
-            {
-                m_CurrentFreqRatio = 1.0f;
-                SDL_SetAudioStreamFrequencyRatio(m_AudioStream, 1.0f);
-            }
-            return;
-        }
-
-        const int64_t actualPlayLocalUs = static_cast<int64_t>(nowUs) + queuedAudioUs + kWasapiDacLatencyUs;
-        const int64_t targetPlayLocalUs = static_cast<int64_t>(audioCaptureTimeUs) + targetOffsetUs;
-        const int64_t avErrorUs = actualPlayLocalUs - targetPlayLocalUs;
-
         float desiredRatio = 1.0f;
-        if (std::llabs(avErrorUs) <= 12000LL)
+        if (queuedAudioUs < minSafeUs)
         {
+            // Never speed up below safety floor — gently refill cushion instead of starving!
             m_HighErrorStreak = 0;
-            desiredRatio = 1.0f;
+            const int64_t deficitUs = minSafeUs - queuedAudioUs;
+            desiredRatio = std::clamp(1.0f - static_cast<float>(deficitUs) / 3000000.0f, 0.988f, 0.997f);
         }
-        else if (std::llabs(avErrorUs) <= 180000LL)
+        else if (haveSyncRef)
         {
-            m_HighErrorStreak = 0;
-            // Smooth proportional rate control (+/- 1.5% max, pitch-imperceptible)
-            desiredRatio = std::clamp(1.0f + static_cast<float>(avErrorUs) / 3500000.0f, 0.985f, 1.015f);
-        }
-        else
-        {
-            // Very large drift (>180ms): push faster up to +/-3%, and if persistent & audio is very late, trim SDL buffer
-            desiredRatio = (avErrorUs > 0) ? 1.03f : 0.97f;
-            if (avErrorUs > 220000LL && queuedAudioUs > 90000LL)
+            const int64_t actualPlayLocalUs = static_cast<int64_t>(nowUs) + queuedAudioUs + kWasapiDacLatencyUs;
+            const int64_t targetPlayLocalUs = static_cast<int64_t>(audioCaptureTimeUs) + targetOffsetUs;
+            const int64_t avErrorUs = actualPlayLocalUs - targetPlayLocalUs;
+
+            if (avErrorUs > 0)
             {
-                if (++m_HighErrorStreak >= 8)
+                const int64_t excessQueuedUs = queuedAudioUs - minSafeUs;
+                const int64_t effectiveCatchupUs = std::min(avErrorUs, excessQueuedUs);
+                if (effectiveCatchupUs <= 15000LL)
                 {
                     m_HighErrorStreak = 0;
-                    SDL_ClearAudioStream(m_AudioStream);
-                    m_NeedFadeIn = true;
                     desiredRatio = 1.0f;
+                }
+                else if (queuedAudioUs <= targetQueuedUs + 120000LL)
+                {
+                    m_HighErrorStreak = 0;
+                    desiredRatio = std::clamp(
+                        1.0f + static_cast<float>(effectiveCatchupUs - 15000LL) / 4000000.0f,
+                        1.0f,
+                        1.012f);
+                }
+                else
+                {
+                    desiredRatio = std::clamp(
+                        1.0f + static_cast<float>(effectiveCatchupUs) / 3000000.0f,
+                        1.005f,
+                        1.022f);
+                    if (queuedAudioUs > 300000LL)
+                    {
+                        if (++m_HighErrorStreak >= 8)
+                        {
+                            m_HighErrorStreak = 0;
+                            SDL_ClearAudioStream(m_AudioStream);
+                            m_NeedFadeIn = true;
+                            desiredRatio = 1.0f;
+                        }
+                    }
+                    else
+                    {
+                        m_HighErrorStreak = 0;
+                    }
+                }
+            }
+            else
+            {
+                m_HighErrorStreak = 0;
+                const int64_t earlyUs = -avErrorUs;
+                if (earlyUs <= 15000LL || queuedAudioUs >= 240000LL)
+                {
+                    desiredRatio = 1.0f;
+                }
+                else
+                {
+                    desiredRatio = std::clamp(
+                        1.0f - static_cast<float>(earlyUs - 15000LL) / 4000000.0f,
+                        0.988f,
+                        1.0f);
                 }
             }
         }
+        else
+        {
+            m_HighErrorStreak = 0;
+            const int64_t bufErrUs = queuedAudioUs - targetQueuedUs;
+            if (std::llabs(bufErrUs) > 15000LL)
+            {
+                desiredRatio = std::clamp(1.0f + static_cast<float>(bufErrUs) / 4000000.0f, 0.990f, 1.010f);
+            }
+        }
 
-        const float smoothed = m_CurrentFreqRatio * 0.80f + desiredRatio * 0.20f;
-        if (std::fabs(smoothed - m_CurrentFreqRatio) >= 0.0004f)
+        float smoothed = m_CurrentFreqRatio * 0.84f + desiredRatio * 0.16f;
+        if (std::fabs(smoothed - 1.0f) < 0.0006f && std::fabs(desiredRatio - 1.0f) < 1e-6f)
+        {
+            smoothed = 1.0f;
+        }
+        if (std::fabs(smoothed - m_CurrentFreqRatio) >= 0.0004f || (smoothed == 1.0f && m_CurrentFreqRatio != 1.0f))
         {
             m_CurrentFreqRatio = smoothed;
             SDL_SetAudioStreamFrequencyRatio(m_AudioStream, m_CurrentFreqRatio);
@@ -478,7 +565,7 @@ namespace osmium
 
         const int bytesPerSec = kDefaultSampleRate * kDefaultChannels * static_cast<int>(sizeof(float));
         int queued = SDL_GetAudioStreamQueued(m_AudioStream);
-        if (queued > (bytesPerSec * 220) / 1000)
+        if (queued > (bytesPerSec * 360) / 1000)
         {
             SDL_ClearAudioStream(m_AudioStream);
             m_NeedFadeIn = true;
@@ -582,23 +669,44 @@ namespace osmium
 
             {
                 std::unique_lock<std::mutex> ql(m_QueueMutex);
+                auto canProcessNowLocked = [this, kBytesPerMs]() -> bool
+                {
+                    if (m_StopFlag.load(std::memory_order_acquire) ||
+                        m_PendingClear.load(std::memory_order_acquire))
+                    {
+                        return true;
+                    }
+                    if (!m_HasExpectedSeq)
+                    {
+                        return !m_JitterMap.empty();
+                    }
+                    if (m_Priming)
+                    {
+                        const int targetPrimeMs = ComputeTargetPrimeMsLocked();
+                        const int neededFrames = std::clamp((targetPrimeMs + 19) / 20, 2, 6);
+                        return static_cast<int>(m_JitterMap.size()) >= neededFrames;
+                    }
+                    if (m_JitterMap.find(m_ExpectedSeq) != m_JitterMap.end())
+                    {
+                        const int qBytes = m_AudioStream ? SDL_GetAudioStreamQueued(m_AudioStream) : 0;
+                        const int qMs = qBytes / kBytesPerMs;
+                        return (qMs <= ComputeMaxFeedQueuedMsLocked()) || (m_JitterMap.size() > 4);
+                    }
+                    if (!m_JitterMap.empty())
+                    {
+                        const int32_t gap = SeqDiff(m_JitterMap.begin()->first, m_ExpectedSeq);
+                        if (gap <= 0 || gap > 6) return true;
+                    }
+                    return false;
+                };
+
                 if (m_JitterMap.empty() && !m_HasExpectedSeq)
                 {
-                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(15), [this]
-                    {
-                        return m_StopFlag.load(std::memory_order_acquire) ||
-                               m_PendingClear.load(std::memory_order_acquire) ||
-                               !m_JitterMap.empty();
-                    });
+                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(15), canProcessNowLocked);
                 }
                 else
                 {
-                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(6), [this]
-                    {
-                        return m_StopFlag.load(std::memory_order_acquire) ||
-                               m_PendingClear.load(std::memory_order_acquire) ||
-                               (m_HasExpectedSeq && m_JitterMap.find(m_ExpectedSeq) != m_JitterMap.end());
-                    });
+                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(5), canProcessNowLocked);
                 }
 
                 if (m_StopFlag.load(std::memory_order_acquire)) break;
@@ -639,9 +747,9 @@ namespace osmium
                     continue;
                 }
 
-                // Adaptive jitter priming target (30..70ms)
-                const int targetPrimeMs = std::clamp(static_cast<int>((m_JitterUs * 2.5) / 1000.0) + 18, 28, 70);
-                const int neededFrames = std::clamp((targetPrimeMs + 19) / 20, 2, 4);
+                const int targetPrimeMs = ComputeTargetPrimeMsLocked();
+                const int neededFrames = std::clamp((targetPrimeMs + 19) / 20, 2, 6);
+                const int maxFeedQueuedMs = ComputeMaxFeedQueuedMsLocked();
 
                 if (m_Priming)
                 {
@@ -649,6 +757,7 @@ namespace osmium
                         (!m_JitterMap.empty() && (nowUs - m_FirstArrivalUs) >= static_cast<uint64_t>(targetPrimeMs) * 1000ULL))
                     {
                         m_Priming = false;
+                        m_EmptyBridgePlc = 0;
                         if (!m_JitterMap.empty())
                         {
                             m_ExpectedSeq = m_JitterMap.begin()->first;
@@ -660,22 +769,20 @@ namespace osmium
                     }
                 }
 
-                // Pace feeding SDL stream so we hold ~40-60ms in SDL + jitter buffer
                 auto exactIt = m_JitterMap.find(m_ExpectedSeq);
                 if (exactIt != m_JitterMap.end())
                 {
-                    // Avoid dumping excessive jitter frames at once into SDL if SDL already holds > 55ms
-                    if (sdlQueuedMs <= 60 || m_JitterMap.size() > 4)
+                    if (sdlQueuedMs <= maxFeedQueuedMs || m_JitterMap.size() > 4)
                     {
                         toDecode = std::move(exactIt->second);
                         m_JitterMap.erase(exactIt);
                         m_ExpectedSeq++;
                         m_LastFramePopUs = nowUs;
+                        m_EmptyBridgePlc = 0;
                         m_StatsExpected++;
                         doDecode = true;
                         if ((toDecode.flags & proto::kAudioFlagSilenceEnd) != 0)
                         {
-                            // End of talkspurt: stop expecting further packets until next stream start
                             m_HasExpectedSeq = false;
                             m_Priming = true;
                         }
@@ -687,22 +794,22 @@ namespace osmium
                     const int32_t gap = SeqDiff(oldestSeq, m_ExpectedSeq);
                     if (gap <= 0)
                     {
-                        // Stale slot behind expected
                         m_JitterMap.erase(m_JitterMap.begin());
                     }
                     else if (gap > 6)
                     {
-                        // Big jump (e.g., network hiccup): fast-forward cleanly
                         m_StatsExpected += static_cast<uint32_t>(std::min<int32_t>(gap, 25));
                         m_StatsLost += static_cast<uint32_t>(std::min<int32_t>(gap, 25));
                         m_ExpectedSeq = oldestSeq;
+                        m_EmptyBridgePlc = 0;
                         m_NeedFadeIn = true;
                     }
                     else
                     {
-                        // Missing packet: wait while SDL buffer still has cushion (> 20ms) and wait < 32ms
                         const uint64_t waitUs = nowUs - m_LastFramePopUs;
-                        if (sdlQueuedMs < 22 || waitUs >= 32000ULL)
+                        const uint64_t gapBudgetUs = static_cast<uint64_t>(
+                            std::clamp(m_JitterUs * 2.5 + 12000.0, 26000.0, 55000.0));
+                        if (sdlQueuedMs < 20 || waitUs >= gapBudgetUs)
                         {
                             m_ExpectedSeq++;
                             m_LastFramePopUs = nowUs;
@@ -714,20 +821,22 @@ namespace osmium
                 }
                 else
                 {
-                    // Jitter map empty: if stream went silent (> 220ms with no packets), reset to primed idle
-                    if (m_LastFramePopUs > 0 && (nowUs - m_LastFramePopUs) > 220000ULL)
+                    // Jitter map empty: NEVER increment m_ExpectedSeq or discard late packets!
+                    if (m_LastFramePopUs > 0 && (nowUs - m_LastFramePopUs) > 350000ULL)
                     {
                         m_HasExpectedSeq = false;
                         m_Priming = true;
                         m_ConsecutivePlc = 0;
+                        m_EmptyBridgePlc = 0;
                         m_NeedFadeIn = true;
                     }
-                    else if (sdlQueuedMs < 14 && m_LastFramePopUs > 0 && (nowUs - m_LastFramePopUs) >= 24000ULL)
+                    else if (sdlQueuedMs < 12 &&
+                             m_EmptyBridgePlc < 2 &&
+                             m_LastFramePopUs > 0 &&
+                             (nowUs - m_LastFramePopUs) >= 34000ULL)
                     {
-                        m_ExpectedSeq++;
+                        m_EmptyBridgePlc++;
                         m_LastFramePopUs = nowUs;
-                        m_StatsExpected++;
-                        m_StatsLost++;
                         doPlc = true;
                     }
                 }

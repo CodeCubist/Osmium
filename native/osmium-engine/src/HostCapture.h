@@ -77,7 +77,8 @@ namespace osmium
         bool CaptureViaGdi(CapturedFrame& outFrame, bool captureCursor);
         void OverlayCursor(CapturedFrame& frame);
         bool EnsureHdrTonemapPipeline(UINT width, UINT height, DXGI_FORMAT srcFmt, DXGI_FORMAT dstFmt);
-        bool ConvertAcquiredTexture(ID3D11Texture2D* srcTex, const D3D11_TEXTURE2D_DESC& srcDesc, bool outputPqHdr);
+        bool ConvertAcquiredTexture(ID3D11Texture2D* srcTex, const D3D11_TEXTURE2D_DESC& srcDesc, bool outputPqHdr,
+                                    bool copyToStaging = true);
         bool PrepareNv12Conversion(int sourceWidth, int sourceHeight);
         bool CaptureNv12(ID3D11Texture2D* source, bool keepOnGpu, bool captureCursor);
         bool ReadStagingPixels(ID3D11Texture2D* texture, size_t rowBytes, size_t rows);

@@ -982,7 +982,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
     }
 
     bool HostCapture::ConvertAcquiredTexture(ID3D11Texture2D* srcTex, const D3D11_TEXTURE2D_DESC& srcDesc,
-                                             bool outputPqHdr)
+                                             bool outputPqHdr, bool copyToStaging)
     {
         DXGI_FORMAT dstFmt = outputPqHdr ? DXGI_FORMAT_R10G10B10A2_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
         if (!EnsureHdrTonemapPipeline(srcDesc.Width, srcDesc.Height, srcDesc.Format, dstFmt))
@@ -1040,7 +1040,10 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         m_Context->PSSetShaderResources(0, 1, &nullSrv);
         m_Context->OMSetRenderTargets(1, &nullRtv, nullptr);
 
-        m_Context->CopyResource(m_StagingTex.Get(), m_TonemapRtTex.Get());
+        if (copyToStaging)
+        {
+            m_Context->CopyResource(m_StagingTex.Get(), m_TonemapRtTex.Get());
+        }
         return true;
     }
 
@@ -1825,7 +1828,9 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         }
 
         const bool wantPq = preferPqHdr && m_OutputIsHdr;
-        const bool wantNv12 = !m_OutputIsHdr &&
+        // Enable zero-copy GPU NV12 conversion whenever client wants SDR — including when
+        // the host monitor is HDR (GPU tonemap -> m_TonemapRtTex BGRA -> GPU NV12 -> NVENC).
+        const bool wantNv12 = !wantPq &&
             m_Nv12Width > 0 && m_Nv12Height > 0 && (m_Nv12Width % 2 == 0) && (m_Nv12Height % 2 == 0);
         const bool wantGpuFrame = wantNv12 && m_EncoderDevice && m_EncoderDevice == m_Device.Get();
         const bool hasUsableCache = m_HasLastFrame && m_LastFrameIsHdr10Pq == wantPq &&
@@ -1876,14 +1881,15 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
         {
             if (hasUsableCache)
             {
-                // Keep the SDR fallback check independent of the requested frame rate,
-                // throttled to 2s so static desktop intervals do not trigger 20-40ms GDI hitches.
-                if (!wantPq && nowMs - m_LastDxgiFrameOrGdiProbeMs >= 2000)
+                // When DXGI Desktop Duplication is healthy and simply waiting because desktop
+                // pixels haven't changed, never inject GDI BitBlt CPU frames into a GPU NV12
+                // pipeline (which caused periodic chroma/filter shifts and 20-40ms hitches).
+                if (!wantPq && !m_LastFrameIsNv12 && nowMs - m_LastDxgiFrameOrGdiProbeMs >= 4000)
                 {
                     m_LastDxgiFrameOrGdiProbeMs = nowMs;
                     if (captureGdi(false))
                     {
-                        if (!captureCursor && !m_LastFrameIsNv12 &&
+                        if (!captureCursor &&
                             outFrame.width == m_LastFrameWidth && outFrame.height == m_LastFrameHeight)
                         {
                             m_LastFramePixels = outFrame.pixels;
@@ -1973,19 +1979,40 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET {
                 m_StagingFmt = DXGI_FORMAT_UNKNOWN;
             }
 
-            const bool outputNv12 = wantNv12 && acqDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM &&
-                CaptureNv12(acquiredTex.Get(), wantGpuFrame, captureCursor);
+            bool outputNv12 = false;
             bool copied = false;
             bool outputPq = false;
-            if (outputNv12)
+            if (wantNv12 && acqDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM &&
+                CaptureNv12(acquiredTex.Get(), wantGpuFrame, captureCursor))
             {
+                outputNv12 = true;
                 mapSucceeded = true;
             }
             else if (acqDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
                 acqDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
             {
                 outputPq = preferPqHdr && m_OutputIsHdr;
-                copied = ConvertAcquiredTexture(acquiredTex.Get(), acqDesc, outputPq);
+                if (!outputPq && wantNv12)
+                {
+                    // Zero-copy GPU HDR->SDR tonemap directly into GPU NV12 texture!
+                    if (ConvertAcquiredTexture(acquiredTex.Get(), acqDesc, false, false) && m_TonemapRtTex)
+                    {
+                        if (CaptureNv12(m_TonemapRtTex.Get(), wantGpuFrame, captureCursor))
+                        {
+                            outputNv12 = true;
+                            mapSucceeded = true;
+                        }
+                        else if (m_StagingTex)
+                        {
+                            m_Context->CopyResource(m_StagingTex.Get(), m_TonemapRtTex.Get());
+                            copied = true;
+                        }
+                    }
+                }
+                else
+                {
+                    copied = ConvertAcquiredTexture(acquiredTex.Get(), acqDesc, outputPq, true);
+                }
             }
             else if (acqDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM)
             {

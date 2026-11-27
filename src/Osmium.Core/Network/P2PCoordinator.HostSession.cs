@@ -566,9 +566,9 @@ public sealed partial class P2PCoordinator : IDisposable
                                     {
                                         string sigNorm = SignalingClient.NormalizeServerUrl(
                                             _settings.Settings.SignalingServerUrl);
-                                        string relayLabel = $"{new Uri(sigNorm).Host} (WSS Audio Relay)";
                                         var relayUri = CloudRelayTransport.BuildRelayUri(
                                             sigNorm, arPath, sidForAudio, "host", arToken);
+                                        string relayLabel = $"{relayUri.Host} (WSS Audio Relay)";
                                         var aRelay = new CloudRelayTransport(audioTxLocal, relayLabel, _log);
                                         bool relayOk = await aRelay.ConnectAndBindAsync(
                                             relayUri, audioSessionToken, 2, 12000, audioCt);
@@ -614,7 +614,20 @@ public sealed partial class P2PCoordinator : IDisposable
 
                                     if (attachTarget != IntPtr.Zero)
                                     {
-                                        NativeMethods.Osmium_AttachHostAudioTransport(attachTarget, audioTxLocal);
+                                        _hostNativeHandleLock.EnterReadLock();
+                                        try
+                                        {
+                                            bool stillActive;
+                                            lock (_hostLock) stillActive = (_activeHostHandle == attachTarget);
+                                            if (stillActive)
+                                            {
+                                                NativeMethods.Osmium_AttachHostAudioTransport(attachTarget, audioTxLocal);
+                                            }
+                                        }
+                                        finally
+                                        {
+                                            _hostNativeHandleLock.ExitReadLock();
+                                        }
                                     }
                                 }
                             }
@@ -698,9 +711,9 @@ public sealed partial class P2PCoordinator : IDisposable
 
                         hostRelay?.Dispose();
                         string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
-                        string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
                         var relayUri =
                             CloudRelayTransport.BuildRelayUri(sigNorm, rPath, args.SessionId, "host", rToken);
+                        string relayLabel = $"{relayUri.Host} (WSS Relay)";
                         hostRelay = new CloudRelayTransport(transport, relayLabel, _log);
                         bool relayOk = await hostRelay.ConnectAndBindAsync(relayUri, sessionToken, 2, 12000,
                             CancellationToken.None);
@@ -812,10 +825,18 @@ public sealed partial class P2PCoordinator : IDisposable
                     isController: false,
                     sendRaw: (data, len) =>
                     {
-                        IntPtr h;
-                        lock (_hostLock) h = _activeHostHandle;
-                        if (h == IntPtr.Zero) return false;
-                        return NativeMethods.Osmium_HostSendAuxData(h, data, len) != 0;
+                        _hostNativeHandleLock.EnterReadLock();
+                        try
+                        {
+                            IntPtr h;
+                            lock (_hostLock) h = _activeHostHandle;
+                            if (h == IntPtr.Zero) return false;
+                            return NativeMethods.Osmium_HostSendAuxData(h, data, len) != 0;
+                        }
+                        finally
+                        {
+                            _hostNativeHandleLock.ExitReadLock();
+                        }
                     },
                     log: _log,
                     reliableUnderlyingTransport: reliableUnderlying);
@@ -1050,7 +1071,20 @@ public sealed partial class P2PCoordinator : IDisposable
 
                 if (attachAudioNow)
                 {
-                    NativeMethods.Osmium_AttachHostAudioTransport(hostHandle, audioTransport);
+                    _hostNativeHandleLock.EnterReadLock();
+                    try
+                    {
+                        bool stillActive;
+                        lock (_hostLock) stillActive = (_activeHostHandle == hostHandle);
+                        if (stillActive)
+                        {
+                            NativeMethods.Osmium_AttachHostAudioTransport(hostHandle, audioTransport);
+                        }
+                    }
+                    finally
+                    {
+                        _hostNativeHandleLock.ExitReadLock();
+                    }
                 }
 
                 string confirmSid = args.SessionId;
@@ -1486,7 +1520,19 @@ public sealed partial class P2PCoordinator : IDisposable
 
         if (handle != IntPtr.Zero)
         {
-            NativeMethods.Osmium_StopHostSession(handle);
+            // Barrier: drain any in-flight native calls (Osmium_AttachHostAudioTransport / Osmium_HostSendAuxData)
+            // that observed _activeHostHandle before it was cleared above, preventing use-after-free.
+            _hostNativeHandleLock.EnterWriteLock();
+            _hostNativeHandleLock.ExitWriteLock();
+
+            try
+            {
+                NativeMethods.Osmium_StopHostSession(handle);
+            }
+            catch (Exception ex)
+            {
+                _log.Error($"Osmium_StopHostSession failed: {ex}");
+            }
         }
 
         hostRelay?.Dispose();

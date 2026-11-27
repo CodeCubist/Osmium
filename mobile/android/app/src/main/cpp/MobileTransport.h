@@ -96,8 +96,13 @@ namespace osmium::mobile
         }
 
         int32_t GetRoute() const { return m_Route.load(std::memory_order_relaxed); }
-        void RecordRttMs(uint32_t rttMs) { m_RttMs.store(rttMs, std::memory_order_relaxed); }
+        void RecordRttMs(uint32_t rttMs)
+        {
+            m_RttMs.store(rttMs, std::memory_order_relaxed);
+            m_RttSampleSeq.fetch_add(1, std::memory_order_release);
+        }
         uint32_t GetRttMs() const { return m_RttMs.load(std::memory_order_relaxed); }
+        uint64_t GetRttSampleSeq() const { return m_RttSampleSeq.load(std::memory_order_acquire); }
         uint32_t GetPacketLossPercentX100() const;
 
         static uint64_t NowMillis();
@@ -144,6 +149,7 @@ namespace osmium::mobile
         std::atomic<bool> m_EncryptionEnabled{true};
         std::atomic<int32_t> m_Route{0};
         std::atomic<uint32_t> m_RttMs{0};
+        std::atomic<uint64_t> m_RttSampleSeq{0};
 
         std::mutex m_SendMutex;
         std::mutex m_RecvCryptoMutex;

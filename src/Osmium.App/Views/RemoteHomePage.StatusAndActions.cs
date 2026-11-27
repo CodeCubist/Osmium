@@ -296,24 +296,48 @@ public sealed partial class RemoteHomePage : Page
     private void GoToSettings_Click(object sender, RoutedEventArgs e)
         => App.MainWindowInstance?.NavigateToSettings();
 
-    private void DisconnectHostSession_Click(object sender, RoutedEventArgs e)
+    private async void DisconnectHostSession_Click(object sender, RoutedEventArgs e)
     {
-        App.Engine.Coordinator.StopHostSession();
+        DisconnectHostBtn.IsEnabled = false;
         ActiveHostBanner.Visibility = Visibility.Collapsed;
         ActiveHostBanner.IsExpanded = false;
-        UpdateHostStatusPill();
+        try
+        {
+            await Task.Run(() => App.Engine.Coordinator.StopHostSession());
+        }
+        catch (Exception ex)
+        {
+            App.Engine.Logging.Error($"DisconnectHostSession_Click error: {ex}");
+        }
+        finally
+        {
+            DisconnectHostBtn.IsEnabled = true;
+            UpdateHostStatusPill();
+        }
     }
 
     private async void BlacklistHostController_Click(object sender, RoutedEventArgs e)
     {
         var info = App.Engine.Coordinator.ActiveHostSessionInfo;
         if (info != null && IsSameAccountController(info)) return;
-        string localDevId = App.Engine.SettingsService.Identity.DeviceId;
-        await App.Engine.Coordinator.BlacklistControllerOnDeviceAsync(localDevId);
-        App.Engine.Coordinator.StopHostSession();
-        ActiveHostBanner.Visibility = Visibility.Collapsed;
-        ActiveHostBanner.IsExpanded = false;
-        UpdateHostStatusPill();
+        BlacklistHostControllerBtn.IsEnabled = false;
+        try
+        {
+            string localDevId = App.Engine.SettingsService.Identity.DeviceId;
+            await App.Engine.Coordinator.BlacklistControllerOnDeviceAsync(localDevId);
+            await Task.Run(() => App.Engine.Coordinator.StopHostSession());
+        }
+        catch (Exception ex)
+        {
+            App.Engine.Logging.Error($"BlacklistHostController_Click error: {ex}");
+        }
+        finally
+        {
+            BlacklistHostControllerBtn.IsEnabled = true;
+            ActiveHostBanner.Visibility = Visibility.Collapsed;
+            ActiveHostBanner.IsExpanded = false;
+            UpdateHostStatusPill();
+        }
     }
 
     private async void RenameLocalDevice_Click(object sender, RoutedEventArgs e)

@@ -636,6 +636,9 @@ namespace
         int32_t effectiveBitrateKbps = 20000;
         uint64_t lastFeedbackSeq = 0;
         uint32_t baselineRttMs = 0;
+        uint32_t highRttMildStreak = 0;
+        uint32_t highRttSevereStreak = 0;
+        uint64_t lastCongestionCutMs = 0;
         uint64_t cleanSinceMs = 0;
         uint64_t lastBitrateBumpMs = 0;
         uint64_t lastDrainSkipMs = 0;
@@ -695,9 +698,9 @@ namespace
             int codecPref = ctx->clientProfile.codecPreference != 0
                                 ? ctx->clientProfile.codecPreference
                                 : ctx->config.codecPreference;
-            // HostCapture composites the cursor on GPU into the NV12 pipeline with zero
-            // CPU readback, so zero-copy D3D11 encoding stays active even when captureCursor=true.
-            auto* captureDevice = allowGpuEncoderInput && !hostHdr ? ctx->capture.GetDevice() : nullptr;
+            // HostCapture tonemaps HDR->SDR and composites the cursor on GPU directly into NV12
+            // with zero CPU readback, so zero-copy D3D11 encoding stays active whenever SDR is output.
+            auto* captureDevice = allowGpuEncoderInput && !effectiveHdr ? ctx->capture.GetDevice() : nullptr;
             if (!ctx->encoder.Initialize(capW, capH, outW, outH, settings.fps, settings.bitrateKbps, codecPref,
                                          ctx->config.encoderPreference, effectiveHdr, settings.yuv444, captureDevice))
             {
@@ -847,8 +850,9 @@ namespace
             uint64_t nowMs = NowMillis();
 
             // Closed-loop RTT + sliding-window packet-loss AIMD congestion controller.
-            // Prevents multi-second bufferbloat / loss spirals on 2.4GHz Wi-Fi, P2P, and Relay
-            // whenever Windows multimedia throttling or wireless interference narrows bandwidth.
+            // Requires sustained RTT inflation (3 consecutive fresh samples ~= 750ms) when
+            // loss is 0% so transient Wi-Fi beacons/scans never slash bitrate or trigger
+            // periodic 1s bitrate-recovery pulses on clean LAN links.
             const uint64_t fbSeq = ctx->clientFeedbackSeq.load(std::memory_order_acquire);
             if (fbSeq != lastFeedbackSeq)
             {
@@ -868,46 +872,66 @@ namespace
                     }
                 }
 
+                const bool severeRttSample =
+                    (rttMs >= 240U) ||
+                    (baselineRttMs > 0 && rttMs >= baselineRttMs + 180U);
+                const bool mildRttSample =
+                    severeRttSample ||
+                    (rttMs >= 110U && baselineRttMs > 0 && rttMs >= baselineRttMs + 80U);
+
+                if (severeRttSample) highRttSevereStreak++;
+                else highRttSevereStreak = 0;
+
+                if (mildRttSample) highRttMildStreak++;
+                else highRttMildStreak = 0;
+
                 const int32_t floorKbps = std::clamp(configuredBitrateKbps / 5, 1200, 8000);
                 const bool severeCongestion =
-                    (rttMs >= 180U) ||
-                    (lossPermille >= 20U) ||
-                    (baselineRttMs > 0 && rttMs >= baselineRttMs + 120U);
+                    (lossPermille >= 25U) ||
+                    (highRttSevereStreak >= 3U);
                 const bool mildCongestion =
                     !severeCongestion &&
-                    ((lossPermille >= 4U) ||
-                        (rttMs >= 70U && baselineRttMs > 0 && rttMs >= baselineRttMs + 45U));
+                    ((lossPermille >= 6U) ||
+                        (highRttMildStreak >= 3U));
 
                 if (severeCongestion)
                 {
                     cleanSinceMs = 0;
                     ctx->congestionLevel.store(2, std::memory_order_relaxed);
-                    const int32_t nextKbps = std::max(floorKbps, (effectiveBitrateKbps * 60) / 100);
-                    if (nextKbps < effectiveBitrateKbps)
+                    if (lastCongestionCutMs == 0 || (nowMs - lastCongestionCutMs) >= 800ULL)
                     {
-                        effectiveBitrateKbps = nextKbps;
-                        ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
-                        OSM_LOG_WARN("Congestion control (severe: rtt=%ums base=%ums loss=%.1f%%): bitrate -> %d kbps",
-                                     rttMs, baselineRttMs, lossPermille / 10.0, effectiveBitrateKbps);
+                        lastCongestionCutMs = nowMs;
+                        const int32_t nextKbps = std::max(floorKbps, (effectiveBitrateKbps * 65) / 100);
+                        if (nextKbps < effectiveBitrateKbps)
+                        {
+                            effectiveBitrateKbps = nextKbps;
+                            ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
+                            OSM_LOG_WARN("Congestion control (severe: rtt=%ums base=%ums loss=%.1f%%): bitrate -> %d kbps",
+                                         rttMs, baselineRttMs, lossPermille / 10.0, effectiveBitrateKbps);
+                        }
                     }
-                    if ((rttMs >= 200U || (baselineRttMs > 0 && rttMs >= baselineRttMs + 150U)) &&
-                        (nowMs - lastDrainSkipMs) >= 450ULL)
+                    if ((rttMs >= 240U || (baselineRttMs > 0 && rttMs >= baselineRttMs + 180U)) &&
+                        (nowMs - lastDrainSkipMs) >= 600ULL)
                     {
                         lastDrainSkipMs = nowMs;
-                        drainSkipFrames = std::max(drainSkipFrames, 2);
+                        drainSkipFrames = std::max(drainSkipFrames, 1);
                     }
                 }
                 else if (mildCongestion)
                 {
                     cleanSinceMs = 0;
                     ctx->congestionLevel.store(1, std::memory_order_relaxed);
-                    const int32_t nextKbps = std::max(floorKbps, (effectiveBitrateKbps * 82) / 100);
-                    if (nextKbps < effectiveBitrateKbps)
+                    if (lastCongestionCutMs == 0 || (nowMs - lastCongestionCutMs) >= 1000ULL)
                     {
-                        effectiveBitrateKbps = nextKbps;
-                        ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
-                        OSM_LOG_INFO("Congestion control (mild: rtt=%ums base=%ums loss=%.1f%%): bitrate -> %d kbps",
-                                     rttMs, baselineRttMs, lossPermille / 10.0, effectiveBitrateKbps);
+                        lastCongestionCutMs = nowMs;
+                        const int32_t nextKbps = std::max(floorKbps, (effectiveBitrateKbps * 85) / 100);
+                        if (nextKbps < effectiveBitrateKbps)
+                        {
+                            effectiveBitrateKbps = nextKbps;
+                            ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
+                            OSM_LOG_INFO("Congestion control (mild: rtt=%ums base=%ums loss=%.1f%%): bitrate -> %d kbps",
+                                         rttMs, baselineRttMs, lossPermille / 10.0, effectiveBitrateKbps);
+                        }
                     }
                 }
                 else
@@ -916,15 +940,20 @@ namespace
                     {
                         cleanSinceMs = nowMs;
                     }
-                    if (nowMs - cleanSinceMs >= 1200ULL)
+                    if (nowMs - cleanSinceMs >= 3000ULL)
                     {
                         ctx->congestionLevel.store(0, std::memory_order_relaxed);
                         if (effectiveBitrateKbps < configuredBitrateKbps &&
-                            (lastBitrateBumpMs == 0 || nowMs - lastBitrateBumpMs >= 1000ULL))
+                            (lastBitrateBumpMs == 0 || nowMs - lastBitrateBumpMs >= 2500ULL))
                         {
                             lastBitrateBumpMs = nowMs;
-                            const int32_t step = std::max(500, effectiveBitrateKbps / 8);
-                            effectiveBitrateKbps = std::min(configuredBitrateKbps, effectiveBitrateKbps + step);
+                            const int32_t step = std::max(1000, effectiveBitrateKbps / 4);
+                            int32_t nextKbps = std::min(configuredBitrateKbps, effectiveBitrateKbps + step);
+                            if (configuredBitrateKbps - nextKbps <= (configuredBitrateKbps * 15) / 100)
+                            {
+                                nextKbps = configuredBitrateKbps;
+                            }
+                            effectiveBitrateKbps = nextKbps;
                             ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
                         }
                     }
@@ -1591,7 +1620,11 @@ namespace
                 {
                     const uint16_t lossPermille = pong.audioLossPermille;
                     const uint16_t jitterMs = pong.hdr.reserved;
-                    const bool needRedundancy = (lossPermille >= 5U) || (jitterMs >= 25U);
+                    const bool isRelayAudio =
+                        (audioTransport->GetTransportRoute() == static_cast<int32_t>(TransportRoute::CloudRelay));
+                    // On direct UDP (LAN/Wi-Fi/P2P), keep bit-exact prev-frame redundancy always ON:
+                    // 2x 20ms Opus @ 192kbps fits in ~960 bytes (1 UDP packet) and eliminates single-packet drops!
+                    const bool needRedundancy = !isRelayAudio || (lossPermille >= 3U) || (jitterMs >= 20U);
                     if (needRedundancy)
                     {
                         cleanWindows = 0;
@@ -1602,16 +1635,15 @@ namespace
                         ctx->audio.SetRedundancyEnabled(false);
                     }
 
-                    const int expectedLossPct = std::clamp(static_cast<int>(lossPermille / 10U) + 2, 2, 25);
+                    const int expectedLossPct = std::clamp(static_cast<int>(lossPermille / 10U) + 4, 4, 25);
                     ctx->audio.SetExpectedLossPerc(expectedLossPct);
 
                     if (ctx->audioRequestedBitrateKbps.load(std::memory_order_relaxed) == 0 &&
                         ctx->audioQualityPreset.load(std::memory_order_relaxed) == 0)
                     {
                         int autoKbps = 192;
-                        if (lossPermille >= 60U) autoKbps = 96;
-                        else if (lossPermille >= 30U) autoKbps = 128;
-                        else if (lossPermille >= 10U) autoKbps = 160;
+                        if (lossPermille >= 80U) autoKbps = 128;
+                        else if (lossPermille >= 35U) autoKbps = 160;
                         ctx->audio.SetTargetBitrateKbps(autoKbps);
                     }
                 }
@@ -1992,6 +2024,7 @@ namespace
         uint32_t lastCompletedKeyFrameId = 0;
         uint64_t lastStalePurgeMs = NowMillis();
         uint64_t lastPingMs = 0;
+        uint64_t lastReportedRttSeq = 0;
         std::vector<uint8_t> plain;
 
         while (!ctx->stopFlag.load())
@@ -2002,9 +2035,17 @@ namespace
                 lastPingMs = preNowMs;
                 const uint32_t lossX100 = ctx->transport->GetRecentLossPercentX100();
                 const uint8_t lossSteps = static_cast<uint8_t>(std::min<uint32_t>(63U, (lossX100 + 19U) / 20U));
+                const uint64_t curRttSeq = ctx->transport->GetRttSampleSeq();
+                const bool freshRtt = (curRttSeq != lastReportedRttSeq);
+                if (freshRtt) lastReportedRttSeq = curRttSeq;
                 proto::PingPongPayload ping{};
-                ping.hdr.flags = proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
-                ping.hdr.reserved = static_cast<uint16_t>(std::min<uint32_t>(65535U, ctx->transport->GetLastRttMs()));
+                if (freshRtt || lossSteps > 0)
+                {
+                    ping.hdr.flags = proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
+                    ping.hdr.reserved = freshRtt
+                                            ? static_cast<uint16_t>(std::min<uint32_t>(65535U, ctx->transport->GetLastRttMs()))
+                                            : 0U;
+                }
                 ping.timestampUs = NowMicros();
                 ctx->transport->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
             }
@@ -2365,7 +2406,7 @@ namespace
 
             uint64_t nowMs = NowMillis();
             const uint64_t rttMs = ctx->transport->GetLastRttMs();
-            const uint64_t reorderGraceMs = std::clamp<uint64_t>(rttMs + 10ULL, 12ULL, 35ULL);
+            const uint64_t reorderGraceMs = std::clamp<uint64_t>(rttMs + 15ULL, 20ULL, 45ULL);
 
             AssembledVideoFrame nextFrame;
             bool hasFrame = false;
@@ -3181,61 +3222,77 @@ OSMIUM_API void Osmium_StopHostSession(void* hostHandle)
 {
     if (!hostHandle) return;
     auto* ctx = static_cast<HostSessionContext*>(hostHandle);
-    ctx->stopFlag.store(true, std::memory_order_release);
-    ctx->sysActionCv.notify_all();
-    ctx->statusCv.notify_all();
-    ctx->textFocus.Stop();
-    ctx->audio.Stop();
-
+    try
     {
-        std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
-        OsmiumTransport* at = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
-        if (at)
+        ctx->stopFlag.store(true, std::memory_order_release);
+        ctx->sysActionCv.notify_all();
+        ctx->statusCv.notify_all();
+        // Signal non-blocking stops first so worker threads exit cleanly without racing
+        // concurrent join() calls (HostVideoLoop calls audio.Stop(), HostRecvLoop calls textFocus.Start/Stop).
+        ctx->textFocus.RequestStop();
+        ctx->audio.RequestStop();
+
+        {
+            std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+            OsmiumTransport* at = ctx->audioTransport.exchange(nullptr, std::memory_order_acq_rel);
+            if (at)
+            {
+                proto::AppPacketHeader bye{};
+                at->SendEncrypted(proto::AppPacketType::Disconnect, &bye, sizeof(bye));
+                at->Close();
+            }
+        }
+
+        if (ctx->transport)
         {
             proto::AppPacketHeader bye{};
-            at->SendEncrypted(proto::AppPacketType::Disconnect, &bye, sizeof(bye));
-            at->Close();
+            for (int i = 0; i < 4; ++i)
+            {
+                ctx->transport->SendEncrypted(proto::AppPacketType::Disconnect, &bye, sizeof(bye));
+                if (i < 3) Sleep(3);
+            }
+            ctx->transport->Close();
         }
-    }
 
-    if (ctx->transport)
-    {
-        proto::AppPacketHeader bye{};
-        for (int i = 0; i < 4; ++i)
+        auto safeJoin = [](std::thread& t)
         {
-            ctx->transport->SendEncrypted(proto::AppPacketType::Disconnect, &bye, sizeof(bye));
-            if (i < 3) Sleep(3);
-        }
-        ctx->transport->Close();
-    }
+            if (!t.joinable()) return;
+            try
+            {
+                if (t.get_id() == std::this_thread::get_id()) t.detach();
+                else t.join();
+            }
+            catch (const std::exception& ex)
+            {
+                OSM_LOG_WARN("Osmium_StopHostSession thread join warning: %s", ex.what());
+            }
+            catch (...)
+            {
+            }
+        };
 
-    auto curTid = std::this_thread::get_id();
-    if (ctx->videoThread.joinable())
-    {
-        if (ctx->videoThread.get_id() == curTid) ctx->videoThread.detach();
-        else ctx->videoThread.join();
+        safeJoin(ctx->videoThread);
+        safeJoin(ctx->recvThread);
+        {
+            std::lock_guard<std::mutex> lock(ctx->audioAttachMutex);
+            safeJoin(ctx->audioRecvThread);
+        }
+        safeJoin(ctx->statusThread);
+        safeJoin(ctx->sysActionThread);
+
+        // Now that no worker thread can call Start()/Stop() on textFocus or audio, join them safely.
+        ctx->textFocus.Stop();
+        ctx->audio.Stop();
+        delete ctx;
     }
-    if (ctx->recvThread.joinable())
+    catch (const std::exception& ex)
     {
-        if (ctx->recvThread.get_id() == curTid) ctx->recvThread.detach();
-        else ctx->recvThread.join();
+        OSM_LOG_ERROR("Osmium_StopHostSession caught exception: %s", ex.what());
     }
-    if (ctx->audioRecvThread.joinable())
+    catch (...)
     {
-        if (ctx->audioRecvThread.get_id() == curTid) ctx->audioRecvThread.detach();
-        else ctx->audioRecvThread.join();
+        OSM_LOG_ERROR("Osmium_StopHostSession caught unknown exception");
     }
-    if (ctx->statusThread.joinable())
-    {
-        if (ctx->statusThread.get_id() == curTid) ctx->statusThread.detach();
-        else ctx->statusThread.join();
-    }
-    if (ctx->sysActionThread.joinable())
-    {
-        if (ctx->sysActionThread.get_id() == curTid) ctx->sysActionThread.detach();
-        else ctx->sysActionThread.join();
-    }
-    delete ctx;
 }
 
 OSMIUM_API void Osmium_HostAllowPrivacyScreen(void* hostHandle, const wchar_t* wallpaperPath)

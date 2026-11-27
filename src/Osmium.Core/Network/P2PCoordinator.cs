@@ -399,6 +399,7 @@ public sealed partial class P2PCoordinator : IDisposable
     private bool _activeClientSessionEstablished;
     private int _activeClientSessionCount;
     private long _connectCooldownUntilTickMs;
+    private readonly ReaderWriterLockSlim _hostNativeHandleLock = new(LockRecursionPolicy.NoRecursion);
 
     private OsmiumHostStatsDelegate? _hostStatsDelegate;
     private OsmiumHostEndedDelegate? _hostEndedDelegate;
@@ -1220,9 +1221,9 @@ public sealed partial class P2PCoordinator : IDisposable
                                 if (!string.IsNullOrWhiteSpace(arToken) && !audioCt.IsCancellationRequested)
                                 {
                                     string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
-                                    string relayLabel = $"{new Uri(sigNorm).Host} (WSS Audio Relay)";
                                     var relayUri = CloudRelayTransport.BuildRelayUri(
                                         sigNorm, arPath, sessionId, "client", arToken);
+                                    string relayLabel = $"{relayUri.Host} (WSS Audio Relay)";
                                     var audioRelay = new CloudRelayTransport(audioTransport, relayLabel, _log);
                                     bool relayOk = await audioRelay.ConnectAndBindAsync(
                                         relayUri, audioSessionToken, 1, 12000, audioCt);
@@ -1356,8 +1357,8 @@ public sealed partial class P2PCoordinator : IDisposable
 
                     clientRelay?.Dispose();
                     string sigNorm = SignalingClient.NormalizeServerUrl(_settings.Settings.SignalingServerUrl);
-                    string relayLabel = $"{new Uri(sigNorm).Host} (WSS Relay)";
                     var relayUri = CloudRelayTransport.BuildRelayUri(sigNorm, rPath, sessionId, "client", rToken);
+                    string relayLabel = $"{relayUri.Host} (WSS Relay)";
                     clientRelay = new CloudRelayTransport(transport, relayLabel, _log);
                     bool relayOk = await clientRelay.ConnectAndBindAsync(relayUri, sessionToken, 1, 12000, ct);
                     if (!relayOk)

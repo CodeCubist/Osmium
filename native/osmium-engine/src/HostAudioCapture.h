@@ -39,6 +39,7 @@ namespace osmium
         void SetVirtualDevices(UsbIpVirtualDevices* virtualDevices) { m_VirtualDevices = virtualDevices; }
 
         bool Start(EncodedAudioCallback callback);
+        void RequestStop() { m_StopFlag.store(true, std::memory_order_release); }
         void Stop();
 
         void SetPaused(bool paused) { m_Paused.store(paused, std::memory_order_release); }
@@ -53,13 +54,14 @@ namespace osmium
         void ShutdownMicDecoder();
 
         UsbIpVirtualDevices* m_VirtualDevices = nullptr;
+        std::mutex m_LifecycleMutex;
         EncodedAudioCallback m_Callback;
         std::thread m_Thread;
         std::atomic<bool> m_StopFlag{false};
         std::atomic<bool> m_Paused{false};
         std::atomic<int> m_TargetBitrateKbps{192};
-        std::atomic<bool> m_RedundancyEnabled{false};
-        std::atomic<int> m_ExpectedLossPerc{3};
+        std::atomic<bool> m_RedundancyEnabled{true};
+        std::atomic<int> m_ExpectedLossPerc{5};
 
         OpusEncoder* m_Opus = nullptr;
         SwrContext* m_Swr = nullptr;

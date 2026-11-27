@@ -174,9 +174,17 @@ namespace osmium::mobile
         m_PlayChannels.store(2, std::memory_order_relaxed);
         m_RingReadFrame.store(0, std::memory_order_relaxed);
         m_RingWriteFrame.store(0, std::memory_order_relaxed);
+        m_PendingTrimKeepFrames.store(0, std::memory_order_relaxed);
+        m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
+        m_HadUnderrun.store(false, std::memory_order_relaxed);
         m_FracPos = 0.0;
         m_PrevOutSample[0] = 0.0f;
         m_PrevOutSample[1] = 0.0f;
+        m_FadeAnchorSample[0] = 0.0f;
+        m_FadeAnchorSample[1] = 0.0f;
+        m_CallbackFadeInLeft = 0;
+        m_HasRingPrev = false;
+        m_InUnderrun = false;
         m_PlaybackRate.store(1.0, std::memory_order_relaxed);
         m_SmoothedRate = 1.0;
         m_NeedFadeIn = true;
@@ -265,12 +273,12 @@ namespace osmium::mobile
         }
         m_UseFloatOutput.store(useFloat, std::memory_order_release);
 
-        // Set AAudio internal buffer around 2 bursts (~40ms) to avoid AudioFlinger underruns
-        // while keeping latency tight and measurable via AAudioStream_getTimestamp.
+        // Set AAudio internal buffer to >=3 bursts (~50-60ms) to avoid AudioFlinger HAL
+        // underruns under concurrent HW video decoding while keeping latency measurable.
         const int32_t burst = std::max<int32_t>(1, AAudioStream_getFramesPerBurst(m_PlayStream));
         const int32_t capacity = AAudioStream_getBufferCapacityInFrames(m_PlayStream);
         const int32_t targetFrames = std::clamp<int32_t>(
-            std::max<int32_t>(burst * 2, static_cast<int32_t>(sampleRate) / 25),
+            std::max<int32_t>(burst * 3, static_cast<int32_t>(sampleRate) / 20),
             burst,
             std::max<int32_t>(burst, capacity));
         AAudioStream_setBufferSizeInFrames(m_PlayStream, targetFrames);
@@ -325,6 +333,26 @@ namespace osmium::mobile
             r = w;
             self->m_RingReadFrame.store(r, std::memory_order_release);
             self->m_FracPos = 0.0;
+            self->m_HasRingPrev = false;
+            self->m_PendingTrimKeepFrames.store(0, std::memory_order_relaxed);
+        }
+        else
+        {
+            const uint32_t trimKeep = self->m_PendingTrimKeepFrames.exchange(0, std::memory_order_acq_rel);
+            if (trimKeep > 0)
+            {
+                const uint32_t availNow = w - r;
+                if (availNow > trimKeep)
+                {
+                    r = w - trimKeep;
+                    self->m_RingReadFrame.store(r, std::memory_order_release);
+                    self->m_FracPos = 0.0;
+                    self->m_HasRingPrev = false;
+                    self->m_FadeAnchorSample[0] = self->m_PrevOutSample[0];
+                    self->m_FadeAnchorSample[1] = self->m_PrevOutSample[1];
+                    self->m_CallbackFadeInLeft = 192;
+                }
+            }
         }
 
         const bool muted = self->m_Muted.load(std::memory_order_relaxed);
@@ -337,6 +365,7 @@ namespace osmium::mobile
             {
                 self->m_RingReadFrame.store(w, std::memory_order_release);
                 self->m_FracPos = 0.0;
+                self->m_HasRingPrev = false;
             }
             // Smooth exponential fade-out to silence (~2ms) instead of hard-zero click!
             for (int32_t i = 0; i < numFrames; ++i)
@@ -362,20 +391,101 @@ namespace osmium::mobile
 
         const float* ring = self->m_PcmRing.data();
         double frac = self->m_FracPos;
+        const bool rateIsUnity = (std::fabs(rate - 1.0) < 1e-6);
 
         for (int32_t i = 0; i < numFrames; ++i)
         {
             const uint32_t avail = w - r;
-            if (avail >= 2)
+            if (avail >= 1)
             {
-                const uint32_t idx0 = (r & kRingFrameMask) * 2U;
-                const uint32_t idx1 = ((r + 1U) & kRingFrameMask) * 2U;
-                const float f = static_cast<float>(frac);
+                if (self->m_InUnderrun)
+                {
+                    self->m_InUnderrun = false;
+                    self->m_FadeAnchorSample[0] = self->m_PrevOutSample[0];
+                    self->m_FadeAnchorSample[1] = self->m_PrevOutSample[1];
+                    self->m_CallbackFadeInLeft = 192;
+                }
+
+                float sampleOut[2]{0.0f, 0.0f};
+                if ((rateIsUnity && frac < 1e-6) || avail == 1)
+                {
+                    const uint32_t idx0 = (r & kRingFrameMask) * 2U;
+                    for (uint8_t c = 0; c < ch; ++c)
+                    {
+                        sampleOut[c] = ring[idx0 + c];
+                    }
+                    r += 1U;
+                    frac = 0.0;
+                    self->m_HasRingPrev = true;
+                }
+                else if (self->m_HasRingPrev && avail >= 3)
+                {
+                    // 4-point Catmull-Rom cubic Hermite interpolation eliminates high-frequency shimmer
+                    const uint32_t idxM1 = ((r - 1U) & kRingFrameMask) * 2U;
+                    const uint32_t idx0 = (r & kRingFrameMask) * 2U;
+                    const uint32_t idx1 = ((r + 1U) & kRingFrameMask) * 2U;
+                    const uint32_t idx2 = ((r + 2U) & kRingFrameMask) * 2U;
+                    const float t = static_cast<float>(frac);
+                    const float t2 = t * t;
+                    const float t3 = t2 * t;
+                    for (uint8_t c = 0; c < ch; ++c)
+                    {
+                        const float y0 = ring[idxM1 + c];
+                        const float y1 = ring[idx0 + c];
+                        const float y2 = ring[idx1 + c];
+                        const float y3 = ring[idx2 + c];
+                        const float s = 0.5f * (
+                            (2.0f * y1) +
+                            (-y0 + y2) * t +
+                            (2.0f * y0 - 5.0f * y1 + 4.0f * y2 - y3) * t2 +
+                            (-y0 + 3.0f * y1 - 3.0f * y2 + y3) * t3);
+                        sampleOut[c] = std::clamp(s, -1.0f, 1.0f);
+                    }
+                    frac += rate;
+                    const uint32_t step = static_cast<uint32_t>(frac);
+                    if (step > 0)
+                    {
+                        frac -= static_cast<double>(step);
+                        const uint32_t maxStep = avail - 1U;
+                        r += (step <= maxStep) ? step : maxStep;
+                    }
+                }
+                else
+                {
+                    const uint32_t idx0 = (r & kRingFrameMask) * 2U;
+                    const uint32_t idx1 = ((r + 1U) & kRingFrameMask) * 2U;
+                    const float f = static_cast<float>(frac);
+                    for (uint8_t c = 0; c < ch; ++c)
+                    {
+                        const float s0 = ring[idx0 + c];
+                        const float s1 = ring[idx1 + c];
+                        sampleOut[c] = s0 + (s1 - s0) * f;
+                    }
+                    frac += rate;
+                    const uint32_t step = static_cast<uint32_t>(frac);
+                    if (step > 0)
+                    {
+                        frac -= static_cast<double>(step);
+                        const uint32_t maxStep = avail - 1U;
+                        r += (step <= maxStep) ? step : maxStep;
+                        self->m_HasRingPrev = true;
+                    }
+                }
+
+                const bool applyFade = (self->m_CallbackFadeInLeft > 0);
+                const float alpha = applyFade
+                    ? (1.0f - static_cast<float>(self->m_CallbackFadeInLeft) / 192.0f)
+                    : 1.0f;
+                if (applyFade)
+                {
+                    self->m_CallbackFadeInLeft--;
+                }
+
                 for (uint8_t c = 0; c < ch; ++c)
                 {
-                    const float s0 = ring[idx0 + c];
-                    const float s1 = ring[idx1 + c];
-                    const float s = s0 + (s1 - s0) * f;
+                    const float s = applyFade
+                        ? (self->m_FadeAnchorSample[c] * (1.0f - alpha) + sampleOut[c] * alpha)
+                        : sampleOut[c];
                     self->m_PrevOutSample[c] = s;
                     if (isFloat)
                     {
@@ -387,38 +497,19 @@ namespace osmium::mobile
                         outI16[i * ch + c] = static_cast<int16_t>(std::lrintf(cl * 32767.0f));
                     }
                 }
-                frac += rate;
-                const uint32_t step = static_cast<uint32_t>(frac);
-                if (step > 0)
-                {
-                    frac -= static_cast<double>(step);
-                    const uint32_t maxStep = avail - 1U;
-                    r += (step <= maxStep) ? step : maxStep;
-                }
-            }
-            else if (avail == 1)
-            {
-                const uint32_t idx0 = (r & kRingFrameMask) * 2U;
-                for (uint8_t c = 0; c < ch; ++c)
-                {
-                    const float s = ring[idx0 + c];
-                    self->m_PrevOutSample[c] = s;
-                    if (isFloat)
-                    {
-                        outF[i * ch + c] = s;
-                    }
-                    else
-                    {
-                        float cl = std::clamp(s, -1.0f, 1.0f);
-                        outI16[i * ch + c] = static_cast<int16_t>(std::lrintf(cl * 32767.0f));
-                    }
-                }
-                r += 1U;
-                frac = 0.0;
             }
             else
             {
                 // Ring underrun: smooth exponential decay from last sample -> ZERO electronic POP!
+                if (!self->m_InUnderrun)
+                {
+                    self->m_InUnderrun = true;
+                    self->m_HasRingPrev = false;
+                    if (self->m_StreamActiveForUnderrun.load(std::memory_order_relaxed))
+                    {
+                        self->m_HadUnderrun.store(true, std::memory_order_release);
+                    }
+                }
                 for (uint8_t c = 0; c < ch; ++c)
                 {
                     float s = self->m_PrevOutSample[c] * 0.965f;
@@ -441,6 +532,26 @@ namespace osmium::mobile
         self->m_FracPos = frac;
         self->m_RingReadFrame.store(r, std::memory_order_release);
         return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+
+    int AndroidAudioEngine::ComputeMinSafeRingMsLocked() const
+    {
+        const double jitterMs = m_JitterUs / 1000.0;
+        const double peakMs = m_PeakExcursionUs / 1000.0;
+        return std::clamp(
+            static_cast<int>(std::ceil(std::max(jitterMs * 3.0 + 24.0, peakMs * 0.90 + 26.0))),
+            42,
+            115);
+    }
+
+    int AndroidAudioEngine::ComputeTargetPrimeMsLocked() const
+    {
+        return std::clamp(ComputeMinSafeRingMsLocked() + 10, 48, 120);
+    }
+
+    int AndroidAudioEngine::ComputeMaxFeedRingMsLocked() const
+    {
+        return std::max(95, ComputeMinSafeRingMsLocked() + 50);
     }
 
     void AndroidAudioEngine::EnsureDecodeThreadLocked()
@@ -478,16 +589,36 @@ namespace osmium::mobile
             EnsureDecodeThreadLocked();
             m_LastPacketReceivedUs = nowUs;
 
-            // RFC3550 inter-arrival jitter estimate
+            // RFC3550 inter-arrival jitter + peak late-arrival burst excursion estimator
             if (m_HasLastArrival && captureTimeUs > m_LastCaptureUs &&
                 (flags & osmium::proto::kAudioFlagStreamStart) == 0)
             {
                 const int64_t dArrival = static_cast<int64_t>(nowUs - m_LastArrivalUs);
                 const int64_t dCapture = static_cast<int64_t>(captureTimeUs - m_LastCaptureUs);
-                if (dCapture > 0 && dCapture < 200000LL)
+                if (dCapture > 0 && dCapture < 250000LL)
                 {
-                    const double err = std::fabs(static_cast<double>(dArrival - dCapture));
-                    m_JitterUs += (std::min(err, 120000.0) - m_JitterUs) / 16.0;
+                    const int64_t lateUs = dArrival - dCapture;
+                    const double err = std::fabs(static_cast<double>(lateUs));
+                    m_JitterUs += (std::min(err, 150000.0) - m_JitterUs) / 16.0;
+                    if (lateUs > 0)
+                    {
+                        const double clampedLate = std::min(static_cast<double>(lateUs), 160000.0);
+                        if (clampedLate > m_PeakExcursionUs)
+                        {
+                            m_PeakExcursionUs = m_PeakExcursionUs * 0.35 + clampedLate * 0.65;
+                        }
+                        else
+                        {
+                            m_PeakExcursionUs *= 0.9985;
+                        }
+                    }
+                    else
+                    {
+                        m_PeakExcursionUs *= 0.9985;
+                    }
+                    m_AdaptiveMinRingUs.store(
+                        static_cast<int64_t>(ComputeMinSafeRingMsLocked()) * 1000LL,
+                        std::memory_order_relaxed);
                     m_TelemetryJitterMs.store(
                         static_cast<uint16_t>(std::clamp(m_JitterUs / 1000.0, 0.0, 500.0)),
                         std::memory_order_relaxed);
@@ -614,8 +745,8 @@ namespace osmium::mobile
         const uint32_t used = w - r;
         const uint32_t rate = m_PlaySampleRate > 0 ? m_PlaySampleRate : kDefaultSampleRate;
 
-        // Hard safety cap (~320ms) only for extreme runaway; normal drift is handled smoothly by m_PlaybackRate!
-        const uint32_t hardMaxFrames = std::min<uint32_t>(kRingFrames - 4, (rate * 320U) / 1000U);
+        // Hard safety cap (~450ms) only for extreme runaway; normal drift is handled smoothly by m_PlaybackRate!
+        const uint32_t hardMaxFrames = std::min<uint32_t>(kRingFrames - 4, (rate * 450U) / 1000U);
         if (used + frameCount > hardMaxFrames)
         {
             return;
@@ -682,6 +813,9 @@ namespace osmium::mobile
         const uint64_t nowUs = MobileTransport::NowMicros();
         const int64_t ringBufferedUs =
             (static_cast<int64_t>(ringFramesAvail) * 1000000LL) / static_cast<int64_t>(m_PlaySampleRate);
+        const int64_t minSafeRingUs = std::clamp<int64_t>(
+            m_AdaptiveMinRingUs.load(std::memory_order_relaxed), 42000LL, 115000LL);
+        const int64_t targetRingUs = minSafeRingUs + 15000LL;
 
         int64_t targetOffsetUs = 0;
         bool haveSyncRef = false;
@@ -701,50 +835,101 @@ namespace osmium::mobile
         }
 
         double desiredRate = 1.0;
-        if (haveSyncRef)
+        if (ringBufferedUs < minSafeRingUs)
+        {
+            // CRITICAL: Never speed up below the adaptive safety floor! On Android Media-mode
+            // AAudio/Bluetooth, m_HwDacLatencyUs (60-250ms) exceeds LAN video latency (~15ms),
+            // so speeding up when ring is low CANNOT make audio earlier — it only starves the
+            // ring into endless underruns. Gently slow down to silently rebuild cushion.
+            m_HighErrorStreak = 0;
+            const int64_t deficitUs = minSafeRingUs - ringBufferedUs;
+            desiredRate = std::clamp(1.0 - static_cast<double>(deficitUs) / 3000000.0, 0.988, 0.997);
+        }
+        else if (haveSyncRef)
         {
             const int64_t actualPlayLocalUs =
                 static_cast<int64_t>(nowUs) + ringBufferedUs + static_cast<int64_t>(m_HwDacLatencyUs);
             const int64_t targetPlayLocalUs = static_cast<int64_t>(audioCaptureTimeUs) + targetOffsetUs;
             const int64_t avErrorUs = actualPlayLocalUs - targetPlayLocalUs;
 
-            if (std::llabs(avErrorUs) <= 12000LL)
+            if (avErrorUs > 0)
             {
-                m_HighErrorStreak = 0;
-                desiredRate = 1.0;
-            }
-            else if (std::llabs(avErrorUs) <= 180000LL)
-            {
-                m_HighErrorStreak = 0;
-                // Pitch-imperceptible continuous resampling (+/- 1.5% max)
-                desiredRate = std::clamp(1.0 + static_cast<double>(avErrorUs) / 3500000.0, 0.985, 1.015);
+                // Only drain excess ring buffer above minSafeRingUs; never eat into the safety floor!
+                const int64_t excessRingUs = ringBufferedUs - minSafeRingUs;
+                const int64_t effectiveCatchupUs = std::min(avErrorUs, excessRingUs);
+                if (effectiveCatchupUs <= 15000LL)
+                {
+                    m_HighErrorStreak = 0;
+                    desiredRate = 1.0;
+                }
+                else if (ringBufferedUs <= targetRingUs + 120000LL)
+                {
+                    m_HighErrorStreak = 0;
+                    // Pitch-imperceptible continuous resampling (+1.2% max)
+                    desiredRate = std::clamp(
+                        1.0 + static_cast<double>(effectiveCatchupUs - 15000LL) / 4000000.0,
+                        1.0,
+                        1.012);
+                }
+                else
+                {
+                    desiredRate = std::clamp(
+                        1.0 + static_cast<double>(effectiveCatchupUs) / 3000000.0,
+                        1.005,
+                        1.022);
+                    // Only trim on genuine excessive ring backlog (>280ms), NEVER due to large HW DAC latency!
+                    if (ringBufferedUs > 280000LL)
+                    {
+                        if (++m_HighErrorStreak >= 8)
+                        {
+                            m_HighErrorStreak = 0;
+                            const uint32_t keepFrames = static_cast<uint32_t>(
+                                (targetRingUs * static_cast<int64_t>(m_PlaySampleRate)) / 1000000LL);
+                            m_PendingTrimKeepFrames.store(std::max<uint32_t>(keepFrames, 960U), std::memory_order_release);
+                            desiredRate = 1.0;
+                        }
+                    }
+                    else
+                    {
+                        m_HighErrorStreak = 0;
+                    }
+                }
             }
             else
             {
-                desiredRate = (avErrorUs > 0) ? 1.03 : 0.97;
-                if (avErrorUs > 220000LL && ringBufferedUs > 90000LL)
+                // Audio is earlier than video (e.g., high video pipeline latency on WAN/4K):
+                // gently slow down to lock lip-sync with video while keeping ring bounded (<240ms).
+                m_HighErrorStreak = 0;
+                const int64_t earlyUs = -avErrorUs;
+                if (earlyUs <= 15000LL || ringBufferedUs >= 240000LL)
                 {
-                    if (++m_HighErrorStreak >= 8)
-                    {
-                        m_HighErrorStreak = 0;
-                        m_PendingRingReset.store(true, std::memory_order_release);
-                        m_NeedFadeIn = true;
-                        desiredRate = 1.0;
-                    }
+                    desiredRate = 1.0;
+                }
+                else
+                {
+                    desiredRate = std::clamp(
+                        1.0 - static_cast<double>(earlyUs - 15000LL) / 4000000.0,
+                        0.988,
+                        1.0);
                 }
             }
         }
         else
         {
-            // Fallback gentle buffer-depth stabilization (~45ms ring target) before clock lock
-            const int64_t bufErrUs = ringBufferedUs - 45000LL;
-            if (std::llabs(bufErrUs) > 20000LL)
+            // Fallback gentle buffer-depth stabilization around adaptive target before clock lock
+            m_HighErrorStreak = 0;
+            const int64_t bufErrUs = ringBufferedUs - targetRingUs;
+            if (std::llabs(bufErrUs) > 15000LL)
             {
-                desiredRate = std::clamp(1.0 + static_cast<double>(bufErrUs) / 4000000.0, 0.99, 1.01);
+                desiredRate = std::clamp(1.0 + static_cast<double>(bufErrUs) / 4000000.0, 0.990, 1.010);
             }
         }
 
-        m_SmoothedRate = m_SmoothedRate * 0.82 + desiredRate * 0.18;
+        m_SmoothedRate = m_SmoothedRate * 0.85 + desiredRate * 0.15;
+        if (std::fabs(m_SmoothedRate - 1.0) < 0.0006 && std::fabs(desiredRate - 1.0) < 1e-6)
+        {
+            m_SmoothedRate = 1.0;
+        }
         m_PlaybackRate.store(m_SmoothedRate, std::memory_order_relaxed);
     }
 
@@ -832,32 +1017,71 @@ namespace osmium::mobile
 
             {
                 std::unique_lock<std::mutex> ql(m_QueueMutex);
+                const uint32_t srWait = m_PlaySampleRate > 0 ? m_PlaySampleRate : kDefaultSampleRate;
+                auto canProcessNowLocked = [this, srWait]() -> bool
+                {
+                    if (m_DecodeStop ||
+                        m_Muted.load(std::memory_order_acquire) ||
+                        m_StreamNeedsRebuild.load(std::memory_order_acquire))
+                    {
+                        return true;
+                    }
+                    if (!m_HasExpectedSeq)
+                    {
+                        return !m_JitterMap.empty();
+                    }
+                    if (m_Priming)
+                    {
+                        const int targetPrimeMs = ComputeTargetPrimeMsLocked();
+                        const int neededFrames = std::clamp((targetPrimeMs + 19) / 20, 2, 6);
+                        return static_cast<int>(m_JitterMap.size()) >= neededFrames;
+                    }
+                    if (m_JitterMap.find(m_ExpectedSeq) != m_JitterMap.end())
+                    {
+                        const uint32_t rf =
+                            m_RingWriteFrame.load(std::memory_order_relaxed) -
+                            m_RingReadFrame.load(std::memory_order_acquire);
+                        const int rms = static_cast<int>((static_cast<uint64_t>(rf) * 1000ULL) / srWait);
+                        return (rms <= ComputeMaxFeedRingMsLocked()) || (m_JitterMap.size() > 4);
+                    }
+                    if (!m_JitterMap.empty())
+                    {
+                        const int32_t gap = SeqDiff(m_JitterMap.begin()->first, m_ExpectedSeq);
+                        if (gap <= 0 || gap > 6) return true;
+                    }
+                    return false;
+                };
+
                 if (!m_HasExpectedSeq && m_JitterMap.empty())
                 {
-                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(200), [this]
-                    {
-                        return m_DecodeStop ||
-                               !m_JitterMap.empty() ||
-                               m_Muted.load(std::memory_order_acquire) ||
-                               m_StreamNeedsRebuild.load(std::memory_order_acquire);
-                    });
+                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(200), canProcessNowLocked);
                 }
                 else
                 {
-                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(6), [this]
-                    {
-                        return m_DecodeStop ||
-                               m_Muted.load(std::memory_order_acquire) ||
-                               m_StreamNeedsRebuild.load(std::memory_order_acquire) ||
-                               (m_HasExpectedSeq && m_JitterMap.find(m_ExpectedSeq) != m_JitterMap.end());
-                    });
+                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(5), canProcessNowLocked);
                 }
 
                 if (m_DecodeStop) break;
 
+                if (m_HadUnderrun.exchange(false, std::memory_order_acq_rel))
+                {
+                    // Self-heal: bump peak-excursion cushion on any real mid-stream underrun
+                    m_PeakExcursionUs = std::min(160000.0, m_PeakExcursionUs + 25000.0);
+                    m_AdaptiveMinRingUs.store(
+                        static_cast<int64_t>(ComputeMinSafeRingMsLocked()) * 1000LL,
+                        std::memory_order_relaxed);
+                    m_NeedFadeIn = true;
+                }
+
                 if (m_Muted.load(std::memory_order_acquire))
                 {
+                    m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
                     shouldCloseIdle = (m_PlayStream != nullptr);
+                }
+                else if (m_StreamNeedsRebuild.load(std::memory_order_acquire) && m_JitterMap.empty())
+                {
+                    m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
+                    shouldCloseIdle = true;
                 }
                 else
                 {
@@ -891,12 +1115,9 @@ namespace osmium::mobile
                         m_StatsWindowStartMs = nowMs;
                     }
 
-                    if (m_StreamNeedsRebuild.load(std::memory_order_acquire) && m_JitterMap.empty() && !m_HasExpectedSeq)
+                    if (!m_HasExpectedSeq)
                     {
-                        shouldCloseIdle = true;
-                    }
-                    else if (!m_HasExpectedSeq)
-                    {
+                        m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
                         if (m_PlayStream && m_LastPacketReceivedUs > 0 &&
                             (nowUs - m_LastPacketReceivedUs) >= kIdleKeepAliveUs)
                         {
@@ -905,16 +1126,19 @@ namespace osmium::mobile
                     }
                     else
                     {
-                        const int targetPrimeMs = std::clamp(static_cast<int>((m_JitterUs * 2.5) / 1000.0) + 20, 32, 75);
-                        const int neededFrames = std::clamp((targetPrimeMs + 19) / 20, 2, 4);
+                        const int targetPrimeMs = ComputeTargetPrimeMsLocked();
+                        const int neededFrames = std::clamp((targetPrimeMs + 19) / 20, 2, 6);
+                        const int maxFeedRingMs = ComputeMaxFeedRingMsLocked();
 
                         if (m_Priming)
                         {
+                            m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
                             if (static_cast<int>(m_JitterMap.size()) >= neededFrames ||
                                 (!m_JitterMap.empty() &&
                                  (nowUs - m_FirstArrivalUs) >= static_cast<uint64_t>(targetPrimeMs) * 1000ULL))
                             {
                                 m_Priming = false;
+                                m_EmptyBridgePlc = 0;
                                 if (!m_JitterMap.empty())
                                 {
                                     m_ExpectedSeq = m_JitterMap.begin()->first;
@@ -924,21 +1148,27 @@ namespace osmium::mobile
 
                         if (!m_Priming)
                         {
+                            const bool recentlyReceiving =
+                                m_LastPacketReceivedUs > 0 && (nowUs - m_LastPacketReceivedUs) < 180000ULL;
+                            m_StreamActiveForUnderrun.store(recentlyReceiving, std::memory_order_relaxed);
+
                             auto exactIt = m_JitterMap.find(m_ExpectedSeq);
                             if (exactIt != m_JitterMap.end())
                             {
-                                if (ringMs <= 65 || m_JitterMap.size() > 4)
+                                if (ringMs <= maxFeedRingMs || m_JitterMap.size() > 4)
                                 {
                                     toDecode = std::move(exactIt->second);
                                     m_JitterMap.erase(exactIt);
                                     m_ExpectedSeq++;
                                     m_LastFramePopUs = nowUs;
+                                    m_EmptyBridgePlc = 0;
                                     m_StatsExpected++;
                                     doDecode = true;
                                     if ((toDecode.flags & osmium::proto::kAudioFlagSilenceEnd) != 0)
                                     {
                                         m_HasExpectedSeq = false;
                                         m_Priming = true;
+                                        m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
                                     }
                                 }
                             }
@@ -955,12 +1185,15 @@ namespace osmium::mobile
                                     m_StatsExpected += static_cast<uint32_t>(std::min<int32_t>(gap, 25));
                                     m_StatsLost += static_cast<uint32_t>(std::min<int32_t>(gap, 25));
                                     m_ExpectedSeq = oldestSeq;
+                                    m_EmptyBridgePlc = 0;
                                     m_NeedFadeIn = true;
                                 }
                                 else
                                 {
                                     const uint64_t waitUs = nowUs - m_LastFramePopUs;
-                                    if (ringMs < 24 || waitUs >= 32000ULL)
+                                    const uint64_t gapBudgetUs = static_cast<uint64_t>(
+                                        std::clamp(m_JitterUs * 2.5 + 12000.0, 26000.0, 55000.0));
+                                    if (ringMs < 20 || waitUs >= gapBudgetUs)
                                     {
                                         m_ExpectedSeq++;
                                         m_LastFramePopUs = nowUs;
@@ -972,19 +1205,24 @@ namespace osmium::mobile
                             }
                             else
                             {
-                                if (m_LastFramePopUs > 0 && (nowUs - m_LastFramePopUs) > 220000ULL)
+                                // Jitter map empty (Wi-Fi stall or talkspurt pause):
+                                // NEVER advance m_ExpectedSeq or discard late packets before a newer seq arrives!
+                                if (m_LastFramePopUs > 0 && (nowUs - m_LastFramePopUs) > 350000ULL)
                                 {
                                     m_HasExpectedSeq = false;
                                     m_Priming = true;
                                     m_ConsecutivePlc = 0;
+                                    m_EmptyBridgePlc = 0;
                                     m_NeedFadeIn = true;
+                                    m_StreamActiveForUnderrun.store(false, std::memory_order_relaxed);
                                 }
-                                else if (ringMs < 16 && m_LastFramePopUs > 0 && (nowUs - m_LastFramePopUs) >= 24000ULL)
+                                else if (ringMs < 12 &&
+                                         m_EmptyBridgePlc < 2 &&
+                                         m_LastFramePopUs > 0 &&
+                                         (nowUs - m_LastFramePopUs) >= 34000ULL)
                                 {
-                                    m_ExpectedSeq++;
+                                    m_EmptyBridgePlc++;
                                     m_LastFramePopUs = nowUs;
-                                    m_StatsExpected++;
-                                    m_StatsLost++;
                                     doPlc = true;
                                 }
                             }

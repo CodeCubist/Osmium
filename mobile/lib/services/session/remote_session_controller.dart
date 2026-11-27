@@ -944,6 +944,43 @@ class RemoteSessionController extends ChangeNotifier {
     await _connect(req, ltoken: ltoken, captchaRetried: true);
   }
 
+  Uri _buildRelayUri({
+    required String relayPath,
+    required String sessionId,
+    required String relayToken,
+  }) {
+    final trimmed = relayPath.trim();
+    final query = {
+      'sessionId': sessionId,
+      'role': 'client',
+      'token': relayToken,
+    };
+    if (trimmed.startsWith('wss://') ||
+        trimmed.startsWith('ws://') ||
+        trimmed.startsWith('https://') ||
+        trimmed.startsWith('http://')) {
+      final parsed = Uri.parse(trimmed);
+      final wsScheme = (parsed.scheme == 'http' || parsed.scheme == 'ws')
+          ? 'ws'
+          : 'wss';
+      final normalizedPath = parsed.path.isEmpty || parsed.path == '/'
+          ? '/relay'
+          : parsed.path;
+      return parsed.replace(
+        scheme: wsScheme,
+        path: normalizedPath,
+        queryParameters: query,
+      );
+    }
+    final baseUri = Uri.parse(
+      SignalingClient.normalizeServerUrl(signaling.serverUrl),
+    );
+    final normalizedPath = trimmed.isEmpty
+        ? '/relay'
+        : (trimmed.startsWith('/') ? trimmed : '/$trimmed');
+    return baseUri.replace(path: normalizedPath, queryParameters: query);
+  }
+
   Future<bool> _connectCloudRelay({
     required String sessionId,
     required String relayPath,
@@ -952,19 +989,10 @@ class RemoteSessionController extends ChangeNotifier {
     required bool Function() aborted,
   }) async {
     try {
-      final baseUri = Uri.parse(
-        SignalingClient.normalizeServerUrl(signaling.serverUrl),
-      );
-      final normalizedPath = relayPath.startsWith('/')
-          ? relayPath
-          : '/$relayPath';
-      final relayUri = baseUri.replace(
-        path: normalizedPath,
-        queryParameters: {
-          'sessionId': sessionId,
-          'role': 'client',
-          'token': relayToken,
-        },
+      final relayUri = _buildRelayUri(
+        relayPath: relayPath,
+        sessionId: sessionId,
+        relayToken: relayToken,
       );
 
       final ws = await WebSocket.connect(relayUri.toString())
@@ -1168,19 +1196,10 @@ class RemoteSessionController extends ChangeNotifier {
     required bool Function() aborted,
   }) async {
     try {
-      final baseUri = Uri.parse(
-        SignalingClient.normalizeServerUrl(signaling.serverUrl),
-      );
-      final normalizedPath = relayPath.startsWith('/')
-          ? relayPath
-          : '/$relayPath';
-      final relayUri = baseUri.replace(
-        path: normalizedPath,
-        queryParameters: {
-          'sessionId': sessionId,
-          'role': 'client',
-          'token': relayToken,
-        },
+      final relayUri = _buildRelayUri(
+        relayPath: relayPath.isNotEmpty ? relayPath : '/relay-audio',
+        sessionId: sessionId,
+        relayToken: relayToken,
       );
 
       final ws = await WebSocket.connect(relayUri.toString())

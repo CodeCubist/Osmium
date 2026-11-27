@@ -66,16 +66,40 @@ public sealed class CloudRelayTransport : IDisposable
     public static Uri BuildRelayUri(string signalingServerUrl, string relayPath, string sessionId, string role,
         string relayToken)
     {
+        string rawPath = string.IsNullOrWhiteSpace(relayPath) ? "/relay" : relayPath.Trim();
+        string query =
+            $"sessionId={Uri.EscapeDataString(sessionId)}&role={Uri.EscapeDataString(role)}&token={Uri.EscapeDataString(relayToken)}";
+
+        if (Uri.TryCreate(rawPath, UriKind.Absolute, out var absUri) &&
+            (string.Equals(absUri.Scheme, "ws", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(absUri.Scheme, "wss", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(absUri.Scheme, "http", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(absUri.Scheme, "https", StringComparison.OrdinalIgnoreCase)))
+        {
+            string wsScheme = string.Equals(absUri.Scheme, "http", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(absUri.Scheme, "ws", StringComparison.OrdinalIgnoreCase)
+                ? "ws"
+                : "wss";
+            var absBuilder = new UriBuilder(absUri)
+            {
+                Scheme = wsScheme,
+                Path = string.IsNullOrWhiteSpace(absUri.AbsolutePath) || absUri.AbsolutePath == "/"
+                    ? "/relay"
+                    : absUri.AbsolutePath,
+                Query = query
+            };
+            if (absUri.IsDefaultPort) absBuilder.Port = -1;
+            return absBuilder.Uri;
+        }
+
         string normalized = SignalingClient.NormalizeServerUrl(signalingServerUrl);
         var baseUri = new Uri(normalized);
-        string path = string.IsNullOrWhiteSpace(relayPath) ? "/relay" : relayPath.Trim();
-        if (!path.StartsWith('/')) path = "/" + path;
+        string path = rawPath.StartsWith('/') ? rawPath : "/" + rawPath;
 
         var ub = new UriBuilder(baseUri)
         {
             Path = path,
-            Query =
-                $"sessionId={Uri.EscapeDataString(sessionId)}&role={Uri.EscapeDataString(role)}&token={Uri.EscapeDataString(relayToken)}"
+            Query = query
         };
         return ub.Uri;
     }

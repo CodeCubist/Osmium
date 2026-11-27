@@ -193,6 +193,7 @@ namespace
     {
         setpriority(PRIO_PROCESS, 0, -10);
         uint64_t lastPingMs = 0;
+        uint64_t lastReportedRttSeq = 0;
         uint64_t lastStatsMs = MobileTransport::NowMillis();
         uint64_t lastStalePurgeMs = lastStatsMs;
         uint64_t lastRxMs = lastStatsMs;
@@ -210,15 +211,24 @@ namespace
 
             uint64_t nowMs = MobileTransport::NowMillis();
 
-            // Send Ping every 250ms carrying live RTT + recent packet-loss telemetry for host AIMD pacing.
+            // Send Ping every 250ms; only attach RTT when a fresh Pong updated it so
+            // transient Wi-Fi stalls are never echoed multiple times to Host congestion control.
             if (nowMs - lastPingMs >= 250ULL)
             {
                 const uint32_t lossX100 = ctx->transport->GetPacketLossPercentX100();
                 const uint8_t lossSteps = static_cast<uint8_t>(std::min<uint32_t>(63U, (lossX100 + 19U) / 20U));
+                const uint64_t rttSeq = ctx->transport->GetRttSampleSeq();
+                const bool hasFreshRtt = (rttSeq != lastReportedRttSeq);
+                if (hasFreshRtt) lastReportedRttSeq = rttSeq;
                 osmium::proto::PingPongPayload ping{};
                 ping.hdr.type = static_cast<uint8_t>(osmium::proto::AppPacketType::Ping);
-                ping.hdr.flags = osmium::proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
-                ping.hdr.reserved = static_cast<uint16_t>(std::min<uint32_t>(65535U, ctx->transport->GetRttMs()));
+                if (hasFreshRtt || lossSteps > 0)
+                {
+                    ping.hdr.flags = osmium::proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
+                    ping.hdr.reserved = hasFreshRtt
+                        ? static_cast<uint16_t>(std::min<uint32_t>(65535U, ctx->transport->GetRttMs()))
+                        : 0;
+                }
                 ping.timestampUs = MobileTransport::NowMicros();
                 ctx->transport->SendEncrypted(osmium::proto::AppPacketType::Ping, &ping, sizeof(ping));
                 lastPingMs = nowMs;
@@ -411,7 +421,7 @@ namespace
             }
             if (r == 0 || plain.size() < sizeof(osmium::proto::AppPacketHeader)) continue;
 
-            for (int burst = 0; burst < 16 && !ctx->stopFlag.load(std::memory_order_acquire); ++burst)
+            for (int burst = 0; burst < 32 && !ctx->stopFlag.load(std::memory_order_acquire); ++burst)
             {
                 if (burst > 0)
                 {
@@ -513,7 +523,7 @@ namespace
             size_t queuedAfterPop = 0;
             uint32_t gateDropped = 0;
             const uint64_t reorderGraceMs =
-                std::clamp<uint64_t>(static_cast<uint64_t>(ctx->transport->GetRttMs()) + 10ULL, 12ULL, 35ULL);
+                std::clamp<uint64_t>(static_cast<uint64_t>(ctx->transport->GetRttMs()) + 15ULL, 20ULL, 45ULL);
             const int waitMs = ctx->decoder.HasInFlightFrames() ? 4 : 30;
             {
                 std::unique_lock<std::mutex> lock(ctx->frameQueueMutex);

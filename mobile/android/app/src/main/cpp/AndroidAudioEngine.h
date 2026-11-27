@@ -68,6 +68,9 @@ namespace osmium::mobile
         };
 
         void EnsureDecodeThreadLocked();
+        int ComputeMinSafeRingMsLocked() const;
+        int ComputeTargetPrimeMsLocked() const;
+        int ComputeMaxFeedRingMsLocked() const;
         void DecodeWorkerLoop();
         void DecodeSlot(const JitterSlot& slot);
         void ConcealMissingFrame();
@@ -112,15 +115,18 @@ namespace osmium::mobile
         uint64_t m_LastFramePopUs = 0;
         uint64_t m_LastPacketReceivedUs = 0;
         int m_ConsecutivePlc = 0;
+        int m_EmptyBridgePlc = 0;
         bool m_NeedFadeIn = true;
         bool m_DecodeStop = false;
         std::thread m_DecodeThread;
 
-        // Arrival jitter & loss stats (guarded by m_QueueMutex)
+        // Arrival jitter, peak excursion & loss stats (guarded by m_QueueMutex)
         bool m_HasLastArrival = false;
         uint64_t m_LastArrivalUs = 0;
         uint64_t m_LastCaptureUs = 0;
         double m_JitterUs = 8000.0;
+        double m_PeakExcursionUs = 12000.0;
+        std::atomic<int64_t> m_AdaptiveMinRingUs{42000};
         uint32_t m_StatsExpected = 0;
         uint32_t m_StatsLost = 0;
         uint64_t m_StatsWindowStartMs = 0;
@@ -152,6 +158,9 @@ namespace osmium::mobile
         std::atomic<bool> m_StreamNeedsRebuild{false};
         std::atomic<double> m_PlaybackRate{1.0};
         std::atomic<bool> m_PendingRingReset{false};
+        std::atomic<uint32_t> m_PendingTrimKeepFrames{0};
+        std::atomic<bool> m_StreamActiveForUnderrun{false};
+        std::atomic<bool> m_HadUnderrun{false};
 
         // Interleaved float ring buffer [kRingFrames * 2]
         std::vector<float> m_PcmRing;
@@ -160,6 +169,10 @@ namespace osmium::mobile
         // Accessed exclusively on AAudio PlaybackCallback thread (reset when stream stopped)
         double m_FracPos = 0.0;
         float m_PrevOutSample[2]{0.0f, 0.0f};
+        float m_FadeAnchorSample[2]{0.0f, 0.0f};
+        int32_t m_CallbackFadeInLeft = 0;
+        bool m_HasRingPrev = false;
+        bool m_InUnderrun = false;
 
         std::vector<float> m_DecodeScratch;
 

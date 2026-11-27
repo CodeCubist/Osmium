@@ -56,6 +56,9 @@ namespace osmium
             std::vector<uint8_t> data;
         };
 
+        int ComputeMinSafeQueuedMsLocked() const;
+        int ComputeTargetPrimeMsLocked() const;
+        int ComputeMaxFeedQueuedMsLocked() const;
         void WorkerLoop();
         void DecodeAndQueueSlot(const JitterSlot& slot);
         void ConcealMissingFrame();
@@ -86,13 +89,16 @@ namespace osmium
         uint64_t m_FirstArrivalUs = 0;
         uint64_t m_LastFramePopUs = 0;
         int m_ConsecutivePlc = 0;
+        int m_EmptyBridgePlc = 0;
         bool m_NeedFadeIn = true;
 
-        // Arrival jitter & loss stats (guarded by m_QueueMutex)
+        // Arrival jitter, peak excursion & loss stats (guarded by m_QueueMutex)
         bool m_HasLastArrival = false;
         uint64_t m_LastArrivalUs = 0;
         uint64_t m_LastCaptureUs = 0;
         double m_JitterUs = 6000.0;
+        double m_PeakExcursionUs = 10000.0;
+        std::atomic<int64_t> m_AdaptiveMinQueuedUs{36000};
         uint32_t m_StatsExpected = 0;
         uint32_t m_StatsLost = 0;
         uint64_t m_StatsWindowStartMs = 0;

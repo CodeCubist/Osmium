@@ -94,8 +94,13 @@ namespace osmium
         std::string GetRemoteEndpointString() const;
         uint16_t GetLocalPort() const { return m_ActiveLocalPort.load(); }
 
-        void RecordRttMs(uint32_t rttMs) { m_LastRttMs.store(rttMs); }
-        uint32_t GetLastRttMs() const { return m_LastRttMs.load(); }
+        void RecordRttMs(uint32_t rttMs)
+        {
+            m_LastRttMs.store(rttMs, std::memory_order_relaxed);
+            m_RttSampleSeq.fetch_add(1, std::memory_order_release);
+        }
+        uint32_t GetLastRttMs() const { return m_LastRttMs.load(std::memory_order_relaxed); }
+        uint64_t GetRttSampleSeq() const { return m_RttSampleSeq.load(std::memory_order_acquire); }
         void GetPacketStats(uint64_t& outReceived, uint64_t& outLost) const;
         uint32_t GetRecentLossPercentX100() const { return m_RecentLossX100.load(std::memory_order_relaxed); }
 
@@ -154,6 +159,7 @@ namespace osmium
         std::atomic<uint64_t> m_SendSequence{1};
         uint8_t m_NoncePrefix[4]{};
         std::atomic<uint32_t> m_LastRttMs{0};
+        std::atomic<uint64_t> m_RttSampleSeq{0};
 
         std::string m_LocalEndpointStr;
         std::string m_RemotePeerHintStr;
