@@ -68,6 +68,11 @@ namespace osmium::proto
     constexpr uint8_t kVideoFlagHdr = 0x01;
     constexpr uint8_t kVideoFlagYuv444 = 0x02;
     constexpr uint8_t kAppFlagHasActionSeq = 0x01;
+    // Ping telemetry packed into PingPongPayload::hdr (zero wire-format break,
+    // bit 0 always 0 so legacy hosts never misread it as kAppFlagHasActionSeq):
+    //   hdr.flags    = kPingFlagHasTelemetry | ((min(lossStep02Pct, 63)) << 1)  (0.2% units, 0..12.6%)
+    //   hdr.reserved = min(lastRttMs, 65535)
+    constexpr uint8_t kPingFlagHasTelemetry = 0x80;
 
     enum class MouseModeId : int32_t
     {

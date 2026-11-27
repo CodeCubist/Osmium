@@ -47,6 +47,8 @@ namespace osmium
 
         void Shutdown();
         void ForceKeyFrame() { m_ForceIdr.store(true); }
+        void UpdateBitrate(int bitrateKbps);
+        int GetActiveBitrateKbps() const { return m_ActiveBitrateKbps; }
         void ExcludeEncoderForSession(const std::string& ffmpegName);
         void ClearExcludedEncoders() { m_ExcludedEncoders.clear(); }
 
@@ -106,6 +108,8 @@ namespace osmium
         int m_SrcHeight = 0;
         int m_OutWidth = 0;
         int m_OutHeight = 0;
+        int m_ActiveFps = 60;
+        int m_ActiveBitrateKbps = 20000;
         int64_t m_Pts = 0;
         uint64_t m_ConvertedPixelRevision = 0;
         std::vector<int> m_HdrColumns;

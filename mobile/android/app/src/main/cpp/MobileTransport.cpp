@@ -105,9 +105,10 @@ namespace osmium::mobile
 
         void ConfigureUdpBuffers(int sock)
         {
-            int bufSize = 4 * 1024 * 1024;
-            setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
-            setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+            int rcvBuf = 2 * 1024 * 1024;
+            int sndBuf = 256 * 1024;
+            setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf));
+            setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndBuf, sizeof(sndBuf));
         }
     }
 
@@ -827,6 +828,12 @@ namespace osmium::mobile
             m_FirstRecvSeq = 0;
             m_MaxRecvSeq = 0;
             m_RecvWindowMask = 0;
+            m_WinStartMs = 0;
+            m_WinRecv = 0;
+            m_WinLost = 0;
+            m_PrevWinRecv = 0;
+            m_PrevWinLost = 0;
+            m_RecentLossX100.store(0, std::memory_order_relaxed);
             m_RecvPacketCount.store(0, std::memory_order_relaxed);
             m_LostPacketCount.store(0, std::memory_order_relaxed);
         }
@@ -984,6 +991,7 @@ namespace osmium::mobile
 
     bool MobileTransport::RecordReceivedSequence(uint64_t seq)
     {
+        uint64_t newlyLost = 0;
         if (m_MaxRecvSeq == 0)
         {
             m_FirstRecvSeq = seq;
@@ -993,7 +1001,6 @@ namespace osmium::mobile
         else if (seq > m_MaxRecvSeq)
         {
             uint64_t adv = seq - m_MaxRecvSeq;
-            uint64_t newlyLost = 0;
             if (adv >= 64)
             {
                 for (uint64_t b = 0; b < 64; ++b)
@@ -1036,6 +1043,37 @@ namespace osmium::mobile
             }
         }
         m_RecvPacketCount.fetch_add(1, std::memory_order_relaxed);
+
+        // Live 1-2 second sliding window loss rate (0.01% units) for HUD & host congestion feedback.
+        const uint64_t nowMs = NowMillis();
+        if (m_WinStartMs == 0)
+        {
+            m_WinStartMs = nowMs;
+        }
+        else if (nowMs - m_WinStartMs >= 1000ULL)
+        {
+            if (nowMs - m_WinStartMs >= 2000ULL)
+            {
+                m_PrevWinRecv = 0;
+                m_PrevWinLost = 0;
+            }
+            else
+            {
+                m_PrevWinRecv = m_WinRecv;
+                m_PrevWinLost = m_WinLost;
+            }
+            m_WinRecv = 0;
+            m_WinLost = 0;
+            m_WinStartMs = nowMs;
+        }
+        m_WinRecv += 1;
+        m_WinLost += newlyLost;
+        const uint64_t winTotal = m_WinRecv + m_PrevWinRecv + m_WinLost + m_PrevWinLost;
+        const uint32_t pctX100 = (winTotal > 0)
+                                     ? static_cast<uint32_t>(std::min<uint64_t>(
+                                           10000ULL, ((m_WinLost + m_PrevWinLost) * 10000ULL) / winTotal))
+                                     : 0U;
+        m_RecentLossX100.store(pctX100, std::memory_order_relaxed);
         return true;
     }
 
@@ -1654,10 +1692,6 @@ namespace osmium::mobile
 
     uint32_t MobileTransport::GetPacketLossPercentX100() const
     {
-        uint64_t recv = m_RecvPacketCount.load(std::memory_order_relaxed);
-        uint64_t lost = m_LostPacketCount.load(std::memory_order_relaxed);
-        uint64_t total = recv + lost;
-        if (total == 0) return 0;
-        return static_cast<uint32_t>((lost * 10000ULL) / total);
+        return m_RecentLossX100.load(std::memory_order_relaxed);
     }
 }

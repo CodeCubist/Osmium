@@ -210,11 +210,15 @@ namespace
 
             uint64_t nowMs = MobileTransport::NowMillis();
 
-            // Send Ping every 500ms
-            if (nowMs - lastPingMs >= 500ULL)
+            // Send Ping every 250ms carrying live RTT + recent packet-loss telemetry for host AIMD pacing.
+            if (nowMs - lastPingMs >= 250ULL)
             {
+                const uint32_t lossX100 = ctx->transport->GetPacketLossPercentX100();
+                const uint8_t lossSteps = static_cast<uint8_t>(std::min<uint32_t>(63U, (lossX100 + 19U) / 20U));
                 osmium::proto::PingPongPayload ping{};
                 ping.hdr.type = static_cast<uint8_t>(osmium::proto::AppPacketType::Ping);
+                ping.hdr.flags = osmium::proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
+                ping.hdr.reserved = static_cast<uint16_t>(std::min<uint32_t>(65535U, ctx->transport->GetRttMs()));
                 ping.timestampUs = MobileTransport::NowMicros();
                 ctx->transport->SendEncrypted(osmium::proto::AppPacketType::Ping, &ping, sizeof(ping));
                 lastPingMs = nowMs;

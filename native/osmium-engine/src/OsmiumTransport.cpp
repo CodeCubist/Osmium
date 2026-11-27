@@ -219,9 +219,13 @@ namespace osmium
 
         auto configureUdpSock = [](SOCKET s)
         {
-            int bufSize = 16 * 1024 * 1024;
-            setsockopt(s, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&bufSize), sizeof(bufSize));
-            setsockopt(s, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<const char*>(&bufSize), sizeof(bufSize));
+            // Keep SO_RCVBUF generous (4 MB) to absorb RX bursts without drops,
+            // but cap SO_SNDBUF at 512 KB to eliminate multi-second TX bufferbloat
+            // when Windows NDIS multimedia throttling or 2.4GHz Wi-Fi slows draining.
+            int rcvBuf = 4 * 1024 * 1024;
+            int sndBuf = 512 * 1024;
+            setsockopt(s, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&rcvBuf), sizeof(rcvBuf));
+            setsockopt(s, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<const char*>(&sndBuf), sizeof(sndBuf));
             BOOL newBehavior = FALSE;
             DWORD bytesReturned = 0;
             WSAIoctl(s, SIO_UDP_CONNRESET, &newBehavior, sizeof(newBehavior), nullptr, 0, &bytesReturned, nullptr,
@@ -1185,6 +1189,7 @@ namespace osmium
 
     bool OsmiumTransport::RecordReceivedSequence(uint64_t seq)
     {
+        uint64_t newlyLost = 0;
         if (m_MaxRecvSeq == 0)
         {
             m_FirstRecvSeq = seq;
@@ -1194,7 +1199,6 @@ namespace osmium
         else if (seq > m_MaxRecvSeq)
         {
             uint64_t adv = seq - m_MaxRecvSeq;
-            uint64_t newlyLost = 0;
             if (adv >= 64)
             {
                 for (uint64_t b = 0; b < 64; ++b)
@@ -1242,6 +1246,36 @@ namespace osmium
         }
 
         m_RecvPacketCount.fetch_add(1, std::memory_order_relaxed);
+
+        const uint64_t nowMs = NowMillis();
+        if (m_WinStartMs == 0)
+        {
+            m_WinStartMs = nowMs;
+        }
+        else if (nowMs - m_WinStartMs >= 1000ULL)
+        {
+            if (nowMs - m_WinStartMs >= 2000ULL)
+            {
+                m_PrevWinRecv = 0;
+                m_PrevWinLost = 0;
+            }
+            else
+            {
+                m_PrevWinRecv = m_WinRecv;
+                m_PrevWinLost = m_WinLost;
+            }
+            m_WinRecv = 0;
+            m_WinLost = 0;
+            m_WinStartMs = nowMs;
+        }
+        m_WinRecv += 1;
+        m_WinLost += newlyLost;
+        const uint64_t winTotal = m_WinRecv + m_PrevWinRecv + m_WinLost + m_PrevWinLost;
+        const uint32_t pctX100 = (winTotal > 0)
+                                     ? static_cast<uint32_t>((std::min<uint64_t>)(
+                                           10000ULL, ((m_WinLost + m_PrevWinLost) * 10000ULL) / winTotal))
+                                     : 0U;
+        m_RecentLossX100.store(pctX100, std::memory_order_relaxed);
         return true;
     }
 
@@ -1386,6 +1420,12 @@ namespace osmium
             m_FirstRecvSeq = 0;
             m_MaxRecvSeq = 0;
             m_RecvWindowMask = 0;
+            m_WinStartMs = 0;
+            m_WinRecv = 0;
+            m_WinLost = 0;
+            m_PrevWinRecv = 0;
+            m_PrevWinLost = 0;
+            m_RecentLossX100.store(0, std::memory_order_relaxed);
             m_RecvPacketCount.store(0, std::memory_order_relaxed);
             m_LostPacketCount.store(0, std::memory_order_relaxed);
         }

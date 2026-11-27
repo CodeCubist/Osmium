@@ -293,6 +293,10 @@ namespace
         std::atomic<bool> driverCacheDirty{true};
         std::atomic<bool> idrRecoveryPending{true};
         std::atomic<uint64_t> lastKeyFrameEmitMs{0};
+        std::atomic<uint32_t> clientFeedbackRttMs{0};
+        std::atomic<uint32_t> clientFeedbackLossPermille{0};
+        std::atomic<uint64_t> clientFeedbackSeq{0};
+        std::atomic<int32_t> congestionLevel{0}; // 0=clean, 1=mild, 2=severe
         std::atomic<bool> stopFlag{false};
 
         std::atomic<uint32_t> frameIdCounter{1};
@@ -620,6 +624,14 @@ namespace
         ctx->audio.SetVirtualDevices(&ctx->virtualUsb);
 
         int32_t activeFps = 60;
+        int32_t configuredBitrateKbps = 20000;
+        int32_t effectiveBitrateKbps = 20000;
+        uint64_t lastFeedbackSeq = 0;
+        uint32_t baselineRttMs = 0;
+        uint64_t cleanSinceMs = 0;
+        uint64_t lastBitrateBumpMs = 0;
+        uint64_t lastDrainSkipMs = 0;
+        int32_t drainSkipFrames = 0;
         bool lastPrivacyActivity = false;
         bool allowGpuEncoderInput = true;
         auto reconfigurePipeline = [&](bool forceInitCapture) -> bool
@@ -688,6 +700,12 @@ namespace
                                            acceptsNv12 ? ctx->encoder.GetOutHeight() : 0,
                                            ctx->encoder.GetD3dInputDevice());
             activeFps = settings.fps;
+            configuredBitrateKbps = settings.bitrateKbps;
+            effectiveBitrateKbps = settings.bitrateKbps;
+            ctx->congestionLevel.store(0, std::memory_order_relaxed);
+            cleanSinceMs = 0;
+            lastBitrateBumpMs = 0;
+            drainSkipFrames = 0;
             ctx->cachedNativeW.store(capW, std::memory_order_relaxed);
             ctx->cachedNativeH.store(capH, std::memory_order_relaxed);
             ctx->cachedStreamW.store(ctx->encoder.GetOutWidth(), std::memory_order_relaxed);
@@ -797,6 +815,92 @@ namespace
             }
 
             uint64_t nowMs = NowMillis();
+
+            // Closed-loop RTT + sliding-window packet-loss AIMD congestion controller.
+            // Prevents multi-second bufferbloat / loss spirals on 2.4GHz Wi-Fi, P2P, and Relay
+            // whenever Windows multimedia throttling or wireless interference narrows bandwidth.
+            const uint64_t fbSeq = ctx->clientFeedbackSeq.load(std::memory_order_acquire);
+            if (fbSeq != lastFeedbackSeq)
+            {
+                lastFeedbackSeq = fbSeq;
+                const uint32_t rttMs = ctx->clientFeedbackRttMs.load(std::memory_order_relaxed);
+                const uint32_t lossPermille = ctx->clientFeedbackLossPermille.load(std::memory_order_relaxed);
+
+                if (rttMs > 0)
+                {
+                    if (baselineRttMs == 0 || rttMs < baselineRttMs)
+                    {
+                        baselineRttMs = rttMs;
+                    }
+                    else if (lossPermille == 0 && rttMs < baselineRttMs + 20U)
+                    {
+                        baselineRttMs = (baselineRttMs * 15U + rttMs) / 16U;
+                    }
+                }
+
+                const int32_t floorKbps = std::clamp(configuredBitrateKbps / 5, 1200, 8000);
+                const bool severeCongestion =
+                    (rttMs >= 180U) ||
+                    (lossPermille >= 20U) ||
+                    (baselineRttMs > 0 && rttMs >= baselineRttMs + 120U);
+                const bool mildCongestion =
+                    !severeCongestion &&
+                    ((lossPermille >= 4U) ||
+                     (rttMs >= 70U && baselineRttMs > 0 && rttMs >= baselineRttMs + 45U));
+
+                if (severeCongestion)
+                {
+                    cleanSinceMs = 0;
+                    ctx->congestionLevel.store(2, std::memory_order_relaxed);
+                    const int32_t nextKbps = std::max(floorKbps, (effectiveBitrateKbps * 60) / 100);
+                    if (nextKbps < effectiveBitrateKbps)
+                    {
+                        effectiveBitrateKbps = nextKbps;
+                        ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
+                        OSM_LOG_WARN("Congestion control (severe: rtt=%ums base=%ums loss=%.1f%%): bitrate -> %d kbps",
+                                     rttMs, baselineRttMs, lossPermille / 10.0, effectiveBitrateKbps);
+                    }
+                    if ((rttMs >= 200U || (baselineRttMs > 0 && rttMs >= baselineRttMs + 150U)) &&
+                        (nowMs - lastDrainSkipMs) >= 450ULL)
+                    {
+                        lastDrainSkipMs = nowMs;
+                        drainSkipFrames = std::max(drainSkipFrames, 2);
+                    }
+                }
+                else if (mildCongestion)
+                {
+                    cleanSinceMs = 0;
+                    ctx->congestionLevel.store(1, std::memory_order_relaxed);
+                    const int32_t nextKbps = std::max(floorKbps, (effectiveBitrateKbps * 82) / 100);
+                    if (nextKbps < effectiveBitrateKbps)
+                    {
+                        effectiveBitrateKbps = nextKbps;
+                        ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
+                        OSM_LOG_INFO("Congestion control (mild: rtt=%ums base=%ums loss=%.1f%%): bitrate -> %d kbps",
+                                     rttMs, baselineRttMs, lossPermille / 10.0, effectiveBitrateKbps);
+                    }
+                }
+                else
+                {
+                    if (cleanSinceMs == 0)
+                    {
+                        cleanSinceMs = nowMs;
+                    }
+                    if (nowMs - cleanSinceMs >= 1200ULL)
+                    {
+                        ctx->congestionLevel.store(0, std::memory_order_relaxed);
+                        if (effectiveBitrateKbps < configuredBitrateKbps &&
+                            (lastBitrateBumpMs == 0 || nowMs - lastBitrateBumpMs >= 1000ULL))
+                        {
+                            lastBitrateBumpMs = nowMs;
+                            const int32_t step = std::max(500, effectiveBitrateKbps / 8);
+                            effectiveBitrateKbps = std::min(configuredBitrateKbps, effectiveBitrateKbps + step);
+                            ctx->encoder.UpdateBitrate(effectiveBitrateKbps);
+                        }
+                    }
+                }
+            }
+
             if (nowMs - lastMonitorTickMs >= 200)
             {
                 lastMonitorTickMs = nowMs;
@@ -900,6 +1004,18 @@ namespace
                     continue;
                 }
 
+                // Pre-encode AP/socket queue drain skip during severe RTT spikes:
+                // skipping before EncodeFrame preserves the H.264/HEVC reference chain cleanly
+                // while giving the Wi-Fi AP / kernel queue 1-2 frame intervals to drain.
+                bool skipForQueueDrain = false;
+                if (drainSkipFrames > 0 && !ctx->idrRecoveryPending.load(std::memory_order_relaxed))
+                {
+                    drainSkipFrames--;
+                    skipForQueueDrain = true;
+                }
+
+                if (!skipForQueueDrain)
+                {
                 uint64_t encStartUs = NowMicros();
                 const auto inputFormat = capFrame.isNv12 ? AV_PIX_FMT_NV12 :
                     (capFrame.isHdr10Pq ? AV_PIX_FMT_X2BGR10LE : AV_PIX_FMT_BGRA);
@@ -934,19 +1050,43 @@ namespace
                         size_t totalChunks = (ep.data.size() + maxChunkPayload - 1) / maxChunkPayload;
                         if (totalChunks > 65535) continue;
 
-                        const bool paceUdpBurst = (!isRelayRoute && totalChunks > 4);
-                        const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 80 &&
-                            ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
+                        const int32_t congLevel = ctx->congestionLevel.load(std::memory_order_relaxed);
+                        const bool paceUdpBurst = (!isRelayRoute && totalChunks >= 2);
+                        // Only duplicate tiny recovery keyframes on a clean link; duplicating large IDRs
+                        // floods 2.4GHz Wi-Fi AP queues and triggers multi-second RTT/loss spirals.
+                        const bool sendKeyRedundantPass = (!isRelayRoute && ep.isKeyFrame && totalChunks <= 10 &&
+                            congLevel == 0 && ctx->idrRecoveryPending.exchange(false, std::memory_order_acq_rel));
+                        if (ep.isKeyFrame && !sendKeyRedundantPass)
+                        {
+                            ctx->idrRecoveryPending.store(false, std::memory_order_relaxed);
+                        }
                         const int passCount = sendKeyRedundantPass ? 2 : 1;
-                        // Smooth per-frame UDP pacing prevents 600+ Mbps Wi-Fi/router microburst drops
-                        // on both LAN (especially Mobile Wi-Fi) and P2P while keeping high-FPS frame span tight.
-                        const uint64_t perChunkUs = isLanRoute ? 35ULL : 65ULL;
+
+                        // Smooth per-chunk rate-matched UDP pacing:
+                        // 1) Stays strictly below Windows NDIS NetworkThrottlingIndex (10 pkt/ms = 100us/pkt)
+                        //    which Windows activates whenever host audio (Audiosrv) starts playing.
+                        // 2) Prevents 300+ Mbps microbursts from overflowing 2.4GHz Wi-Fi / P2P router queues.
+                        const uint64_t paceRateKbps =
+                            static_cast<uint64_t>(std::max<int32_t>(8000, effectiveBitrateKbps * 3));
+                        uint64_t perChunkUs = (static_cast<uint64_t>(maxChunkPayload) * 8000ULL) / paceRateKbps;
+                        if (effectiveBitrateKbps <= 75000 || congLevel > 0)
+                        {
+                            perChunkUs = std::max<uint64_t>(perChunkUs, isLanRoute ? 110ULL : 130ULL);
+                        }
+                        else
+                        {
+                            perChunkUs = std::max<uint64_t>(perChunkUs, isLanRoute ? 45ULL : 80ULL);
+                        }
+                        if (congLevel == 1) perChunkUs = std::max<uint64_t>(perChunkUs, 155ULL);
+                        else if (congLevel >= 2) perChunkUs = std::max<uint64_t>(perChunkUs, 240ULL);
+
                         const uint64_t maxSpanUs = ep.isKeyFrame
-                                                       ? std::min<uint64_t>((frameIntervalUs * 60ULL) / 100ULL, 9000ULL)
-                                                       : std::min<uint64_t>((frameIntervalUs * 45ULL) / 100ULL, 5500ULL);
+                                                       ? std::min<uint64_t>((frameIntervalUs * 85ULL) / 100ULL, 14000ULL)
+                                                       : std::min<uint64_t>((frameIntervalUs * 72ULL) / 100ULL, 11000ULL);
                         const uint64_t targetSpanUs = paceUdpBurst
                                                           ? std::min<uint64_t>(
-                                                              maxSpanUs, static_cast<uint64_t>(totalChunks) * perChunkUs)
+                                                              maxSpanUs,
+                                                              static_cast<uint64_t>(totalChunks - 1) * perChunkUs)
                                                           : 0ULL;
 
                         auto waitUntilPaceUs = [](uint64_t deadlineUs)
@@ -955,7 +1095,7 @@ namespace
                             {
                                 const uint64_t nowU = NowMicros();
                                 if (nowU >= deadlineUs) break;
-                                if (deadlineUs - nowU > 80ULL)
+                                if (deadlineUs - nowU > 60ULL)
                                 {
                                     SwitchToThread();
                                 }
@@ -992,11 +1132,11 @@ namespace
                                 ctx->transport->SendEncrypted(proto::AppPacketType::VideoChunk, chunkBuf.data(),
                                                               chunkBuf.size());
                                 ctx->bytesSentWindow.fetch_add(chunkBuf.size());
-                                if (paceUdpBurst && ((ci & 1U) == 1U) && (ci + 1) < totalChunks)
+                                if (paceUdpBurst && (ci + 1) < totalChunks)
                                 {
                                     const uint64_t targetUs = burstStartUs +
                                         ((static_cast<uint64_t>(ci + 1) * targetSpanUs) /
-                                            static_cast<uint64_t>(totalChunks));
+                                            static_cast<uint64_t>(totalChunks - 1));
                                     waitUntilPaceUs(targetUs);
                                 }
                             }
@@ -1054,6 +1194,7 @@ namespace
                     consecutiveEmptyEncodes = 0;
                     lastEncodedPacketMs = encNowMs;
                     reconfigurePipeline(false);
+                }
                 }
             }
 
@@ -1178,7 +1319,9 @@ namespace
 
                 lastPeerRxMs = nowMs;
                 const auto* appHdr = reinterpret_cast<const proto::AppPacketHeader*>(plain.data());
-                if ((appHdr->flags & proto::kAppFlagHasActionSeq) != 0 && appHdr->reserved != 0)
+                auto type = static_cast<proto::AppPacketType>(plain[0]);
+                if (type != proto::AppPacketType::Ping && type != proto::AppPacketType::Pong &&
+                    (appHdr->flags & proto::kAppFlagHasActionSeq) != 0 && appHdr->reserved != 0)
                 {
                     if (!ctx->actionDedup.Accept(appHdr->reserved))
                     {
@@ -1186,13 +1329,14 @@ namespace
                     }
                 }
 
-                auto type = static_cast<proto::AppPacketType>(plain[0]);
                 if (type == proto::AppPacketType::VideoIdrRequest)
                 {
                     // Cooldown prevents duplicate UDP IDR requests or rapid client retries from
                     // triggering back-to-back giant keyframes that self-congest Wi-Fi/P2P/Relay.
+                    const int32_t cong = ctx->congestionLevel.load(std::memory_order_relaxed);
+                    const uint64_t cooldownMs = (cong >= 2) ? 750ULL : (cong == 1 ? 500ULL : 280ULL);
                     const uint64_t lastKeyMs = ctx->lastKeyFrameEmitMs.load(std::memory_order_relaxed);
-                    if (lastKeyMs == 0 || (nowMs - lastKeyMs) >= 250ULL)
+                    if (lastKeyMs == 0 || (nowMs - lastKeyMs) >= cooldownMs)
                     {
                         ctx->idrRecoveryPending.store(true, std::memory_order_release);
                         ctx->encoder.ForceKeyFrame();
@@ -1201,6 +1345,17 @@ namespace
                 else if (type == proto::AppPacketType::Ping && plain.size() >= sizeof(proto::PingPongPayload))
                 {
                     auto pong = *reinterpret_cast<const proto::PingPongPayload*>(plain.data());
+                    if ((pong.hdr.flags & proto::kPingFlagHasTelemetry) != 0)
+                    {
+                        const uint32_t rttMs = pong.hdr.reserved;
+                        const uint32_t lossPermille = static_cast<uint32_t>((pong.hdr.flags >> 1) & 0x3FU) * 2U;
+                        ctx->transport->RecordRttMs(rttMs);
+                        ctx->clientFeedbackRttMs.store(rttMs, std::memory_order_relaxed);
+                        ctx->clientFeedbackLossPermille.store(lossPermille, std::memory_order_relaxed);
+                        ctx->clientFeedbackSeq.fetch_add(1, std::memory_order_release);
+                    }
+                    pong.hdr.flags = 0;
+                    pong.hdr.reserved = 0;
                     ctx->transport->SendEncrypted(proto::AppPacketType::Pong, &pong, sizeof(pong));
                 }
                 else if (type == proto::AppPacketType::AuthRequest)
@@ -1705,10 +1860,14 @@ namespace
         while (!ctx->stopFlag.load())
         {
             uint64_t preNowMs = NowMillis();
-            if (preNowMs - lastPingMs >= 500ULL)
+            if (preNowMs - lastPingMs >= 250ULL)
             {
                 lastPingMs = preNowMs;
+                const uint32_t lossX100 = ctx->transport->GetRecentLossPercentX100();
+                const uint8_t lossSteps = static_cast<uint8_t>(std::min<uint32_t>(63U, (lossX100 + 19U) / 20U));
                 proto::PingPongPayload ping{};
+                ping.hdr.flags = proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
+                ping.hdr.reserved = static_cast<uint16_t>(std::min<uint32_t>(65535U, ctx->transport->GetLastRttMs()));
                 ping.timestampUs = NowMicros();
                 ctx->transport->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
             }
@@ -2083,10 +2242,7 @@ namespace
 
                 uint64_t rxPkts = 0, lostPkts = 0;
                 ctx->transport->GetPacketStats(rxPkts, lostPkts);
-                uint64_t totPkts = rxPkts + lostPkts;
-                double lossPct = totPkts > 0
-                                     ? (static_cast<double>(lostPkts) * 100.0 / static_cast<double>(totPkts))
-                                     : 0.0;
+                double lossPct = static_cast<double>(ctx->transport->GetRecentLossPercentX100()) / 100.0;
 
                 stats.receivedFrames = ctx->receivedFrames.load();
                 stats.decodedFrames = decodedTotal;
@@ -3305,10 +3461,14 @@ OSMIUM_API int32_t Osmium_RunClientSession(
         while (!recvStop.load() && !g_ClientStopRequested.load())
         {
             uint64_t preNowMs = NowMillis();
-            if (preNowMs - lastPingMs >= 500ULL)
+            if (preNowMs - lastPingMs >= 250ULL)
             {
                 lastPingMs = preNowMs;
+                const uint32_t lossX100 = t->GetRecentLossPercentX100();
+                const uint8_t lossSteps = static_cast<uint8_t>(std::min<uint32_t>(63U, (lossX100 + 19U) / 20U));
                 proto::PingPongPayload ping{};
+                ping.hdr.flags = proto::kPingFlagHasTelemetry | static_cast<uint8_t>(lossSteps << 1);
+                ping.hdr.reserved = static_cast<uint16_t>(std::min<uint32_t>(65535U, t->GetLastRttMs()));
                 ping.timestampUs = NowMicros();
                 t->SendEncrypted(proto::AppPacketType::Ping, &ping, sizeof(ping));
             }

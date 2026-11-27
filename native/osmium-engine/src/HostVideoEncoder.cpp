@@ -175,6 +175,18 @@ namespace osmium
         }
     }
 
+    void HostVideoEncoder::UpdateBitrate(int bitrateKbps)
+    {
+        if (!m_CodecCtx) return;
+        const int clamped = std::clamp(bitrateKbps, 800, 500000);
+        if (clamped == m_ActiveBitrateKbps) return;
+        const int64_t bps = static_cast<int64_t>(clamped) * 1000LL;
+        m_CodecCtx->bit_rate = bps;
+        m_CodecCtx->rc_max_rate = bps;
+        m_CodecCtx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, (bps * 5) / (std::max(1, m_ActiveFps) * 4)));
+        m_ActiveBitrateKbps = clamped;
+    }
+
     void HostVideoEncoder::Shutdown()
     {
         m_ConvertedPixelRevision = 0;
@@ -377,8 +389,9 @@ namespace osmium
         ctx->framerate = AVRational{std::max(1, fps), 1};
         ctx->bit_rate = static_cast<int64_t>(std::max(500, bitrateKbps)) * 1000LL;
         ctx->rc_max_rate = ctx->bit_rate;
-        // Limit bursts from scene changes without making every frame fit a one-frame VBV.
-        ctx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, ctx->bit_rate * 2 / ctx->framerate.num));
+        // Tight ~1.25-frame VBV smooths scene-change/keyframe spikes so 2.4GHz Wi-Fi AP
+        // queues don't overflow on sudden motion or IDR keyframes.
+        ctx->rc_buffer_size = static_cast<int>(std::max<int64_t>(16000, (ctx->bit_rate * 5) / (ctx->framerate.num * 4)));
         // Long periodic GOP (10s instead of 2s) eliminates frequent unsolicited keyframe
         // spikes on Wi-Fi/P2P/Relay while on-demand VideoIdrRequest handles loss recovery.
         ctx->gop_size = std::max(1, fps * 10);
@@ -496,6 +509,8 @@ namespace osmium
         }
 
         m_CodecCtx = ctx;
+        m_ActiveFps = std::max(1, fps);
+        m_ActiveBitrateKbps = std::max(500, bitrateKbps);
         m_EncoderName = cand.ffmpegName;
         m_CodecName = cand.codecDisplay;
         m_CodecId = cand.codecId;

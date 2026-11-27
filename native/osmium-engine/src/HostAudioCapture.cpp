@@ -2,6 +2,7 @@
 #include "UsbIpVirtualDevices.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #pragma comment(lib, "ole32.lib")
@@ -104,6 +105,9 @@ namespace osmium
 
     void HostAudioCapture::CaptureThreadProc()
     {
+        // Deliberately avoid registering with Windows MMCSS ("Pro Audio") here:
+        // keeping an MMCSS audio task active activates Windows NDIS NetworkThrottlingIndex
+        // (10 pkt/ms cap) even while the host is silent.
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
         HRESULT hrCom = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
@@ -119,18 +123,24 @@ namespace osmium
         opus_encoder_ctl(m_Opus, OPUS_SET_COMPLEXITY(5));
         opus_encoder_ctl(m_Opus, OPUS_SET_INBAND_FEC(1));
         opus_encoder_ctl(m_Opus, OPUS_SET_PACKET_LOSS_PERC(5));
+        opus_encoder_ctl(m_Opus, OPUS_SET_DTX(1));
 
         ComPtr<IMMDeviceEnumerator> enumerator;
         ComPtr<IMMDevice> device;
         ComPtr<IAudioClient> audioClient;
         ComPtr<IAudioCaptureClient> captureClient;
         WAVEFORMATEX* mixFmt = nullptr;
-        HANDLE audioEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-        bool useEventDriven = false;
+        // Use a 5ms high-res waitable timer instead of AUDCLNT_STREAMFLAGS_EVENTCALLBACK
+        // on WASAPI loopback: loopback event-driven mode is notoriously flaky/bursty on
+        // Realtek/Nahimic/USB audio drivers, whereas steady polling avoids audio packet bursts.
+        HANDLE pollTimer = CreateWaitableTimerExW(nullptr, nullptr, 0x00000002 /*HIGH_RESOLUTION*/, TIMER_ALL_ACCESS);
+        if (!pollTimer)
+        {
+            pollTimer = CreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
+        }
 
         auto initWasapiLoopback = [&]() -> bool
         {
-            useEventDriven = false;
             if (mixFmt)
             {
                 CoTaskMemFree(mixFmt);
@@ -160,16 +170,7 @@ namespace osmium
                 return false;
             }
 
-            if (audioEvent &&
-                SUCCEEDED(audioClient->Initialize(
-                    AUDCLNT_SHAREMODE_SHARED,
-                    AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-                    200000, 0, mixFmt, nullptr)) &&
-                SUCCEEDED(audioClient->SetEventHandle(audioEvent)))
-            {
-                useEventDriven = true;
-            }
-            else if (FAILED(audioClient->Initialize(
+            if (FAILED(audioClient->Initialize(
                 AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, 200000, 0, mixFmt, nullptr)))
             {
                 return false;
@@ -204,8 +205,8 @@ namespace osmium
                 return false;
             }
 
-            OSM_LOG_INFO("WASAPI loopback audio capture started (%u Hz, %u ch -> 48kHz Opus 20ms, event=%d)",
-                         mixFmt->nSamplesPerSec, mixFmt->nChannels, useEventDriven ? 1 : 0);
+            OSM_LOG_INFO("WASAPI loopback audio capture started (%u Hz, %u ch -> 48kHz Opus 20ms, DTX+silence-gate)",
+                         mixFmt->nSamplesPerSec, mixFmt->nChannels);
             return true;
         };
 
@@ -219,6 +220,7 @@ namespace osmium
         // compared to 10ms frames while preserving ultra-low latency and enabling in-band FEC.
         constexpr int kFrameSamples = 960;
         constexpr size_t kFrameFloats = static_cast<size_t>(kFrameSamples) * 2;
+        constexpr uint32_t kSilenceTailFrames = 10; // 200ms trailing silence before gating off
         std::vector<int16_t> vspkPcm(kFrameSamples * 2);
         size_t vspkHave = 0;
         std::vector<float> pcmFifo;
@@ -227,6 +229,22 @@ namespace osmium
         std::vector<float> resampled(4096 * 2);
         uint8_t opusBuf[1500]{};
         bool prevVirtualMode = false;
+        uint32_t consecutiveSilentFrames = kSilenceTailFrames;
+
+        auto waitShort = [&](int ms)
+        {
+            if (pollTimer)
+            {
+                LARGE_INTEGER due{};
+                due.QuadPart = -static_cast<LONGLONG>(ms) * 10000LL;
+                if (SetWaitableTimer(pollTimer, &due, 0, nullptr, nullptr, FALSE))
+                {
+                    WaitForSingleObject(pollTimer, static_cast<DWORD>(ms + 5));
+                    return;
+                }
+            }
+            Sleep(static_cast<DWORD>(ms));
+        };
 
         while (!m_StopFlag.load())
         {
@@ -242,6 +260,7 @@ namespace osmium
                     pcmFifo.clear();
                     fifoReadPos = 0;
                     vspkHave = 0;
+                    consecutiveSilentFrames = kSilenceTailFrames;
                     OSM_LOG_INFO(
                         "HostAudioCapture reading directly from Osmium Virtual Speaker USB/IP sink (host muted)");
                 }
@@ -251,16 +270,31 @@ namespace osmium
                 vspkHave += got;
                 if (vspkHave >= static_cast<size_t>(kFrameSamples))
                 {
-                    int encoded = opus_encode(m_Opus, vspkPcm.data(), kFrameSamples, opusBuf, sizeof(opusBuf));
-                    vspkHave = 0;
-                    if (encoded > 0 && m_Callback)
+                    bool frameSilent = true;
+                    for (size_t i = 0; i < vspkPcm.size(); i += 4)
                     {
-                        m_Callback(opusBuf, encoded, kFrameSamples);
+                        if (std::abs(vspkPcm[i]) > 2)
+                        {
+                            frameSilent = false;
+                            break;
+                        }
+                    }
+                    if (!frameSilent) consecutiveSilentFrames = 0;
+                    else if (consecutiveSilentFrames < kSilenceTailFrames) consecutiveSilentFrames++;
+
+                    vspkHave = 0;
+                    if (!frameSilent || consecutiveSilentFrames < kSilenceTailFrames)
+                    {
+                        int encoded = opus_encode(m_Opus, vspkPcm.data(), kFrameSamples, opusBuf, sizeof(opusBuf));
+                        if (encoded > 2 && m_Callback)
+                        {
+                            m_Callback(opusBuf, encoded, kFrameSamples);
+                        }
                     }
                 }
                 else
                 {
-                    Sleep(4);
+                    waitShort(4);
                 }
                 continue;
             }
@@ -269,6 +303,7 @@ namespace osmium
             {
                 prevVirtualMode = false;
                 vspkHave = 0;
+                consecutiveSilentFrames = kSilenceTailFrames;
                 Sleep(120);
                 wasapiReady = initWasapiLoopback();
             }
@@ -290,14 +325,7 @@ namespace osmium
 
             if (packetLength == 0)
             {
-                if (useEventDriven && audioEvent)
-                {
-                    WaitForSingleObject(audioEvent, 15);
-                }
-                else
-                {
-                    Sleep(4);
-                }
+                waitShort(5);
                 continue;
             }
 
@@ -315,9 +343,12 @@ namespace osmium
                 {
                     if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
                     {
-                        size_t outCount = static_cast<size_t>((uint64_t(numFrames) * 48000ULL) / mixFmt->
-                            nSamplesPerSec);
-                        pcmFifo.insert(pcmFifo.end(), outCount * 2, 0.0f);
+                        if (consecutiveSilentFrames < kSilenceTailFrames)
+                        {
+                            size_t outCount = static_cast<size_t>((uint64_t(numFrames) * 48000ULL) / mixFmt->
+                                nSamplesPerSec);
+                            pcmFifo.insert(pcmFifo.end(), outCount * 2, 0.0f);
+                        }
                     }
                     else
                     {
@@ -339,17 +370,42 @@ namespace osmium
 
                 captureClient->ReleaseBuffer(numFrames);
 
+                // Drop stale backlog if WASAPI delivered a late burst (> 60ms) so we never
+                // flood the UDP socket with back-to-back audio bursts.
+                const size_t avail = pcmFifo.size() - fifoReadPos;
+                if (avail > kFrameFloats * 3)
+                {
+                    fifoReadPos = pcmFifo.size() - kFrameFloats * 2;
+                }
+
                 while (pcmFifo.size() - fifoReadPos >= kFrameFloats)
                 {
-                    int encoded = opus_encode_float(
-                        m_Opus,
-                        pcmFifo.data() + fifoReadPos,
-                        kFrameSamples,
-                        opusBuf,
-                        sizeof(opusBuf));
-                    if (encoded > 0 && m_Callback)
+                    const float* framePtr = pcmFifo.data() + fifoReadPos;
+                    bool frameSilent = true;
+                    for (size_t i = 0; i < kFrameFloats; i += 4)
                     {
-                        m_Callback(opusBuf, encoded, kFrameSamples);
+                        if (std::fabs(framePtr[i]) > 1e-4f)
+                        {
+                            frameSilent = false;
+                            break;
+                        }
+                    }
+                    if (!frameSilent) consecutiveSilentFrames = 0;
+                    else if (consecutiveSilentFrames < kSilenceTailFrames) consecutiveSilentFrames++;
+
+                    if (!frameSilent || consecutiveSilentFrames < kSilenceTailFrames)
+                    {
+                        int encoded = opus_encode_float(
+                            m_Opus,
+                            framePtr,
+                            kFrameSamples,
+                            opusBuf,
+                            sizeof(opusBuf));
+                        // Opus DTX returns 1-2 byte TOC-only frames for silence; skip those.
+                        if (encoded > 2 && m_Callback)
+                        {
+                            m_Callback(opusBuf, encoded, kFrameSamples);
+                        }
                     }
                     fifoReadPos += kFrameFloats;
                 }
@@ -369,7 +425,7 @@ namespace osmium
             }
         }
 
-        if (audioEvent) CloseHandle(audioEvent);
+        if (pollTimer) CloseHandle(pollTimer);
         if (mixFmt) CoTaskMemFree(mixFmt);
         captureClient.Reset();
         if (audioClient) audioClient->Stop();

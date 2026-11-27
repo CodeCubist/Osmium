@@ -150,6 +150,12 @@ namespace osmium::mobile
         uint64_t m_FirstRecvSeq = 0;
         uint64_t m_MaxRecvSeq = 0;
         uint64_t m_RecvWindowMask = 0;
+        uint64_t m_WinStartMs = 0;
+        uint64_t m_WinRecv = 0;
+        uint64_t m_WinLost = 0;
+        uint64_t m_PrevWinRecv = 0;
+        uint64_t m_PrevWinLost = 0;
+        std::atomic<uint32_t> m_RecentLossX100{0};
         std::atomic<uint64_t> m_RecvPacketCount{0};
         std::atomic<uint64_t> m_LostPacketCount{0};
 

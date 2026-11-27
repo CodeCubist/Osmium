@@ -93,6 +93,7 @@ namespace osmium
         void RecordRttMs(uint32_t rttMs) { m_LastRttMs.store(rttMs); }
         uint32_t GetLastRttMs() const { return m_LastRttMs.load(); }
         void GetPacketStats(uint64_t& outReceived, uint64_t& outLost) const;
+        uint32_t GetRecentLossPercentX100() const { return m_RecentLossX100.load(std::memory_order_relaxed); }
 
     private:
         bool ResolveIPv4(const char* host, uint16_t port, sockaddr_in& outAddr);
@@ -152,6 +153,12 @@ namespace osmium
         uint64_t m_FirstRecvSeq = 0;
         uint64_t m_MaxRecvSeq = 0;
         uint64_t m_RecvWindowMask = 0;
+        uint64_t m_WinStartMs = 0;
+        uint64_t m_WinRecv = 0;
+        uint64_t m_WinLost = 0;
+        uint64_t m_PrevWinRecv = 0;
+        uint64_t m_PrevWinLost = 0;
+        std::atomic<uint32_t> m_RecentLossX100{0};
         std::atomic<uint64_t> m_RecvPacketCount{0};
         std::atomic<uint64_t> m_LostPacketCount{0};
 

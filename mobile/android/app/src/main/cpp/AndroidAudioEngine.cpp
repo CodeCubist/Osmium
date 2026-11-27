@@ -26,6 +26,29 @@ namespace osmium::mobile
         StopAll();
     }
 
+    void AndroidAudioEngine::SetMuted(bool muted)
+    {
+        const bool prev = m_Muted.exchange(muted, std::memory_order_acq_rel);
+        if (muted && !prev)
+        {
+            {
+                std::lock_guard<std::mutex> ql(m_QueueMutex);
+                while (!m_PendingQueue.empty())
+                {
+                    auto dropped = std::move(m_PendingQueue.front());
+                    m_PendingQueue.pop_front();
+                    if (m_FreeBuffers.size() < kMaxPooledOpusBufs && dropped.data.capacity() <= 4096)
+                    {
+                        dropped.data.clear();
+                        m_FreeBuffers.push_back(std::move(dropped.data));
+                    }
+                }
+            }
+            // Wake worker immediately so it closes the AAudio stream while muted.
+            m_QueueCv.notify_one();
+        }
+    }
+
     void AndroidAudioEngine::StopAll()
     {
         StopMicCapture();
@@ -75,7 +98,8 @@ namespace osmium::mobile
         if (sampleRate == 0) sampleRate = 48000;
         if (channels == 0 || channels > 2) channels = 2;
 
-        if (m_PlayStream && m_Decoder &&
+        const bool needRebuild = m_StreamNeedsRebuild.exchange(false, std::memory_order_acq_rel);
+        if (!needRebuild && m_PlayStream && m_Decoder &&
             m_PlaySampleRate == sampleRate &&
             m_PlayChannels.load(std::memory_order_relaxed) == channels)
         {
@@ -106,18 +130,27 @@ namespace osmium::mobile
             return false;
         }
 
+        // Use standard shared MEDIA playback (AAUDIO_PERFORMANCE_MODE_NONE + AAUDIO_USAGE_MEDIA)
+        // instead of LOW_LATENCY + USAGE_GAME: our network Opus packets arrive every 20ms, so
+        // 2-4ms FastMixer/MMAP SCHED_FIFO interrupts give zero latency benefit while triggering
+        // aggressive OEM Game-Audio DSP/Wi-Fi coexistence modes and 2.4GHz Wi-Fi IRQ starvation.
         AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
         AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
         AAudioStreamBuilder_setSampleRate(builder, sampleRate);
         AAudioStreamBuilder_setChannelCount(builder, channels);
         AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_I16);
-        AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
-        using SetUsageFn = void (*)(AAudioStreamBuilder*, int32_t);
-        if (auto fn = reinterpret_cast<SetUsageFn>(dlsym(RTLD_DEFAULT, "AAudioStreamBuilder_setUsage")))
+        AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_NONE);
+        using SetInt32Fn = void (*)(AAudioStreamBuilder*, int32_t);
+        if (auto fn = reinterpret_cast<SetInt32Fn>(dlsym(RTLD_DEFAULT, "AAudioStreamBuilder_setUsage")))
         {
-            fn(builder, AAUDIO_USAGE_GAME);
+            fn(builder, AAUDIO_USAGE_MEDIA);
+        }
+        if (auto fn = reinterpret_cast<SetInt32Fn>(dlsym(RTLD_DEFAULT, "AAudioStreamBuilder_setContentType")))
+        {
+            fn(builder, AAUDIO_CONTENT_TYPE_MUSIC);
         }
         AAudioStreamBuilder_setDataCallback(builder, &AndroidAudioEngine::PlaybackCallback, this);
+        AAudioStreamBuilder_setErrorCallback(builder, &AndroidAudioEngine::PlaybackErrorCallback, this);
 
         aaudio_result_t res = AAudioStreamBuilder_openStream(builder, &m_PlayStream);
         AAudioStreamBuilder_delete(builder);
@@ -127,6 +160,15 @@ namespace osmium::mobile
             StopPlayback();
             return false;
         }
+
+        // Keep AAudio's internal buffer around 2 bursts (~40-60ms) to absorb Wi-Fi jitter cleanly.
+        const int32_t burst = std::max<int32_t>(1, AAudioStream_getFramesPerBurst(m_PlayStream));
+        const int32_t capacity = AAudioStream_getBufferCapacityInFrames(m_PlayStream);
+        const int32_t targetFrames = std::clamp<int32_t>(
+            std::max<int32_t>(burst * 2, static_cast<int32_t>(sampleRate) / 25),
+            burst,
+            std::max<int32_t>(burst, capacity));
+        AAudioStream_setBufferSizeInFrames(m_PlayStream, targetFrames);
 
         res = AAudioStream_requestStart(m_PlayStream);
         if (res != AAUDIO_OK)
@@ -138,8 +180,20 @@ namespace osmium::mobile
 
         m_PlaySampleRate = sampleRate;
         m_HasSequence = false;
-        LOGI("AAudio output started (%u Hz, %u ch, lock-free SPSC)", sampleRate, channels);
+        LOGI("AAudio output started (%u Hz, %u ch, media mode, burst=%d, buf=%d)",
+             sampleRate, channels, burst, AAudioStream_getBufferSizeInFrames(m_PlayStream));
         return true;
+    }
+
+    void AndroidAudioEngine::PlaybackErrorCallback(
+        AAudioStream* /*stream*/,
+        void* userData,
+        aaudio_result_t error)
+    {
+        auto* self = static_cast<AndroidAudioEngine*>(userData);
+        LOGW("AAudio output stream error/disconnected (%d); scheduling rebuild", static_cast<int>(error));
+        self->m_StreamNeedsRebuild.store(true, std::memory_order_release);
+        self->m_QueueCv.notify_one();
     }
 
     aaudio_data_callback_result_t AndroidAudioEngine::PlaybackCallback(
@@ -241,20 +295,58 @@ namespace osmium::mobile
 
     void AndroidAudioEngine::DecodeWorkerLoop()
     {
-        setpriority(PRIO_PROCESS, 0, -8);
+        // Keep audio decode strictly below RecvLoop (-10) and DecodeLoop (-6)
+        // so audio work never preempts network socket draining or video frame rendering.
+        setpriority(PRIO_PROCESS, 0, -2);
 
         for (;;)
         {
             PendingOpusFrame frame;
+            bool hasFrame = false;
             {
                 std::unique_lock<std::mutex> ql(m_QueueMutex);
-                m_QueueCv.wait(ql, [this] { return m_DecodeStop || !m_PendingQueue.empty(); });
+                if (m_PlayStream)
+                {
+                    m_QueueCv.wait_for(ql, std::chrono::milliseconds(1500), [this]
+                    {
+                        return m_DecodeStop || !m_PendingQueue.empty() ||
+                            m_Muted.load(std::memory_order_acquire) ||
+                            m_StreamNeedsRebuild.load(std::memory_order_acquire);
+                    });
+                }
+                else
+                {
+                    m_QueueCv.wait(ql, [this] { return m_DecodeStop || !m_PendingQueue.empty(); });
+                }
                 if (m_DecodeStop) break;
-                frame = std::move(m_PendingQueue.front());
-                m_PendingQueue.pop_front();
+                if (!m_PendingQueue.empty())
+                {
+                    frame = std::move(m_PendingQueue.front());
+                    m_PendingQueue.pop_front();
+                    hasFrame = true;
+                }
             }
 
-            ProcessOpusFrame(frame);
+            if (!hasFrame)
+            {
+                // Close AAudio when muted, disconnected, or silent for >= 1.5s so Android
+                // releases the audio HAL/mixer completely while no audio is playing.
+                if (m_PlayStream)
+                {
+                    m_StreamNeedsRebuild.store(false, std::memory_order_release);
+                    StopPlayback();
+                }
+                continue;
+            }
+
+            if (m_Muted.load(std::memory_order_acquire))
+            {
+                if (m_PlayStream) StopPlayback();
+            }
+            else
+            {
+                ProcessOpusFrame(frame);
+            }
 
             if (frame.data.capacity() <= 4096)
             {

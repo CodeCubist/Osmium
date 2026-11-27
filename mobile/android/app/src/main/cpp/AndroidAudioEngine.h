@@ -26,7 +26,7 @@ namespace osmium::mobile
         AndroidAudioEngine(const AndroidAudioEngine&) = delete;
         AndroidAudioEngine& operator=(const AndroidAudioEngine&) = delete;
 
-        void SetMuted(bool muted) { m_Muted.store(muted, std::memory_order_relaxed); }
+        void SetMuted(bool muted);
         bool IsMuted() const { return m_Muted.load(std::memory_order_relaxed); }
 
         void PushOpusFrame(
@@ -65,6 +65,11 @@ namespace osmium::mobile
             void* audioData,
             int32_t numFrames);
 
+        static void PlaybackErrorCallback(
+            AAudioStream* stream,
+            void* userData,
+            aaudio_result_t error);
+
         static aaudio_data_callback_result_t MicCallback(
             AAudioStream* stream,
             void* userData,
@@ -91,6 +96,7 @@ namespace osmium::mobile
         uint32_t m_LastSequence = 0;
         bool m_HasSequence = false;
         std::atomic<bool> m_Muted{false};
+        std::atomic<bool> m_StreamNeedsRebuild{false};
 
         std::vector<int16_t> m_PcmRing;
         alignas(64) std::atomic<uint32_t> m_RingRead{0};
