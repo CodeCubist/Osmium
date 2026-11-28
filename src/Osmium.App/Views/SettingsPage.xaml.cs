@@ -708,6 +708,8 @@ public sealed partial class SettingsPage : Page
         BtnDevicesGoLogin.Content = LocalizationService.GetString("Assist_GoLoginBtn");
         RowAboutVersion.Title = LocalizationService.GetString("About_RowVersion");
         RowAboutBuild.Title = LocalizationService.GetString("About_RowBuild");
+        RowAboutCheckUpdate.Title = LocalizationService.GetString("About_RowCheckUpdate");
+        BtnAboutCheckUpdate.Content = LocalizationService.GetString("About_CheckUpdateBtn");
         AboutPlatformsSupportedText.Text = LocalizationService.GetString("About_PlatformsSupported");
         AboutPlatformsUpcomingText.Text = LocalizationService.GetString("About_PlatformsUpcoming");
         AboutPlatformLinuxText.Text = LocalizationService.GetString("About_PlatformLinuxLabel");
@@ -945,6 +947,32 @@ public sealed partial class SettingsPage : Page
 
     private void AboutRepoOsmiumLink_Click(object sender, RoutedEventArgs e)
         => OpenExternalUrl("https://github.com/OsmiumRemote/Osmium");
+
+    private async void BtnAboutCheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        var app = App.CurrentApp;
+        if (app == null) return;
+
+        BtnAboutCheckUpdate.IsEnabled = false;
+        AboutUpdateStatusText.Text = LocalizationService.GetString("About_CheckingUpdate");
+        ManualUpdateResult result;
+        try
+        {
+            result = await app.CheckForUpdateManuallyAsync();
+        }
+        catch
+        {
+            result = ManualUpdateResult.Failed;
+        }
+
+        AboutUpdateStatusText.Text = result switch
+        {
+            ManualUpdateResult.Available => LocalizationService.GetString("About_UpdateFound"),
+            ManualUpdateResult.UpToDate => LocalizationService.GetString("About_UpToDate"),
+            _ => LocalizationService.GetString("About_CheckUpdateFailed")
+        };
+        BtnAboutCheckUpdate.IsEnabled = true;
+    }
 
     private void AboutRepoWebLink_Click(object sender, RoutedEventArgs e)
         => OpenExternalUrl("https://github.com/OsmiumRemote/OsmiumWeb");

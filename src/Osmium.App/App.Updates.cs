@@ -6,6 +6,13 @@ using Osmium.Core.Models;
 
 namespace Osmium.App;
 
+internal enum ManualUpdateResult
+{
+    Available,
+    UpToDate,
+    Failed
+}
+
 public partial class App
 {
     private readonly CancellationTokenSource _updateLifetime = new();
@@ -66,9 +73,50 @@ public partial class App
             return;
         }
 
+        ShowUpdateWindow(release);
+    }
+
+    internal async Task<ManualUpdateResult> CheckForUpdateManuallyAsync()
+    {
+        if (_updateLifetime.IsCancellationRequested) return ManualUpdateResult.Failed;
         try
         {
-            var window = new UpdateAnnouncementWindow(release, (mainWindow.Content as FrameworkElement)?.ActualTheme);
+            string language = Uri.EscapeDataString(LocalizationService.ActiveLanguage);
+            var endpoint = new Uri(Engine.AccountService.GetServiceBaseUri(), $"/api/update?platform=windows&lang={language}");
+            var release = await UpdateService.CheckAsync(endpoint, AppVersionInfo.Current, _updateLifetime.Token);
+            _pendingUpdate = release;
+            if (release == null) return ManualUpdateResult.UpToDate;
+            return ShowUpdateWindow(release) ? ManualUpdateResult.Available : ManualUpdateResult.Failed;
+        }
+        catch (OperationCanceledException)
+        {
+            return ManualUpdateResult.Failed;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            Engine.Logging.Info($"Manual update check failed: {ex.GetType().Name}");
+            return ManualUpdateResult.Failed;
+        }
+    }
+
+    private bool ShowUpdateWindow(UpdateRelease release)
+    {
+        if (_updateWindow != null)
+        {
+            try
+            {
+                _updateWindow.Activate();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        try
+        {
+            var window = new UpdateAnnouncementWindow(release, (MainWindowInstance?.Content as FrameworkElement)?.ActualTheme);
             _updateWindow = window;
             window.Closed += (_, _) =>
             {
@@ -77,17 +125,19 @@ public partial class App
             if (IsRemoteControlInProgress)
             {
                 CloseUpdateAnnouncement();
-                return;
+                return false;
             }
 
             window.Activate();
             Engine.SettingsService.Settings.LastAnnouncedUpdateVersion = release.Version;
             Engine.SettingsService.SaveSettings();
+            return true;
         }
         catch (Exception ex)
         {
             CloseUpdateAnnouncement();
             Engine.Logging.Warn($"Update announcement failed: {ex.GetType().Name}");
+            return false;
         }
     }
 

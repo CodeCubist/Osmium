@@ -51,6 +51,18 @@ internal sealed class UpdateAnnouncementWindow : Window
         body.Children.Add(actions);
         Content = body;
 
+        try
+        {
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "osmium.ico");
+            if (File.Exists(iconPath))
+            {
+                AppWindow.SetIcon(iconPath);
+            }
+        }
+        catch
+        {
+        }
+
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsMaximizable = false;
@@ -60,6 +72,17 @@ internal sealed class UpdateAnnouncementWindow : Window
 
         WindowManagerHelper.ResizeWithDpi(AppWindow, this, 480, 380);
         WindowManagerHelper.CenterWindowOnScreen(AppWindow, 480, 380);
+
+        try
+        {
+            bool isDark = theme == ElementTheme.Dark ||
+                          (theme != ElementTheme.Light &&
+                           Application.Current.RequestedTheme == ApplicationTheme.Dark);
+            ImmersiveWindowHelper.ApplyImmersiveFrame(this, isDark);
+        }
+        catch
+        {
+        }
     }
 
     private static void AddDownload(Panel actions, Uri? uri, string label)

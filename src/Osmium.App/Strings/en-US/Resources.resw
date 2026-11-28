@@ -914,6 +914,12 @@
   <data name="Acc_ErrVersionUnsupported" xml:space="preserve"><value>This client version is no longer supported. Please update Osmium.</value></data>
   <data name="About_RowVersion" xml:space="preserve"><value>Version</value></data>
   <data name="About_RowBuild" xml:space="preserve"><value>Build</value></data>
+  <data name="About_RowCheckUpdate" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="About_CheckUpdateBtn" xml:space="preserve"><value>Check</value></data>
+  <data name="About_CheckingUpdate" xml:space="preserve"><value>Checking…</value></data>
+  <data name="About_UpdateFound" xml:space="preserve"><value>Update available</value></data>
+  <data name="About_UpToDate" xml:space="preserve"><value>Up to date</value></data>
+  <data name="About_CheckUpdateFailed" xml:space="preserve"><value>Check failed. Try again later.</value></data>
   <data name="About_PlatformsSupported" xml:space="preserve"><value>Available Now</value></data>
   <data name="About_PlatformsUpcoming" xml:space="preserve"><value>Coming Soon</value></data>
   <data name="About_PlatformLinuxLabel" xml:space="preserve"><value>Linux (Ubuntu, Debian, etc.)</value></data>

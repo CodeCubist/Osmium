@@ -928,6 +928,20 @@
                                                TextWrapping="NoWrap"
                                                IsTextSelectionEnabled="True" />
                                 </controls:SettingsRowCard>
+
+                                <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowAboutCheckUpdate" IsGrouped="True" Glyph="&#xE895;">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock x:Name="AboutUpdateStatusText"
+                                                   FontSize="12"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <Button x:Name="BtnAboutCheckUpdate"
+                                                CornerRadius="6"
+                                                Click="BtnAboutCheckUpdate_Click" />
+                                    </StackPanel>
+                                </controls:SettingsRowCard>
                             </StackPanel>
                         </Border>
 
