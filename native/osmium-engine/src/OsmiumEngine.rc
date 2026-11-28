@@ -5,8 +5,8 @@
 101 CURSOR "blank.cur"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,1
- PRODUCTVERSION 1,1,1
+ FILEVERSION 1,1,2
+ PRODUCTVERSION 1,1,2
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -23,12 +23,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Osmium Development Team"
             VALUE "FileDescription", "Osmium Native"
-            VALUE "FileVersion", "1.1.1"
+            VALUE "FileVersion", "1.1.2"
             VALUE "InternalName", "OsmiumEngine.dll"
             VALUE "LegalCopyright", "Copyright © Osmium Development Team"
             VALUE "OriginalFilename", "OsmiumEngine.dll"
             VALUE "ProductName", "Osmium"
-            VALUE "ProductVersion", "1.1.1"
+            VALUE "ProductVersion", "1.1.2"
         END
     END
     BLOCK "VarFileInfo"

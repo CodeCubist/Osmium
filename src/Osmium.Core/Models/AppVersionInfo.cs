@@ -66,7 +66,7 @@ public static class AppVersionInfo
             return $"{v.Major}.{Math.Max(0, v.Minor)}.{Math.Max(0, v.Build)}";
         }
 
-        return "1.1.1";
+        return "1.1.2";
     }
 
     private static string? ResolveAssemblyMetadata(string key)

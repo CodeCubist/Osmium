@@ -6,9 +6,9 @@
         <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
         <RootNamespace>Osmium.App</RootNamespace>
         <AssemblyName>Osmium</AssemblyName>
-        <Version>1.1.1</Version>
-        <AssemblyVersion>1.1.1</AssemblyVersion>
-        <FileVersion>1.1.1</FileVersion>
+        <Version>1.1.2</Version>
+        <AssemblyVersion>1.1.2</AssemblyVersion>
+        <FileVersion>1.1.2</FileVersion>
         <Copyright>Copyright © Osmium Development Team</Copyright>
         <DefaultLanguage>zh-CN</DefaultLanguage>
         <SatelliteResourceLanguages>zh-CN;zh-Hans;en-US</SatelliteResourceLanguages>

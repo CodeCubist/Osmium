@@ -3,9 +3,9 @@ class OsmiumConstants {
 
   static const String defaultSignalingUrl = 'wss://osmium.fufu.skin';
   static const String defaultApiBaseUrl = 'https://osmium.fufu.skin';
-  static const String protocolVersion = '1.1.1';
+  static const String protocolVersion = '1.1.2';
   static const String minimumSupportedVersion = '1.1.1';
-  static const String userAgent = 'Osmium-Mobile/1.1.1';
+  static const String userAgent = 'Osmium-Mobile/1.1.2';
 
   static bool isVersionSupported(String? raw) {
     if (raw == null) return false;
