@@ -389,18 +389,13 @@ class RemoteSessionController extends ChangeNotifier {
       return;
     }
 
-    if (signaling.state != SignalingConnectionState.connected) {
-      signaling.retryNow();
-      try {
-        await signaling.stateStream
-            .firstWhere((s) => s == SignalingConnectionState.connected)
-            .timeout(const Duration(seconds: 6));
-      } catch (_) {}
-      if (aborted()) return;
-      if (signaling.state != SignalingConnectionState.connected) {
-        _fail('信令服务未连接，请检查网络后重试');
-        return;
-      }
+    final ready = await signaling.ensureConnectedAndResponsive(
+      timeout: const Duration(seconds: 7),
+    );
+    if (aborted()) return;
+    if (!ready || signaling.state != SignalingConnectionState.connected) {
+      _fail('信令服务未连接，请检查网络后重试');
+      return;
     }
 
     if (ltoken.trim().isEmpty) {
@@ -444,8 +439,14 @@ class RemoteSessionController extends ChangeNotifier {
     final bridgeComp = Completer<BridgeReadyEvent>();
     final relayFallbackComp = Completer<RelayFallbackEvent>();
     final rejectComp = Completer<ConnectRejectEvent>();
+    final wsLostComp = Completer<void>();
 
     final subs = <StreamSubscription<dynamic>>[
+      signaling.stateStream.listen((s) {
+        if (s != SignalingConnectionState.connected && !wsLostComp.isCompleted) {
+          wsLostComp.complete();
+        }
+      }),
       signaling.challengeStream.listen((e) {
         if (e.sessionId == sid && !challengeComp.isCompleted) {
           challengeComp.complete(e);
@@ -492,9 +493,14 @@ class RemoteSessionController extends ChangeNotifier {
       final result = await Future.any<Object?>([
         target,
         rejectComp.future,
+        wsLostComp.future.then((_) => const _SignalingLostSentinel()),
         Future<Object?>.delayed(timeout, () => const _TimeoutSentinel()),
       ]);
       if (aborted()) return null;
+      if (result is _SignalingLostSentinel) {
+        _fail('信令连接已断开，请重试');
+        return null;
+      }
       if (result is ConnectRejectEvent) {
         final numericCode = int.tryParse(result.code.trim());
         if (allowAuthRetry &&
@@ -540,7 +546,7 @@ class RemoteSessionController extends ChangeNotifier {
         _createTransportOp(engineFactory, preStunHost, preStunPort),
       );
 
-      signaling.sendConnectRequest(
+      final reqSent = signaling.sendConnectRequest(
         sessionId: sid,
         targetDeviceId: req.targetDeviceId,
         clientPublicKeyBase64: _keyPair!.publicKeyBase64,
@@ -549,6 +555,10 @@ class RemoteSessionController extends ChangeNotifier {
         sameAccountConnect: req.sameAccount,
         viewOnly: req.viewOnly,
       );
+      if (!reqSent) {
+        _fail('信令连接已断开，请重试');
+        return;
+      }
 
       final challenge = await awaitOrReject(
         challengeComp.future,
@@ -606,20 +616,26 @@ class RemoteSessionController extends ChangeNotifier {
         return;
       }
 
-      // Step 5: Send connect_auth & await connect_auth_verified
-      signaling.sendConnectAuth(
+      final authSent = signaling.sendConnectAuth(
         sessionId: sid,
         targetDeviceId: req.targetDeviceId,
         authTagBase64: material.authTagBase64,
       );
+      if (!authSent) {
+        _fail('信令连接已断开，请重试');
+        return;
+      }
       final verified = await awaitOrReject(
         authVerifiedComp.future.then((_) => true),
         const Duration(seconds: 15),
       );
       if (verified != true || aborted()) return;
 
-      // Step 6: Protocol version check
-      signaling.sendVersionReport(sessionId: sid);
+      final verSent = signaling.sendVersionReport(sessionId: sid);
+      if (!verSent) {
+        _fail('信令连接已断开，请重试');
+        return;
+      }
       final verRes = await awaitOrReject(
         versionComp.future,
         const Duration(seconds: 15),
@@ -1904,4 +1920,8 @@ class RemoteSessionController extends ChangeNotifier {
 
 class _TimeoutSentinel {
   const _TimeoutSentinel();
+}
+
+class _SignalingLostSentinel {
+  const _SignalingLostSentinel();
 }

@@ -143,11 +143,15 @@ class SignalingClient {
   Timer? _registerTimer;
   Timer? _probeTimer;
   bool _running = false;
+  bool _connecting = false;
   bool _registered = false;
   bool _accountAuthenticated = false;
+  bool _awaitingPong = false;
+  int _socketEpoch = 0;
   int _reconnectAttempt = 0;
   int _failures = 0;
   DateTime _lastServerActivityAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastPingSentAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   String _serverUrl = OsmiumConstants.defaultSignalingUrl;
   String _deviceId = '';
@@ -183,6 +187,7 @@ class SignalingClient {
       StreamController<QuickLaunchStartResponseEvent>.broadcast();
   final _deviceIdReassignedCtrl = StreamController<(String, String?)>.broadcast();
   final _accountAuthCtrl = StreamController<bool>.broadcast();
+  final _activityCtrl = StreamController<DateTime>.broadcast();
 
   Stream<SignalingConnectionState> get stateStream => _stateCtrl.stream;
   Stream<List<AccountDeviceDto>> get accountDevicesStream =>
@@ -281,7 +286,7 @@ class SignalingClient {
   }
 
   void retryNow() {
-    if (!_running) return;
+    if (!_running || _connecting) return;
     _reconnectAttempt = 0;
     _failures = 0;
     if (_state != SignalingConnectionState.disconnected) return;
@@ -289,7 +294,7 @@ class SignalingClient {
   }
 
   void ensureAlive({bool forceProbe = false}) {
-    if (!_running) return;
+    if (!_running || _connecting) return;
     final ws = _ws;
     if (ws == null ||
         ws.readyState != WebSocket.open ||
@@ -301,38 +306,114 @@ class SignalingClient {
     }
     if (!forceProbe) return;
     _probeTimer?.cancel();
+    final probeEpoch = _socketEpoch;
     final sentAt = DateTime.now();
     final ok = sendJson({'type': 'ping'});
     if (!ok) {
       _forceReconnectSocket(ws);
       return;
     }
+    if (!_awaitingPong) {
+      _awaitingPong = true;
+      _lastPingSentAt = sentAt;
+    }
     _probeTimer = Timer(const Duration(milliseconds: 3500), () {
-      if (!_running || !identical(_ws, ws)) return;
+      if (!_running || !identical(_ws, ws) || probeEpoch != _socketEpoch) return;
       if (_lastServerActivityAt.isBefore(sentAt)) {
         _forceReconnectSocket(ws);
       }
     });
   }
 
-  void _forceReconnectSocket(WebSocket ws) {
-    if (!identical(_ws, ws)) return;
+  Future<bool> ensureConnectedAndResponsive({
+    Duration timeout = const Duration(seconds: 7),
+  }) async {
+    if (!_running) return false;
+    final deadline = DateTime.now().add(timeout);
+    final ws = _ws;
+    if (_state == SignalingConnectionState.connected &&
+        _registered &&
+        ws != null &&
+        ws.readyState == WebSocket.open) {
+      if (DateTime.now().difference(_lastServerActivityAt).inSeconds < 8) {
+        return true;
+      }
+      final probeEpoch = _socketEpoch;
+      final sentAt = DateTime.now();
+      if (sendJson({'type': 'ping'})) {
+        if (!_awaitingPong) {
+          _awaitingPong = true;
+          _lastPingSentAt = sentAt;
+        }
+        try {
+          await _activityCtrl.stream
+              .firstWhere((t) => !t.isBefore(sentAt))
+              .timeout(const Duration(milliseconds: 2500));
+          if (identical(_ws, ws) &&
+              probeEpoch == _socketEpoch &&
+              _registered &&
+              _state == SignalingConnectionState.connected) {
+            return true;
+          }
+        } catch (_) {}
+      }
+      if (identical(_ws, ws) && probeEpoch == _socketEpoch) {
+        _forceReconnectSocket(ws);
+      }
+    } else {
+      ensureAlive();
+    }
+    if (_state == SignalingConnectionState.connected && _registered) {
+      return true;
+    }
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      return _state == SignalingConnectionState.connected && _registered;
+    }
+    try {
+      await stateStream
+          .firstWhere((s) => s == SignalingConnectionState.connected)
+          .timeout(remaining);
+    } catch (_) {}
+    return _state == SignalingConnectionState.connected && _registered;
+  }
+
+  void _detachAndCloseSocket(WebSocket? ws) {
+    if (ws == null) return;
+    if (identical(_ws, ws)) {
+      _ws = null;
+    }
     try {
       ws.close();
     } catch (_) {}
+  }
+
+  void _handleSocketLost(WebSocket ws) {
+    if (!identical(_ws, ws)) return;
+    _detachAndCloseSocket(ws);
+    _scheduleReconnect();
+  }
+
+  void _forceReconnectSocket(WebSocket ws) {
+    if (!identical(_ws, ws)) return;
+    _socketEpoch += 1;
+    _connecting = false;
+    _detachAndCloseSocket(ws);
     _scheduleReconnect(immediate: true);
   }
 
   void stop() {
     _running = false;
+    _connecting = false;
+    _socketEpoch += 1;
     _registered = false;
     _accountAuthenticated = false;
+    _awaitingPong = false;
     _heartbeatTimer?.cancel();
     _reconnectTimer?.cancel();
     _registerTimer?.cancel();
     _probeTimer?.cancel();
-    _ws?.close();
-    _ws = null;
+    _detachAndCloseSocket(_ws);
     _setState(SignalingConnectionState.disconnected);
   }
 
@@ -374,22 +455,33 @@ class SignalingClient {
   }
 
   Future<void> _connect() async {
-    if (!_running) return;
+    if (!_running || _connecting) return;
+    _connecting = true;
+    final epoch = ++_socketEpoch;
     _heartbeatTimer?.cancel();
     _reconnectTimer?.cancel();
+    _registerTimer?.cancel();
+    _probeTimer?.cancel();
+    _detachAndCloseSocket(_ws);
     _registered = false;
+    _accountAuthenticated = false;
+    _awaitingPong = false;
     _setState(SignalingConnectionState.connecting);
 
     try {
       final ws = await WebSocket.connect(_serverUrl)
           .timeout(const Duration(seconds: 5));
-      if (!_running) {
-        await ws.close();
+      if (!_running || epoch != _socketEpoch) {
+        try {
+          await ws.close();
+        } catch (_) {}
         return;
       }
       _ws = ws;
+      _connecting = false;
       _reconnectAttempt = 0;
       _lastServerActivityAt = DateTime.now();
+      _awaitingPong = false;
 
       _registeredLtoken = _ltoken;
       _pendingFallbackDeviceSecret = DeviceIdentity.generateDeviceSecret();
@@ -408,33 +500,56 @@ class SignalingClient {
       });
 
       _registerTimer = Timer(const Duration(seconds: 5), () {
-        if (!_registered && identical(_ws, ws)) ws.close();
+        if (!_registered && identical(_ws, ws) && epoch == _socketEpoch) {
+          _forceReconnectSocket(ws);
+        }
       });
 
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-        if (!identical(_ws, ws)) return;
+        if (!identical(_ws, ws) || epoch != _socketEpoch) return;
         if (ws.readyState != WebSocket.open) {
           _forceReconnectSocket(ws);
           return;
         }
-        final idleSec = DateTime.now().difference(_lastServerActivityAt).inSeconds;
-        if (idleSec >= 25) {
+        final now = DateTime.now();
+        if (_awaitingPong && now.difference(_lastPingSentAt).inSeconds >= 12) {
           _forceReconnectSocket(ws);
           return;
         }
-        if (!sendJson({'type': 'ping'})) {
+        if (sendJson({'type': 'ping'})) {
+          if (!_awaitingPong) {
+            _awaitingPong = true;
+            _lastPingSentAt = now;
+          }
+        } else {
           _forceReconnectSocket(ws);
         }
       });
 
       ws.listen(
-        _onMessage,
-        onError: (_) => _scheduleReconnect(),
-        onDone: _scheduleReconnect,
+        (raw) {
+          if (!identical(_ws, ws) || epoch != _socketEpoch) return;
+          _onMessage(raw);
+        },
+        onError: (_) {
+          if (!identical(_ws, ws) || epoch != _socketEpoch) return;
+          _handleSocketLost(ws);
+        },
+        onDone: () {
+          if (!identical(_ws, ws) || epoch != _socketEpoch) return;
+          _handleSocketLost(ws);
+        },
         cancelOnError: true,
       );
     } catch (_) {
-      _scheduleReconnect();
+      if (epoch == _socketEpoch) {
+        _connecting = false;
+        _scheduleReconnect();
+      }
+    } finally {
+      if (epoch == _socketEpoch) {
+        _connecting = false;
+      }
     }
   }
 
@@ -444,7 +559,8 @@ class SignalingClient {
     _probeTimer?.cancel();
     _registered = false;
     _accountAuthenticated = false;
-    _ws = null;
+    _awaitingPong = false;
+    _detachAndCloseSocket(_ws);
     if (!_running) {
       _setState(SignalingConnectionState.disconnected);
       return;
@@ -476,8 +592,13 @@ class SignalingClient {
   }
 
   void _onMessage(dynamic raw) {
-    _lastServerActivityAt = DateTime.now();
+    final now = DateTime.now();
+    _lastServerActivityAt = now;
+    _awaitingPong = false;
     _probeTimer?.cancel();
+    if (!_activityCtrl.isClosed) {
+      _activityCtrl.add(now);
+    }
     if (raw is! String) return;
     Map<String, dynamic> root;
     try {
@@ -707,7 +828,7 @@ class SignalingClient {
     }
   }
 
-  void sendConnectRequest({
+  bool sendConnectRequest({
     required String sessionId,
     required String targetDeviceId,
     required String clientPublicKeyBase64,
@@ -716,7 +837,7 @@ class SignalingClient {
     required bool sameAccountConnect,
     required bool viewOnly,
   }) {
-    sendJson({
+    return sendJson({
       'type': 'connect_request',
       'sessionId': sessionId,
       'targetDeviceId': DeviceIdentity.normalizeDeviceId(targetDeviceId),
@@ -730,12 +851,12 @@ class SignalingClient {
     });
   }
 
-  void sendConnectAuth({
+  bool sendConnectAuth({
     required String sessionId,
     required String targetDeviceId,
     required String authTagBase64,
   }) {
-    sendJson({
+    return sendJson({
       'type': 'connect_auth',
       'sessionId': sessionId,
       'targetDeviceId': DeviceIdentity.normalizeDeviceId(targetDeviceId),
@@ -743,8 +864,8 @@ class SignalingClient {
     });
   }
 
-  void sendVersionReport({required String sessionId}) {
-    sendJson({
+  bool sendVersionReport({required String sessionId}) {
+    return sendJson({
       'type': 'session_version_report',
       'sessionId': sessionId,
       'version': OsmiumConstants.protocolVersion,
@@ -869,5 +990,6 @@ class SignalingClient {
     _quickLaunchStartResCtrl.close();
     _deviceIdReassignedCtrl.close();
     _accountAuthCtrl.close();
+    _activityCtrl.close();
   }
 }
