@@ -15,6 +15,7 @@ public static class Program
     internal const string SingleInstanceKey = "Osmium";
     private const uint MbOk = 0x00000000;
     private const uint MbIconError = 0x00000010;
+    private static int _reportedFatalError;
 
     internal static bool LaunchedAtStartup
     {
@@ -28,6 +29,22 @@ public static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        bool interactive = false;
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                ReportFatalError("AppDomain.UnhandledException", ex, showDialog: interactive,
+                    startup: interactive && App.MainWindowInstance == null);
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            e.SetObserved();
+            WriteCrashLog("TaskScheduler.UnobservedTaskException", e.Exception, startup: false);
+        };
+
         try
         {
             if (HandleHeadlessServiceArgs(args, out int headlessExitCode))
@@ -38,36 +55,16 @@ public static class Program
         }
         catch (Exception ex)
         {
-            ReportFatalError("HeadlessService", ex, showDialog: false);
+            ReportFatalError("HeadlessService", ex, showDialog: false, startup: false);
             Environment.ExitCode = ex.HResult != 0 ? ex.HResult : 1;
             return;
         }
 
+        interactive = true;
         WaitForPreviousProcessExit(args);
 
         LaunchedAtStartup =
             args != null && args.Any(a => string.Equals(a, "--startup", StringComparison.OrdinalIgnoreCase));
-
-        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-        {
-            if (e.ExceptionObject is Exception ex)
-            {
-                ReportFatalError("AppDomain.UnhandledException", ex, showDialog: true);
-            }
-        };
-
-        TaskScheduler.UnobservedTaskException += (_, e) =>
-        {
-            e.SetObserved();
-            try
-            {
-                App.Engine?.Logging.Error($"Unobserved task exception: {e.Exception}");
-            }
-            catch
-            {
-                WriteCrashLog("TaskScheduler.UnobservedTaskException", e.Exception);
-            }
-        };
 
         try
         {
@@ -155,7 +152,7 @@ public static class Program
         }
         catch (Exception ex)
         {
-            ReportFatalError("Program.Main", ex, showDialog: true);
+            ReportFatalError("Program.Main", ex, showDialog: true, startup: App.MainWindowInstance == null);
             Environment.ExitCode = ex.HResult != 0 ? ex.HResult : 1;
         }
     }
@@ -361,16 +358,19 @@ public static class Program
         }
     }
 
-    internal static void ReportFatalError(string stage, Exception ex, bool showDialog)
+    internal static void ReportFatalError(string stage, Exception ex, bool showDialog, bool startup)
     {
-        string? logPath = WriteCrashLog(stage, ex);
+        if (Interlocked.Exchange(ref _reportedFatalError, 1) != 0) return;
+        string? logPath = WriteCrashLog(stage, ex, startup);
 
         if (!showDialog) return;
 
         try
         {
             var sb = new StringBuilder();
-            sb.AppendLine(SafeTrFormat("Startup_ErrorTitleFmt", "Osmium failed to start - {0}", stage));
+            sb.AppendLine(startup
+                ? SafeTrFormat("Startup_ErrorTitleFmt", "Osmium failed to start - {0}", stage)
+                : SafeTrFormat("Crash_ErrorTitleFmt", "Osmium encountered an error ({0})", stage));
             sb.AppendLine();
             sb.AppendLine($"{ex.GetType().Name}: {ex.Message}");
             if (ex.InnerException != null)
@@ -385,8 +385,10 @@ public static class Program
                 sb.AppendLine(logPath);
             }
 
-            MessageBox(IntPtr.Zero, sb.ToString(), SafeTr("Startup_ErrorCaption", "Osmium Startup Error"),
-                MbOk | MbIconError);
+            string caption = startup
+                ? SafeTr("Startup_ErrorCaption", "Osmium Startup Error")
+                : SafeTr("Crash_ErrorCaption", "Osmium Error");
+            MessageBox(IntPtr.Zero, sb.ToString(), caption, MbOk | MbIconError);
         }
         catch
         {
@@ -419,7 +421,7 @@ public static class Program
         }
     }
 
-    private static string? WriteCrashLog(string stage, Exception ex)
+    private static string? WriteCrashLog(string stage, Exception ex, bool startup)
     {
         try
         {
@@ -432,7 +434,7 @@ public static class Program
                                         "Osmium"),
                                 "logs");
             Directory.CreateDirectory(logDir);
-            string logPath = Path.Combine(logDir, "startup_crash.log");
+            string logPath = Path.Combine(logDir, startup ? "startup_crash.log" : "crash.log");
             string content =
                 $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Stage={stage}\n" +
                 $"OS={Environment.OSVersion} | 64BitOS={Environment.Is64BitOperatingSystem} | ProcessArch={RuntimeInformation.ProcessArchitecture}\n" +
@@ -447,7 +449,7 @@ public static class Program
         {
             try
             {
-                string fallback = Path.Combine(Path.GetTempPath(), "Osmium_startup_crash.log");
+                string fallback = Path.Combine(Path.GetTempPath(), startup ? "Osmium_startup_crash.log" : "Osmium_crash.log");
                 File.AppendAllText(fallback, $"[{DateTime.Now:O}] {stage}: {ex}\n");
                 return fallback;
             }

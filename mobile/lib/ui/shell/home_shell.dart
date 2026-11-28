@@ -9,6 +9,7 @@ import '../../core/theme/osmium_motion.dart';
 import '../../core/theme/osmium_theme.dart';
 import '../../services/session/remote_session_controller.dart';
 import '../../services/signaling/signaling_client.dart';
+import '../../services/update/android_update_service.dart';
 import '../../state/app_controller.dart';
 import '../auth/login_page.dart';
 import '../auth/qr_login_confirm_page.dart';
@@ -39,6 +40,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
   StreamSubscription<String>? _deepLinkSub;
   bool _unreachableVisible = false;
   bool _handlingDeepLink = false;
+  bool _remoteSessionOpen = false;
+  bool _checkingForUpdate = false;
+  AndroidUpdate? _pendingUpdate;
 
   @override
   void dispose() {
@@ -62,6 +66,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
       unawaited(_handleExternalDeepLink(link));
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      unawaited(_checkForUpdate());
       await app.initialize();
       final initialLink = await bridge.getInitialDeepLink();
       if (initialLink != null && mounted) {
@@ -114,13 +120,91 @@ class _HomeShellState extends ConsumerState<HomeShell>
     SessionConnectRequest request, {
     GlobalKey? sourceKey,
   }) async {
+    if (_remoteSessionOpen) return;
     OsmiumHaptics.confirm();
-    await Navigator.of(context).push<void>(
-      OsmiumContainerRoute(
-        sourceKey: sourceKey,
-        pageBuilder: (_) => RemoteSessionPage(request: request),
+    final route = OsmiumContainerRoute<void>(
+      sourceKey: sourceKey,
+      pageBuilder: (_) => RemoteSessionPage(request: request),
+    );
+    _remoteSessionOpen = true;
+    try {
+      await Navigator.of(context).push<void>(route);
+      await route.completed;
+    } finally {
+      _remoteSessionOpen = false;
+      if (mounted) unawaited(_checkForUpdate());
+    }
+  }
+
+  Future<void> _checkForUpdate() async {
+    if (_checkingForUpdate) return;
+    _checkingForUpdate = true;
+    try {
+      final bridge = ref.read(platformBridgeProvider);
+      final settings = ref.read(settingsRepositoryProvider);
+      final installed = await bridge.getAppVersionCode();
+      if (!mounted || installed == null) return;
+      final update = await AndroidUpdateService.check(installed);
+      final lastAnnounced = await settings.loadLastAnnouncedUpdate();
+      if (mounted) {
+        _pendingUpdate = update?.versionCode == lastAnnounced ? null : update;
+      }
+    } catch (_) {
+      // Background update checks are best effort.
+    } finally {
+      _checkingForUpdate = false;
+    }
+    if (mounted) await _showPendingUpdate();
+  }
+
+  Future<void> _showPendingUpdate() async {
+    final update = _pendingUpdate;
+    if (!mounted ||
+        update == null ||
+        _remoteSessionOpen ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    final bridge = ref.read(platformBridgeProvider);
+    final settings = ref.read(settingsRepositoryProvider);
+    final download = update.apkUri;
+    final dialog = showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Osmium ${update.version} 已发布'),
+        content: Text(update.notes.isEmpty ? '有新版本可用。' : update.notes),
+        scrollable: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('关闭'),
+          ),
+          if (download != null)
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('下载 APK'),
+            ),
+        ],
       ),
     );
+    _pendingUpdate = null;
+    try {
+      await settings.saveLastAnnouncedUpdate(update.versionCode);
+    } catch (_) {
+      // A preference write failure does not prevent downloading the update.
+    }
+    if (await dialog == true &&
+        download != null &&
+        mounted &&
+        !_remoteSessionOpen) {
+      final opened = await bridge.openExternalUrl(download.toString());
+      if (!opened && mounted && !_remoteSessionOpen) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('无法打开下载链接')));
+      }
+    }
   }
 
   @override
@@ -129,6 +213,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     if (state == AppLifecycleState.resumed) {
       app.setAppLifecycleState(true);
       unawaited(app.onAppResumed());
+      unawaited(_showPendingUpdate());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden ||
@@ -149,6 +234,11 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   @override
   Widget build(BuildContext context) {
+    if (ModalRoute.isCurrentOf(context) == true && _pendingUpdate != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_showPendingUpdate());
+      });
+    }
     final media = MediaQuery.of(context);
     final bottomPad = media.padding.bottom;
     final navBarReserve = bottomPad + _dockBottomGap + _dockHeight + 16;
