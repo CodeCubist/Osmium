@@ -78,7 +78,7 @@ internal sealed class UpdateAnnouncementWindow : Window
             bool isDark = theme == ElementTheme.Dark ||
                           (theme != ElementTheme.Light &&
                            Application.Current.RequestedTheme == ApplicationTheme.Dark);
-            ImmersiveWindowHelper.ApplyImmersiveFrame(this, isDark);
+            ImmersiveWindowHelper.ApplyDialogFrame(this, isDark);
         }
         catch
         {

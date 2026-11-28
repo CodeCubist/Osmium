@@ -127,41 +127,7 @@ public static class ImmersiveWindowHelper
             NativeBridge.InvalidateRect(hwnd, IntPtr.Zero, true);
             SyncContentBridges(hwnd);
 
-            int darkMode = isDarkTheme ? 1 : 0;
-            DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode, sizeof(int));
-
-            int cornerPreference = DwmwcpRound;
-            DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref cornerPreference, sizeof(int));
-
-            int borderColor = transparentBorder ? DwmColorNone : DwmColorDefault;
-            DwmSetWindowAttribute(hwnd, DwmwaBorderColor, ref borderColor, sizeof(int));
-
-            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            var appWindow = AppWindow.GetFromWindowId(windowId);
-            var titleBar = appWindow.TitleBar;
-            if (titleBar != null && AppWindowTitleBar.IsCustomizationSupported())
-            {
-                titleBar.BackgroundColor = Colors.Transparent;
-                titleBar.InactiveBackgroundColor = Colors.Transparent;
-                titleBar.ButtonBackgroundColor = Colors.Transparent;
-                titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-                if (isDarkTheme)
-                {
-                    titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 240, 244, 248);
-                    titleBar.ButtonHoverForegroundColor = Colors.White;
-                    titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(24, 255, 255, 255);
-                    titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(36, 255, 255, 255);
-                    titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(140, 240, 244, 248);
-                }
-                else
-                {
-                    titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 32, 36, 44);
-                    titleBar.ButtonHoverForegroundColor = Colors.Black;
-                    titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(14, 0, 0, 0);
-                    titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(24, 0, 0, 0);
-                    titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(140, 32, 36, 44);
-                }
-            }
+            ApplyFrameAttributes(hwnd, isDarkTheme, transparentBorder);
 
             if (hwnd == GetActiveWindow())
             {
@@ -176,6 +142,62 @@ public static class ImmersiveWindowHelper
         }
         catch
         {
+        }
+    }
+
+    public static void ApplyDialogFrame(Window window, bool isDarkTheme, bool transparentBorder = true)
+    {
+        if (window == null) return;
+
+        try
+        {
+            var hwnd = WindowNative.GetWindowHandle(window);
+            if (hwnd == IntPtr.Zero) return;
+
+            WindowDarkModes[hwnd] = isDarkTheme;
+            ApplyFrameAttributes(hwnd, isDarkTheme, transparentBorder);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void ApplyFrameAttributes(IntPtr hwnd, bool isDarkTheme, bool transparentBorder)
+    {
+        int darkMode = isDarkTheme ? 1 : 0;
+        DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode, sizeof(int));
+
+        int cornerPreference = DwmwcpRound;
+        DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref cornerPreference, sizeof(int));
+
+        int borderColor = transparentBorder ? DwmColorNone : DwmColorDefault;
+        DwmSetWindowAttribute(hwnd, DwmwaBorderColor, ref borderColor, sizeof(int));
+
+        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+        var appWindow = AppWindow.GetFromWindowId(windowId);
+        var titleBar = appWindow.TitleBar;
+        if (titleBar != null && AppWindowTitleBar.IsCustomizationSupported())
+        {
+            titleBar.BackgroundColor = Colors.Transparent;
+            titleBar.InactiveBackgroundColor = Colors.Transparent;
+            titleBar.ButtonBackgroundColor = Colors.Transparent;
+            titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+            if (isDarkTheme)
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 240, 244, 248);
+                titleBar.ButtonHoverForegroundColor = Colors.White;
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(24, 255, 255, 255);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(36, 255, 255, 255);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(140, 240, 244, 248);
+            }
+            else
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 32, 36, 44);
+                titleBar.ButtonHoverForegroundColor = Colors.Black;
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(14, 0, 0, 0);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(24, 0, 0, 0);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(140, 32, 36, 44);
+            }
         }
     }
 
