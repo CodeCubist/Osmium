@@ -31,7 +31,8 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell>
+    with WidgetsBindingObserver {
   int _tabIndex = 0;
   final ValueNotifier<bool> _dockHidden = ValueNotifier(false);
   StreamSubscription<void>? _unreachableSub;
@@ -41,6 +42,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _unreachableSub?.cancel();
     _deepLinkSub?.cancel();
     _dockHidden.dispose();
@@ -50,6 +52,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final app = ref.read(appControllerProvider);
     final bridge = ref.read(platformBridgeProvider);
     _unreachableSub = app.serverUnreachable.listen((_) {
@@ -120,10 +123,25 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final app = ref.read(appControllerProvider);
+    if (state == AppLifecycleState.resumed) {
+      app.setAppLifecycleState(true);
+      unawaited(app.onAppResumed());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      app.setAppLifecycleState(false);
+    }
+  }
+
   void _selectTab(int index) {
     if (index == _tabIndex) return;
     OsmiumHaptics.selection();
     setState(() => _tabIndex = index);
+    ref.read(appControllerProvider).setActiveTab(index);
   }
 
   void _openConnectTab() => _selectTab(2);

@@ -22,13 +22,20 @@ public static class ImmersiveWindowHelper
     private const uint GwChild = 5;
     private const uint WmSize = 0x0005;
     private const uint WmActivate = 0x0006;
+    private const uint WmClose = 0x0010;
     private const uint WmEraseBkgnd = 0x0014;
     private const uint WmShowWindow = 0x0018;
     private const uint WmWindowPosChanging = 0x0046;
     private const uint WmWindowPosChanged = 0x0047;
     private const uint WmNcDestroy = 0x0082;
     private const uint WmNcCalcSize = 0x0083;
+    private const uint WmSysCommand = 0x0112;
     private const uint WmParentNotify = 0x0210;
+    private const uint ScMinimize = 0xF020;
+    private const uint ScClose = 0xF060;
+    private const uint MfByCommand = 0x00000000;
+    private const uint MfGrayed = 0x00000001;
+    private const uint MfDisabled = 0x00000002;
     private const int WmCreate = 0x0001;
     private const int WaInactive = 0;
     private const int WaActive = 1;
@@ -52,6 +59,14 @@ public static class ImmersiveWindowHelper
 
     private static readonly ConcurrentDictionary<IntPtr, IntPtr> BridgePrevWndProcs = new();
     private static readonly ConcurrentDictionary<IntPtr, bool> WindowDarkModes = new();
+    private static readonly ConcurrentDictionary<IntPtr, bool> CloseMinimizeBlockedWindows = new();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetSystemMenu(IntPtr hWnd, [MarshalAs(UnmanagedType.Bool)] bool bRevert);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int attributeValue, int size);
@@ -171,6 +186,34 @@ public static class ImmersiveWindowHelper
 
         EnsureTopInsetFixAttached(hwnd);
         SyncContentBridges(hwnd);
+    }
+
+    public static void SetCloseAndMinimizeBlocked(Window window, bool blocked)
+    {
+        if (window == null) return;
+        try
+        {
+            var hwnd = WindowNative.GetWindowHandle(window);
+            if (hwnd == IntPtr.Zero) return;
+            EnsureTopInsetFixAttached(hwnd);
+            CloseMinimizeBlockedWindows[hwnd] = blocked;
+            if (blocked)
+            {
+                IntPtr hMenu = GetSystemMenu(hwnd, false);
+                if (hMenu != IntPtr.Zero)
+                {
+                    EnableMenuItem(hMenu, ScClose, MfByCommand | MfGrayed | MfDisabled);
+                    EnableMenuItem(hMenu, ScMinimize, MfByCommand | MfGrayed | MfDisabled);
+                }
+            }
+            else
+            {
+                GetSystemMenu(hwnd, true);
+            }
+        }
+        catch
+        {
+        }
     }
 
     public static void SyncContentBridges(Window window)
@@ -423,8 +466,26 @@ public static class ImmersiveWindowHelper
         {
             PrevWndProcs.TryRemove(hwnd, out _);
             WindowDarkModes.TryRemove(hwnd, out _);
+            CloseMinimizeBlockedWindows.TryRemove(hwnd, out _);
             SetWindowLongPtr(hwnd, GwlpWndProc, prevProc);
             return CallWindowProc(prevProc, hwnd, msg, wParam, lParam);
+        }
+
+        if (CloseMinimizeBlockedWindows.TryGetValue(hwnd, out bool isBlocked) && isBlocked)
+        {
+            if (msg == WmClose)
+            {
+                return IntPtr.Zero;
+            }
+
+            if (msg == WmSysCommand)
+            {
+                uint cmd = unchecked((uint)(wParam.ToInt64() & 0xFFF0L));
+                if (cmd == ScClose || cmd == ScMinimize)
+                {
+                    return IntPtr.Zero;
+                }
+            }
         }
 
         if (msg == WmEraseBkgnd && wParam != IntPtr.Zero)

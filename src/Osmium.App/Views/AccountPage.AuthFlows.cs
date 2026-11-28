@@ -78,9 +78,8 @@ public sealed partial class AccountPage : Page
     private async Task<bool> SendAuthOtpCoreAsync(int mode, string email)
     {
         var acc = App.Engine.AccountService;
-        var startRes = mode == 1
-            ? await acc.StartRegisterSendCodeAsync(email)
-            : await acc.StartResetPasswordSendCodeAsync(email);
+        if (mode != 1) return false;
+        var startRes = await acc.StartRegisterSendCodeAsync(email);
 
         if (startRes.Code == OsmiumErrorCode.OtpCooldown)
         {
@@ -353,35 +352,494 @@ public sealed partial class AccountPage : Page
                     }
                 }
             }
-            else
-            {
-                var rstRes = await acc.ConfirmResetPasswordAsync(email, AuthOtpBox.Text, password);
-                if (rstRes.Ok)
-                {
-                    AuthPasswordBox.Password = string.Empty;
-                    AuthConfirmPasswordBox.Password = string.Empty;
-                    AuthOtpBox.Text = string.Empty;
-                    _selectedAuthMode = 0;
-                    _wizardStep = 0;
-                    UpdateWizardUiState(snapPanels: true);
-                    TransitionWizardToStep(1, forward: true);
-                    ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgResetSuccess"));
-                }
-                else
-                {
-                    ShowStatus(InfoBarSeverity.Error,
-                        acc.FormatFriendlyError(rstRes.Code, rstRes.HttpStatusCode, rstRes.RetryAfter));
-                    if (rstRes.Code is OsmiumErrorCode.OtpInvalid or OsmiumErrorCode.OtpExpired
-                        or OsmiumErrorCode.OtpTooManyAttempts or OsmiumErrorCode.InvalidOtpFormat)
-                    {
-                        TransitionWizardToStep(1, forward: false);
-                    }
-                }
-            }
         }
         finally
         {
             SetBusy(false);
+        }
+    }
+
+    private async Task ShowAccountRecoveryDialogAsync()
+    {
+        if (XamlRoot == null || _isBusy || !CanAttemptAuth) return;
+        var acc = App.Engine.AccountService;
+
+        int dlgStep = 0;
+        bool dlgSending = false;
+        string recoveryToken = string.Empty;
+        List<RecoveryChannelDto> channels = [];
+        DateTimeOffset dlgCooldownUntil = DateTimeOffset.MinValue;
+        var dlgCooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+
+        var stepIndicator = new TextBlock
+        {
+            Text = LocalizationService.Format("Acc_StepProgressFmt", 1, 3),
+            FontSize = 12,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+        };
+
+        var lookupDesc = new TextBlock
+        {
+            Text = LocalizationService.GetString("Acc_RecoveryStep0Desc"),
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+        };
+        var lookupEmailBox = new TextBox
+        {
+            Header = LocalizationService.GetString("Acc_RowEmail"),
+            PlaceholderText = LocalizationService.GetString("Acc_EmailPlaceholder"),
+            InputScope = new InputScope { Names = { new InputScopeName(InputScopeNameValue.EmailSmtpAddress) } }
+        };
+        var step0Panel = new StackPanel { Spacing = 10 };
+        step0Panel.Children.Add(lookupDesc);
+        step0Panel.Children.Add(lookupEmailBox);
+
+        var channelCombo = new ComboBox
+        {
+            Header = LocalizationService.GetString("Acc_RecoveryChannelHeader"),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var actionCombo = new ComboBox
+        {
+            Header = LocalizationService.GetString("Acc_RecoveryActionHeader"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Visibility = Visibility.Collapsed
+        };
+        var maskedHintText = new TextBlock
+        {
+            FontSize = 13,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var confirmEmailBox = new TextBox
+        {
+            Header = LocalizationService.GetString("Acc_ConfirmEmailHeader"),
+            PlaceholderText = LocalizationService.GetString("Acc_ConfirmEmailPlaceholder"),
+            InputScope = new InputScope { Names = { new InputScopeName(InputScopeNameValue.EmailSmtpAddress) } }
+        };
+        var step1Panel = new StackPanel { Spacing = 10, Visibility = Visibility.Collapsed };
+        step1Panel.Children.Add(channelCombo);
+        step1Panel.Children.Add(actionCombo);
+        step1Panel.Children.Add(maskedHintText);
+        step1Panel.Children.Add(confirmEmailBox);
+
+        var otpSummaryText = new TextBlock
+        {
+            FontSize = 13,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            TextWrapping = TextWrapping.Wrap
+        };
+        var otpBox = new TextBox
+        {
+            Header = LocalizationService.GetString("Acc_RowOtp"),
+            PlaceholderText = LocalizationService.GetString("Acc_OtpPlaceholder"),
+            MaxLength = 12
+        };
+        var newPwdBox = new Controls.TogglePasswordBox
+        {
+            Header = LocalizationService.GetString("Acc_RowPassword"),
+            PlaceholderText = LocalizationService.GetString("Acc_PasswordPlaceholder")
+        };
+        var confirmPwdBox = new Controls.TogglePasswordBox
+        {
+            Header = LocalizationService.GetString("Acc_RowConfirmPassword"),
+            PlaceholderText = LocalizationService.GetString("Acc_ConfirmPasswordPlaceholder")
+        };
+        var resendBtn = new Button
+        {
+            Content = LocalizationService.GetString("Acc_WizardResendBtn"),
+            CornerRadius = new CornerRadius(6),
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        var step2Panel = new StackPanel { Spacing = 10, Visibility = Visibility.Collapsed };
+        step2Panel.Children.Add(otpSummaryText);
+        step2Panel.Children.Add(otpBox);
+        step2Panel.Children.Add(newPwdBox);
+        step2Panel.Children.Add(confirmPwdBox);
+        step2Panel.Children.Add(resendBtn);
+
+        var feedbackText = new TextBlock
+        {
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 380,
+            Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"]
+        };
+
+        var rootPanel = new StackPanel { Spacing = 10, MinWidth = 360, MaxWidth = 420 };
+        rootPanel.Children.Add(stepIndicator);
+        rootPanel.Children.Add(step0Panel);
+        rootPanel.Children.Add(step1Panel);
+        rootPanel.Children.Add(step2Panel);
+        rootPanel.Children.Add(feedbackText);
+
+        var dlg = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme,
+            Title = LocalizationService.GetString("Acc_RecoveryTitle"),
+            Content = rootPanel,
+            PrimaryButtonText = LocalizationService.GetString("Acc_RecoveryLookupBtn"),
+            CloseButtonText = LocalizationService.GetString("Dialog_Cancel"),
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        RecoveryChannelDto? GetSelectedChannel()
+        {
+            int idx = channelCombo.SelectedIndex;
+            if (idx >= 0 && idx < channels.Count) return channels[idx];
+            return channels.FirstOrDefault();
+        }
+
+        bool IsRecoveryLoginSelected()
+        {
+            var ch = GetSelectedChannel();
+            return ch != null &&
+                   string.Equals(ch.Channel, "recovery", StringComparison.OrdinalIgnoreCase) &&
+                   actionCombo.SelectedIndex == 1;
+        }
+
+        void RefreshChannelSelectionUi()
+        {
+            var ch = GetSelectedChannel();
+            if (ch == null) return;
+            bool isRec = string.Equals(ch.Channel, "recovery", StringComparison.OrdinalIgnoreCase);
+            actionCombo.Visibility = isRec ? Visibility.Visible : Visibility.Collapsed;
+            if (!isRec)
+            {
+                actionCombo.SelectedIndex = 0;
+            }
+            maskedHintText.Text = LocalizationService.Format("Acc_ConfirmEmailHintFmt", ch.Masked);
+            confirmEmailBox.Text = string.Empty;
+        }
+
+        channelCombo.SelectionChanged += (_, _) => RefreshChannelSelectionUi();
+
+        void UpdateCooldownUi()
+        {
+            int rem = (int)Math.Max(0, Math.Ceiling((dlgCooldownUntil - DateTimeOffset.UtcNow).TotalSeconds));
+            if (rem > 0)
+            {
+                if (!dlgCooldownTimer.IsEnabled) dlgCooldownTimer.Start();
+                resendBtn.IsEnabled = false;
+                resendBtn.Content = LocalizationService.Format("Acc_OtpResendCooldownFmt", rem);
+                if (dlgStep == 1)
+                {
+                    dlg.PrimaryButtonText = LocalizationService.Format("Acc_OtpSendCooldownFmt", rem);
+                    dlg.IsPrimaryButtonEnabled = false;
+                }
+            }
+            else
+            {
+                if (dlgCooldownTimer.IsEnabled) dlgCooldownTimer.Stop();
+                resendBtn.IsEnabled = !dlgSending;
+                resendBtn.Content = LocalizationService.GetString("Acc_WizardResendBtn");
+                if (dlgStep == 1)
+                {
+                    dlg.PrimaryButtonText = LocalizationService.GetString("Acc_WizardSendAndNextBtn");
+                    dlg.IsPrimaryButtonEnabled = !dlgSending;
+                }
+            }
+        }
+
+        dlgCooldownTimer.Tick += (_, _) => UpdateCooldownUi();
+
+        void SetStep(int step)
+        {
+            dlgStep = step;
+            stepIndicator.Text = LocalizationService.Format("Acc_StepProgressFmt", step + 1, 3);
+            step0Panel.Visibility = step == 0 ? Visibility.Visible : Visibility.Collapsed;
+            step1Panel.Visibility = step == 1 ? Visibility.Visible : Visibility.Collapsed;
+            step2Panel.Visibility = step == 2 ? Visibility.Visible : Visibility.Collapsed;
+            dlg.SecondaryButtonText = step > 0 ? LocalizationService.GetString("Acc_WizardBackBtn") : string.Empty;
+
+            if (step == 0)
+            {
+                dlg.PrimaryButtonText = LocalizationService.GetString("Acc_RecoveryLookupBtn");
+                dlg.IsPrimaryButtonEnabled = true;
+            }
+            else if (step == 1)
+            {
+                dlg.PrimaryButtonText = LocalizationService.GetString("Acc_WizardSendAndNextBtn");
+                UpdateCooldownUi();
+            }
+            else
+            {
+                bool isLogin = IsRecoveryLoginSelected();
+                newPwdBox.Visibility = isLogin ? Visibility.Collapsed : Visibility.Visible;
+                confirmPwdBox.Visibility = isLogin ? Visibility.Collapsed : Visibility.Visible;
+                var ch = GetSelectedChannel();
+                otpSummaryText.Text = LocalizationService.Format("Acc_OtpSentFmt", ch?.Masked ?? string.Empty);
+                dlg.PrimaryButtonText = LocalizationService.GetString(isLogin ? "Acc_RecoveryConfirmBtn" : "Acc_SubmitReset");
+                dlg.IsPrimaryButtonEnabled = true;
+                UpdateCooldownUi();
+                DispatcherQueue.TryEnqueue(() => otpBox.Focus(FocusState.Programmatic));
+            }
+        }
+
+        async Task<bool> TriggerRecoveryOtpAsync()
+        {
+            var ch = GetSelectedChannel();
+            if (ch == null || string.IsNullOrWhiteSpace(recoveryToken))
+            {
+                feedbackText.Text = LocalizationService.GetString("Acc_ErrRecoverySessionExpired");
+                return false;
+            }
+
+            string confirmMail = confirmEmailBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(confirmMail) || !confirmMail.Contains('@'))
+            {
+                feedbackText.Text = LocalizationService.GetString("Acc_ErrInvalidEmail");
+                return false;
+            }
+
+            bool isLogin = IsRecoveryLoginSelected();
+            var startRes = isLogin
+                ? await acc.StartRecoveryLoginSendCodeAsync(recoveryToken, confirmMail)
+                : await acc.StartResetPasswordSendCodeAsync(recoveryToken, ch.Channel, confirmMail);
+
+            if (startRes.Code == OsmiumErrorCode.OtpCooldown)
+            {
+                var cd = startRes.RetryAfter.HasValue && startRes.RetryAfter.Value.TotalSeconds > 0
+                    ? startRes.RetryAfter.Value
+                    : TimeSpan.FromSeconds(60);
+                dlgCooldownUntil = DateTimeOffset.UtcNow.Add(cd);
+                UpdateCooldownUi();
+                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                return true;
+            }
+
+            if (!startRes.RequiresCaptcha || startRes.Challenge == null)
+            {
+                feedbackText.Text = acc.FormatFriendlyError(startRes.Code, startRes.HttpStatusCode, startRes.RetryAfter);
+                if (startRes.Code is OsmiumErrorCode.RecoverySessionExpired or OsmiumErrorCode.EmailConfirmTooManyAttempts)
+                {
+                    recoveryToken = string.Empty;
+                    SetStep(0);
+                }
+                return false;
+            }
+
+            var pollRes = await CloudCaptchaWindow.ShowChallengeAsync<AccountOtpSentData>(acc, startRes.Challenge);
+            if (pollRes == null)
+            {
+                feedbackText.Text = LocalizationService.GetString("Conn_CaptchaCancelled");
+                return false;
+            }
+
+            if (pollRes.Ok)
+            {
+                dlgCooldownUntil = DateTimeOffset.UtcNow.AddSeconds(60);
+                UpdateCooldownUi();
+                feedbackText.Text = string.Empty;
+                return true;
+            }
+
+            if (pollRes.Code == OsmiumErrorCode.OtpCooldown)
+            {
+                var cd = pollRes.RetryAfter.HasValue && pollRes.RetryAfter.Value.TotalSeconds > 0
+                    ? pollRes.RetryAfter.Value
+                    : TimeSpan.FromSeconds(60);
+                dlgCooldownUntil = DateTimeOffset.UtcNow.Add(cd);
+                UpdateCooldownUi();
+            }
+
+            feedbackText.Text = acc.FormatFriendlyError(pollRes.Code, pollRes.HttpStatusCode, pollRes.RetryAfter);
+            return false;
+        }
+
+        resendBtn.Click += async (_, _) =>
+        {
+            if (dlgSending || dlgCooldownUntil > DateTimeOffset.UtcNow) return;
+            dlgSending = true;
+            resendBtn.IsEnabled = false;
+            try
+            {
+                await TriggerRecoveryOtpAsync();
+            }
+            finally
+            {
+                dlgSending = false;
+                UpdateCooldownUi();
+            }
+        };
+
+        dlg.SecondaryButtonClick += (_, args) =>
+        {
+            if (dlgStep > 0)
+            {
+                args.Cancel = true;
+                feedbackText.Text = string.Empty;
+                SetStep(dlgStep - 1);
+            }
+        };
+
+        bool resetSucceeded = false;
+        bool loginSucceeded = false;
+        string? pendingTwoFaToken = null;
+
+        dlg.PrimaryButtonClick += async (_, args) =>
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                feedbackText.Text = string.Empty;
+                if (dlgStep == 0)
+                {
+                    args.Cancel = true;
+                    string email = lookupEmailBox.Text.Trim();
+                    if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+                    {
+                        feedbackText.Text = LocalizationService.GetString("Acc_ErrInvalidEmail");
+                        return;
+                    }
+
+                    var lookupRes = await acc.LookupAccountRecoveryAsync(email);
+                    if (!lookupRes.Ok || lookupRes.Data == null || lookupRes.Data.Channels.Count == 0)
+                    {
+                        feedbackText.Text = acc.FormatFriendlyError(lookupRes.Code, lookupRes.HttpStatusCode, lookupRes.RetryAfter);
+                        return;
+                    }
+
+                    recoveryToken = lookupRes.Data.RecoveryToken;
+                    channels = lookupRes.Data.Channels;
+
+                    channelCombo.Items.Clear();
+                    foreach (var ch in channels)
+                    {
+                        string fmtKey = string.Equals(ch.Channel, "recovery", StringComparison.OrdinalIgnoreCase)
+                            ? "Acc_RecoveryChannelRecoveryFmt"
+                            : "Acc_RecoveryChannelPrimaryFmt";
+                        channelCombo.Items.Add(LocalizationService.Format(fmtKey, ch.Masked));
+                    }
+
+                    actionCombo.Items.Clear();
+                    actionCombo.Items.Add(LocalizationService.GetString("Acc_RecoveryActionReset"));
+                    actionCombo.Items.Add(LocalizationService.GetString("Acc_RecoveryActionLogin"));
+                    actionCombo.SelectedIndex = 0;
+
+                    channelCombo.SelectedIndex = 0;
+                    RefreshChannelSelectionUi();
+                    SetStep(1);
+                    return;
+                }
+
+                if (dlgStep == 1)
+                {
+                    args.Cancel = true;
+                    if (await TriggerRecoveryOtpAsync())
+                    {
+                        SetStep(2);
+                    }
+                    return;
+                }
+
+                string otp = otpBox.Text.Trim();
+                if (otp.Length != 6 || !otp.All(char.IsDigit))
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrEnterOtpFirst");
+                    return;
+                }
+
+                var selectedCh = GetSelectedChannel();
+                if (selectedCh == null || string.IsNullOrWhiteSpace(recoveryToken))
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrRecoverySessionExpired");
+                    SetStep(0);
+                    return;
+                }
+
+                string confirmMail = confirmEmailBox.Text.Trim();
+                if (IsRecoveryLoginSelected())
+                {
+                    var loginRes = await acc.ConfirmRecoveryLoginAsync(recoveryToken, confirmMail, otp);
+                    if (loginRes.RequiresTwoFa && loginRes.TwoFaChallenge != null)
+                    {
+                        pendingTwoFaToken = loginRes.TwoFaChallenge.TwoFaToken;
+                        return;
+                    }
+
+                    if (loginRes.Ok && acc.IsLoggedIn)
+                    {
+                        loginSucceeded = true;
+                        return;
+                    }
+
+                    args.Cancel = true;
+                    feedbackText.Text = acc.FormatFriendlyError(loginRes.Code, loginRes.HttpStatusCode, loginRes.RetryAfter);
+                    if (loginRes.Code == OsmiumErrorCode.RecoverySessionExpired)
+                    {
+                        recoveryToken = string.Empty;
+                        SetStep(0);
+                    }
+                    return;
+                }
+
+                string newPwd = newPwdBox.Password;
+                if (string.IsNullOrEmpty(newPwd) || newPwd.Length < 8 || newPwd.Length > 128)
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrPasswordLength");
+                    return;
+                }
+
+                if (newPwd != confirmPwdBox.Password)
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = LocalizationService.GetString("Acc_ErrPasswordMismatch");
+                    return;
+                }
+
+                var rstRes = await acc.ConfirmResetPasswordAsync(recoveryToken, selectedCh.Channel, confirmMail, otp, newPwd);
+                if (!rstRes.Ok)
+                {
+                    args.Cancel = true;
+                    feedbackText.Text = acc.FormatFriendlyError(rstRes.Code, rstRes.HttpStatusCode, rstRes.RetryAfter);
+                    if (rstRes.Code == OsmiumErrorCode.RecoverySessionExpired)
+                    {
+                        recoveryToken = string.Empty;
+                        SetStep(0);
+                    }
+                    return;
+                }
+
+                resetSucceeded = true;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+
+        try
+        {
+            await dlg.ShowAsync();
+        }
+        finally
+        {
+            dlgCooldownTimer.Stop();
+        }
+
+        if (!string.IsNullOrWhiteSpace(pendingTwoFaToken))
+        {
+            await ShowTwoFaVerifyDialogAsync(string.Empty, pendingTwoFaToken);
+        }
+        else if (loginSucceeded)
+        {
+            _wizardStep = -1;
+            ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgLoginSuccess"));
+            RefreshViewState();
+            _ = RefreshAllAccountDataAsync();
+        }
+        else if (resetSucceeded)
+        {
+            _selectedAuthMode = 0;
+            _wizardStep = 0;
+            UpdateWizardUiState(snapPanels: true);
+            ShowStatus(InfoBarSeverity.Success, LocalizationService.GetString("Acc_MsgResetSuccess"));
         }
     }
 

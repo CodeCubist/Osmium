@@ -35,13 +35,20 @@ class _MeTabState extends ConsumerState<MeTab> {
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _nicknameCtrl = TextEditingController();
   final TextEditingController _emailPasswordCtrl = TextEditingController();
+  final TextEditingController _currentEmailCtrl = TextEditingController();
   final TextEditingController _newEmailCtrl = TextEditingController();
   final TextEditingController _emailCodeCtrl = TextEditingController();
+  final TextEditingController _setPwdConfirmEmailCtrl = TextEditingController();
   final TextEditingController _setPwdCodeCtrl = TextEditingController();
   final TextEditingController _setPwdNewCtrl = TextEditingController();
   final TextEditingController _setPwdConfirmCtrl = TextEditingController();
   final TextEditingController _keyNameCtrl = TextEditingController();
+  final TextEditingController _keyConfirmEmailCtrl = TextEditingController();
   final TextEditingController _keyOtpCtrl = TextEditingController();
+  final TextEditingController _recPwdCtrl = TextEditingController();
+  final TextEditingController _recCurrentEmailCtrl = TextEditingController();
+  final TextEditingController _recNewEmailCtrl = TextEditingController();
+  final TextEditingController _recOtpCtrl = TextEditingController();
 
   bool _scrolled = false;
   bool _accountMenuExpanded = false;
@@ -104,6 +111,15 @@ class _MeTabState extends ConsumerState<MeTab> {
   String _createdKeyValue = '';
   bool _createdKeyCopied = false;
 
+  bool _recEmailVisible = false;
+  bool _recEmailRemoveMode = false;
+  bool _recEmailSubmitting = false;
+  bool _recEmailSendingCode = false;
+  bool _obscureRecPwd = true;
+  int _recEmailCooldown = 0;
+  Timer? _recEmailCooldownTimer;
+  String? _recEmailError;
+
   bool _copied = false;
   Timer? _copiedTimer;
   ValueNotifier<bool>? _dockHidden;
@@ -133,16 +149,24 @@ class _MeTabState extends ConsumerState<MeTab> {
     _emailCooldownTimer?.cancel();
     _setPwdCooldownTimer?.cancel();
     _createKeyCooldownTimer?.cancel();
+    _recEmailCooldownTimer?.cancel();
     _nameCtrl.dispose();
     _nicknameCtrl.dispose();
     _emailPasswordCtrl.dispose();
+    _currentEmailCtrl.dispose();
     _newEmailCtrl.dispose();
     _emailCodeCtrl.dispose();
+    _setPwdConfirmEmailCtrl.dispose();
     _setPwdCodeCtrl.dispose();
     _setPwdNewCtrl.dispose();
     _setPwdConfirmCtrl.dispose();
     _keyNameCtrl.dispose();
+    _keyConfirmEmailCtrl.dispose();
     _keyOtpCtrl.dispose();
+    _recPwdCtrl.dispose();
+    _recCurrentEmailCtrl.dispose();
+    _recNewEmailCtrl.dispose();
+    _recOtpCtrl.dispose();
     super.dispose();
   }
 
@@ -156,6 +180,7 @@ class _MeTabState extends ConsumerState<MeTab> {
         _loginKeysVisible ||
         _createKeyVisible ||
         _createdKeyVisible ||
+        _recEmailVisible ||
         _oauthBindDialogVisible ||
         _oauthUnbindVisible;
   }
@@ -570,6 +595,7 @@ class _MeTabState extends ConsumerState<MeTab> {
     if (acct != null && acct.hasEmail && !acct.hasPassword) return;
     OsmiumHaptics.selection();
     _emailPasswordCtrl.clear();
+    _currentEmailCtrl.clear();
     _newEmailCtrl.clear();
     _emailCodeCtrl.clear();
     setState(() {
@@ -616,9 +642,17 @@ class _MeTabState extends ConsumerState<MeTab> {
     final acct = app.account;
     final isAddEmail = acct != null && !acct.hasEmail && !acct.hasPassword;
     final password = isAddEmail ? null : _emailPasswordCtrl.text;
+    final currentEmail = isAddEmail ? null : _currentEmailCtrl.text.trim();
     final newEmail = _newEmailCtrl.text.trim();
     if (!isAddEmail && (password == null || password.isEmpty)) {
       setState(() => _emailError = '请输入当前密码');
+      return;
+    }
+    if (!isAddEmail &&
+        (currentEmail == null ||
+            currentEmail.isEmpty ||
+            !currentEmail.contains('@'))) {
+      setState(() => _emailError = '请输入当前完整邮箱');
       return;
     }
     if (newEmail.isEmpty || !newEmail.contains('@')) {
@@ -632,6 +666,7 @@ class _MeTabState extends ConsumerState<MeTab> {
     try {
       final res = await app.startChangeEmailSendCode(
         password: password,
+        currentEmail: currentEmail,
         newEmail: newEmail,
       );
       if (!mounted) return;
@@ -712,6 +747,7 @@ class _MeTabState extends ConsumerState<MeTab> {
     final acct = ref.read(appControllerProvider).account;
     if (acct == null || !acct.hasEmail || acct.hasPassword) return;
     OsmiumHaptics.selection();
+    _setPwdConfirmEmailCtrl.clear();
     _setPwdCodeCtrl.clear();
     _setPwdNewCtrl.clear();
     _setPwdConfirmCtrl.clear();
@@ -756,6 +792,11 @@ class _MeTabState extends ConsumerState<MeTab> {
 
   Future<void> _sendSetPasswordCode() async {
     if (_setPwdSendingCode || _setPwdCodeCooldown > 0) return;
+    final confirmEmail = _setPwdConfirmEmailCtrl.text.trim();
+    if (confirmEmail.isEmpty || !confirmEmail.contains('@')) {
+      setState(() => _setPwdError = '请输入完整邮箱');
+      return;
+    }
     setState(() {
       _setPwdSendingCode = true;
       _setPwdError = null;
@@ -763,7 +804,7 @@ class _MeTabState extends ConsumerState<MeTab> {
     try {
       final res = await ref
           .read(appControllerProvider)
-          .startSetPasswordSendCode();
+          .startSetPasswordSendCode(confirmEmail: confirmEmail);
       if (!mounted) return;
       if (res.needsCaptcha && res.challenge != null) {
         final verified = await Navigator.of(context).push<Map<String, dynamic>>(
@@ -924,6 +965,7 @@ class _MeTabState extends ConsumerState<MeTab> {
     }
     OsmiumHaptics.selection();
     _keyNameCtrl.clear();
+    _keyConfirmEmailCtrl.clear();
     _keyOtpCtrl.clear();
     setState(() {
       _loginKeysVisible = false;
@@ -966,13 +1008,20 @@ class _MeTabState extends ConsumerState<MeTab> {
 
   Future<void> _sendCreateLoginKeyCode() async {
     if (_createKeySendingCode || _createKeyCooldown > 0) return;
+    final confirmEmail = _keyConfirmEmailCtrl.text.trim();
+    if (confirmEmail.isEmpty || !confirmEmail.contains('@')) {
+      setState(() => _createKeyError = '请输入完整邮箱');
+      return;
+    }
     setState(() {
       _createKeySendingCode = true;
       _createKeyError = null;
     });
     try {
       final accountSvc = ref.read(accountServiceProvider);
-      final res = await accountSvc.startCreateLoginKeySendCode();
+      final res = await accountSvc.startCreateLoginKeySendCode(
+        confirmEmail: confirmEmail,
+      );
       if (!mounted) return;
       if (res.needsCaptcha && res.challenge != null) {
         final verified = await Navigator.of(context).push<Map<String, dynamic>>(
@@ -1059,6 +1108,162 @@ class _MeTabState extends ConsumerState<MeTab> {
       _loginKeysVisible = true;
     });
     _syncDock();
+  }
+
+  void _openRecoveryEmailDialog() {
+    final app = ref.read(appControllerProvider);
+    final acct = app.account;
+    if (!app.isLoggedIn || acct == null || acct.locked || !app.isProfileComplete) {
+      return;
+    }
+    OsmiumHaptics.selection();
+    _recPwdCtrl.clear();
+    _recCurrentEmailCtrl.clear();
+    _recNewEmailCtrl.clear();
+    _recOtpCtrl.clear();
+    setState(() {
+      _accountMenuExpanded = false;
+      _recEmailRemoveMode = false;
+      _recEmailError = null;
+      _obscureRecPwd = true;
+      _recEmailSubmitting = false;
+      _recEmailSendingCode = false;
+      _recEmailVisible = true;
+    });
+    _syncDock();
+  }
+
+  void _dismissRecoveryEmailDialog() {
+    if (!_recEmailVisible || _recEmailSubmitting || _recEmailSendingCode) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _recEmailVisible = false;
+      _recEmailError = null;
+    });
+    _syncDock();
+  }
+
+  void _startRecEmailCooldown() {
+    _recEmailCooldownTimer?.cancel();
+    setState(() => _recEmailCooldown = 60);
+    _recEmailCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_recEmailCooldown <= 1) {
+        timer.cancel();
+        setState(() => _recEmailCooldown = 0);
+      } else {
+        setState(() => _recEmailCooldown -= 1);
+      }
+    });
+  }
+
+  Future<void> _sendRecoveryEmailCode() async {
+    if (_recEmailSendingCode || _recEmailCooldown > 0) return;
+    final pwd = _recPwdCtrl.text;
+    final curEmail = _recCurrentEmailCtrl.text.trim();
+    final recEmail = _recNewEmailCtrl.text.trim();
+    if (pwd.length < 8) {
+      setState(() => _recEmailError = '请输入当前登录密码');
+      return;
+    }
+    if (curEmail.isEmpty || !curEmail.contains('@')) {
+      setState(() => _recEmailError = '请输入当前完整邮箱');
+      return;
+    }
+    if (!_recEmailRemoveMode && (recEmail.isEmpty || !recEmail.contains('@'))) {
+      setState(() => _recEmailError = '请输入有效的保密邮箱地址');
+      return;
+    }
+    setState(() {
+      _recEmailSendingCode = true;
+      _recEmailError = null;
+    });
+    try {
+      final app = ref.read(appControllerProvider);
+      final res = _recEmailRemoveMode
+          ? await app.startRemoveRecoveryEmailSendCode(
+              password: pwd,
+              confirmEmail: curEmail,
+            )
+          : await app.startBindRecoveryEmailSendCode(
+              password: pwd,
+              currentEmail: curEmail,
+              recoveryEmail: recEmail,
+            );
+      if (!mounted) return;
+      if (res.needsCaptcha && res.challenge != null) {
+        final verified = await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (_) => CaptchaWebViewPage(
+              challenge: res.challenge!,
+              accountService: ref.read(accountServiceProvider),
+            ),
+          ),
+        );
+        if (!mounted) return;
+        if (verified != null) {
+          _startRecEmailCooldown();
+        }
+        return;
+      }
+      if (res.ok) {
+        _startRecEmailCooldown();
+      } else {
+        setState(
+          () => _recEmailError = res.message.isNotEmpty ? res.message : '发送失败',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _recEmailSendingCode = false);
+    }
+  }
+
+  Future<void> _confirmRecoveryEmail() async {
+    if (_recEmailSubmitting) return;
+    final pwd = _recPwdCtrl.text;
+    final recEmail = _recNewEmailCtrl.text.trim();
+    final code = _recOtpCtrl.text.trim();
+    if (pwd.length < 8) {
+      setState(() => _recEmailError = '请输入当前登录密码');
+      return;
+    }
+    if (!_recEmailRemoveMode && (recEmail.isEmpty || !recEmail.contains('@'))) {
+      setState(() => _recEmailError = '请输入有效的保密邮箱地址');
+      return;
+    }
+    if (code.length != 6) {
+      setState(() => _recEmailError = '请输入6位邮箱验证码');
+      return;
+    }
+    setState(() {
+      _recEmailSubmitting = true;
+      _recEmailError = null;
+    });
+    try {
+      final app = ref.read(appControllerProvider);
+      final res = _recEmailRemoveMode
+          ? await app.confirmRemoveRecoveryEmail(password: pwd, code: code)
+          : await app.confirmBindRecoveryEmail(
+              password: pwd,
+              recoveryEmail: recEmail,
+              code: code,
+            );
+      if (!mounted) return;
+      if (res.ok) {
+        OsmiumHaptics.confirm();
+        _dismissRecoveryEmailDialog();
+        _showAccountSuccess(_recEmailRemoveMode ? '已移除保密邮箱' : '保密邮箱已更新');
+      } else {
+        setState(
+          () => _recEmailError = res.message.isNotEmpty ? res.message : '操作失败',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _recEmailSubmitting = false);
+    }
   }
 
   void _editSelfName(String currentName) {
@@ -1188,6 +1393,7 @@ class _MeTabState extends ConsumerState<MeTab> {
                               app.account?.username ?? '',
                             ),
                             onChangeEmail: _openChangeEmailDialog,
+                            onManageRecoveryEmail: _openRecoveryEmailDialog,
                             onSetPassword: _openSetPasswordDialog,
                             onManageLoginKeys: _openLoginKeysDialog,
                             onTapOAuthBinding: _handleOAuthBindingTap,
@@ -1548,6 +1754,7 @@ class _MeTabState extends ConsumerState<MeTab> {
             _buildSelfNameDialog(context),
             _buildNicknameDialog(context),
             _buildChangeEmailDialog(context, app.account),
+            _buildRecoveryEmailDialog(context, app.account),
             _buildSetPasswordDialog(context, app.account),
             _buildLoginKeysDialog(context, app.account),
             _buildCreateLoginKeyDialog(context, app.account),
@@ -1690,6 +1897,22 @@ class _MeTabState extends ConsumerState<MeTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!isAddEmail) ...[
+              MiuixText(
+                '当前邮箱：${acct?.email ?? ''}',
+                style: theme.textStyles.body2,
+                color: colors.onSurfaceVariantSummary,
+              ),
+              const SizedBox(height: 10),
+              MiuixTextField(
+                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                insideMargin: OsmiumFieldDefaults.floatingMargin,
+                controller: _currentEmailCtrl,
+                label: '当前邮箱',
+                singleLine: true,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
               MiuixTextField(
                 cornerRadius: OsmiumFieldDefaults.cornerRadius,
                 insideMargin: OsmiumFieldDefaults.floatingMargin,
@@ -1817,12 +2040,22 @@ class _MeTabState extends ConsumerState<MeTab> {
           children: [
             if (boundEmail.isNotEmpty) ...[
               MiuixText(
-                '将向$boundEmail发送6位验证码',
+                '接收邮箱：$boundEmail',
                 style: theme.textStyles.body2,
                 color: colors.onSurfaceVariantSummary,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
             ],
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _setPwdConfirmEmailCtrl,
+              label: '确认邮箱',
+              singleLine: true,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -2289,12 +2522,22 @@ class _MeTabState extends ConsumerState<MeTab> {
           children: [
             if (boundEmail.isNotEmpty) ...[
               MiuixText(
-                '将向$boundEmail发送6位验证码',
+                '接收邮箱：$boundEmail',
                 style: theme.textStyles.body2,
                 color: colors.onSurfaceVariantSummary,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
             ],
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _keyConfirmEmailCtrl,
+              label: '确认邮箱',
+              singleLine: true,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
             MiuixTextField(
               cornerRadius: OsmiumFieldDefaults.cornerRadius,
               insideMargin: OsmiumFieldDefaults.floatingMargin,
@@ -2433,6 +2676,206 @@ class _MeTabState extends ConsumerState<MeTab> {
       ),
     );
   }
+
+  Widget _buildRecoveryEmailDialog(
+    BuildContext context,
+    AccountSessionData? acct,
+  ) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+    final hasRec = acct?.hasRecoveryEmail == true;
+    final maskedPrimary = acct?.email ?? '';
+    final maskedRec = acct?.recoveryEmail ?? '';
+
+    return MiuixOverlayDialog(
+      show: _recEmailVisible,
+      title: hasRec ? '管理保密邮箱' : '添加保密邮箱',
+      onDismissRequest: _dismissRecoveryEmailDialog,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasRec) ...[
+              MiuixText(
+                '当前保密邮箱：$maskedRec',
+                style: theme.textStyles.body2,
+                color: colors.onSurfaceVariantSummary,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: MiuixTextButton(
+                      '更换',
+                      onPressed: () => setState(() {
+                        _recEmailRemoveMode = false;
+                        _recEmailError = null;
+                      }),
+                      minHeight: 36,
+                      colors: !_recEmailRemoveMode
+                          ? MiuixButtonDefaults.buttonColorsPrimary(context)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: MiuixTextButton(
+                      '移除',
+                      onPressed: () => setState(() {
+                        _recEmailRemoveMode = true;
+                        _recEmailError = null;
+                      }),
+                      minHeight: 36,
+                      colors: _recEmailRemoveMode
+                          ? MiuixButtonColors(
+                              color: OsmiumColors.dangerBg(isDark),
+                              disabledColor: colors.disabledSecondaryVariant,
+                              contentColor: OsmiumColors.dangerFg(isDark),
+                              disabledContentColor:
+                                  colors.disabledOnSecondaryVariant,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+            MiuixText(
+              '当前邮箱：$maskedPrimary',
+              style: theme.textStyles.body2,
+              color: colors.onSurfaceVariantSummary,
+            ),
+            const SizedBox(height: 10),
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _recCurrentEmailCtrl,
+              label: '当前邮箱',
+              singleLine: true,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 10),
+            MiuixTextField(
+              cornerRadius: OsmiumFieldDefaults.cornerRadius,
+              insideMargin: OsmiumFieldDefaults.floatingMargin,
+              controller: _recPwdCtrl,
+              label: '当前密码',
+              singleLine: true,
+              obscureText: _obscureRecPwd,
+              textInputAction: TextInputAction.next,
+              trailingIcon: MiuixIconButton(
+                onPressed: () =>
+                    setState(() => _obscureRecPwd = !_obscureRecPwd),
+                minWidth: 34,
+                minHeight: 34,
+                child: Icon(
+                  _obscureRecPwd
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 18,
+                  color: colors.onSurfaceVariantSummary,
+                ),
+              ),
+            ),
+            if (!_recEmailRemoveMode) ...[
+              const SizedBox(height: 10),
+              MiuixTextField(
+                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                insideMargin: OsmiumFieldDefaults.floatingMargin,
+                controller: _recNewEmailCtrl,
+                label: '新保密邮箱',
+                singleLine: true,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextField(
+                    cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                    insideMargin: OsmiumFieldDefaults.floatingMargin,
+                    controller: _recOtpCtrl,
+                    label: '验证码',
+                    singleLine: true,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _confirmRecoveryEmail(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                MiuixTextButton(
+                  _recEmailCooldown > 0
+                      ? '${_recEmailCooldown}s'
+                      : (_recEmailSendingCode ? '…' : '获取'),
+                  enabled: !_recEmailSendingCode && _recEmailCooldown == 0,
+                  onPressed: _sendRecoveryEmailCode,
+                  minHeight: 44,
+                ),
+              ],
+            ),
+            OsmiumAnimatedReveal(
+              visible: _recEmailError != null,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: OsmiumColors.dangerBg(isDark),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: MiuixText(
+                    _recEmailError ?? '',
+                    style: theme.textStyles.body2,
+                    color: OsmiumColors.dangerFg(isDark),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextButton(
+                    '取消',
+                    enabled: !_recEmailSubmitting && !_recEmailSendingCode,
+                    onPressed: _dismissRecoveryEmailDialog,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MiuixTextButton(
+                    _recEmailSubmitting
+                        ? '提交中…'
+                        : (_recEmailRemoveMode ? '确认移除' : '保存'),
+                    enabled: !_recEmailSubmitting && !_recEmailSendingCode,
+                    onPressed: _confirmRecoveryEmail,
+                    colors: _recEmailRemoveMode
+                        ? MiuixButtonColors(
+                            color: OsmiumColors.dangerBg(isDark),
+                            disabledColor: colors.disabledSecondaryVariant,
+                            contentColor: OsmiumColors.dangerFg(isDark),
+                            disabledContentColor:
+                                colors.disabledOnSecondaryVariant,
+                          )
+                        : MiuixButtonDefaults.buttonColorsPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _AccountHeroCard extends StatelessWidget {
@@ -2449,6 +2892,7 @@ class _AccountHeroCard extends StatelessWidget {
     required this.onClearAvatar,
     required this.onEditNickname,
     required this.onChangeEmail,
+    required this.onManageRecoveryEmail,
     required this.onSetPassword,
     required this.onManageLoginKeys,
     required this.onTapOAuthBinding,
@@ -2466,6 +2910,7 @@ class _AccountHeroCard extends StatelessWidget {
   final VoidCallback onClearAvatar;
   final VoidCallback onEditNickname;
   final VoidCallback onChangeEmail;
+  final VoidCallback onManageRecoveryEmail;
   final VoidCallback onSetPassword;
   final VoidCallback onManageLoginKeys;
   final ValueChanged<String> onTapOAuthBinding;
@@ -2563,6 +3008,7 @@ class _AccountHeroCard extends StatelessWidget {
       onClearAvatar: onClearAvatar,
       onEditNickname: onEditNickname,
       onChangeEmail: onChangeEmail,
+      onManageRecoveryEmail: onManageRecoveryEmail,
       onSetPassword: onSetPassword,
       onManageLoginKeys: onManageLoginKeys,
       onTapOAuthBinding: onTapOAuthBinding,
@@ -2588,6 +3034,7 @@ class _LoggedInAccountCard extends StatelessWidget {
     required this.onClearAvatar,
     required this.onEditNickname,
     required this.onChangeEmail,
+    required this.onManageRecoveryEmail,
     required this.onSetPassword,
     required this.onManageLoginKeys,
     required this.onTapOAuthBinding,
@@ -2609,6 +3056,7 @@ class _LoggedInAccountCard extends StatelessWidget {
   final VoidCallback onClearAvatar;
   final VoidCallback onEditNickname;
   final VoidCallback onChangeEmail;
+  final VoidCallback onManageRecoveryEmail;
   final VoidCallback onSetPassword;
   final VoidCallback onManageLoginKeys;
   final ValueChanged<String> onTapOAuthBinding;
@@ -2844,6 +3292,21 @@ class _LoggedInAccountCard extends StatelessWidget {
                             : (!profileComplete ? '需先设密码' : null),
                         enabled: canManageEmail,
                         onTap: onChangeEmail,
+                      ),
+                      const OsmiumCardDivider(),
+                      _AccountDropdownItem(
+                        icon: Icons.verified_user_outlined,
+                        title: '保密邮箱',
+                        trailingTag: !profileComplete
+                            ? (acct.hasEmail ? '需先设密码' : '请先完善账号')
+                            : (acct.hasRecoveryEmail &&
+                                      acct.recoveryEmail.isNotEmpty
+                                  ? acct.recoveryEmail
+                                  : '未设置'),
+                        trailingHighlight:
+                            profileComplete && !acct.hasRecoveryEmail,
+                        enabled: profileComplete && !acct.locked,
+                        onTap: onManageRecoveryEmail,
                       ),
                       if (!acct.hasPassword) ...[
                         const OsmiumCardDivider(),

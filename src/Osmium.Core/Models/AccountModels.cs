@@ -72,6 +72,9 @@ public static class OsmiumErrorCode
     public const int TwoFaAlreadyEnabled = 2017;
     public const int TwoFaNotEnabled = 2018;
     public const int LoginKeyInvalid = 2019;
+    public const int RecoveryEmailNotSet = 2020;
+    public const int RecoveryEmailAlreadyUsed = 2021;
+    public const int RecoveryEmailSameAsPrimary = 2022;
 
     public const int ChallengeExpired = 3001;
     public const int ChallengeNotFound = 3002;
@@ -93,6 +96,8 @@ public static class OsmiumErrorCode
     public const int OAuthFailed = 3018;
     public const int TwoFaInvalid = 3019;
     public const int TwoFaExpired = 3020;
+    public const int RecoverySessionExpired = 3021;
+    public const int EmailConfirmTooManyAttempts = 3022;
 
     public const int RateLimited = 4001;
     public const int UserDailyOpsExceeded = 4002;
@@ -118,6 +123,7 @@ public static class OsmiumErrorCode
     public const int LoginKeyLimitExceeded = 4022;
     public const int VersionUnsupported = 4023;
     public const int DeviceIdConflict = 4024;
+    public const int RecoveryEmailChangeCooldown = 4025;
 
     public const int InternalError = 5001;
     public const int ServerMisconfigured = 5002;
@@ -263,6 +269,20 @@ public sealed class AccountLoginSessionData
         set;
     } = string.Empty;
 
+    [JsonPropertyName("recovery_email")]
+    public string RecoveryEmail
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("has_recovery_email")]
+    public bool HasRecoveryEmail
+    {
+        get;
+        set;
+    }
+
     [JsonPropertyName("username")]
     public string Username
     {
@@ -379,6 +399,20 @@ public sealed class AccountLtokenIssueData
         set;
     } = string.Empty;
 
+    [JsonPropertyName("recovery_email")]
+    public string RecoveryEmail
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("has_recovery_email")]
+    public bool HasRecoveryEmail
+    {
+        get;
+        set;
+    }
+
     [JsonPropertyName("username")]
     public string Username
     {
@@ -466,6 +500,20 @@ public sealed class AccountStatusData
         get;
         set;
     } = string.Empty;
+
+    [JsonPropertyName("recovery_email")]
+    public string RecoveryEmail
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("has_recovery_email")]
+    public bool HasRecoveryEmail
+    {
+        get;
+        set;
+    }
 
     [JsonPropertyName("username")]
     public string Username
@@ -1122,6 +1170,18 @@ public sealed class AccountPersistedSession
         get;
         set;
     } = string.Empty;
+
+    public string RecoveryEmail
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    public bool? HasRecoveryEmail
+    {
+        get;
+        set;
+    }
 
     public string Username
     {
@@ -1899,6 +1959,64 @@ public sealed class LoginKeyCreateData
 
     [JsonPropertyName("created_at")]
     public long CreatedAt
+    {
+        get;
+        set;
+    }
+}
+
+public sealed class RecoveryChannelDto
+{
+    [JsonPropertyName("channel")]
+    public string Channel
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("masked")]
+    public string Masked
+    {
+        get;
+        set;
+    } = string.Empty;
+}
+
+public sealed class RecoveryLookupData
+{
+    [JsonPropertyName("recovery_token")]
+    public string RecoveryToken
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn
+    {
+        get;
+        set;
+    } = 600;
+
+    [JsonPropertyName("channels")]
+    public List<RecoveryChannelDto> Channels
+    {
+        get;
+        set;
+    } = [];
+}
+
+public sealed class AccountRecoveryEmailUpdateData
+{
+    [JsonPropertyName("recovery_email")]
+    public string RecoveryEmail
+    {
+        get;
+        set;
+    } = string.Empty;
+
+    [JsonPropertyName("has_recovery_email")]
+    public bool HasRecoveryEmail
     {
         get;
         set;

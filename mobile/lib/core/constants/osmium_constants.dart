@@ -3,9 +3,9 @@ class OsmiumConstants {
 
   static const String defaultSignalingUrl = 'wss://osmium.fufu.skin';
   static const String defaultApiBaseUrl = 'https://osmium.fufu.skin';
-  static const String protocolVersion = '1.1.0';
-  static const String minimumSupportedVersion = '1.1.0';
-  static const String userAgent = 'Osmium-Mobile/1.1.0';
+  static const String protocolVersion = '1.1.1';
+  static const String minimumSupportedVersion = '1.1.1';
+  static const String userAgent = 'Osmium-Mobile/1.1.1';
 
   static bool isVersionSupported(String? raw) {
     if (raw == null) return false;
@@ -17,7 +17,7 @@ class OsmiumConstants {
     final pat = int.parse(m.group(3) ?? '0');
     if (maj != 1) return maj > 1;
     if (min != 1) return min > 1;
-    return pat >= 0;
+    return pat >= 1;
   }
 
   /// Frame-rate choices supported by the Windows host.
@@ -47,6 +47,7 @@ class OsmiumErrorCode {
   static const int emailAlreadyRegistered = 2003;
   static const int accountNotFound = 2004;
   static const int accountLocked = 2005;
+  static const int emailMismatch = 2008;
   static const int accountAuthRequired = 2010;
   static const int blacklistedByHost = 2011;
   static const int accountProfileIncomplete = 2012;
@@ -57,6 +58,9 @@ class OsmiumErrorCode {
   static const int twoFaAlreadyEnabled = 2017;
   static const int twoFaNotEnabled = 2018;
   static const int loginKeyInvalid = 2019;
+  static const int recoveryEmailNotSet = 2020;
+  static const int recoveryEmailAlreadyUsed = 2021;
+  static const int recoveryEmailSameAsPrimary = 2022;
   static const int otpExpired = 3007;
   static const int otpInvalid = 3008;
   static const int otpTooManyAttempts = 3009;
@@ -71,6 +75,8 @@ class OsmiumErrorCode {
   static const int oauthFailed = 3018;
   static const int twoFaInvalid = 3019;
   static const int twoFaExpired = 3020;
+  static const int recoverySessionExpired = 3021;
+  static const int emailConfirmTooManyAttempts = 3022;
   static const int rateLimited = 4001;
   static const int serviceQuotaExceeded = 4004;
   static const int connectCooldown = 4005;
@@ -91,6 +97,7 @@ class OsmiumErrorCode {
   static const int loginKeyLimitExceeded = 4022;
   static const int versionUnsupported = 4023;
   static const int deviceIdConflict = 4024;
+  static const int recoveryEmailChangeCooldown = 4025;
   static const int oauthNotConfigured = 5007;
 }
 

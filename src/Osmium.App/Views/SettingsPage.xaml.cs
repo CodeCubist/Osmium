@@ -156,6 +156,7 @@ public sealed partial class SettingsPage : Page
         ServiceAutoStartSwitch.IsEnabled = !locked;
         HostNotifyOnConnectSwitch.IsEnabled = !locked;
         HostFlashTaskbarOnConnectSwitch.IsEnabled = !locked;
+        HostLockWindowDuringRemoteSwitch.IsEnabled = !locked;
         InstallSystemServiceBtn.IsEnabled = !locked;
         InstallDriversBtn.IsEnabled = !locked;
         if (locked)
@@ -433,6 +434,7 @@ public sealed partial class SettingsPage : Page
         HostAllowRemotePowerSwitch.IsOn = s.HostAllowRemotePower;
         HostNotifyOnConnectSwitch.IsOn = s.HostNotifyOnConnect;
         HostFlashTaskbarOnConnectSwitch.IsOn = s.HostFlashTaskbarOnConnect;
+        HostLockWindowDuringRemoteSwitch.IsOn = s.HostLockWindowDuringRemote;
         RefreshHostSystemServiceRowStatus();
         RefreshHostDriverRowStatus();
         RefreshHostRemotePowerRowStatus();
@@ -603,6 +605,8 @@ public sealed partial class SettingsPage : Page
         RowHostNotifyOnConnect.Description = LocalizationService.GetString("Host_RowNotifyOnConnectDesc");
         RowHostFlashTaskbarOnConnect.Title = LocalizationService.GetString("Host_RowFlashTaskbarOnConnect");
         RowHostFlashTaskbarOnConnect.Description = LocalizationService.GetString("Host_RowFlashTaskbarOnConnectDesc");
+        RowHostLockWindowDuringRemote.Title = LocalizationService.GetString("Set_HostLockWindowTitle");
+        RowHostLockWindowDuringRemote.Description = LocalizationService.GetString("Set_HostLockWindowDesc");
         RefreshHostSystemServiceRowStatus();
         RefreshHostDriverRowStatus();
         RefreshHostRemotePowerRowStatus();
@@ -813,6 +817,7 @@ public sealed partial class SettingsPage : Page
         s.HostAllowQuickLaunch = HostAllowQuickLaunchSwitch.IsOn;
         s.HostNotifyOnConnect = HostNotifyOnConnectSwitch.IsOn;
         s.HostFlashTaskbarOnConnect = HostFlashTaskbarOnConnectSwitch.IsOn;
+        s.HostLockWindowDuringRemote = HostLockWindowDuringRemoteSwitch.IsOn;
         HostRequireDriverConfirmSwitch.IsEnabled = s.HostAllowRemoteDriverMgmt;
         App.Engine.SettingsService.SaveSettings();
         if (quickLaunchChanged)

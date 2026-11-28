@@ -61,8 +61,20 @@ public sealed partial class AccountService : IDisposable
                 => Tr("Acc_ErrInvalidCredentials", "Incorrect email or password"),
             OsmiumErrorCode.EmailAlreadyRegistered
                 => Tr("Acc_ErrEmailRegistered", "Email is already registered"),
-            OsmiumErrorCode.EmailMismatch or OsmiumErrorCode.InvalidEmail or OsmiumErrorCode.InvalidEmailHeader
+            OsmiumErrorCode.EmailMismatch
+                => Tr("Acc_ErrEmailMismatch", "Entered email does not match the bound email"),
+            OsmiumErrorCode.InvalidEmail or OsmiumErrorCode.InvalidEmailHeader
                 => Tr("Acc_ErrInvalidEmail", "Invalid email address"),
+            OsmiumErrorCode.RecoveryEmailNotSet
+                => Tr("Acc_ErrRecoveryEmailNotSet", "No recovery email is set for this account"),
+            OsmiumErrorCode.RecoveryEmailAlreadyUsed
+                => Tr("Acc_ErrRecoveryEmailUsed", "This email is already used by another account"),
+            OsmiumErrorCode.RecoveryEmailSameAsPrimary
+                => Tr("Acc_ErrRecoveryEmailSameAsPrimary", "Recovery email cannot be the same as the primary email"),
+            OsmiumErrorCode.RecoverySessionExpired
+                => Tr("Acc_ErrRecoverySessionExpired", "Recovery session has expired; please start over"),
+            OsmiumErrorCode.EmailConfirmTooManyAttempts
+                => Tr("Acc_ErrEmailConfirmAttempts", "Too many incorrect email verification attempts; please try again later"),
             OsmiumErrorCode.InvalidPassword
                 => Tr("Acc_ErrPasswordLength", "Password must be 8-128 characters"),
             OsmiumErrorCode.AccountNotFound
@@ -174,6 +186,12 @@ public sealed partial class AccountService : IDisposable
                         "Email can only be changed once every 24 hours; please try again later")
                     : TrFmt("Acc_ErrEmailCooldownFmt",
                         "Email can only be changed once every 24 hours; please try again in {0}", waitText),
+            OsmiumErrorCode.RecoveryEmailChangeCooldown
+                => string.IsNullOrEmpty(waitText)
+                    ? Tr("Acc_ErrRecoveryEmailCooldown",
+                        "Recovery email can only be changed once every 24 hours; please try again later")
+                    : TrFmt("Acc_ErrRecoveryEmailCooldownFmt",
+                        "Recovery email can only be changed once every 24 hours; please try again in {0}", waitText),
             OsmiumErrorCode.PasswordResetCooldown
                 => string.IsNullOrEmpty(waitText)
                     ? Tr("Acc_ErrPasswordResetCooldown",
@@ -453,6 +471,7 @@ public sealed partial class AccountService : IDisposable
         if (clearEmail)
         {
             _email = string.Empty;
+            _recoveryEmail = string.Empty;
             _username = string.Empty;
             _avatarData = null;
         }
@@ -465,6 +484,7 @@ public sealed partial class AccountService : IDisposable
         _isLocked = false;
         _lockedAt = null;
         _hasEmail = true;
+        _hasRecoveryEmail = false;
         _hasPassword = true;
         _twoFaEnabled = false;
 
@@ -506,9 +526,11 @@ public sealed partial class AccountService : IDisposable
 
             _userId = session.UserId ?? string.Empty;
             _hasEmail = session.HasEmail ?? true;
+            _hasRecoveryEmail = session.HasRecoveryEmail ?? false;
             _hasPassword = session.HasPassword ?? true;
             _twoFaEnabled = session.TwoFaEnabled ?? false;
             _email = _hasEmail ? (session.Email ?? string.Empty) : string.Empty;
+            _recoveryEmail = _hasRecoveryEmail ? (session.RecoveryEmail ?? string.Empty) : string.Empty;
             _username = session.Username ?? string.Empty;
             _avatarData = session.AvatarData;
             _stoken = session.Stoken ?? string.Empty;
@@ -546,6 +568,8 @@ public sealed partial class AccountService : IDisposable
             {
                 UserId = _userId,
                 Email = _email,
+                RecoveryEmail = _recoveryEmail,
+                HasRecoveryEmail = _hasRecoveryEmail,
                 Username = _username,
                 AvatarData = _avatarData,
                 Stoken = _stoken,
@@ -623,6 +647,8 @@ public sealed partial class AccountService : IDisposable
         {
             UserId = _userId,
             Email = _email,
+            RecoveryEmail = _recoveryEmail,
+            HasRecoveryEmail = _hasRecoveryEmail,
             Username = _username,
             AvatarData = _avatarData,
             Stoken = _stoken,

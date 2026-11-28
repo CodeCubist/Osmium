@@ -9,7 +9,8 @@ internal sealed record TrayMenuSnapshot(
     bool ShowDisconnect,
     string DisconnectLabel,
     string ExitLabel,
-    string Tooltip);
+    string Tooltip,
+    bool ShowExit = true);
 
 internal sealed class TrayIconHelper : IDisposable
 {
@@ -291,8 +292,11 @@ internal sealed class TrayIconHelper : IDisposable
                 AppendMenu(hMenu, MfString, (UIntPtr)CmdDisconnect, snap.DisconnectLabel);
             }
 
-            AppendMenu(hMenu, MfSeparator, UIntPtr.Zero, null);
-            AppendMenu(hMenu, MfString, (UIntPtr)CmdExit, snap.ExitLabel);
+            if (snap.ShowExit)
+            {
+                AppendMenu(hMenu, MfSeparator, UIntPtr.Zero, null);
+                AppendMenu(hMenu, MfString, (UIntPtr)CmdExit, snap.ExitLabel);
+            }
 
             GetCursorPos(out var pt);
             SetForegroundWindow(_hwnd);

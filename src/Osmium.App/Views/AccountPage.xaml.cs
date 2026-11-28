@@ -254,6 +254,9 @@ public sealed partial class AccountPage : Page
 
         RowProfileEmail.Title = LocalizationService.GetString("Acc_RowEmail");
         BtnChangeEmail.Content = LocalizationService.GetString("Acc_ChangeEmailBtn");
+        RowProfileRecoveryEmail.Title = LocalizationService.GetString("Acc_RowRecoveryEmail");
+        RowProfileRecoveryEmail.Description = LocalizationService.GetString("Acc_RowRecoveryEmailDesc");
+        BtnRemoveRecoveryEmail.Content = LocalizationService.GetString("Acc_RemoveRecoveryEmailBtn");
         RowSetPassword.Title = LocalizationService.GetString("Acc_RowSetPassword");
         BtnSetPassword.Content = LocalizationService.GetString("Acc_SetPasswordBtn");
 
@@ -306,10 +309,6 @@ public sealed partial class AccountPage : Page
             _oauthBindingsLoading = false;
             _oauthBindingsFailed = false;
             ApplyOAuthBindingsUi();
-            if (string.IsNullOrWhiteSpace(AuthEmailBox.Text) && !string.IsNullOrWhiteSpace(acc.CurrentEmail))
-            {
-                AuthEmailBox.Text = acc.CurrentEmail;
-            }
 
             if (_inQrLoginFlow)
             {
@@ -347,6 +346,14 @@ public sealed partial class AccountPage : Page
             ? LocalizationService.GetString("Acc_EmailUnbound")
             : acc.CurrentEmail;
         BtnChangeEmail.Content = LocalizationService.GetString(hasEmail ? "Acc_ChangeEmailBtn" : "Acc_AddEmailBtn");
+
+        bool hasRecoveryEmail = acc.HasRecoveryEmail && !string.IsNullOrWhiteSpace(acc.CurrentRecoveryEmail);
+        ProfileRecoveryEmailText.Text = hasRecoveryEmail
+            ? acc.CurrentRecoveryEmail
+            : LocalizationService.GetString("Acc_RecoveryEmailUnset");
+        BtnManageRecoveryEmail.Content = LocalizationService.GetString(
+            hasRecoveryEmail ? "Acc_ChangeRecoveryEmailBtn" : "Acc_AddRecoveryEmailBtn");
+        BtnRemoveRecoveryEmail.Visibility = hasRecoveryEmail ? Visibility.Visible : Visibility.Collapsed;
 
         ProfileIncompleteBar.Visibility = profileComplete ? Visibility.Collapsed : Visibility.Visible;
         ProfileIncompleteBar.IsOpen = !profileComplete;
@@ -403,6 +410,8 @@ public sealed partial class AccountPage : Page
         BtnRandomProfileUsername.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
         BtnSaveUsername.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
         BtnChangeEmail.IsEnabled = !hostControlled && !accountLocked && (!hasEmail || profileComplete) && !_isBusy;
+        BtnManageRecoveryEmail.IsEnabled = !hostControlled && !accountLocked && profileComplete && !_isBusy;
+        BtnRemoveRecoveryEmail.IsEnabled = !hostControlled && !accountLocked && profileComplete && acc.HasRecoveryEmail && !_isBusy;
         BtnSetPassword.IsEnabled = !hostControlled && !accountLocked && hasEmail && !hasPassword && !_isBusy;
         BtnToggleLock.IsEnabled = !hostControlled && hasEmail && !_isBusy;
         BtnManageTwoFa.IsEnabled = !hostControlled && !accountLocked && hasPassword && !_isBusy;
@@ -489,6 +498,13 @@ public sealed partial class AccountPage : Page
     {
         if (!CanAttemptAuth) return;
         if (sender is not Button btn || !int.TryParse(btn.Tag?.ToString(), out int mode)) return;
+
+        if (mode == 2)
+        {
+            StatusInfoBar.IsOpen = false;
+            _ = ShowAccountRecoveryDialogAsync();
+            return;
+        }
 
         if (mode == 3)
         {

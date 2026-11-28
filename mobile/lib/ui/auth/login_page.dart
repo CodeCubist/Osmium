@@ -55,12 +55,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   String _twoFaToken = '';
   String? _twoFaError;
 
+  bool _recoveryVisible = false;
+  int _recoveryStep = 0;
+  bool _recoverySubmitting = false;
+  bool _recoverySendingCode = false;
+  int _recoveryCooldown = 0;
+  Timer? _recoveryCooldownTimer;
+  String _recoveryToken = '';
+  List<RecoveryChannelDto> _recoveryChannels = const [];
+  int _recoveryChannelIdx = 0;
+  bool _recoveryActionLogin = false;
+  bool _obscureRecPwd = true;
+  bool _obscureRecConfirmPwd = true;
+  String? _recoveryError;
+
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _loginKeyCtrl = TextEditingController();
   final _twoFaCtrl = TextEditingController();
+  final _recoveryLookupCtrl = TextEditingController();
+  final _recoveryConfirmEmailCtrl = TextEditingController();
+  final _recoveryOtpCtrl = TextEditingController();
+  final _recoveryNewPwdCtrl = TextEditingController();
+  final _recoveryConfirmPwdCtrl = TextEditingController();
 
   bool get _canLogin => _authApiReachable && !_checkingAuthApi;
 
@@ -74,12 +93,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void dispose() {
     _stopOAuthPolling(cancelRemote: true);
     _cooldownTimer?.cancel();
+    _recoveryCooldownTimer?.cancel();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _usernameCtrl.dispose();
     _codeCtrl.dispose();
     _loginKeyCtrl.dispose();
     _twoFaCtrl.dispose();
+    _recoveryLookupCtrl.dispose();
+    _recoveryConfirmEmailCtrl.dispose();
+    _recoveryOtpCtrl.dispose();
+    _recoveryNewPwdCtrl.dispose();
+    _recoveryConfirmPwdCtrl.dispose();
     super.dispose();
   }
 
@@ -448,6 +473,268 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
     } finally {
       if (mounted) setState(() => _loginKeySubmitting = false);
+    }
+  }
+
+  void _openRecoveryDialog() {
+    if (!_canLogin || _submitting || _oauthBusy) return;
+    OsmiumHaptics.selection();
+    _recoveryLookupCtrl.text = _emailCtrl.text.trim();
+    _recoveryConfirmEmailCtrl.clear();
+    _recoveryOtpCtrl.clear();
+    _recoveryNewPwdCtrl.clear();
+    _recoveryConfirmPwdCtrl.clear();
+    setState(() {
+      _recoveryStep = 0;
+      _recoveryToken = '';
+      _recoveryChannels = const [];
+      _recoveryChannelIdx = 0;
+      _recoveryActionLogin = false;
+      _recoveryError = null;
+      _recoverySubmitting = false;
+      _recoverySendingCode = false;
+      _obscureRecPwd = true;
+      _obscureRecConfirmPwd = true;
+      _recoveryVisible = true;
+    });
+  }
+
+  void _dismissRecoveryDialog() {
+    if (!_recoveryVisible || _recoverySubmitting || _recoverySendingCode) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _recoveryVisible = false;
+      _recoveryError = null;
+    });
+  }
+
+  void _startRecoveryCooldown() {
+    _recoveryCooldownTimer?.cancel();
+    setState(() => _recoveryCooldown = 60);
+    _recoveryCooldownTimer = Timer.periodic(const Duration(seconds: 1), (
+      timer,
+    ) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_recoveryCooldown <= 1) {
+        timer.cancel();
+        setState(() => _recoveryCooldown = 0);
+      } else {
+        setState(() => _recoveryCooldown -= 1);
+      }
+    });
+  }
+
+  RecoveryChannelDto? get _selectedRecoveryChannel {
+    if (_recoveryChannels.isEmpty) return null;
+    final idx = _recoveryChannelIdx.clamp(0, _recoveryChannels.length - 1);
+    return _recoveryChannels[idx];
+  }
+
+  Future<void> _submitRecoveryLookup() async {
+    if (_recoverySubmitting) return;
+    final email = _recoveryLookupCtrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _recoveryError = '请输入有效的邮箱地址');
+      return;
+    }
+    setState(() {
+      _recoverySubmitting = true;
+      _recoveryError = null;
+    });
+    try {
+      final res = await ref
+          .read(accountServiceProvider)
+          .lookupAccountRecovery(email);
+      if (!mounted) return;
+      if (!res.ok || res.data == null || res.data!.channels.isEmpty) {
+        setState(
+          () => _recoveryError = res.message.isNotEmpty ? res.message : '查找失败',
+        );
+        return;
+      }
+      _recoveryConfirmEmailCtrl.clear();
+      _recoveryOtpCtrl.clear();
+      _recoveryNewPwdCtrl.clear();
+      _recoveryConfirmPwdCtrl.clear();
+      setState(() {
+        _recoveryToken = res.data!.recoveryToken;
+        _recoveryChannels = res.data!.channels;
+        _recoveryChannelIdx = 0;
+        _recoveryActionLogin = false;
+        _recoveryStep = 1;
+        _recoveryError = null;
+      });
+    } finally {
+      if (mounted) setState(() => _recoverySubmitting = false);
+    }
+  }
+
+  Future<void> _sendRecoveryCode({bool advanceOnSuccess = false}) async {
+    if (_recoverySendingCode || _recoveryCooldown > 0) return;
+    final ch = _selectedRecoveryChannel;
+    if (ch == null || _recoveryToken.isEmpty) {
+      setState(() {
+        _recoveryStep = 0;
+        _recoveryError = '验证已过期，请重试';
+      });
+      return;
+    }
+    final confirmEmail = _recoveryConfirmEmailCtrl.text.trim();
+    if (confirmEmail.isEmpty || !confirmEmail.contains('@')) {
+      setState(() => _recoveryError = '请输入完整邮箱');
+      return;
+    }
+    final isLogin = ch.isRecovery && _recoveryActionLogin;
+    setState(() {
+      _recoverySendingCode = true;
+      _recoveryError = null;
+    });
+    try {
+      final accountSvc = ref.read(accountServiceProvider);
+      final res = isLogin
+          ? await accountSvc.startRecoveryLoginSendCode(
+              recoveryToken: _recoveryToken,
+              confirmEmail: confirmEmail,
+            )
+          : await accountSvc.startResetPasswordSendCode(
+              recoveryToken: _recoveryToken,
+              channel: ch.channel,
+              confirmEmail: confirmEmail,
+            );
+      if (!mounted) return;
+      if (res.needsCaptcha && res.challenge != null) {
+        final verified = await _runCaptcha(res.challenge!);
+        if (!mounted) return;
+        if (verified != null) {
+          _startRecoveryCooldown();
+          if (advanceOnSuccess) {
+            setState(() {
+              _recoveryStep = 2;
+              _recoveryError = null;
+            });
+          }
+        }
+        return;
+      }
+      if (res.ok || res.code == OsmiumErrorCode.otpCooldown) {
+        _startRecoveryCooldown();
+        if (advanceOnSuccess) {
+          setState(() {
+            _recoveryStep = 2;
+            _recoveryError = null;
+          });
+        }
+        return;
+      }
+      setState(() {
+        _recoveryError = res.message.isNotEmpty ? res.message : '发送失败';
+        if (res.code == OsmiumErrorCode.recoverySessionExpired ||
+            res.code == OsmiumErrorCode.emailConfirmTooManyAttempts) {
+          _recoveryToken = '';
+          _recoveryStep = 0;
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _recoverySendingCode = false);
+    }
+  }
+
+  Future<void> _submitRecoveryConfirm() async {
+    if (_recoverySubmitting) return;
+    final ch = _selectedRecoveryChannel;
+    if (ch == null || _recoveryToken.isEmpty) {
+      setState(() {
+        _recoveryStep = 0;
+        _recoveryError = '验证已过期，请重试';
+      });
+      return;
+    }
+    final confirmEmail = _recoveryConfirmEmailCtrl.text.trim();
+    final otp = _recoveryOtpCtrl.text.trim();
+    if (otp.length != 6) {
+      setState(() => _recoveryError = '请输入6位邮箱验证码');
+      return;
+    }
+    final isLogin = ch.isRecovery && _recoveryActionLogin;
+    if (!isLogin) {
+      final pwd = _recoveryNewPwdCtrl.text;
+      if (pwd.length < 8 || pwd.length > 128) {
+        setState(() => _recoveryError = '密码长度需在8至128位之间');
+        return;
+      }
+      if (pwd != _recoveryConfirmPwdCtrl.text) {
+        setState(() => _recoveryError = '两次输入的密码不一致');
+        return;
+      }
+    }
+
+    OsmiumHaptics.confirm();
+    setState(() {
+      _recoverySubmitting = true;
+      _recoveryError = null;
+    });
+    try {
+      final app = ref.read(appControllerProvider);
+      final accountSvc = ref.read(accountServiceProvider);
+      if (isLogin) {
+        final res = await accountSvc.confirmRecoveryLogin(
+          recoveryToken: _recoveryToken,
+          confirmEmail: confirmEmail,
+          code: otp,
+          identity: app.identity,
+        );
+        if (!mounted) return;
+        if (res.requiresTwoFa) {
+          setState(() => _recoveryVisible = false);
+          _openTwoFaDialog(res.twoFaToken);
+          return;
+        }
+        if (res.ok && accountSvc.isLoggedIn) {
+          setState(() => _recoveryVisible = false);
+          Navigator.of(context).pop(true);
+          return;
+        }
+        setState(() {
+          _recoveryError = res.message.isNotEmpty ? res.message : '登录失败';
+          if (res.code == OsmiumErrorCode.recoverySessionExpired) {
+            _recoveryToken = '';
+            _recoveryStep = 0;
+          }
+        });
+      } else {
+        final res = await accountSvc.confirmResetPassword(
+          recoveryToken: _recoveryToken,
+          channel: ch.channel,
+          confirmEmail: confirmEmail,
+          code: otp,
+          newPassword: _recoveryNewPwdCtrl.text,
+        );
+        if (!mounted) return;
+        if (res.ok) {
+          FocusScope.of(context).unfocus();
+          setState(() {
+            _recoveryVisible = false;
+            _error = null;
+            _passwordCtrl.clear();
+          });
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            const SnackBar(content: Text('密码已重置，请使用新密码登录')),
+          );
+          return;
+        }
+        setState(() {
+          _recoveryError = res.message.isNotEmpty ? res.message : '重置密码失败';
+          if (res.code == OsmiumErrorCode.recoverySessionExpired) {
+            _recoveryToken = '';
+            _recoveryStep = 0;
+          }
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _recoverySubmitting = false);
     }
   }
 
@@ -898,6 +1185,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   ),
                                 ),
                               ),
+                              OsmiumAnimatedReveal(
+                                visible: !_isRegister,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: MiuixTextButton(
+                                      '无法登录？',
+                                      enabled:
+                                          _canLogin &&
+                                          !_submitting &&
+                                          !_oauthBusy,
+                                      onPressed: _openRecoveryDialog,
+                                      minHeight: 34,
+                                      colors: MiuixButtonColors(
+                                        color: Colors.transparent,
+                                        disabledColor: Colors.transparent,
+                                        contentColor: colors.primary,
+                                        disabledContentColor:
+                                            colors.onSurfaceVariantSummary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               if (_authApiReachable &&
                                   _oauthProviders.hasAny) ...[
                                 const SizedBox(height: 18),
@@ -1021,6 +1333,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
             _buildLoginKeyDialog(context),
             _buildTwoFaDialog(context),
+            _buildRecoveryDialog(context),
           ],
         );
       },
@@ -1189,6 +1502,293 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     _twoFaSubmitting ? '验证中…' : '验证并登录',
                     enabled: !_twoFaSubmitting,
                     onPressed: _submitTwoFa,
+                    colors: MiuixButtonDefaults.buttonColorsPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecoveryDialog(BuildContext context) {
+    final theme = MiuixTheme.of(context);
+    final colors = theme.colors;
+    final isDark = theme.brightness == Brightness.dark;
+    final ch = _selectedRecoveryChannel;
+    final isRecChannel = ch?.isRecovery == true;
+    final isLoginAction = isRecChannel && _recoveryActionLogin;
+
+    return MiuixOverlayDialog(
+      show: _recoveryVisible,
+      title: '找回账号',
+      onDismissRequest: _dismissRecoveryDialog,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_recoveryStep == 0) ...[
+              MiuixText(
+                '输入账号邮箱或保密邮箱',
+                style: theme.textStyles.body2,
+                color: colors.onSurfaceVariantSummary,
+              ),
+              const SizedBox(height: 12),
+              MiuixTextField(
+                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                insideMargin: OsmiumFieldDefaults.floatingMargin,
+                controller: _recoveryLookupCtrl,
+                label: '邮箱地址',
+                singleLine: true,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submitRecoveryLookup(),
+              ),
+            ] else if (_recoveryStep == 1) ...[
+              if (_recoveryChannels.length > 1) ...[
+                MiuixText(
+                  '验证邮箱',
+                  style: theme.textStyles.footnote1,
+                  color: colors.onSurfaceVariantSummary,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    for (var i = 0; i < _recoveryChannels.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      Expanded(
+                        child: MiuixTextButton(
+                          _recoveryChannels[i].isRecovery ? '保密邮箱' : '主邮箱',
+                          onPressed: () {
+                            setState(() {
+                              _recoveryChannelIdx = i;
+                              if (!_recoveryChannels[i].isRecovery) {
+                                _recoveryActionLogin = false;
+                              }
+                              _recoveryConfirmEmailCtrl.clear();
+                              _recoveryError = null;
+                            });
+                          },
+                          minHeight: 36,
+                          colors: i == _recoveryChannelIdx
+                              ? MiuixButtonDefaults.buttonColorsPrimary(context)
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (isRecChannel) ...[
+                MiuixText(
+                  '验证后操作',
+                  style: theme.textStyles.footnote1,
+                  color: colors.onSurfaceVariantSummary,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: MiuixTextButton(
+                        '重置密码',
+                        onPressed: () =>
+                            setState(() => _recoveryActionLogin = false),
+                        minHeight: 36,
+                        colors: !_recoveryActionLogin
+                            ? MiuixButtonDefaults.buttonColorsPrimary(context)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: MiuixTextButton(
+                        '登录账号',
+                        onPressed: () =>
+                            setState(() => _recoveryActionLogin = true),
+                        minHeight: 36,
+                        colors: _recoveryActionLogin
+                            ? MiuixButtonDefaults.buttonColorsPrimary(context)
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+              MiuixText(
+                '接收邮箱：${ch?.masked ?? ''}',
+                style: theme.textStyles.body2,
+                color: colors.onSurface,
+              ),
+              const SizedBox(height: 10),
+              MiuixTextField(
+                cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                insideMargin: OsmiumFieldDefaults.floatingMargin,
+                controller: _recoveryConfirmEmailCtrl,
+                label: '确认完整邮箱',
+                singleLine: true,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _sendRecoveryCode(advanceOnSuccess: true),
+              ),
+            ] else ...[
+              MiuixText(
+                '验证码已发送至 ${ch?.masked ?? ''}',
+                style: theme.textStyles.body2,
+                color: colors.onSurfaceVariantSummary,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: MiuixTextField(
+                      cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                      insideMargin: OsmiumFieldDefaults.floatingMargin,
+                      controller: _recoveryOtpCtrl,
+                      label: '6位邮箱验证码',
+                      singleLine: true,
+                      keyboardType: TextInputType.number,
+                      textInputAction: isLoginAction
+                          ? TextInputAction.done
+                          : TextInputAction.next,
+                      onSubmitted: isLoginAction
+                          ? (_) => _submitRecoveryConfirm()
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  MiuixTextButton(
+                    _recoveryCooldown > 0
+                        ? '${_recoveryCooldown}s'
+                        : (_recoverySendingCode ? '…' : '重发'),
+                    enabled: !_recoverySendingCode && _recoveryCooldown == 0,
+                    onPressed: () => _sendRecoveryCode(advanceOnSuccess: false),
+                    minHeight: 44,
+                  ),
+                ],
+              ),
+              if (!isLoginAction) ...[
+                const SizedBox(height: 10),
+                MiuixTextField(
+                  cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                  insideMargin: OsmiumFieldDefaults.floatingMargin,
+                  controller: _recoveryNewPwdCtrl,
+                  label: '新密码（8-128位）',
+                  singleLine: true,
+                  obscureText: _obscureRecPwd,
+                  textInputAction: TextInputAction.next,
+                  trailingIcon: MiuixIconButton(
+                    onPressed: () =>
+                        setState(() => _obscureRecPwd = !_obscureRecPwd),
+                    minWidth: 34,
+                    minHeight: 34,
+                    child: Icon(
+                      _obscureRecPwd
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                      color: colors.onSurfaceVariantSummary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                MiuixTextField(
+                  cornerRadius: OsmiumFieldDefaults.cornerRadius,
+                  insideMargin: OsmiumFieldDefaults.floatingMargin,
+                  controller: _recoveryConfirmPwdCtrl,
+                  label: '确认新密码',
+                  singleLine: true,
+                  obscureText: _obscureRecConfirmPwd,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submitRecoveryConfirm(),
+                  trailingIcon: MiuixIconButton(
+                    onPressed: () => setState(
+                      () => _obscureRecConfirmPwd = !_obscureRecConfirmPwd,
+                    ),
+                    minWidth: 34,
+                    minHeight: 34,
+                    child: Icon(
+                      _obscureRecConfirmPwd
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                      color: colors.onSurfaceVariantSummary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+            OsmiumAnimatedReveal(
+              visible: _recoveryError != null,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: OsmiumColors.dangerBg(isDark),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: MiuixText(
+                    _recoveryError ?? '',
+                    style: theme.textStyles.body2,
+                    color: OsmiumColors.dangerFg(isDark),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: MiuixTextButton(
+                    _recoveryStep == 0 ? '取消' : '上一步',
+                    enabled: !_recoverySubmitting && !_recoverySendingCode,
+                    onPressed: () {
+                      if (_recoveryStep == 0) {
+                        _dismissRecoveryDialog();
+                      } else {
+                        setState(() {
+                          _recoveryStep -= 1;
+                          _recoveryError = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MiuixTextButton(
+                    _recoveryStep == 0
+                        ? (_recoverySubmitting ? '查询中…' : '下一步')
+                        : (_recoveryStep == 1
+                              ? (_recoverySendingCode
+                                    ? '发送中…'
+                                    : (_recoveryCooldown > 0
+                                          ? '${_recoveryCooldown}s'
+                                          : '发送验证码'))
+                              : (_recoverySubmitting
+                                    ? '提交中…'
+                                    : (isLoginAction ? '登录' : '重置密码'))),
+                    enabled:
+                        !_recoverySubmitting &&
+                        !_recoverySendingCode &&
+                        (_recoveryStep != 1 || _recoveryCooldown == 0),
+                    onPressed: () {
+                      if (_recoveryStep == 0) {
+                        _submitRecoveryLookup();
+                      } else if (_recoveryStep == 1) {
+                        _sendRecoveryCode(advanceOnSuccess: true);
+                      } else {
+                        _submitRecoveryConfirm();
+                      }
+                    },
                     colors: MiuixButtonDefaults.buttonColorsPrimary(context),
                   ),
                 ),

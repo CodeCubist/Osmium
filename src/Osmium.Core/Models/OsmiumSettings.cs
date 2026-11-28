@@ -466,6 +466,12 @@ public sealed class OsmiumSettings
         set;
     } = true;
 
+    public bool HostLockWindowDuringRemote
+    {
+        get;
+        set;
+    } = false;
+
     public bool HostAllowFileTransfer
     {
         get;

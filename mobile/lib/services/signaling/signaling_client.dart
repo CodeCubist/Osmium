@@ -141,10 +141,13 @@ class SignalingClient {
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
   Timer? _registerTimer;
+  Timer? _probeTimer;
   bool _running = false;
   bool _registered = false;
+  bool _accountAuthenticated = false;
   int _reconnectAttempt = 0;
   int _failures = 0;
+  DateTime _lastServerActivityAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   String _serverUrl = OsmiumConstants.defaultSignalingUrl;
   String _deviceId = '';
@@ -179,10 +182,13 @@ class SignalingClient {
   final _quickLaunchStartResCtrl =
       StreamController<QuickLaunchStartResponseEvent>.broadcast();
   final _deviceIdReassignedCtrl = StreamController<(String, String?)>.broadcast();
+  final _accountAuthCtrl = StreamController<bool>.broadcast();
 
   Stream<SignalingConnectionState> get stateStream => _stateCtrl.stream;
   Stream<List<AccountDeviceDto>> get accountDevicesStream =>
       _devicesCtrl.stream;
+  Stream<bool> get accountAuthStatusStream => _accountAuthCtrl.stream;
+  bool get isAccountAuthenticated => _registered && _accountAuthenticated;
   Stream<ConnectChallengeEvent> get challengeStream => _challengeCtrl.stream;
   Stream<String> get authVerifiedStream => _authVerifiedCtrl.stream;
   Stream<VersionCheckResultEvent> get versionResultStream =>
@@ -273,7 +279,6 @@ class SignalingClient {
     }
   }
 
-  /// Drops the backoff and failure streak and dials again right away.
   void retryNow() {
     if (!_running) return;
     _reconnectAttempt = 0;
@@ -282,12 +287,49 @@ class SignalingClient {
     _connect();
   }
 
+  void ensureAlive({bool forceProbe = false}) {
+    if (!_running) return;
+    final ws = _ws;
+    if (ws == null ||
+        ws.readyState != WebSocket.open ||
+        _state == SignalingConnectionState.disconnected) {
+      _reconnectTimer?.cancel();
+      _reconnectAttempt = 0;
+      _connect();
+      return;
+    }
+    if (!forceProbe) return;
+    _probeTimer?.cancel();
+    final sentAt = DateTime.now();
+    final ok = sendJson({'type': 'ping'});
+    if (!ok) {
+      _forceReconnectSocket(ws);
+      return;
+    }
+    _probeTimer = Timer(const Duration(milliseconds: 3500), () {
+      if (!_running || !identical(_ws, ws)) return;
+      if (_lastServerActivityAt.isBefore(sentAt)) {
+        _forceReconnectSocket(ws);
+      }
+    });
+  }
+
+  void _forceReconnectSocket(WebSocket ws) {
+    if (!identical(_ws, ws)) return;
+    try {
+      ws.close();
+    } catch (_) {}
+    _scheduleReconnect(immediate: true);
+  }
+
   void stop() {
     _running = false;
     _registered = false;
+    _accountAuthenticated = false;
     _heartbeatTimer?.cancel();
     _reconnectTimer?.cancel();
     _registerTimer?.cancel();
+    _probeTimer?.cancel();
     _ws?.close();
     _ws = null;
     _setState(SignalingConnectionState.disconnected);
@@ -296,6 +338,7 @@ class SignalingClient {
   void updateAuthToken(String? ltoken) {
     _ltoken = ltoken ?? '';
     if (_registered) {
+      _registeredLtoken = _ltoken;
       sendJson({'type': 'auth_update', 'ltoken': _ltoken});
     }
   }
@@ -334,9 +377,8 @@ class SignalingClient {
       }
       _ws = ws;
       _reconnectAttempt = 0;
+      _lastServerActivityAt = DateTime.now();
 
-      // Register as mobile client (allowRemote=false in v1). Field set matches
-      // Windows `SignalingClient.Protocol.cs` register payload.
       _registeredLtoken = _ltoken;
       _pendingFallbackDeviceSecret = DeviceIdentity.generateDeviceSecret();
       sendJson({
@@ -353,14 +395,23 @@ class SignalingClient {
         'ltoken': _ltoken,
       });
 
-      // A socket that never registers counts as a failure, as on Windows.
       _registerTimer = Timer(const Duration(seconds: 5), () {
         if (!_registered && identical(_ws, ws)) ws.close();
       });
 
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-        if (_ws != null && _ws!.readyState == WebSocket.open) {
-          sendJson({'type': 'ping'});
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        if (!identical(_ws, ws)) return;
+        if (ws.readyState != WebSocket.open) {
+          _forceReconnectSocket(ws);
+          return;
+        }
+        final idleSec = DateTime.now().difference(_lastServerActivityAt).inSeconds;
+        if (idleSec >= 25) {
+          _forceReconnectSocket(ws);
+          return;
+        }
+        if (!sendJson({'type': 'ping'})) {
+          _forceReconnectSocket(ws);
         }
       });
 
@@ -375,16 +426,24 @@ class SignalingClient {
     }
   }
 
-  void _scheduleReconnect() {
+  void _scheduleReconnect({bool immediate = false}) {
     _heartbeatTimer?.cancel();
     _registerTimer?.cancel();
+    _probeTimer?.cancel();
     _registered = false;
+    _accountAuthenticated = false;
     _ws = null;
     if (!_running) {
       _setState(SignalingConnectionState.disconnected);
       return;
     }
     _setState(SignalingConnectionState.disconnected);
+    if (immediate) {
+      _reconnectAttempt = 0;
+      _reconnectTimer?.cancel();
+      _reconnectTimer = Timer(const Duration(milliseconds: 250), _connect);
+      return;
+    }
     _failures++;
     if (_failures == offlineFailureThreshold) _unreachableCtrl.add(null);
     _reconnectAttempt++;
@@ -405,6 +464,8 @@ class SignalingClient {
   }
 
   void _onMessage(dynamic raw) {
+    _lastServerActivityAt = DateTime.now();
+    _probeTimer?.cancel();
     if (raw is! String) return;
     Map<String, dynamic> root;
     try {
@@ -415,6 +476,9 @@ class SignalingClient {
 
     final type = (root['type'] ?? '').toString();
     switch (type) {
+      case 'pong':
+        break;
+
       case 'registered':
         final assignedId = DeviceIdentity.normalizeDeviceId(
           (root['deviceId'] ?? '').toString(),
@@ -433,6 +497,7 @@ class SignalingClient {
           _deviceIdReassignedCtrl.add((_deviceId, rotatedSecret));
         }
         _registered = true;
+        _accountAuthenticated = root['accountAuthenticated'] == true;
         _failures = 0;
         _registerTimer?.cancel();
         if (root['stunHost'] is String &&
@@ -443,11 +508,17 @@ class SignalingClient {
           advertisedStunPort = (root['stunPort'] as num).toInt();
         }
         _cooldownCtrl.add((root['cooldownRemainingMs'] as num?)?.toInt() ?? 0);
-        // The ltoken rotated while this register was in flight.
         if (_ltoken != _registeredLtoken) {
+          _registeredLtoken = _ltoken;
           sendJson({'type': 'auth_update', 'ltoken': _ltoken});
         }
         _setState(SignalingConnectionState.connected);
+        _accountAuthCtrl.add(_accountAuthenticated);
+        break;
+
+      case 'auth_updated':
+        _accountAuthenticated = root['accountAuthenticated'] == true;
+        _accountAuthCtrl.add(_accountAuthenticated);
         break;
 
       case 'account_devices_sync':
@@ -782,5 +853,6 @@ class SignalingClient {
     _quickLaunchSyncCtrl.close();
     _quickLaunchStartResCtrl.close();
     _deviceIdReassignedCtrl.close();
+    _accountAuthCtrl.close();
   }
 }

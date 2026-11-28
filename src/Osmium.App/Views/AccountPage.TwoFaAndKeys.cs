@@ -716,14 +716,20 @@ public sealed partial class AccountPage : Page
         };
         var step0Desc = new TextBlock
         {
-            Text = LocalizationService.Format("Acc_LoginKeySendOtpDescFmt", acc.CurrentEmail),
+            Text = LocalizationService.Format("Acc_ConfirmEmailHintFmt", acc.CurrentEmail),
             FontSize = 13,
             TextWrapping = TextWrapping.Wrap,
             Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
         };
+        var confirmEmailBox = new TextBox
+        {
+            Header = LocalizationService.GetString("Acc_ConfirmEmailHeader"),
+            PlaceholderText = LocalizationService.GetString("Acc_ConfirmEmailPlaceholder")
+        };
         var step0Panel = new StackPanel { Spacing = 10 };
         step0Panel.Children.Add(nameBox);
         step0Panel.Children.Add(step0Desc);
+        step0Panel.Children.Add(confirmEmailBox);
 
         var otpBox = new TextBox
         {
@@ -795,7 +801,14 @@ public sealed partial class AccountPage : Page
 
         async Task<bool> SendOtpAsync()
         {
-            var startRes = await acc.StartCreateLoginKeySendCodeAsync();
+            string confirmEmail = confirmEmailBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(confirmEmail) || !confirmEmail.Contains('@'))
+            {
+                feedbackText.Text = LocalizationService.GetString("Acc_ErrInvalidEmail");
+                return false;
+            }
+
+            var startRes = await acc.StartCreateLoginKeySendCodeAsync(confirmEmail);
             if (startRes.Code == OsmiumErrorCode.OtpCooldown)
             {
                 var cd = startRes.RetryAfter.HasValue && startRes.RetryAfter.Value.TotalSeconds > 0

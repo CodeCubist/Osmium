@@ -473,6 +473,7 @@ public sealed partial class P2PCoordinator : IDisposable
 
     public bool HasActiveHostPipeline => _activeHostHandle != IntPtr.Zero;
     public bool IsHostStreaming => _activeHostHandle != IntPtr.Zero && _hostSessionEstablished;
+    public bool IsHostViewOnly => _hostViewOnlySession;
     public bool IsClientSessionActive => Volatile.Read(ref _activeClientSessionCount) > 0;
     public bool IsAnyRemoteSessionActive => IsHostStreaming || IsClientSessionActive;
     public bool EffectiveAllowRemoteControl => _settings.Settings.AllowRemoteControl && !IsClientSessionActive;

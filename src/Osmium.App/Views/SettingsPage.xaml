@@ -485,6 +485,15 @@
                                                       Style="{StaticResource OsmiumCompactToggleStyle}"
                                                       Toggled="HostPermissionSwitch_Toggled" />
                                     </controls:SettingsRowCard>
+
+                                    <Border Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                    <controls:SettingsRowCard x:Name="RowHostLockWindowDuringRemote" IsGrouped="True"
+                                                              ShowIcon="False">
+                                        <ToggleSwitch x:Name="HostLockWindowDuringRemoteSwitch"
+                                                      Style="{StaticResource OsmiumCompactToggleStyle}"
+                                                      Toggled="HostPermissionSwitch_Toggled" />
+                                    </controls:SettingsRowCard>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

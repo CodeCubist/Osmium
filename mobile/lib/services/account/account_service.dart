@@ -93,7 +93,14 @@ class AccountService {
         retryAfterSec = rawRetry.ceil();
       }
     }
+    String twoFaToken = '';
+    if (code == OsmiumErrorCode.twoFaRequired &&
+        rawData is Map<String, dynamic>) {
+      twoFaToken = (rawData['two_fa_token'] ?? '').toString().trim();
+    }
+
     if (challenge == null &&
+        twoFaToken.isEmpty &&
         code != OsmiumErrorCode.challengePending &&
         okFlag &&
         mapper != null &&
@@ -108,6 +115,7 @@ class AccountService {
       message: message,
       data: mappedData,
       challenge: challenge,
+      twoFaToken: twoFaToken,
       retryAfterSec: retryAfterSec,
     );
   }
@@ -143,12 +151,28 @@ class AccountService {
         return wait.isNotEmpty
             ? '邮箱每24小时最多更换一次，请在$wait后重试'
             : '邮箱每24小时最多更换一次，请稍后再试';
+      case OsmiumErrorCode.recoveryEmailChangeCooldown:
+        return wait.isNotEmpty
+            ? '请在$wait后再修改保密邮箱'
+            : '保密邮箱每24小时仅可修改一次';
       case OsmiumErrorCode.passwordResetCooldown:
         return wait.isNotEmpty
             ? '密码每24小时最多重置一次，请在$wait后重试'
             : '密码每24小时最多重置一次，请稍后再试';
       case OsmiumErrorCode.invalidEmail:
         return '请输入有效的电子邮箱地址';
+      case OsmiumErrorCode.emailMismatch:
+        return '邮箱地址不匹配';
+      case OsmiumErrorCode.recoveryEmailNotSet:
+        return '未设置保密邮箱';
+      case OsmiumErrorCode.recoveryEmailAlreadyUsed:
+        return '该邮箱已被使用';
+      case OsmiumErrorCode.recoveryEmailSameAsPrimary:
+        return '保密邮箱不能与主邮箱相同';
+      case OsmiumErrorCode.recoverySessionExpired:
+        return '验证已过期，请重试';
+      case OsmiumErrorCode.emailConfirmTooManyAttempts:
+        return '邮箱错误次数过多，请稍后再试';
       case OsmiumErrorCode.invalidPassword:
         return '密码长度需在8至128位之间';
       case OsmiumErrorCode.invalidUsername:
@@ -670,12 +694,19 @@ class AccountService {
           final nextHasEmail = d.containsKey('has_email')
               ? d['has_email'] == true
               : cur.hasEmail;
+          final nextHasRecovery = d.containsKey('has_recovery_email')
+              ? d['has_recovery_email'] == true
+              : cur.hasRecoveryEmail;
           final nextHasPassword = d.containsKey('has_password')
               ? d['has_password'] == true
               : cur.hasPassword;
           final updated = cur.copyWith(
             userId: (d['user_id'] ?? cur.userId).toString(),
             email: nextHasEmail ? (d['email'] ?? cur.email).toString() : '',
+            recoveryEmail: nextHasRecovery
+                ? (d['recovery_email'] ?? cur.recoveryEmail).toString()
+                : '',
+            hasRecoveryEmail: nextHasRecovery,
             username: (d['username'] ?? cur.username).toString(),
             avatarData:
                 (hasAvatarKey && trimmedAvatar != null && trimmedAvatar.isNotEmpty)
@@ -732,7 +763,7 @@ class AccountService {
     );
 
     var resp = await sendOnce();
-    if (resp.statusCode == 401 && isLoggedIn) {
+    if ((resp.statusCode == 401 || resp.statusCode == 403) && isLoggedIn) {
       final rotated = await rotateLtoken();
       if (rotated.ok) {
         resp = await sendOnce();
@@ -761,7 +792,7 @@ class AccountService {
     );
 
     var resp = await sendOnce();
-    if (resp.statusCode == 401 && isLoggedIn) {
+    if ((resp.statusCode == 401 || resp.statusCode == 403) && isLoggedIn) {
       final rotated = await rotateLtoken();
       if (rotated.ok) {
         resp = await sendOnce();
@@ -985,12 +1016,19 @@ class AccountService {
         final nextHasEmail = d.containsKey('has_email')
             ? d['has_email'] == true
             : cur.hasEmail;
+        final nextHasRecovery = d.containsKey('has_recovery_email')
+            ? d['has_recovery_email'] == true
+            : cur.hasRecoveryEmail;
         final nextHasPassword = d.containsKey('has_password')
             ? d['has_password'] == true
             : cur.hasPassword;
         final updated = cur.copyWith(
           userId: (d['user_id'] ?? cur.userId).toString(),
           email: nextHasEmail ? (d['email'] ?? cur.email).toString() : '',
+          recoveryEmail: nextHasRecovery
+              ? (d['recovery_email'] ?? cur.recoveryEmail).toString()
+              : '',
+          hasRecoveryEmail: nextHasRecovery,
           username: (d['username'] ?? cur.username).toString(),
           avatarData:
               (hasAvatarKey && trimmedAvatar != null && trimmedAvatar.isNotEmpty)
@@ -1107,8 +1145,214 @@ class AccountService {
     }
   }
 
+  Future<AccountApiResult<RecoveryLookupData>> lookupAccountRecovery(
+    String email,
+  ) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/recovery/lookup',
+        data: {'email': email.trim()},
+      );
+      final parsed = _parseEnvelope<RecoveryLookupData>(
+        resp,
+        RecoveryLookupData.fromJson,
+      );
+      if (!parsed.ok || parsed.data == null) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '查找账号失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startResetPasswordSendCode({
+    required String recoveryToken,
+    required String channel,
+    required String confirmEmail,
+  }) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/reset-password/send-code',
+        data: {
+          'recovery_token': recoveryToken.trim(),
+          'channel': channel.trim().toLowerCase(),
+          'confirm_email': confirmEmail.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (!parsed.ok && !parsed.needsCaptcha) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '发送失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> confirmResetPassword({
+    required String recoveryToken,
+    required String channel,
+    required String confirmEmail,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/reset-password/confirm',
+        data: {
+          'recovery_token': recoveryToken.trim(),
+          'channel': channel.trim().toLowerCase(),
+          'confirm_email': confirmEmail.trim(),
+          'code': code.trim(),
+          'new_password': newPassword,
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '重置密码失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startRecoveryLoginSendCode({
+    required String recoveryToken,
+    required String confirmEmail,
+  }) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/recovery-login/send-code',
+        data: {
+          'recovery_token': recoveryToken.trim(),
+          'confirm_email': confirmEmail.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (!parsed.ok && !parsed.needsCaptcha) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '发送失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<AccountSessionData>> confirmRecoveryLogin({
+    required String recoveryToken,
+    required String confirmEmail,
+    required String code,
+    required DeviceIdentity identity,
+  }) async {
+    try {
+      final resp = await _dio.post<dynamic>(
+        '/api/auth/recovery-login/confirm',
+        data: {
+          'recovery_token': recoveryToken.trim(),
+          'confirm_email': confirmEmail.trim(),
+          'code': code.trim(),
+          'device_id': identity.deviceId,
+          'device_name': identity.deviceName,
+          'os_version': Platform.isAndroid
+              ? 'Android'
+              : Platform.operatingSystem,
+          'device_secret': identity.deviceSecret,
+        },
+      );
+      final parsed = _parseEnvelope<AccountSessionData>(
+        resp,
+        AccountSessionData.fromLoginPayload,
+      );
+      if (parsed.requiresTwoFa) return parsed;
+      if (!parsed.ok) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '登录失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return await _finishSignIn(parsed, parsed.data);
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
   Future<AccountApiResult<Map<String, dynamic>>> startChangeEmailSendCode({
     String? password,
+    String? currentEmail,
     required String newEmail,
   }) async {
     if (!isLoggedIn) {
@@ -1122,6 +1366,8 @@ class AccountService {
       final body = <String, dynamic>{
         'new_email': newEmail.trim(),
         if (password != null && password.isNotEmpty) 'password': password,
+        if (currentEmail != null && currentEmail.trim().isNotEmpty)
+          'current_email': currentEmail.trim(),
       };
       final resp = await _sendAuthed(
         'POST',
@@ -1180,7 +1426,7 @@ class AccountService {
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok) {
         final d = parsed.data ?? const <String, dynamic>{};
-        final updatedEmail = (d['email'] ?? newEmail).toString().trim();
+        final updatedEmail = (d['email'] ?? '').toString().trim();
         final updated = cur.copyWith(
           email: updatedEmail.isNotEmpty ? updatedEmail : cur.email,
           hasEmail: d.containsKey('has_email') ? d['has_email'] == true : true,
@@ -1216,7 +1462,214 @@ class AccountService {
     }
   }
 
-  Future<AccountApiResult<Map<String, dynamic>>> startSetPasswordSendCode() async {
+  Future<AccountApiResult<Map<String, dynamic>>> startBindRecoveryEmailSendCode({
+    required String password,
+    required String currentEmail,
+    required String recoveryEmail,
+  }) async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/recovery-email/send-code',
+        body: {
+          'password': password,
+          'current_email': currentEmail.trim(),
+          'recovery_email': recoveryEmail.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (!parsed.ok && !parsed.needsCaptcha) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '发送失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<AccountSessionData>> confirmBindRecoveryEmail({
+    required String password,
+    required String recoveryEmail,
+    required String code,
+  }) async {
+    final cur = _session;
+    if (!isLoggedIn || cur == null) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/recovery-email/confirm',
+        body: {
+          'password': password,
+          'recovery_email': recoveryEmail.trim(),
+          'code': code.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (parsed.ok) {
+        final d = parsed.data ?? const <String, dynamic>{};
+        final updated = cur.copyWith(
+          recoveryEmail: (d['recovery_email'] ?? '').toString().trim(),
+          hasRecoveryEmail: d['has_recovery_email'] == true,
+        );
+        await _setSession(updated);
+        return AccountApiResult(
+          ok: true,
+          httpStatusCode: parsed.httpStatusCode,
+          data: updated,
+        );
+      }
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
+        retryAfterSec: parsed.retryAfterSec,
+        message: _formatAccountError(
+          parsed.code,
+          parsed.httpStatusCode,
+          parsed.message.isNotEmpty ? parsed.message : '更新保密邮箱失败',
+          retryAfterSec: parsed.retryAfterSec,
+        ),
+      );
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startRemoveRecoveryEmailSendCode({
+    required String password,
+    required String confirmEmail,
+  }) async {
+    if (!isLoggedIn) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/recovery-email/remove/send-code',
+        body: {
+          'password': password,
+          'confirm_email': confirmEmail.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (!parsed.ok && !parsed.needsCaptcha) {
+        return AccountApiResult(
+          ok: false,
+          httpStatusCode: parsed.httpStatusCode,
+          code: parsed.code,
+          retryAfterSec: parsed.retryAfterSec,
+          message: _formatAccountError(
+            parsed.code,
+            parsed.httpStatusCode,
+            parsed.message.isNotEmpty ? parsed.message : '发送失败',
+            retryAfterSec: parsed.retryAfterSec,
+          ),
+        );
+      }
+      return parsed;
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<AccountSessionData>> confirmRemoveRecoveryEmail({
+    required String password,
+    required String code,
+  }) async {
+    final cur = _session;
+    if (!isLoggedIn || cur == null) {
+      return const AccountApiResult(
+        ok: false,
+        httpStatusCode: 401,
+        message: '未登录',
+      );
+    }
+    try {
+      final resp = await _sendAuthed(
+        'POST',
+        '/api/account/recovery-email/remove/confirm',
+        body: {
+          'password': password,
+          'code': code.trim(),
+        },
+      );
+      final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
+      if (parsed.ok) {
+        final updated = cur.copyWith(
+          recoveryEmail: '',
+          hasRecoveryEmail: false,
+        );
+        await _setSession(updated);
+        return AccountApiResult(
+          ok: true,
+          httpStatusCode: parsed.httpStatusCode,
+          data: updated,
+        );
+      }
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: parsed.httpStatusCode,
+        code: parsed.code,
+        retryAfterSec: parsed.retryAfterSec,
+        message: _formatAccountError(
+          parsed.code,
+          parsed.httpStatusCode,
+          parsed.message.isNotEmpty ? parsed.message : '移除保密邮箱失败',
+          retryAfterSec: parsed.retryAfterSec,
+        ),
+      );
+    } catch (e) {
+      return AccountApiResult(
+        ok: false,
+        httpStatusCode: 0,
+        message: '网络连接失败: $e',
+      );
+    }
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startSetPasswordSendCode({
+    required String confirmEmail,
+  }) async {
     if (!isLoggedIn) {
       return const AccountApiResult(
         ok: false,
@@ -1228,7 +1681,7 @@ class AccountService {
       final resp = await _sendAuthed(
         'POST',
         '/api/account/password/send-code',
-        body: const <String, dynamic>{},
+        body: {'confirm_email': confirmEmail.trim()},
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (!parsed.ok && !parsed.needsCaptcha) {
@@ -1645,8 +2098,9 @@ class AccountService {
     }
   }
 
-  Future<AccountApiResult<Map<String, dynamic>>>
-      startCreateLoginKeySendCode() async {
+  Future<AccountApiResult<Map<String, dynamic>>> startCreateLoginKeySendCode({
+    required String confirmEmail,
+  }) async {
     if (!isLoggedIn) {
       return const AccountApiResult(
         ok: false,
@@ -1658,7 +2112,7 @@ class AccountService {
       final resp = await _sendAuthed(
         'POST',
         '/api/account/login-keys/send-code',
-        body: const <String, dynamic>{},
+        body: {'confirm_email': confirmEmail.trim()},
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.needsCaptcha || parsed.ok) return parsed;

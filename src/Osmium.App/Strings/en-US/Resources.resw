@@ -909,4 +909,50 @@
   <data name="About_PlatformsSupported" xml:space="preserve"><value>Available Now</value></data>
   <data name="About_PlatformsUpcoming" xml:space="preserve"><value>Coming Soon</value></data>
   <data name="About_PlatformLinuxLabel" xml:space="preserve"><value>Linux (Ubuntu, Debian, etc.)</value></data>
+  <data name="Acc_RowRecoveryEmail" xml:space="preserve"><value>Recovery Email</value></data>
+  <data name="Acc_RowRecoveryEmailDesc" xml:space="preserve"><value>Reset password or sign in when locked out</value></data>
+  <data name="Acc_RecoveryEmailUnset" xml:space="preserve"><value>Not set</value></data>
+  <data name="Acc_AddRecoveryEmailBtn" xml:space="preserve"><value>Add</value></data>
+  <data name="Acc_ChangeRecoveryEmailBtn" xml:space="preserve"><value>Change</value></data>
+  <data name="Acc_RemoveRecoveryEmailBtn" xml:space="preserve"><value>Remove</value></data>
+  <data name="Acc_RecoveryEmailAddTitle" xml:space="preserve"><value>Add Recovery Email</value></data>
+  <data name="Acc_RecoveryEmailChangeTitle" xml:space="preserve"><value>Change Recovery Email</value></data>
+  <data name="Acc_RecoveryEmailRemoveTitle" xml:space="preserve"><value>Remove Recovery Email</value></data>
+  <data name="Acc_RecoveryEmailHeader" xml:space="preserve"><value>Recovery Email</value></data>
+  <data name="Acc_RecoveryEmailPlaceholder" xml:space="preserve"><value>Enter recovery email</value></data>
+  <data name="Acc_ConfirmEmailHeader" xml:space="preserve"><value>Confirm Email</value></data>
+  <data name="Acc_ConfirmCurrentEmailHeader" xml:space="preserve"><value>Current Email</value></data>
+  <data name="Acc_ConfirmEmailHintFmt" xml:space="preserve"><value>Recipient: {0}</value></data>
+  <data name="Acc_ConfirmPrimaryEmailHintFmt" xml:space="preserve"><value>Current email: {0}</value></data>
+  <data name="Acc_ConfirmEmailPlaceholder" xml:space="preserve"><value>Enter full email</value></data>
+  <data name="Acc_MsgRecoveryEmailUpdated" xml:space="preserve"><value>Recovery email updated.</value></data>
+  <data name="Acc_MsgRecoveryEmailRemoved" xml:space="preserve"><value>Recovery email removed.</value></data>
+  <data name="Acc_RecoveryTitle" xml:space="preserve"><value>Account Recovery</value></data>
+  <data name="Acc_RecoveryStep0Desc" xml:space="preserve"><value>Enter your account or recovery email</value></data>
+  <data name="Acc_RecoveryLookupBtn" xml:space="preserve"><value>Continue</value></data>
+  <data name="Acc_RecoveryChannelHeader" xml:space="preserve"><value>Verification Email</value></data>
+  <data name="Acc_RecoveryChannelPrimaryFmt" xml:space="preserve"><value>Primary Email ({0})</value></data>
+  <data name="Acc_RecoveryChannelRecoveryFmt" xml:space="preserve"><value>Recovery Email ({0})</value></data>
+  <data name="Acc_RecoveryActionHeader" xml:space="preserve"><value>Action</value></data>
+  <data name="Acc_RecoveryActionReset" xml:space="preserve"><value>Reset Password</value></data>
+  <data name="Acc_RecoveryActionLogin" xml:space="preserve"><value>Sign In</value></data>
+  <data name="Acc_RecoveryConfirmBtn" xml:space="preserve"><value>Sign In</value></data>
+  <data name="Acc_UnlockChannelHeader" xml:space="preserve"><value>Verification Email</value></data>
+  <data name="Acc_ErrEmailMismatch" xml:space="preserve"><value>Email address does not match.</value></data>
+  <data name="Acc_ErrRecoveryEmailNotSet" xml:space="preserve"><value>No recovery email set.</value></data>
+  <data name="Acc_ErrRecoveryEmailUsed" xml:space="preserve"><value>This email is already in use.</value></data>
+  <data name="Acc_ErrRecoveryEmailSameAsPrimary" xml:space="preserve"><value>Recovery email must differ from primary email.</value></data>
+  <data name="Acc_ErrRecoverySessionExpired" xml:space="preserve"><value>Session expired. Please try again.</value></data>
+  <data name="Acc_ErrEmailConfirmAttempts" xml:space="preserve"><value>Too many incorrect attempts. Try again later.</value></data>
+  <data name="Acc_ErrRecoveryEmailCooldown" xml:space="preserve"><value>Recovery email can only be changed once every 24 hours.</value></data>
+  <data name="Acc_ErrRecoveryEmailCooldownFmt" xml:space="preserve"><value>Try changing recovery email again in {0}.</value></data>
+  <data name="Set_HostLockWindowTitle" xml:space="preserve"><value>Lock window during remote control</value></data>
+  <data name="Set_HostLockWindowDesc" xml:space="preserve"><value>Clear the main window while controlled, showing only session info and a disconnect button; disables closing and minimizing</value></data>
+  <data name="RemoteLock_Title" xml:space="preserve"><value>Remote Control Active</value></data>
+  <data name="RemoteLock_ControllerLabel" xml:space="preserve"><value>Controller</value></data>
+  <data name="RemoteLock_ModeLabel" xml:space="preserve"><value>Mode</value></data>
+  <data name="RemoteLock_DurationLabel" xml:space="preserve"><value>Duration</value></data>
+  <data name="RemoteLock_DisconnectBtn" xml:space="preserve"><value>Disconnect</value></data>
+  <data name="RemoteLock_ModeFull" xml:space="preserve"><value>Full Control</value></data>
+  <data name="RemoteLock_ModeViewOnly" xml:space="preserve"><value>View Only</value></data>
 </root>

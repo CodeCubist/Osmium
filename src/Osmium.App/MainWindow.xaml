@@ -202,5 +202,120 @@
                 </Frame>
             </Grid>
         </NavigationView>
+
+        <Grid x:Name="RemoteLockOverlay"
+              Grid.Row="0"
+              Grid.RowSpan="2"
+              Visibility="Collapsed"
+              Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="24"
+                        MaxWidth="460"
+                        Padding="24">
+                <StackPanel HorizontalAlignment="Center" Spacing="14">
+                    <Border Width="64"
+                            Height="64"
+                            CornerRadius="32"
+                            HorizontalAlignment="Center"
+                            Background="#1AC42B1C">
+                        <FontIcon Glyph="&#xF35A;"
+                                  FontFamily="{StaticResource FluentIconsFont}"
+                                  FontSize="28"
+                                  Foreground="#C42B1C"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock x:Name="RemoteLockTitleText"
+                               FontFamily="{StaticResource AppGlobalFont}"
+                               FontSize="24"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+                </StackPanel>
+
+                <Border MinWidth="360"
+                        CornerRadius="12"
+                        Padding="22,18"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <Grid RowSpacing="12" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock x:Name="RemoteLockControllerLabelText"
+                                   Grid.Row="0" Grid.Column="0"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   FontSize="13.5"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="RemoteLockControllerValueText"
+                                   Grid.Row="0" Grid.Column="1"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Right"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+
+                        <TextBlock x:Name="RemoteLockModeLabelText"
+                                   Grid.Row="1" Grid.Column="0"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   FontSize="13.5"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="RemoteLockModeValueText"
+                                   Grid.Row="1" Grid.Column="1"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center" />
+
+                        <TextBlock x:Name="RemoteLockDurationLabelText"
+                                   Grid.Row="2" Grid.Column="0"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   FontSize="13.5"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="RemoteLockDurationValueText"
+                                   Grid.Row="2" Grid.Column="1"
+                                   FontFamily="{StaticResource AppGlobalFont}"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <Button x:Name="BtnRemoteLockDisconnect"
+                        HorizontalAlignment="Center"
+                        MinWidth="260"
+                        Height="52"
+                        CornerRadius="10"
+                        FontFamily="{StaticResource AppGlobalFont}"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        Background="#C42B1C"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Click="BtnRemoteLockDisconnect_Click">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#A92316" />
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#8E1D12" />
+                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFF" />
+                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFF" />
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

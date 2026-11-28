@@ -46,7 +46,7 @@ jobs:
             version=$(tr -d '\r' < src/Osmium.App/Osmium.App.csproj | grep -E '<Version>[^<]+</Version>' | head -n 1 | sed -E 's/.*<Version>([^<]+)<\/Version>.*/\1/' || true)
           fi
           if [ -z "$version" ]; then
-            version="1.1.0"
+            version="1.1.1"
           fi
           version="${version#v}"
 

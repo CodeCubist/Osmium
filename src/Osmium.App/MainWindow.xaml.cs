@@ -25,6 +25,11 @@ public sealed partial class MainWindow : Window
     private TaskbarFlashHelper? _taskbarFlasher;
     private bool _forceExit;
     private bool _isHiddenInTray;
+    private bool _isRemoteWindowLocked;
+    private bool _remoteLockDisconnecting;
+    private HostSessionActiveInfo? _remoteLockSessionInfo;
+    private DateTimeOffset _remoteLockStartedAtUtc;
+    private DispatcherTimer? _remoteLockTimer;
     private readonly Dictionary<string, NavigationViewItem> _peerDeviceNavItems = new(StringComparer.Ordinal);
 
     public event Action? AutoStartChangedFromTray;
@@ -93,6 +98,9 @@ public sealed partial class MainWindow : Window
         });
         Closed += (_, _) =>
         {
+            _remoteLockTimer?.Stop();
+            _remoteLockTimer = null;
+            ImmersiveWindowHelper.SetCloseAndMinimizeBlocked(this, false);
             _taskbarFlasher?.Dispose();
             _taskbarFlasher = null;
             _trayIcon?.Dispose();
@@ -141,6 +149,16 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(NavAccountItem, accountLabel);
 
         NavSettingsText.Text = LocalizationService.GetString("Nav_Settings");
+        RemoteLockTitleText.Text = LocalizationService.GetString("RemoteLock_Title");
+        RemoteLockControllerLabelText.Text = LocalizationService.GetString("RemoteLock_ControllerLabel");
+        RemoteLockModeLabelText.Text = LocalizationService.GetString("RemoteLock_ModeLabel");
+        RemoteLockDurationLabelText.Text = LocalizationService.GetString("RemoteLock_DurationLabel");
+        BtnRemoteLockDisconnect.Content = LocalizationService.GetString("RemoteLock_DisconnectBtn");
+        if (_isRemoteWindowLocked)
+        {
+            UpdateRemoteLockSessionDisplay();
+        }
+
         SyncSameAccountPeerNavItems();
     }
 
@@ -344,9 +362,9 @@ public sealed partial class MainWindow : Window
 
                 AutoStartChangedFromTray?.Invoke();
             }),
-            onDisconnectHost: () => DispatcherQueue.TryEnqueue(() => App.Engine.Coordinator.StopHostSession()),
+            onDisconnectHost: () => DispatcherQueue.TryEnqueue(() => _ = Task.Run(() => App.Engine.Coordinator.StopHostSession())),
             onExit: () => DispatcherQueue.TryEnqueue(ExitFromTray),
-            onSystemShutdown: ExitFromTray,
+            onSystemShutdown: ForceExit,
             getSnapshot: BuildTrayMenuSnapshot);
     }
 
@@ -360,7 +378,8 @@ public sealed partial class MainWindow : Window
             ShowDisconnect: streaming,
             DisconnectLabel: LocalizationService.GetString("Tray_DisconnectHost"),
             ExitLabel: LocalizationService.GetString("Tray_Exit"),
-            Tooltip: BuildTrayTooltip());
+            Tooltip: BuildTrayTooltip(),
+            ShowExit: !_isRemoteWindowLocked);
     }
 
     private static string BuildTrayTooltip()
@@ -410,15 +429,20 @@ public sealed partial class MainWindow : Window
 
     private void OnHostSessionStarted(HostSessionActiveInfo info)
     {
-        SyncTrayIconVisibility();
-        UpdateTrayTooltip();
-        if (!App.Engine.QuickLaunch.HasActiveSessionGuard)
+        var settings = App.Engine.SettingsService.Settings;
+        if (settings.HostLockWindowDuringRemote)
+        {
+            EnterRemoteWindowLockMode(info);
+        }
+        else if (!App.Engine.QuickLaunch.HasActiveSessionGuard)
         {
             NavigateToLocalHome();
             RestoreFromTray();
         }
 
-        var settings = App.Engine.SettingsService.Settings;
+        SyncTrayIconVisibility();
+        UpdateTrayTooltip();
+
         if (settings.HostNotifyOnConnect)
         {
             EnsureTrayIcon();
@@ -432,6 +456,118 @@ public sealed partial class MainWindow : Window
         {
             _taskbarFlasher?.SetSolidRed(_hwnd);
         }
+    }
+
+    private void EnterRemoteWindowLockMode(HostSessionActiveInfo info)
+    {
+        _isRemoteWindowLocked = true;
+        _remoteLockDisconnecting = false;
+        _remoteLockSessionInfo = info;
+        _remoteLockStartedAtUtc = App.Engine.Coordinator.HostSessionStartedAtUtc ?? DateTimeOffset.UtcNow;
+
+        BtnRemoteLockDisconnect.IsEnabled = true;
+        AppTitleBar.Visibility = Visibility.Collapsed;
+        NavView.Visibility = Visibility.Collapsed;
+        RemoteLockOverlay.Visibility = Visibility.Visible;
+        UpdateRemoteLockSessionDisplay();
+
+        RestoreFromTray();
+
+        try
+        {
+            if (_appWindow?.Presenter is OverlappedPresenter op)
+            {
+                op.IsMinimizable = false;
+                op.SetBorderAndTitleBar(true, false);
+            }
+        }
+        catch
+        {
+        }
+
+        ImmersiveWindowHelper.SetCloseAndMinimizeBlocked(this, true);
+        ImmersiveWindowHelper.SyncContentBridges(this);
+
+        if (_remoteLockTimer == null)
+        {
+            _remoteLockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _remoteLockTimer.Tick += (_, _) => UpdateRemoteLockDuration();
+        }
+
+        if (!_remoteLockTimer.IsEnabled)
+        {
+            _remoteLockTimer.Start();
+        }
+    }
+
+    private void ExitRemoteWindowLockMode()
+    {
+        if (!_isRemoteWindowLocked) return;
+        _isRemoteWindowLocked = false;
+        _remoteLockDisconnecting = false;
+        _remoteLockSessionInfo = null;
+        _remoteLockTimer?.Stop();
+
+        ImmersiveWindowHelper.SetCloseAndMinimizeBlocked(this, false);
+
+        try
+        {
+            if (_appWindow?.Presenter is OverlappedPresenter op)
+            {
+                op.IsMinimizable = true;
+                op.SetBorderAndTitleBar(true, true);
+            }
+
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
+            ImmersiveWindowHelper.ApplyImmersiveFrame(this, IsDarkThemeActive);
+        }
+        catch
+        {
+        }
+
+        RemoteLockOverlay.Visibility = Visibility.Collapsed;
+        AppTitleBar.Visibility = Visibility.Visible;
+        NavView.Visibility = Visibility.Visible;
+        BtnRemoteLockDisconnect.IsEnabled = true;
+    }
+
+    private void UpdateRemoteLockSessionDisplay()
+    {
+        if (_remoteLockSessionInfo is { } info)
+        {
+            string who = ResolveControllerDisplayName(info);
+            string formattedId = DeviceIdentity.FormatDeviceId(info.PeerDeviceId);
+            RemoteLockControllerValueText.Text =
+                string.Equals(who, formattedId, StringComparison.Ordinal) || string.IsNullOrWhiteSpace(formattedId)
+                    ? who
+                    : $"{who} ({formattedId})";
+        }
+        else
+        {
+            RemoteLockControllerValueText.Text = "-";
+        }
+
+        RemoteLockModeValueText.Text = LocalizationService.GetString(
+            App.Engine.Coordinator.IsHostViewOnly ? "RemoteLock_ModeViewOnly" : "RemoteLock_ModeFull");
+        UpdateRemoteLockDuration();
+    }
+
+    private void UpdateRemoteLockDuration()
+    {
+        var elapsed = DateTimeOffset.UtcNow - _remoteLockStartedAtUtc;
+        if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+        RemoteLockDurationValueText.Text = elapsed.TotalHours >= 1
+            ? $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}"
+            : $"{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+    }
+
+    private void BtnRemoteLockDisconnect_Click(object sender, RoutedEventArgs e)
+    {
+        if (_remoteLockDisconnecting) return;
+        _remoteLockDisconnecting = true;
+        BtnRemoteLockDisconnect.IsEnabled = false;
+        _ = Task.Run(() => App.Engine.Coordinator.StopHostSession());
     }
 
     private void OnQuickLaunchAppStartedOnHost(Osmium.Core.Services.QuickLaunchHostStartedEventArgs args)
@@ -456,6 +592,7 @@ public sealed partial class MainWindow : Window
 
     private void OnHostSessionEnded()
     {
+        ExitRemoteWindowLockMode();
         _taskbarFlasher?.Clear(_hwnd);
         SyncTrayIconVisibility();
         UpdateTrayTooltip();
@@ -477,7 +614,7 @@ public sealed partial class MainWindow : Window
 
     public void HideToTray()
     {
-        if (_forceExit || _appWindow == null) return;
+        if (_forceExit || _isRemoteWindowLocked || _appWindow == null) return;
         _isHiddenInTray = true;
         EnsureTrayIcon();
         _trayIcon?.SetVisible(true, BuildTrayTooltip());
@@ -539,6 +676,7 @@ public sealed partial class MainWindow : Window
     public void ForceExit()
     {
         _forceExit = true;
+        ExitRemoteWindowLockMode();
         _taskbarFlasher?.Dispose();
         _taskbarFlasher = null;
         _trayIcon?.Dispose();
@@ -546,5 +684,9 @@ public sealed partial class MainWindow : Window
         Close();
     }
 
-    private void ExitFromTray() => ForceExit();
+    private void ExitFromTray()
+    {
+        if (_isRemoteWindowLocked) return;
+        ForceExit();
+    }
 }

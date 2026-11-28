@@ -53,6 +53,8 @@ class AccountSessionData {
   const AccountSessionData({
     required this.userId,
     required this.email,
+    this.recoveryEmail = '',
+    this.hasRecoveryEmail = false,
     required this.username,
     this.avatarData,
     required this.stoken,
@@ -69,6 +71,8 @@ class AccountSessionData {
 
   final String userId;
   final String email;
+  final String recoveryEmail;
+  final bool hasRecoveryEmail;
   final String username;
   final String? avatarData;
   final String stoken;
@@ -98,9 +102,18 @@ class AccountSessionData {
     return now < ltokenExpiresAtUnix - 30;
   }
 
+  bool get isLtokenExpiringSoon {
+    if (ltoken.isEmpty) return true;
+    if (ltokenExpiresAtUnix <= 0) return false;
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return now >= ltokenExpiresAtUnix - 180;
+  }
+
   AccountSessionData copyWith({
     String? userId,
     String? email,
+    String? recoveryEmail,
+    bool? hasRecoveryEmail,
     String? username,
     String? avatarData,
     bool clearAvatar = false,
@@ -117,6 +130,8 @@ class AccountSessionData {
     return AccountSessionData(
       userId: userId ?? this.userId,
       email: email ?? this.email,
+      recoveryEmail: recoveryEmail ?? this.recoveryEmail,
+      hasRecoveryEmail: hasRecoveryEmail ?? this.hasRecoveryEmail,
       username: username ?? this.username,
       avatarData: clearAvatar ? null : (avatarData ?? this.avatarData),
       stoken: stoken ?? this.stoken,
@@ -134,6 +149,8 @@ class AccountSessionData {
   Map<String, dynamic> toJson() => {
     'user_id': userId,
     'email': email,
+    'recovery_email': recoveryEmail,
+    'has_recovery_email': hasRecoveryEmail,
     'username': username,
     'avatar_data': avatarData,
     'stoken': stoken,
@@ -149,10 +166,15 @@ class AccountSessionData {
 
   factory AccountSessionData.fromStoredJson(Map<String, dynamic> json) {
     final hasEmail = json['has_email'] != false;
+    final hasRecoveryEmail = json['has_recovery_email'] == true;
     final hasPassword = json['has_password'] != false;
     return AccountSessionData(
       userId: (json['user_id'] ?? '').toString(),
       email: hasEmail ? (json['email'] ?? '').toString() : '',
+      recoveryEmail: hasRecoveryEmail
+          ? (json['recovery_email'] ?? '').toString()
+          : '',
+      hasRecoveryEmail: hasRecoveryEmail,
       username: (json['username'] ?? '').toString(),
       avatarData: json['avatar_data'] as String?,
       stoken: (json['stoken'] ?? '').toString(),
@@ -175,10 +197,15 @@ class AccountSessionData {
     final status = (json['account_status'] ?? 'active').toString();
     final locked = json['locked'] == true || status.toLowerCase() == 'locked';
     final hasEmail = json['has_email'] != false;
+    final hasRecoveryEmail = json['has_recovery_email'] == true;
     final hasPassword = json['has_password'] != false;
     return AccountSessionData(
       userId: (json['user_id'] ?? '').toString(),
       email: hasEmail ? (json['email'] ?? '').toString() : '',
+      recoveryEmail: hasRecoveryEmail
+          ? (json['recovery_email'] ?? '').toString()
+          : '',
+      hasRecoveryEmail: hasRecoveryEmail,
       username: (json['username'] ?? '').toString(),
       avatarData: json['avatar_data'] as String?,
       stoken: (json['stoken'] ?? '').toString(),
@@ -562,6 +589,7 @@ class AccountApiResult<T> {
     this.message = '',
     this.data,
     this.challenge,
+    this.twoFaToken = '',
     this.retryAfterSec,
   });
 
@@ -571,15 +599,15 @@ class AccountApiResult<T> {
   final String message;
   final T? data;
   final AccountChallengeInfo? challenge;
+  final String twoFaToken;
   final int? retryAfterSec;
 
-  /// Mirrors Windows `AccountApiResult.RequiresCaptcha`: a challenge is only
-  /// actionable when the envelope carries the captcha code, not merely HTTP 202.
   bool get needsCaptcha =>
       challenge != null && code == OsmiumErrorCode.accountCaptchaRequired;
 
-  /// Mirrors Windows `AccountApiResult.IsPending` (code 101). Pending is a
-  /// successful poll state, never a terminal error.
+  bool get requiresTwoFa =>
+      twoFaToken.isNotEmpty && code == OsmiumErrorCode.twoFaRequired;
+
   bool get isPending => code == OsmiumErrorCode.challengePending;
 }
 
@@ -943,6 +971,52 @@ class LoginKeyCreateData {
       keyPrefix: (json['key_prefix'] ?? '').toString(),
       loginKey: (json['login_key'] ?? '').toString(),
       createdAt: (json['created_at'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class RecoveryChannelDto {
+  const RecoveryChannelDto({
+    required this.channel,
+    required this.masked,
+  });
+
+  final String channel;
+  final String masked;
+
+  bool get isRecovery => channel.toLowerCase() == 'recovery';
+
+  factory RecoveryChannelDto.fromJson(Map<String, dynamic> json) {
+    return RecoveryChannelDto(
+      channel: (json['channel'] ?? 'primary').toString(),
+      masked: (json['masked'] ?? '').toString(),
+    );
+  }
+}
+
+class RecoveryLookupData {
+  const RecoveryLookupData({
+    required this.recoveryToken,
+    required this.expiresIn,
+    required this.channels,
+  });
+
+  final String recoveryToken;
+  final int expiresIn;
+  final List<RecoveryChannelDto> channels;
+
+  factory RecoveryLookupData.fromJson(Map<String, dynamic> json) {
+    final raw = json['channels'];
+    final items = raw is List
+        ? raw
+              .whereType<Map<String, dynamic>>()
+              .map(RecoveryChannelDto.fromJson)
+              .toList(growable: false)
+        : const <RecoveryChannelDto>[];
+    return RecoveryLookupData(
+      recoveryToken: (json['recovery_token'] ?? '').toString(),
+      expiresIn: (json['expires_in'] as num?)?.toInt() ?? 600,
+      channels: items,
     );
   }
 }

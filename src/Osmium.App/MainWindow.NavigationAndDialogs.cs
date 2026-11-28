@@ -17,14 +17,36 @@ public sealed partial class MainWindow : Window
 {
     private void MainWindow_AppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (_forceExit || !App.Engine.SettingsService.Settings.CloseToTray) return;
+        if (_forceExit) return;
+        if (_isRemoteWindowLocked)
+        {
+            args.Cancel = true;
+            return;
+        }
+
+        if (!App.Engine.SettingsService.Settings.CloseToTray) return;
         args.Cancel = true;
         HideToTray();
     }
 
     private void MainWindow_AppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
     {
-        if (_forceExit || _isHiddenInTray || !App.Engine.SettingsService.Settings.HideToTrayOnMinimize) return;
+        if (_forceExit) return;
+        if (_isRemoteWindowLocked)
+        {
+            if (sender.Presenter is OverlappedPresenter lockOp && lockOp.State == OverlappedPresenterState.Minimized)
+            {
+                lockOp.Restore();
+                if (_hwnd != IntPtr.Zero)
+                {
+                    ShowWindow(_hwnd, SwRestore);
+                }
+                BringWindowToForeground();
+            }
+            return;
+        }
+
+        if (_isHiddenInTray || !App.Engine.SettingsService.Settings.HideToTrayOnMinimize) return;
         if (sender.Presenter is OverlappedPresenter op && op.State == OverlappedPresenterState.Minimized)
         {
             HideToTray();

@@ -33,6 +33,7 @@ public sealed partial class AccountService : IDisposable
 
     private string _userId = string.Empty;
     private string _email = string.Empty;
+    private string _recoveryEmail = string.Empty;
     private string _username = string.Empty;
     private string? _avatarData;
     private string _stoken = string.Empty;
@@ -43,6 +44,7 @@ public sealed partial class AccountService : IDisposable
     private bool _isLocked;
     private string? _lockedAt;
     private bool _hasEmail = true;
+    private bool _hasRecoveryEmail;
     private bool _hasPassword = true;
     private bool _twoFaEnabled;
     private List<AccountDeviceDto> _sameAccountDevices = [];
@@ -84,6 +86,7 @@ public sealed partial class AccountService : IDisposable
     public bool HasLtoken => !string.IsNullOrWhiteSpace(_ltoken) && !IsLtokenExpiredLocally();
     public string CurrentUserId => _userId;
     public string CurrentEmail => _email;
+    public string CurrentRecoveryEmail => _recoveryEmail;
     public string CurrentUsername => _username;
     public string? CurrentAvatarData => _avatarData;
     public string CurrentLtoken => HasLtoken ? _ltoken : string.Empty;
@@ -91,6 +94,7 @@ public sealed partial class AccountService : IDisposable
     public bool IsLocked => _isLocked;
     public string? LockedAt => _lockedAt;
     public bool HasEmail => _hasEmail;
+    public bool HasRecoveryEmail => _hasRecoveryEmail;
     public bool HasPassword => _hasPassword;
     public bool TwoFaEnabled => _twoFaEnabled;
     public bool IsProfileComplete => _hasEmail && _hasPassword;
@@ -289,19 +293,73 @@ public sealed partial class AccountService : IDisposable
         return result;
     }
 
-    public Task<AccountApiResult<AccountChallengeInfo>> StartResetPasswordSendCodeAsync(string email)
-        => SendAnonymousJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/auth/reset-password/send-code", new
+    public Task<AccountApiResult<RecoveryLookupData>> LookupAccountRecoveryAsync(string email)
+        => SendAnonymousJsonAsync<RecoveryLookupData>(HttpMethod.Post, "/api/auth/recovery/lookup", new
         {
             email = email.Trim()
         });
 
-    public Task<AccountApiResult<object>> ConfirmResetPasswordAsync(string email, string code, string newPassword)
+    public Task<AccountApiResult<AccountChallengeInfo>> StartResetPasswordSendCodeAsync(
+        string recoveryToken,
+        string channel,
+        string confirmEmail)
+        => SendAnonymousJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/auth/reset-password/send-code", new
+        {
+            recovery_token = recoveryToken.Trim(),
+            channel = channel.Trim().ToLowerInvariant(),
+            confirm_email = confirmEmail.Trim()
+        });
+
+    public Task<AccountApiResult<object>> ConfirmResetPasswordAsync(
+        string recoveryToken,
+        string channel,
+        string confirmEmail,
+        string code,
+        string newPassword)
         => SendAnonymousJsonAsync<object>(HttpMethod.Post, "/api/auth/reset-password/confirm", new
         {
-            email = email.Trim(),
+            recovery_token = recoveryToken.Trim(),
+            channel = channel.Trim().ToLowerInvariant(),
+            confirm_email = confirmEmail.Trim(),
             code = code.Trim(),
             new_password = newPassword
         });
+
+    public Task<AccountApiResult<AccountChallengeInfo>> StartRecoveryLoginSendCodeAsync(
+        string recoveryToken,
+        string confirmEmail)
+        => SendAnonymousJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/auth/recovery-login/send-code", new
+        {
+            recovery_token = recoveryToken.Trim(),
+            confirm_email = confirmEmail.Trim()
+        });
+
+    public async Task<AccountApiResult<AccountLoginSessionData>> ConfirmRecoveryLoginAsync(
+        string recoveryToken,
+        string confirmEmail,
+        string code)
+    {
+        var result = await SendAnonymousJsonAsync<AccountLoginSessionData>(
+            HttpMethod.Post,
+            "/api/auth/recovery-login/confirm",
+            new
+            {
+                recovery_token = recoveryToken.Trim(),
+                confirm_email = confirmEmail.Trim(),
+                code = code.Trim(),
+                device_id = _settings.Identity.DeviceId,
+                device_name = _settings.Identity.DeviceName,
+                os_version = Environment.OSVersion.VersionString,
+                device_secret = _settings.Identity.DeviceSecret
+            },
+            retryOnTransient: false);
+        if (result.Ok && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Stoken))
+        {
+            ApplyLoginSession(string.Empty, result.Data);
+        }
+
+        return result;
+    }
 
     public async Task<AccountApiResult<T>> PollChallengeAsync<T>(string pollUrl, string challengeSecret)
     {
@@ -435,11 +493,11 @@ public sealed partial class AccountService : IDisposable
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         _userId = loginData.UserId;
         _hasEmail = loginData.HasEmail;
+        _hasRecoveryEmail = loginData.HasRecoveryEmail;
         _hasPassword = loginData.HasPassword;
         _twoFaEnabled = loginData.TwoFaEnabled;
-        _email = _hasEmail
-            ? (!string.IsNullOrWhiteSpace(loginData.Email) ? loginData.Email : email.Trim())
-            : string.Empty;
+        _email = _hasEmail ? (loginData.Email ?? string.Empty) : string.Empty;
+        _recoveryEmail = _hasRecoveryEmail ? (loginData.RecoveryEmail ?? string.Empty) : string.Empty;
         _username = !string.IsNullOrWhiteSpace(loginData.Username) ? loginData.Username : _username;
         _avatarData = loginData.AvatarData;
         _stoken = loginData.Stoken;
@@ -479,6 +537,8 @@ public sealed partial class AccountService : IDisposable
                     {
                         UserId = _userId,
                         Email = _email,
+                        RecoveryEmail = _recoveryEmail,
+                        HasRecoveryEmail = _hasRecoveryEmail,
                         Username = _username,
                         AvatarData = _avatarData,
                         Ltoken = _ltoken,
@@ -517,11 +577,13 @@ public sealed partial class AccountService : IDisposable
                 long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 if (!string.IsNullOrWhiteSpace(parsed.Data.UserId)) _userId = parsed.Data.UserId;
                 _hasEmail = parsed.Data.HasEmail;
+                _hasRecoveryEmail = parsed.Data.HasRecoveryEmail;
                 _hasPassword = parsed.Data.HasPassword;
                 _twoFaEnabled = parsed.Data.TwoFaEnabled;
                 _email = _hasEmail
                     ? (!string.IsNullOrWhiteSpace(parsed.Data.Email) ? parsed.Data.Email : _email)
                     : string.Empty;
+                _recoveryEmail = _hasRecoveryEmail ? (parsed.Data.RecoveryEmail ?? string.Empty) : string.Empty;
                 if (!string.IsNullOrWhiteSpace(parsed.Data.Username)) _username = parsed.Data.Username;
                 _avatarData = parsed.Data.AvatarData;
                 _ltoken = parsed.Data.Ltoken;
@@ -580,11 +642,13 @@ public sealed partial class AccountService : IDisposable
         {
             if (!string.IsNullOrWhiteSpace(result.Data.UserId)) _userId = result.Data.UserId;
             _hasEmail = result.Data.HasEmail;
+            _hasRecoveryEmail = result.Data.HasRecoveryEmail;
             _hasPassword = result.Data.HasPassword;
             _twoFaEnabled = result.Data.TwoFaEnabled;
             _email = _hasEmail
                 ? (!string.IsNullOrWhiteSpace(result.Data.Email) ? result.Data.Email : _email)
                 : string.Empty;
+            _recoveryEmail = _hasRecoveryEmail ? (result.Data.RecoveryEmail ?? string.Empty) : string.Empty;
             if (!string.IsNullOrWhiteSpace(result.Data.Username)) _username = result.Data.Username;
             _avatarData = result.Data.AvatarData;
             _accountStatus = string.IsNullOrWhiteSpace(result.Data.AccountStatus)
@@ -620,7 +684,9 @@ public sealed partial class AccountService : IDisposable
         return result;
     }
 
-    public Task<AccountApiResult<AccountChallengeInfo>> StartChangeEmailSendCodeAsync(string? currentPassword,
+    public Task<AccountApiResult<AccountChallengeInfo>> StartChangeEmailSendCodeAsync(
+        string? currentPassword,
+        string? currentEmail,
         string newEmail)
     {
         var payload = new Dictionary<string, object>
@@ -630,6 +696,10 @@ public sealed partial class AccountService : IDisposable
         if (!string.IsNullOrEmpty(currentPassword))
         {
             payload["password"] = currentPassword;
+        }
+        if (!string.IsNullOrWhiteSpace(currentEmail))
+        {
+            payload["current_email"] = currentEmail.Trim();
         }
 
         return SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/email/send-code",
@@ -663,9 +733,84 @@ public sealed partial class AccountService : IDisposable
         return result;
     }
 
-    public Task<AccountApiResult<AccountChallengeInfo>> StartSetPasswordSendCodeAsync()
+    public Task<AccountApiResult<AccountChallengeInfo>> StartBindRecoveryEmailSendCodeAsync(
+        string password,
+        string currentEmail,
+        string recoveryEmail)
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/recovery-email/send-code",
+            new
+            {
+                password,
+                current_email = currentEmail.Trim(),
+                recovery_email = recoveryEmail.Trim()
+            });
+
+    public async Task<AccountApiResult<AccountRecoveryEmailUpdateData>> ConfirmBindRecoveryEmailAsync(
+        string password,
+        string recoveryEmail,
+        string code)
+    {
+        var result = await SendAuthenticatedJsonAsync<AccountRecoveryEmailUpdateData>(
+            HttpMethod.Post,
+            "/api/account/recovery-email/confirm",
+            new
+            {
+                password,
+                recovery_email = recoveryEmail.Trim(),
+                code = code.Trim()
+            });
+        if (result.Ok && result.Data != null)
+        {
+            _hasRecoveryEmail = result.Data.HasRecoveryEmail;
+            _recoveryEmail = result.Data.RecoveryEmail ?? string.Empty;
+            SavePersistedSession();
+            SessionChanged?.Invoke();
+        }
+
+        return result;
+    }
+
+    public Task<AccountApiResult<AccountChallengeInfo>> StartRemoveRecoveryEmailSendCodeAsync(
+        string password,
+        string confirmEmail)
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(
+            HttpMethod.Post,
+            "/api/account/recovery-email/remove/send-code",
+            new
+            {
+                password,
+                confirm_email = confirmEmail.Trim()
+            });
+
+    public async Task<AccountApiResult<AccountRecoveryEmailUpdateData>> ConfirmRemoveRecoveryEmailAsync(
+        string password,
+        string code)
+    {
+        var result = await SendAuthenticatedJsonAsync<AccountRecoveryEmailUpdateData>(
+            HttpMethod.Post,
+            "/api/account/recovery-email/remove/confirm",
+            new
+            {
+                password,
+                code = code.Trim()
+            });
+        if (result.Ok && result.Data != null)
+        {
+            _hasRecoveryEmail = result.Data.HasRecoveryEmail;
+            _recoveryEmail = result.Data.RecoveryEmail ?? string.Empty;
+            SavePersistedSession();
+            SessionChanged?.Invoke();
+        }
+
+        return result;
+    }
+
+    public Task<AccountApiResult<AccountChallengeInfo>> StartSetPasswordSendCodeAsync(string confirmEmail)
         => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/password/send-code",
-            new { });
+            new
+            {
+                confirm_email = confirmEmail.Trim()
+            });
 
     public async Task<AccountApiResult<AccountPasswordSetData>> ConfirmSetPasswordAsync(string code, string newPassword)
     {
@@ -687,8 +832,11 @@ public sealed partial class AccountService : IDisposable
         return result;
     }
 
-    public Task<AccountApiResult<AccountChallengeInfo>> SendLockCodeAsync()
-        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/lock/send-code", new { });
+    public Task<AccountApiResult<AccountChallengeInfo>> SendLockCodeAsync(string confirmEmail)
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/lock/send-code", new
+        {
+            confirm_email = confirmEmail.Trim()
+        });
 
     public async Task<AccountApiResult<AccountStatusData>> ConfirmLockAsync(string code)
     {
@@ -708,15 +856,20 @@ public sealed partial class AccountService : IDisposable
         return result;
     }
 
-    public Task<AccountApiResult<AccountChallengeInfo>> SendUnlockCodeAsync()
-        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/unlock/send-code", new { });
+    public Task<AccountApiResult<AccountChallengeInfo>> SendUnlockCodeAsync(string confirmEmail, string channel = "primary")
+        => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/unlock/send-code", new
+        {
+            confirm_email = confirmEmail.Trim(),
+            channel = channel.Trim().ToLowerInvariant()
+        });
 
-    public async Task<AccountApiResult<AccountStatusData>> ConfirmUnlockAsync(string code)
+    public async Task<AccountApiResult<AccountStatusData>> ConfirmUnlockAsync(string code, string channel = "primary")
     {
         var result = await SendAuthenticatedJsonAsync<AccountStatusData>(HttpMethod.Post, "/api/account/unlock/confirm",
             new
             {
-                code = code.Trim()
+                code = code.Trim(),
+                channel = channel.Trim().ToLowerInvariant()
             });
         if (result.Ok && result.Data != null)
         {
@@ -923,9 +1076,12 @@ public sealed partial class AccountService : IDisposable
     public Task<AccountApiResult<LoginKeysListData>> GetLoginKeysAsync()
         => SendAuthenticatedJsonAsync<LoginKeysListData>(HttpMethod.Get, "/api/account/login-keys");
 
-    public Task<AccountApiResult<AccountChallengeInfo>> StartCreateLoginKeySendCodeAsync()
+    public Task<AccountApiResult<AccountChallengeInfo>> StartCreateLoginKeySendCodeAsync(string confirmEmail)
         => SendAuthenticatedJsonAsync<AccountChallengeInfo>(HttpMethod.Post, "/api/account/login-keys/send-code",
-            new { });
+            new
+            {
+                confirm_email = confirmEmail.Trim()
+            });
 
     public Task<AccountApiResult<LoginKeyCreateData>> CreateLoginKeyAsync(string code, string name)
         => SendAuthenticatedJsonAsync<LoginKeyCreateData>(HttpMethod.Post, "/api/account/login-keys/create", new

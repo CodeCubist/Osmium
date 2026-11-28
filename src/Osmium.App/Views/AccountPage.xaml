@@ -917,6 +917,25 @@
                                     </StackPanel>
                                 </controls:SettingsRowCard>
 
+                                <Border x:Name="DividerRecoveryEmail"
+                                        Style="{StaticResource OsmiumHorizontalDividerStyle}" />
+
+                                <controls:SettingsRowCard x:Name="RowProfileRecoveryEmail" IsGrouped="True" ShowIcon="False">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ProfileRecoveryEmailText"
+                                                   FontSize="13"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   IsTextSelectionEnabled="True" />
+                                        <Button x:Name="BtnManageRecoveryEmail" CornerRadius="6" Click="BtnManageRecoveryEmail_Click" />
+                                        <Button x:Name="BtnRemoveRecoveryEmail"
+                                                CornerRadius="6"
+                                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                                Visibility="Collapsed"
+                                                Click="BtnRemoveRecoveryEmail_Click" />
+                                    </StackPanel>
+                                </controls:SettingsRowCard>
+
                                 <Border x:Name="DividerSetPassword"
                                         Style="{StaticResource OsmiumHorizontalDividerStyle}"
                                         Visibility="Collapsed" />

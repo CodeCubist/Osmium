@@ -109,12 +109,20 @@ class AppController extends ChangeNotifier {
 
   bool _refreshingDevices;
   bool get refreshingDevices => _refreshingDevices;
+  bool _devicesFetchInFlight = false;
+  bool _pendingDevicesRefresh = false;
+  bool _appInForeground = true;
+  int _activeTabIndex = 0;
+  bool _rotatingWsAuth = false;
+  Timer? _ltokenRefreshTimer;
+  Timer? _foregroundPresenceTimer;
 
   SignalingConnectionState _signalingState =
       SignalingConnectionState.disconnected;
   SignalingConnectionState get signalingState => _signalingState;
 
   StreamSubscription<SignalingConnectionState>? _sigStateSub;
+  StreamSubscription<bool>? _sigAccountAuthSub;
   StreamSubscription<List<AccountDeviceDto>>? _sigDevicesSub;
   StreamSubscription<void>? _sigUnreachableSub;
   StreamSubscription<void>? _sigQuickLaunchSyncSub;
@@ -149,8 +157,19 @@ class AppController extends ChangeNotifier {
       _signalingState = state;
       if (state == SignalingConnectionState.connected) {
         _signalingEverConnected = true;
+        if (accountService.isLoggedIn) {
+          unawaited(refreshAccountDevices(silent: true));
+        }
       }
       notifyListeners();
+    });
+
+    _sigAccountAuthSub = signaling.accountAuthStatusStream.listen((authed) {
+      if (!authed && accountService.isLoggedIn && !_rotatingWsAuth) {
+        unawaited(_ensureFreshLtokenForSignaling());
+      } else if (authed && accountService.isLoggedIn) {
+        unawaited(refreshAccountDevices(silent: true));
+      }
     });
 
     _sigUnreachableSub = signaling.unreachableStream.listen((_) {
@@ -214,6 +233,24 @@ class AppController extends ChangeNotifier {
       ltoken: accountService.currentLtoken,
     );
 
+    _ltokenRefreshTimer?.cancel();
+    _ltokenRefreshTimer = Timer.periodic(const Duration(minutes: 6), (_) {
+      if (!accountService.isLoggedIn) return;
+      final sess = accountService.session;
+      if (sess == null || sess.isLtokenExpiringSoon || !signaling.isAccountAuthenticated) {
+        unawaited(_ensureFreshLtokenForSignaling());
+      }
+    });
+
+    _foregroundPresenceTimer?.cancel();
+    _foregroundPresenceTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (!_appInForeground || !accountService.isLoggedIn) return;
+      signaling.ensureAlive();
+      if (_activeTabIndex == 0) {
+        unawaited(refreshAccountDevices(silent: true));
+      }
+    });
+
     _initialized = true;
     notifyListeners();
 
@@ -222,6 +259,45 @@ class AppController extends ChangeNotifier {
     } else if (_refreshingDevices) {
       _refreshingDevices = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _ensureFreshLtokenForSignaling() async {
+    if (_rotatingWsAuth || !accountService.isLoggedIn) return;
+    _rotatingWsAuth = true;
+    try {
+      final res = await accountService.rotateLtoken();
+      if (res.ok && accountService.currentLtoken.isNotEmpty) {
+        signaling.updateAuthToken(accountService.currentLtoken);
+        unawaited(refreshAccountDevices(silent: true));
+      }
+    } finally {
+      _rotatingWsAuth = false;
+    }
+  }
+
+  void setAppLifecycleState(bool inForeground) {
+    _appInForeground = inForeground;
+  }
+
+  void setActiveTab(int index) {
+    _activeTabIndex = index;
+    if (index == 0 && accountService.isLoggedIn) {
+      signaling.ensureAlive();
+      unawaited(refreshAccountDevices(silent: true));
+    }
+  }
+
+  Future<void> onAppResumed() async {
+    _appInForeground = true;
+    if (!_initialized) return;
+    signaling.ensureAlive(forceProbe: true);
+    if (!accountService.isLoggedIn) return;
+    final sess = accountService.session;
+    if (sess == null || sess.isLtokenExpiringSoon || !signaling.isAccountAuthenticated) {
+      await _ensureFreshLtokenForSignaling();
+    } else {
+      await refreshAccountDevices(silent: true);
     }
   }
 
@@ -326,10 +402,12 @@ class AppController extends ChangeNotifier {
 
   Future<AccountApiResult<Map<String, dynamic>>> startChangeEmailSendCode({
     String? password,
+    String? currentEmail,
     required String newEmail,
   }) {
     return accountService.startChangeEmailSendCode(
       password: password,
+      currentEmail: currentEmail,
       newEmail: newEmail,
     );
   }
@@ -351,8 +429,64 @@ class AppController extends ChangeNotifier {
     return res;
   }
 
-  Future<AccountApiResult<Map<String, dynamic>>> startSetPasswordSendCode() {
-    return accountService.startSetPasswordSendCode();
+  Future<AccountApiResult<Map<String, dynamic>>> startBindRecoveryEmailSendCode({
+    required String password,
+    required String currentEmail,
+    required String recoveryEmail,
+  }) {
+    return accountService.startBindRecoveryEmailSendCode(
+      password: password,
+      currentEmail: currentEmail,
+      recoveryEmail: recoveryEmail,
+    );
+  }
+
+  Future<AccountApiResult<AccountSessionData>> confirmBindRecoveryEmail({
+    required String password,
+    required String recoveryEmail,
+    required String code,
+  }) async {
+    final res = await accountService.confirmBindRecoveryEmail(
+      password: password,
+      recoveryEmail: recoveryEmail,
+      code: code,
+    );
+    if (res.ok && res.data != null) {
+      _account = res.data;
+      notifyListeners();
+    }
+    return res;
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startRemoveRecoveryEmailSendCode({
+    required String password,
+    required String confirmEmail,
+  }) {
+    return accountService.startRemoveRecoveryEmailSendCode(
+      password: password,
+      confirmEmail: confirmEmail,
+    );
+  }
+
+  Future<AccountApiResult<AccountSessionData>> confirmRemoveRecoveryEmail({
+    required String password,
+    required String code,
+  }) async {
+    final res = await accountService.confirmRemoveRecoveryEmail(
+      password: password,
+      code: code,
+    );
+    if (res.ok && res.data != null) {
+      _account = res.data;
+      notifyListeners();
+    }
+    return res;
+  }
+
+  Future<AccountApiResult<Map<String, dynamic>>> startSetPasswordSendCode({
+    required String confirmEmail,
+  }) {
+    return accountService.startSetPasswordSendCode(confirmEmail: confirmEmail);
   }
 
   Future<AccountApiResult<AccountSessionData>> confirmSetPassword({
@@ -389,10 +523,18 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshAccountDevices() async {
-    if (!accountService.isLoggedIn || _refreshingDevices) return;
-    _refreshingDevices = true;
-    notifyListeners();
+  Future<void> refreshAccountDevices({bool silent = false}) async {
+    if (!accountService.isLoggedIn) return;
+    if (_devicesFetchInFlight) {
+      _pendingDevicesRefresh = true;
+      return;
+    }
+    _devicesFetchInFlight = true;
+    final showLoader = !silent || _accountDevices.isEmpty;
+    if (showLoader && !_refreshingDevices) {
+      _refreshingDevices = true;
+      notifyListeners();
+    }
     try {
       final res = await accountService.fetchDevices();
       if (res.ok && res.data != null) {
@@ -401,8 +543,13 @@ class AppController extends ChangeNotifier {
             .toList();
       }
     } finally {
+      _devicesFetchInFlight = false;
       _refreshingDevices = false;
       notifyListeners();
+      if (_pendingDevicesRefresh) {
+        _pendingDevicesRefresh = false;
+        unawaited(refreshAccountDevices(silent: true));
+      }
     }
   }
 
@@ -829,7 +976,10 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _ltokenRefreshTimer?.cancel();
+    _foregroundPresenceTimer?.cancel();
     _sigStateSub?.cancel();
+    _sigAccountAuthSub?.cancel();
     _sigDevicesSub?.cancel();
     _sigUnreachableSub?.cancel();
     _sigQuickLaunchSyncSub?.cancel();
