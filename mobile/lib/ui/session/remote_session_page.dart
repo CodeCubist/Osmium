@@ -37,6 +37,7 @@ class _RemoteSessionPageState extends ConsumerState<RemoteSessionPage> {
       signaling: ref.read(signalingClientProvider),
       initialSettings: app.settings,
       solveCaptcha: _solveCaptcha,
+      refreshAuthToken: app.refreshLtokenForRemoteConnect,
       onDesktopWallpaperReceived: (deviceId, bytes) {
         app.saveDeviceWallpaper(deviceId, bytes);
       },
@@ -56,12 +57,23 @@ class _RemoteSessionPageState extends ConsumerState<RemoteSessionPage> {
           : widget.request.accessCode,
       sameAccount: widget.request.sameAccount,
     );
-    // Windows rotates an expired ltoken before sending connect_request.
-    await app.accountService.ensureAuthenticated();
+    String ltoken = app.accountService.currentLtoken;
+    final sess = app.accountService.session;
+    if (app.accountService.isLoggedIn &&
+        (ltoken.isEmpty ||
+            sess == null ||
+            sess.isLtokenExpiringSoon ||
+            !app.signaling.isAccountAuthenticated)) {
+      ltoken = (await app.refreshLtokenForRemoteConnect()) ??
+          app.accountService.currentLtoken;
+    } else {
+      await app.accountService.ensureAuthenticated();
+      ltoken = app.accountService.currentLtoken;
+    }
     if (!mounted) return;
     await _session.connect(
       widget.request,
-      ltoken: app.accountService.currentLtoken,
+      ltoken: ltoken,
     );
   }
 

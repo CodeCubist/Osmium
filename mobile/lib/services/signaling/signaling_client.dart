@@ -261,6 +261,7 @@ class SignalingClient {
       _deviceSecret = deviceSecret.trim();
     }
     if (idChanged && _registered) {
+      _accountAuthenticated = false;
       _pendingFallbackDeviceSecret = DeviceIdentity.generateDeviceSecret();
       _registeredLtoken = _ltoken;
       sendJson({
@@ -336,10 +337,21 @@ class SignalingClient {
   }
 
   void updateAuthToken(String? ltoken) {
-    _ltoken = ltoken ?? '';
+    final next = ltoken ?? '';
+    if (next == _ltoken &&
+        _registered &&
+        (next.isEmpty
+            ? !_accountAuthenticated
+            : (_accountAuthenticated && next == _registeredLtoken))) {
+      return;
+    }
+    _ltoken = next;
     if (_registered) {
-      _registeredLtoken = _ltoken;
-      sendJson({'type': 'auth_update', 'ltoken': _ltoken});
+      if (next.isEmpty) {
+        _accountAuthenticated = false;
+      }
+      _registeredLtoken = next;
+      sendJson({'type': 'auth_update', 'ltoken': next});
     }
   }
 
@@ -522,6 +534,9 @@ class SignalingClient {
         break;
 
       case 'account_devices_sync':
+        if (_ltoken.isNotEmpty && !_accountAuthenticated) {
+          _accountAuthenticated = true;
+        }
         final rawDevices = root['devices'];
         if (rawDevices is List) {
           final list = rawDevices

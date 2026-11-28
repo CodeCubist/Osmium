@@ -126,6 +126,7 @@ class AccountSessionData {
     bool? hasEmail,
     bool? hasPassword,
     bool? twoFaEnabled,
+    String? assignedDeviceId,
   }) {
     return AccountSessionData(
       userId: userId ?? this.userId,
@@ -143,6 +144,7 @@ class AccountSessionData {
       hasEmail: hasEmail ?? this.hasEmail,
       hasPassword: hasPassword ?? this.hasPassword,
       twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
+      assignedDeviceId: assignedDeviceId ?? this.assignedDeviceId,
     );
   }
 
@@ -162,6 +164,8 @@ class AccountSessionData {
     'has_email': hasEmail,
     'has_password': hasPassword,
     'two_fa_enabled': twoFaEnabled,
+    if (assignedDeviceId != null && assignedDeviceId!.isNotEmpty)
+      'device_id': assignedDeviceId,
   };
 
   factory AccountSessionData.fromStoredJson(Map<String, dynamic> json) {

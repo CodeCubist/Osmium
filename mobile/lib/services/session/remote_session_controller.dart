@@ -171,6 +171,7 @@ class RemoteSessionController extends ChangeNotifier {
     required this.signaling,
     required OsmiumSettings initialSettings,
     this.solveCaptcha,
+    this.refreshAuthToken,
     this.onDesktopWallpaperReceived,
     OsmiumEngine Function()? isolateEngineFactory,
     TransportOpRunner? transportOpRunner,
@@ -185,6 +186,7 @@ class RemoteSessionController extends ChangeNotifier {
   final SignalingClient signaling;
 
   final ConnectCaptchaSolver? solveCaptcha;
+  final Future<String?> Function()? refreshAuthToken;
   final void Function(String deviceId, Uint8List wallpaperBytes)?
   onDesktopWallpaperReceived;
   final OsmiumEngine Function() _isolateEngineFactory;
@@ -345,12 +347,13 @@ class RemoteSessionController extends ChangeNotifier {
   }
 
   Future<void> connect(SessionConnectRequest req, {required String ltoken}) =>
-      _connect(req, ltoken: ltoken, captchaRetried: false);
+      _connect(req, ltoken: ltoken, captchaRetried: false, authRetried: false);
 
   Future<void> _connect(
     SessionConnectRequest req, {
     required String ltoken,
     required bool captchaRetried,
+    bool authRetried = false,
   }) async {
     if (_phase != SessionPhase.idle ||
         _transportHandle != null ||
@@ -401,6 +404,10 @@ class RemoteSessionController extends ChangeNotifier {
     }
 
     if (ltoken.trim().isEmpty) {
+      if (!authRetried && refreshAuthToken != null) {
+        await _retryAfterAuthRefresh(req, captchaRetried, epoch);
+        return;
+      }
       _fail(_accountRequiredText);
       return;
     }
@@ -473,14 +480,14 @@ class RemoteSessionController extends ChangeNotifier {
       }),
     ];
 
-    // Set when the server asks for a captcha before forwarding the request;
-    // Windows solves it and resends connect_request exactly once.
     AccountChallengeInfo? captchaToSolve;
+    bool authRetryNeeded = false;
 
     Future<T?> awaitOrReject<T>(
       Future<T> target,
       Duration timeout, {
       bool allowCaptchaRetry = false,
+      bool allowAuthRetry = false,
     }) async {
       final result = await Future.any<Object?>([
         target,
@@ -489,13 +496,20 @@ class RemoteSessionController extends ChangeNotifier {
       ]);
       if (aborted()) return null;
       if (result is ConnectRejectEvent) {
+        final numericCode = int.tryParse(result.code.trim());
+        if (allowAuthRetry &&
+            !authRetried &&
+            refreshAuthToken != null &&
+            numericCode == OsmiumErrorCode.accountAuthRequired) {
+          authRetryNeeded = true;
+          return null;
+        }
         final challenge = result.challenge;
         if (allowCaptchaRetry &&
             !captchaRetried &&
             challenge != null &&
             solveCaptcha != null &&
-            int.tryParse(result.code.trim()) ==
-                OsmiumErrorCode.captchaRequired) {
+            numericCode == OsmiumErrorCode.captchaRequired) {
           captchaToSolve = challenge;
           return null;
         }
@@ -536,16 +550,20 @@ class RemoteSessionController extends ChangeNotifier {
         viewOnly: req.viewOnly,
       );
 
-      // Step 3: Await connect_challenge (Windows uses a 20s budget)
       final challenge = await awaitOrReject(
         challengeComp.future,
         const Duration(seconds: 20),
         allowCaptchaRetry: true,
+        allowAuthRetry: true,
       );
       if (aborted()) return;
+      if (authRetryNeeded) {
+        await _retryAfterAuthRefresh(req, captchaRetried, epoch);
+        return;
+      }
       final captcha = captchaToSolve;
       if (captcha != null) {
-        await _retryAfterCaptcha(req, ltoken, captcha, epoch);
+        await _retryAfterCaptcha(req, ltoken, captcha, authRetried, epoch);
         return;
       }
       if (challenge == null) return;
@@ -928,10 +946,31 @@ class RemoteSessionController extends ChangeNotifier {
     }
   }
 
+  Future<void> _retryAfterAuthRefresh(
+    SessionConnectRequest req,
+    bool captchaRetried,
+    int epoch,
+  ) async {
+    _setPhase(SessionPhase.requesting, '正在刷新登录状态');
+    final freshLtoken = await refreshAuthToken!();
+    if (_isStale(epoch)) return;
+    if (freshLtoken == null || freshLtoken.trim().isEmpty) {
+      _fail(_accountRequiredText);
+      return;
+    }
+    await _connect(
+      req,
+      ltoken: freshLtoken,
+      captchaRetried: captchaRetried,
+      authRetried: true,
+    );
+  }
+
   Future<void> _retryAfterCaptcha(
     SessionConnectRequest req,
     String ltoken,
     AccountChallengeInfo challenge,
+    bool authRetried,
     int epoch,
   ) async {
     _setPhase(SessionPhase.requesting, _captchaRequiredText);
@@ -941,7 +980,12 @@ class RemoteSessionController extends ChangeNotifier {
       _fail('已取消安全人机验证');
       return;
     }
-    await _connect(req, ltoken: ltoken, captchaRetried: true);
+    await _connect(
+      req,
+      ltoken: ltoken,
+      captchaRetried: true,
+      authRetried: authRetried,
+    );
   }
 
   Uri _buildRelayUri({

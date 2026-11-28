@@ -35,6 +35,7 @@ class AccountService {
   late final Dio _dio;
 
   AccountSessionData? _session;
+  Future<AccountApiResult<AccountSessionData>>? _rotateInFlight;
   AccountSessionData? get session => _session;
   bool get isLoggedIn => _session != null && _session!.isStokenValid;
   String get currentLtoken =>
@@ -656,7 +657,20 @@ class AccountService {
     }
   }
 
-  Future<AccountApiResult<AccountSessionData>> rotateLtoken() async {
+  Future<AccountApiResult<AccountSessionData>> rotateLtoken() {
+    final existing = _rotateInFlight;
+    if (existing != null) return existing;
+    final future = _rotateLtokenCore();
+    _rotateInFlight = future;
+    future.whenComplete(() {
+      if (identical(_rotateInFlight, future)) {
+        _rotateInFlight = null;
+      }
+    });
+    return future;
+  }
+
+  Future<AccountApiResult<AccountSessionData>> _rotateLtokenCore() async {
     final cur = _session;
     if (cur == null || !cur.isStokenValid) {
       await clearSession();
@@ -674,7 +688,9 @@ class AccountService {
       );
       final status = resp.statusCode ?? 0;
       if (status == 403) {
-        await clearSession();
+        if (_session?.stoken == cur.stoken) {
+          await clearSession();
+        }
         return const AccountApiResult(
           ok: false,
           httpStatusCode: 403,
@@ -686,28 +702,37 @@ class AccountService {
         final d = parsed.data!;
         final ltok = (d['ltoken'] ?? '').toString();
         if (ltok.isNotEmpty) {
+          final latest = _session;
+          if (latest == null || latest.stoken != cur.stoken) {
+            return const AccountApiResult(
+              ok: false,
+              httpStatusCode: 401,
+              message: '未登录',
+            );
+          }
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           final exp = (d['expires_in'] as num?)?.toInt() ?? 0;
           final hasAvatarKey = d.containsKey('avatar_data');
           final rawAvatar = d['avatar_data'] as String?;
           final trimmedAvatar = rawAvatar?.trim();
+          final serverDeviceId = (d['device_id'] as String?)?.trim();
           final nextHasEmail = d.containsKey('has_email')
               ? d['has_email'] == true
-              : cur.hasEmail;
+              : latest.hasEmail;
           final nextHasRecovery = d.containsKey('has_recovery_email')
               ? d['has_recovery_email'] == true
-              : cur.hasRecoveryEmail;
+              : latest.hasRecoveryEmail;
           final nextHasPassword = d.containsKey('has_password')
               ? d['has_password'] == true
-              : cur.hasPassword;
-          final updated = cur.copyWith(
-            userId: (d['user_id'] ?? cur.userId).toString(),
-            email: nextHasEmail ? (d['email'] ?? cur.email).toString() : '',
+              : latest.hasPassword;
+          final updated = latest.copyWith(
+            userId: (d['user_id'] ?? latest.userId).toString(),
+            email: nextHasEmail ? (d['email'] ?? latest.email).toString() : '',
             recoveryEmail: nextHasRecovery
-                ? (d['recovery_email'] ?? cur.recoveryEmail).toString()
+                ? (d['recovery_email'] ?? latest.recoveryEmail).toString()
                 : '',
             hasRecoveryEmail: nextHasRecovery,
-            username: (d['username'] ?? cur.username).toString(),
+            username: (d['username'] ?? latest.username).toString(),
             avatarData:
                 (hasAvatarKey && trimmedAvatar != null && trimmedAvatar.isNotEmpty)
                     ? trimmedAvatar
@@ -716,11 +741,18 @@ class AccountService {
                 hasAvatarKey && (trimmedAvatar == null || trimmedAvatar.isEmpty),
             ltoken: ltok,
             ltokenExpiresAtUnix: exp > 0 ? now + exp : 0,
-            accountStatus: (d['account_status'] ?? cur.accountStatus)
+            accountStatus: (d['account_status'] ?? latest.accountStatus)
                 .toString(),
             locked: d['locked'] == true,
             hasEmail: nextHasEmail,
             hasPassword: nextHasPassword,
+            twoFaEnabled: d.containsKey('two_fa_enabled')
+                ? d['two_fa_enabled'] == true
+                : latest.twoFaEnabled,
+            assignedDeviceId:
+                (serverDeviceId != null && serverDeviceId.isNotEmpty)
+                    ? serverDeviceId
+                    : latest.assignedDeviceId,
           );
           await _setSession(updated);
           return AccountApiResult(ok: true, httpStatusCode: 200, data: updated);
@@ -736,8 +768,8 @@ class AccountService {
     }
   }
 
-  Future<bool> ensureAuthenticated() async {
-    if (_session != null && _session!.isLtokenValid) return true;
+  Future<bool> ensureAuthenticated({bool forceRotate = false}) async {
+    if (!forceRotate && _session != null && _session!.isLtokenValid) return true;
     if (!isLoggedIn) return false;
     final res = await rotateLtoken();
     return res.ok && currentLtoken.isNotEmpty;
@@ -1007,29 +1039,37 @@ class AccountService {
       final resp = await _sendAuthed('GET', '/api/account/status');
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok && parsed.data != null) {
+        final latest = _session;
+        if (latest == null || latest.userId != cur.userId) {
+          return const AccountApiResult(
+            ok: false,
+            httpStatusCode: 401,
+            message: '未登录',
+          );
+        }
         final d = parsed.data!;
         final hasAvatarKey = d.containsKey('avatar_data');
         final rawAvatar = d['avatar_data'] as String?;
         final trimmedAvatar = rawAvatar?.trim();
-        final status = (d['account_status'] ?? cur.accountStatus).toString();
+        final status = (d['account_status'] ?? latest.accountStatus).toString();
         final locked = d['locked'] == true || status.toLowerCase() == 'locked';
         final nextHasEmail = d.containsKey('has_email')
             ? d['has_email'] == true
-            : cur.hasEmail;
+            : latest.hasEmail;
         final nextHasRecovery = d.containsKey('has_recovery_email')
             ? d['has_recovery_email'] == true
-            : cur.hasRecoveryEmail;
+            : latest.hasRecoveryEmail;
         final nextHasPassword = d.containsKey('has_password')
             ? d['has_password'] == true
-            : cur.hasPassword;
-        final updated = cur.copyWith(
-          userId: (d['user_id'] ?? cur.userId).toString(),
-          email: nextHasEmail ? (d['email'] ?? cur.email).toString() : '',
+            : latest.hasPassword;
+        final updated = latest.copyWith(
+          userId: (d['user_id'] ?? latest.userId).toString(),
+          email: nextHasEmail ? (d['email'] ?? latest.email).toString() : '',
           recoveryEmail: nextHasRecovery
-              ? (d['recovery_email'] ?? cur.recoveryEmail).toString()
+              ? (d['recovery_email'] ?? latest.recoveryEmail).toString()
               : '',
           hasRecoveryEmail: nextHasRecovery,
-          username: (d['username'] ?? cur.username).toString(),
+          username: (d['username'] ?? latest.username).toString(),
           avatarData:
               (hasAvatarKey && trimmedAvatar != null && trimmedAvatar.isNotEmpty)
                   ? trimmedAvatar
@@ -1042,7 +1082,7 @@ class AccountService {
           hasPassword: nextHasPassword,
           twoFaEnabled: d.containsKey('two_fa_enabled')
               ? d['two_fa_enabled'] == true
-              : cur.twoFaEnabled,
+              : latest.twoFaEnabled,
         );
         await _setSession(updated);
         return AccountApiResult(
@@ -1099,8 +1139,16 @@ class AccountService {
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok) {
+        final latest = _session;
+        if (latest == null || latest.userId != cur.userId) {
+          return const AccountApiResult(
+            ok: false,
+            httpStatusCode: 401,
+            message: '未登录',
+          );
+        }
         final d = parsed.data ?? const <String, dynamic>{};
-        final nextUsername = (d['username'] ?? username ?? cur.username)
+        final nextUsername = (d['username'] ?? username ?? latest.username)
             .toString()
             .trim();
         final hasAvatarInResp = d.containsKey('avatar_data');
@@ -1111,9 +1159,9 @@ class AccountService {
             ? null
             : (hasAvatarInResp
                 ? respAvatar
-                : (avatarData ?? cur.avatarData));
-        final updated = cur.copyWith(
-          username: nextUsername.isNotEmpty ? nextUsername : cur.username,
+                : (avatarData ?? latest.avatarData));
+        final updated = latest.copyWith(
+          username: nextUsername.isNotEmpty ? nextUsername : latest.username,
           avatarData: nextAvatar,
           clearAvatar: shouldClear,
         );
@@ -1425,14 +1473,22 @@ class AccountService {
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok) {
+        final latest = _session;
+        if (latest == null || latest.userId != cur.userId) {
+          return const AccountApiResult(
+            ok: false,
+            httpStatusCode: 401,
+            message: '未登录',
+          );
+        }
         final d = parsed.data ?? const <String, dynamic>{};
         final updatedEmail = (d['email'] ?? '').toString().trim();
-        final updated = cur.copyWith(
-          email: updatedEmail.isNotEmpty ? updatedEmail : cur.email,
+        final updated = latest.copyWith(
+          email: updatedEmail.isNotEmpty ? updatedEmail : latest.email,
           hasEmail: d.containsKey('has_email') ? d['has_email'] == true : true,
           hasPassword: d.containsKey('has_password')
               ? d['has_password'] == true
-              : cur.hasPassword,
+              : latest.hasPassword,
         );
         await _setSession(updated);
         return AccountApiResult(
@@ -1534,8 +1590,16 @@ class AccountService {
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok) {
+        final latest = _session;
+        if (latest == null || latest.userId != cur.userId) {
+          return const AccountApiResult(
+            ok: false,
+            httpStatusCode: 401,
+            message: '未登录',
+          );
+        }
         final d = parsed.data ?? const <String, dynamic>{};
-        final updated = cur.copyWith(
+        final updated = latest.copyWith(
           recoveryEmail: (d['recovery_email'] ?? '').toString().trim(),
           hasRecoveryEmail: d['has_recovery_email'] == true,
         );
@@ -1635,7 +1699,15 @@ class AccountService {
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok) {
-        final updated = cur.copyWith(
+        final latest = _session;
+        if (latest == null || latest.userId != cur.userId) {
+          return const AccountApiResult(
+            ok: false,
+            httpStatusCode: 401,
+            message: '未登录',
+          );
+        }
+        final updated = latest.copyWith(
           recoveryEmail: '',
           hasRecoveryEmail: false,
         );
@@ -1731,8 +1803,16 @@ class AccountService {
       );
       final parsed = _parseEnvelope<Map<String, dynamic>>(resp, (m) => m);
       if (parsed.ok) {
+        final latest = _session;
+        if (latest == null || latest.userId != cur.userId) {
+          return const AccountApiResult(
+            ok: false,
+            httpStatusCode: 401,
+            message: '未登录',
+          );
+        }
         final d = parsed.data ?? const <String, dynamic>{};
-        final updated = cur.copyWith(
+        final updated = latest.copyWith(
           hasEmail: d.containsKey('has_email') ? d['has_email'] == true : true,
           hasPassword: d.containsKey('has_password')
               ? d['has_password'] == true

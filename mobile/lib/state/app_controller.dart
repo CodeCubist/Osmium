@@ -114,6 +114,7 @@ class AppController extends ChangeNotifier {
   bool _appInForeground = true;
   int _activeTabIndex = 0;
   bool _rotatingWsAuth = false;
+  DateTime _lastWsAuthRotateAt = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _ltokenRefreshTimer;
   Timer? _foregroundPresenceTimer;
 
@@ -166,7 +167,10 @@ class AppController extends ChangeNotifier {
 
     _sigAccountAuthSub = signaling.accountAuthStatusStream.listen((authed) {
       if (!authed && accountService.isLoggedIn && !_rotatingWsAuth) {
-        unawaited(_ensureFreshLtokenForSignaling());
+        final elapsed = DateTime.now().difference(_lastWsAuthRotateAt).inSeconds;
+        if (elapsed >= 15) {
+          unawaited(_ensureFreshLtokenForSignaling());
+        }
       } else if (authed && accountService.isLoggedIn) {
         unawaited(refreshAccountDevices(silent: true));
       }
@@ -198,6 +202,7 @@ class AppController extends ChangeNotifier {
 
     _acctSub = accountService.sessionStream.listen((session) {
       final prevUserId = _account?.userId;
+      final prevLtoken = _account?.ltoken;
       _account = session;
       if (session != null && session.assignedDeviceId != null) {
         final normAssigned = DeviceIdentity.normalizeDeviceId(
@@ -209,11 +214,18 @@ class AppController extends ChangeNotifier {
           unawaited(_adoptAssignedDeviceIdentity(normAssigned, null));
         }
       }
-      signaling.updateAuthToken(accountService.currentLtoken);
+      final nextToken = accountService.currentLtoken;
+      if (session == null ||
+          nextToken != prevLtoken ||
+          !signaling.isAccountAuthenticated) {
+        signaling.updateAuthToken(nextToken);
+      }
       if (session != null) {
-        refreshAccountDevices();
-        unawaited(refreshQuickLaunchApps());
-        if (_oauthBindings == null || prevUserId != session.userId) {
+        if (prevUserId != session.userId) {
+          refreshAccountDevices();
+          unawaited(refreshQuickLaunchApps());
+          unawaited(refreshOAuthBindings());
+        } else if (_oauthBindings == null) {
           unawaited(refreshOAuthBindings());
         }
       } else {
@@ -265,15 +277,54 @@ class AppController extends ChangeNotifier {
   Future<void> _ensureFreshLtokenForSignaling() async {
     if (_rotatingWsAuth || !accountService.isLoggedIn) return;
     _rotatingWsAuth = true;
+    _lastWsAuthRotateAt = DateTime.now();
     try {
       final res = await accountService.rotateLtoken();
       if (res.ok && accountService.currentLtoken.isNotEmpty) {
+        final assigned = res.data?.assignedDeviceId;
+        if (assigned != null && assigned.isNotEmpty) {
+          final normAssigned = DeviceIdentity.normalizeDeviceId(assigned);
+          if (normAssigned.length >= 6 &&
+              normAssigned.length <= 12 &&
+              normAssigned != _identity.deviceId) {
+            await _adoptAssignedDeviceIdentity(normAssigned, null);
+          }
+        }
         signaling.updateAuthToken(accountService.currentLtoken);
         unawaited(refreshAccountDevices(silent: true));
       }
     } finally {
       _rotatingWsAuth = false;
     }
+  }
+
+  Future<String?> refreshLtokenForRemoteConnect() async {
+    if (!accountService.isLoggedIn) return null;
+    _lastWsAuthRotateAt = DateTime.now();
+    final res = await accountService.rotateLtoken();
+    if (!res.ok || accountService.currentLtoken.isEmpty) {
+      return null;
+    }
+    final assigned = res.data?.assignedDeviceId;
+    if (assigned != null && assigned.isNotEmpty) {
+      final normAssigned = DeviceIdentity.normalizeDeviceId(assigned);
+      if (normAssigned.length >= 6 &&
+          normAssigned.length <= 12 &&
+          normAssigned != _identity.deviceId) {
+        await _adoptAssignedDeviceIdentity(normAssigned, null);
+      }
+    }
+    final token = accountService.currentLtoken;
+    signaling.updateAuthToken(token);
+    if (signaling.state == SignalingConnectionState.connected &&
+        !signaling.isAccountAuthenticated) {
+      try {
+        await signaling.accountAuthStatusStream
+            .firstWhere((ok) => ok)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
+    return token;
   }
 
   void setAppLifecycleState(bool inForeground) {
