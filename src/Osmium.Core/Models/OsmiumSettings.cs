@@ -104,6 +104,8 @@ public sealed class OsmiumSettings
 
     [JsonIgnore] public string SignalingServerUrl => FixedSignalingServerUrl;
 
+    public string? LastAnnouncedUpdateVersion { get; set; }
+
     public int StunPortOverride
     {
         get;

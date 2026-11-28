@@ -99,9 +99,11 @@ public partial class App : Application
         Engine.Coordinator.SolveRemoteCaptchaAsync = SolveRemoteCaptchaOnUiAsync;
         Engine.Coordinator.RemoteSessionStateChanged += OnRemoteSessionStateChanged;
         _ = Engine.AccountService.InitializeOnStartupAsync();
+        MainWindowInstance.Activated += (_, _) => TryShowUpdateAnnouncement();
         MainWindowInstance.Closed += (_, _) =>
         {
             Engine.Coordinator.RemoteSessionStateChanged -= OnRemoteSessionStateChanged;
+            StopUpdateAnnouncements();
             try
             {
                 _activeRemoteWindow?.Close();
@@ -122,6 +124,8 @@ public partial class App : Application
         {
             MainWindowInstance.Activate();
         }
+
+        _ = CheckForUpdateAsync();
     }
 
     public LanguageRestartAction RequestLanguageRestart(string targetLanguage)
@@ -149,6 +153,7 @@ public partial class App : Application
     private void OnRemoteSessionStateChanged()
     {
         TryExecutePendingRestartIfIdle();
+        OnUpdateSessionStateChanged();
     }
 
     private void TryExecutePendingRestartIfIdle()
@@ -388,6 +393,7 @@ public partial class App : Application
 
                     tcs.TrySetResult(null);
                     TryExecutePendingRestartIfIdle();
+                    TryShowUpdateAnnouncement();
                 };
                 win.Activate();
             }
@@ -402,6 +408,9 @@ public partial class App : Application
 
     private void OnAppUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
-        Engine?.Logging.Error($"Unhandled UI exception: {e.Exception}");
+        e.Handled = true;
+        Program.ReportFatalError("WinUI.UnhandledException", e.Exception, showDialog: true,
+            startup: MainWindowInstance == null);
+        Environment.Exit(-1);
     }
 }

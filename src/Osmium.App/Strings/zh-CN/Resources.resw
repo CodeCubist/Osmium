@@ -343,6 +343,14 @@
   <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium启动错误</value></data>
   <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium启动失败 - {0}</value></data>
   <data name="Startup_CrashLogSavedFmt" xml:space="preserve"><value>崩溃日志已保存至：</value></data>
+  <data name="Crash_ErrorCaption" xml:space="preserve"><value>Osmium 运行错误</value></data>
+  <data name="Crash_ErrorTitleFmt" xml:space="preserve"><value>Osmium 遇到错误（{0}）</value></data>
+  <data name="Update_WindowTitle" xml:space="preserve"><value>更新公告</value></data>
+  <data name="Update_TitleFmt" xml:space="preserve"><value>Osmium {0} 已发布</value></data>
+  <data name="Update_NoNotes" xml:space="preserve"><value>有新版本可用。</value></data>
+  <data name="Update_DownloadInstaller" xml:space="preserve"><value>下载安装版</value></data>
+  <data name="Update_DownloadPortable" xml:space="preserve"><value>下载便携版</value></data>
+  <data name="Update_Close" xml:space="preserve"><value>关闭</value></data>
   <data name="Session_DefaultHostTitle" xml:space="preserve"><value>远程设备</value></data>
   <data name="Session_WaitingVideo" xml:space="preserve"><value>正在建立远程桌面画面...</value></data>
   <data name="Session_PipelineInitFailed" xml:space="preserve"><value>无法初始化WinUI 3 D3D11视频渲染管线</value></data>

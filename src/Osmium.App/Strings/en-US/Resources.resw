@@ -343,6 +343,14 @@
   <data name="Startup_ErrorCaption" xml:space="preserve"><value>Osmium Startup Error</value></data>
   <data name="Startup_ErrorTitleFmt" xml:space="preserve"><value>Osmium failed to start - {0}</value></data>
   <data name="Startup_CrashLogSavedFmt" xml:space="preserve"><value>Crash log saved to:</value></data>
+  <data name="Crash_ErrorCaption" xml:space="preserve"><value>Osmium Error</value></data>
+  <data name="Crash_ErrorTitleFmt" xml:space="preserve"><value>Osmium encountered an error ({0})</value></data>
+  <data name="Update_WindowTitle" xml:space="preserve"><value>What's new</value></data>
+  <data name="Update_TitleFmt" xml:space="preserve"><value>Osmium {0} is available</value></data>
+  <data name="Update_NoNotes" xml:space="preserve"><value>A new version is available.</value></data>
+  <data name="Update_DownloadInstaller" xml:space="preserve"><value>Download installer</value></data>
+  <data name="Update_DownloadPortable" xml:space="preserve"><value>Download portable ZIP</value></data>
+  <data name="Update_Close" xml:space="preserve"><value>Close</value></data>
   <data name="Session_DefaultHostTitle" xml:space="preserve"><value>Remote Device</value></data>
   <data name="Session_WaitingVideo" xml:space="preserve"><value>Starting remote desktop stream...</value></data>
   <data name="Session_PipelineInitFailed" xml:space="preserve"><value>Failed to initialize WinUI 3 D3D11 video pipeline</value></data>

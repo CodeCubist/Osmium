@@ -108,6 +108,11 @@ class PlatformBridge {
     }
   }
 
+  Future<int?> getAppVersionCode() async {
+    if (!Platform.isAndroid) return null;
+    return _methodChannel.invokeMethod<int>('getAppVersionCode');
+  }
+
   Stream<NativeInputEvent> get events {
     if (!Platform.isAndroid) {
       return const Stream.empty();

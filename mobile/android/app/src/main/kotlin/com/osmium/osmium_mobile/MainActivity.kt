@@ -15,6 +15,7 @@ import android.util.Base64
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -97,6 +98,11 @@ class MainActivity : FlutterActivity() {
             "com.osmium.mobile/native"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                "getAppVersionCode" -> {
+                    @Suppress("DEPRECATION")
+                    val info = packageManager.getPackageInfo(packageName, 0)
+                    result.success(PackageInfoCompat.getLongVersionCode(info))
+                }
                 "getInitialDeepLink" -> {
                     val link = initialDeepLink
                     initialDeepLink = null

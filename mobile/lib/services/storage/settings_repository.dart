@@ -12,11 +12,22 @@ class SettingsRepository {
   static const _kDeviceName = 'osmium_device_name';
   static const _kSettings = 'osmium_settings_v1';
   static const _kHistory = 'osmium_conn_history_v1';
+  static const _kLastAnnouncedUpdate = 'osmium_last_announced_update';
 
   SharedPreferences? _prefs;
 
   Future<SharedPreferences> _ensurePrefs() async {
     return _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  Future<int?> loadLastAnnouncedUpdate() async {
+    final prefs = await _ensurePrefs();
+    return prefs.getInt(_kLastAnnouncedUpdate);
+  }
+
+  Future<void> saveLastAnnouncedUpdate(int versionCode) async {
+    final prefs = await _ensurePrefs();
+    await prefs.setInt(_kLastAnnouncedUpdate, versionCode);
   }
 
   Future<DeviceIdentity> loadOrCreateIdentity() async {
